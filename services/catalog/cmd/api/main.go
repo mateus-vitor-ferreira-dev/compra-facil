@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/api/openapi"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/grpcserver"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/handler"
@@ -100,16 +101,20 @@ func run() error {
 	categories := repository.NewCategoryRepository(db)
 	campaigns := repository.NewCampaignRepository(db)
 	productSvc := service.NewProductService(products, categories, time.Now)
-	catalogAPI := handler.NewCatalogHandler(
-		productSvc,
-		service.NewCategoryService(categories),
-		service.NewCampaignService(campaigns, time.Now),
-		log,
-	)
+	categorySvc := service.NewCategoryService(categories)
+	campaignSvc := service.NewCampaignService(campaigns, time.Now)
+	catalogAPI := handler.NewCatalogHandler(productSvc, categorySvc, campaignSvc, log)
+
+	verifier, err := auth.NewVerifier(cfg.Auth.Options())
+	if err != nil {
+		return fmt.Errorf("auth: %w", err)
+	}
+	adminAPI := handler.NewAdminHandler(productSvc, categorySvc, campaignSvc,
+		handler.RequireRole(verifier, auth.RoleAdmin, log), log)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr(),
-		Handler:           handler.NewRouter(log, health, catalogAPI, handler.NewDocs(openapi.Files)),
+		Handler:           handler.NewRouter(log, health, catalogAPI, adminAPI, handler.NewDocs(openapi.Files)),
 		ReadTimeout:       cfg.HTTP.ReadTimeout,
 		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
 		WriteTimeout:      cfg.HTTP.WriteTimeout,

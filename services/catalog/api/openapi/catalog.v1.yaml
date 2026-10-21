@@ -186,6 +186,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminProduct"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -229,6 +231,8 @@ paths:
                       $ref: "#/components/schemas/AdminProduct"
                   page:
                     $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -290,6 +294,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminProduct"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -300,6 +306,8 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/Conflict"
         "412":
           $ref: "./common/v1/common.yaml#/components/responses/PreconditionFailed"
+        "428":
+          $ref: "./common/v1/common.yaml#/components/responses/PreconditionRequired"
         "422":
           $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
@@ -346,6 +354,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -382,6 +392,8 @@ paths:
                       $ref: "#/components/schemas/Campaign"
                   page:
                     $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -410,6 +422,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Campaign"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -444,6 +458,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Campaign"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -502,6 +518,8 @@ paths:
       responses:
         "204":
           description: Lista substituída.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":

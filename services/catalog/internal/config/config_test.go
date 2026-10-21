@@ -24,6 +24,8 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, ":9001", cfg.GRPC.Addr())
 	assert.True(t, cfg.GRPC.Reflection)
 	assert.Equal(t, 30*time.Minute, cfg.DB.ConnMaxLifetime)
+	assert.Equal(t, DevJWTSecret, cfg.Auth.JWTSecret)
+	assert.Equal(t, "catalog", cfg.Auth.Audience)
 }
 
 func TestLoad_FileAndEnvPrecedence(t *testing.T) {
@@ -42,9 +44,11 @@ func TestLoad_FileAndEnvPrecedence(t *testing.T) {
 
 func TestLoad_Invalid(t *testing.T) {
 	tests := map[string]map[string]string{
-		"porta fora do intervalo": {"CATALOG_HTTP_PORT": "70000"},
-		"nível de log":            {"CATALOG_LOG_LEVEL": "verbose"},
-		"grpc na porta do http":   {"CATALOG_GRPC_PORT": "8001"},
+		"porta fora do intervalo":      {"CATALOG_HTTP_PORT": "70000"},
+		"nível de log":                 {"CATALOG_LOG_LEVEL": "verbose"},
+		"grpc na porta do http":        {"CATALOG_GRPC_PORT": "8001"},
+		"segredo jwt curto":            {"CATALOG_AUTH_JWT_SECRET": "curto"},
+		"segredo de dev fora do local": {"CATALOG_APP_ENV": "production"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {
