@@ -23,14 +23,47 @@ import (
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/migrations"
 )
 
+// version é preenchida no build da imagem (-ldflags "-X main.version=...").
+var version = "dev"
+
 // drainDelay dá tempo ao gateway de ver o /ready em 503 antes de pararmos de aceitar conexões.
 const drainDelay = 2 * time.Second
 
 func main() {
+	// "api healthcheck": usado pelo HEALTHCHECK do container (a imagem distroless não tem curl)
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheck())
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "catalog:", err)
 		os.Exit(1)
 	}
+}
+
+// healthcheck consulta o /ready local e devolve 0 se o serviço está pronto.
+func healthcheck() int {
+	cfg, err := config.Load("./config", ".")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "healthcheck:", err)
+		return 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/ready", cfg.HTTP.Port), nil)
+	if err != nil {
+		return 1
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "healthcheck:", err)
+		return 1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintln(os.Stderr, "healthcheck: /ready respondeu", resp.StatusCode)
+		return 1
+	}
+	return 0
 }
 
 func run() error {
@@ -38,7 +71,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
-	log := telemetry.NewLogger(os.Stdout, cfg.Log.Level, cfg.App.Name, cfg.App.Env)
+	log := telemetry.NewLogger(os.Stdout, cfg.Log.Level, cfg.App.Name, cfg.App.Env).With("version", version)
 	slog.SetDefault(log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
