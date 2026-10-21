@@ -1,0 +1,13 @@
+# Defaults locais. Qualquer chave pode ser sobrescrita por env: http.port -> CATALOG_HTTP_PORT.
+app:
+  name: catalog
+  env: local
+
+http:
+  port: 8001
+  read_timeout: 5s
+  write_timeout: 10s
+  shutdown_timeout: 15s
+
+log:
+  level: info
