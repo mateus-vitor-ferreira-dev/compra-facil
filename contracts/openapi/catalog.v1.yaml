@@ -1,0 +1,755 @@
+openapi: 3.1.0
+info:
+  title: CompraFácil — Catalog API
+  version: 1.0.0
+  summary: Produtos, categorias e campanhas promocionais.
+  description: |
+    API do serviço **catalog** (time de Catálogo e campanhas, Go + Gin).
+
+    - Leitura pública e cacheada (Redis): é ela que recebe o pico das campanhas.
+    - Escrita só em `/v1/admin/*`, com JWT de role `admin`. Toda alteração de produto publica um
+      evento `catalog.product.v1` (ver `contracts/asyncapi`).
+    - O preço promocional é calculado aqui: `effective_price` já considera a campanha ativa.
+    - Pelo gateway, os caminhos ganham o prefixo `/catalog` (ex.: `/catalog/v1/products`).
+  contact:
+    name: Time de Catálogo e campanhas
+servers:
+  - url: http://localhost:8001
+    description: Serviço direto (dev)
+  - url: http://localhost/catalog
+    description: Via gateway Traefik
+tags:
+  - name: products
+    description: Consulta pública de produtos.
+  - name: categories
+    description: Árvore de categorias.
+  - name: campaigns
+    description: Campanhas promocionais vigentes.
+  - name: admin
+    description: Gestão do catálogo (role `admin`).
+
+paths:
+  /v1/products:
+    get:
+      tags: [products]
+      operationId: listProducts
+      summary: Lista e busca produtos
+      description: |
+        Sem `q`, ordena do mais novo para o mais antigo. Com `q`, faz busca por texto (nome, descrição
+        e SKU, tolerante a erro de digitação) e ordena por relevância. Retorna só produtos `active`.
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Cursor"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Limit"
+        - name: q
+          in: query
+          description: Texto de busca.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: category
+          in: query
+          description: Slug da categoria; inclui as subcategorias.
+          schema:
+            type: string
+        - name: min_price_cents
+          in: query
+          description: Filtra pelo preço efetivo (já com desconto), em centavos.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: max_price_cents
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: on_sale
+          in: query
+          description: Só produtos em campanha ativa.
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Página de produtos.
+          headers:
+            X-Request-ID:
+              $ref: "./common/v1/common.yaml#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/products/{product_id}:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [products]
+      operationId: getProduct
+      summary: Detalhe de um produto
+      description: Retorna 404 para produtos inexistentes, removidos ou não ativos.
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+      responses:
+        "200":
+          description: Produto.
+          headers:
+            ETag:
+              $ref: "./common/v1/common.yaml#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/categories:
+    get:
+      tags: [categories]
+      operationId: listCategories
+      summary: Lista as categorias
+      description: Lista plana; monte a árvore por `parent_id`.
+      responses:
+        "200":
+          description: Categorias.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/campaigns:
+    get:
+      tags: [campaigns]
+      operationId: listActiveCampaigns
+      summary: Campanhas vigentes
+      description: Campanhas com `starts_at <= agora < ends_at`.
+      responses:
+        "200":
+          description: Campanhas ativas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Campaign"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/products:
+    post:
+      tags: [admin]
+      operationId: createProduct
+      summary: Cria um produto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Criado. Publica `catalog.product.v1` / `created`.
+          headers:
+            Location:
+              $ref: "./common/v1/common.yaml#/components/headers/Location"
+            ETag:
+              $ref: "./common/v1/common.yaml#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    get:
+      tags: [admin]
+      operationId: adminListProducts
+      summary: Lista produtos em qualquer status
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/Cursor"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ProductStatus"
+        - name: sku
+          in: query
+          description: Busca exata por SKU.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Página de produtos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminProduct"
+                  page:
+                    $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/products/{product_id}:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [admin]
+      operationId: adminGetProduct
+      summary: Detalhe de um produto em qualquer status
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Produto.
+          headers:
+            ETag:
+              $ref: "./common/v1/common.yaml#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    put:
+      tags: [admin]
+      operationId: updateProduct
+      summary: Substitui os dados de um produto
+      description: |
+        Publica `catalog.product.v1` / `updated`, e também `price_changed` se o preço mudou.
+        Exige `If-Match` com o ETag da última leitura.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "200":
+          description: Atualizado.
+          headers:
+            ETag:
+              $ref: "./common/v1/common.yaml#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "412":
+          $ref: "./common/v1/common.yaml#/components/responses/PreconditionFailed"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    delete:
+      tags: [admin]
+      operationId: deleteProduct
+      summary: Remove um produto (soft delete)
+      description: Publica `catalog.product.v1` / `deleted`. Pedidos antigos continuam válidos.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Removido.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/categories:
+    post:
+      tags: [admin]
+      operationId: createCategory
+      summary: Cria uma categoria
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Criada.
+          headers:
+            Location:
+              $ref: "./common/v1/common.yaml#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/campaigns:
+    get:
+      tags: [admin]
+      operationId: adminListCampaigns
+      summary: Lista todas as campanhas (passadas, vigentes e futuras)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/Cursor"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Página de campanhas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Campaign"
+                  page:
+                    $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    post:
+      tags: [admin]
+      operationId: createCampaign
+      summary: Cria uma campanha
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignInput"
+      responses:
+        "201":
+          description: Criada.
+          headers:
+            Location:
+              $ref: "./common/v1/common.yaml#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/campaigns/{campaign_id}:
+    parameters:
+      - $ref: "#/components/parameters/CampaignId"
+    put:
+      tags: [admin]
+      operationId: updateCampaign
+      summary: Altera uma campanha
+      description: Mudar datas ou desconto publica `price_changed` para os produtos afetados.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignInput"
+      responses:
+        "200":
+          description: Atualizada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    delete:
+      tags: [admin]
+      operationId: deleteCampaign
+      summary: Remove uma campanha
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Removida.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/campaigns/{campaign_id}/products:
+    parameters:
+      - $ref: "#/components/parameters/CampaignId"
+    put:
+      tags: [admin]
+      operationId: setCampaignProducts
+      summary: Define os produtos da campanha
+      description: Substitui a lista inteira. Um produto só pode estar em uma campanha por período.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_ids]
+              properties:
+                product_ids:
+                  type: array
+                  maxItems: 1000
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "204":
+          description: Lista substituída.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+components:
+  parameters:
+    ProductId:
+      name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CampaignId:
+      name: campaign_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    ProductStatus:
+      type: string
+      description: "`draft`: em cadastro · `active`: à venda · `inactive`: fora de venda."
+      enum: [draft, active, inactive]
+
+    Sku:
+      type: string
+      description: Código do produto, único. Letras maiúsculas, dígitos e hífen.
+      pattern: "^[A-Z0-9][A-Z0-9-]{2,31}$"
+      examples: ["TV-SAMS-55Q"]
+
+    Product:
+      type: object
+      description: Produto como o cliente vê.
+      required: [id, sku, name, category, price, effective_price, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          $ref: "#/components/schemas/Sku"
+        name:
+          type: string
+          examples: ["Smart TV 55\" QLED"]
+        description:
+          type: string
+        category:
+          $ref: "#/components/schemas/CategoryRef"
+        image_url:
+          type: [string, "null"]
+          format: uri
+        price:
+          description: Preço de tabela.
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        effective_price:
+          description: Preço cobrado agora (igual a `price` quando não há campanha ativa).
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        campaign:
+          description: Campanha que gerou o desconto, se houver.
+          oneOf:
+            - $ref: "#/components/schemas/CampaignRef"
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AdminProduct:
+      description: Produto com os campos de gestão.
+      allOf:
+        - $ref: "#/components/schemas/Product"
+        - type: object
+          required: [status, version]
+          properties:
+            status:
+              $ref: "#/components/schemas/ProductStatus"
+            version:
+              type: integer
+              description: Incrementa a cada alteração; é o valor do ETag.
+              minimum: 1
+
+    ProductInput:
+      type: object
+      required: [sku, name, category_id, price_cents, status]
+      additionalProperties: false
+      properties:
+        sku:
+          $ref: "#/components/schemas/Sku"
+        name:
+          type: string
+          minLength: 3
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 5000
+        category_id:
+          type: string
+          format: uuid
+        image_url:
+          type: [string, "null"]
+          format: uri
+        price_cents:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 100000000
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+
+    ProductPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        page:
+          $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+
+    Category:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+          pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+          examples: ["televisores"]
+        name:
+          type: string
+          examples: ["Televisores"]
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+
+    CategoryRef:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+
+    CategoryInput:
+      type: object
+      required: [slug, name]
+      additionalProperties: false
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+          maxLength: 80
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        parent_id:
+          type: [string, "null"]
+          format: uuid
+
+    Campaign:
+      type: object
+      required: [id, slug, name, discount_percent, starts_at, ends_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+          examples: ["black-friday-2026"]
+        name:
+          type: string
+          examples: ["Black Friday 2026"]
+        discount_percent:
+          type: integer
+          minimum: 1
+          maximum: 90
+          examples: [30]
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        product_count:
+          type: integer
+          minimum: 0
+
+    CampaignRef:
+      type: object
+      required: [id, name, discount_percent, ends_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        discount_percent:
+          type: integer
+        ends_at:
+          type: string
+          format: date-time
+
+    CampaignInput:
+      type: object
+      required: [slug, name, discount_percent, starts_at, ends_at]
+      additionalProperties: false
+      description: "`ends_at` deve ser posterior a `starts_at`."
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+          maxLength: 80
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+        discount_percent:
+          type: integer
+          minimum: 1
+          maximum: 90
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    bearerAuth:
+      $ref: "./common/v1/common.yaml#/components/securitySchemes/bearerAuth"
