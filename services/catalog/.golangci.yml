@@ -25,6 +25,8 @@ linters:
       # erros do GORM são traduzidos por repository.mapError na borda do pacote
       ignore-package-globs:
         - gorm.io/*
+        # status.Error é o erro final do gRPC: embrulhar perderia o código
+        - google.golang.org/grpc/*
         # erros de domínio (ValidationError, ErrNotFound...) sobem de propósito sem embrulho
         - github.com/mateus-vitor-ferreira-dev/compra-facil/*
       ignore-sigs:
@@ -36,6 +38,9 @@ linters:
       attr-only: false
       no-global: default
   exclusions:
+    generated: strict # gen/ (buf generate) fica fora do lint
+    paths:
+      - gen/
     presets:
       - std-error-handling
     rules:
