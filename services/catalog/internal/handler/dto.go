@@ -42,6 +42,18 @@ type productDTO struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
+// adminProductDTO é o AdminProduct do contrato: Product + campos de gestão.
+type adminProductDTO struct {
+	productDTO
+	Status  domain.ProductStatus `json:"status"`
+	Version int                  `json:"version"`
+}
+
+type adminProductPageDTO struct {
+	Data []adminProductDTO `json:"data"`
+	Page pageInfoDTO       `json:"page"`
+}
+
 type pageInfoDTO struct {
 	NextCursor *string `json:"next_cursor"`
 	HasMore    bool    `json:"has_more"`
@@ -97,10 +109,23 @@ func toProductPageDTO(page domain.Page[domain.Product]) productPageDTO {
 	for i, p := range page.Items {
 		out.Data[i] = toProductDTO(p)
 	}
-	if page.NextCursor != "" {
-		out.Page = pageInfoDTO{NextCursor: &page.NextCursor, HasMore: true}
-	}
+	out.Page = toPageInfo(page.NextCursor)
 	return out
+}
+
+func toAdminProductDTO(p domain.Product) adminProductDTO {
+	return adminProductDTO{productDTO: toProductDTO(p), Status: p.Status, Version: p.Version}
+}
+
+func toAdminProductPageDTO(page domain.Page[domain.Product]) adminProductPageDTO {
+	return adminProductPageDTO{Data: mapSlice(page.Items, toAdminProductDTO), Page: toPageInfo(page.NextCursor)}
+}
+
+func toPageInfo(nextCursor string) pageInfoDTO {
+	if nextCursor == "" {
+		return pageInfoDTO{}
+	}
+	return pageInfoDTO{NextCursor: &nextCursor, HasMore: true}
 }
 
 func toCategoryDTO(c domain.Category) categoryDTO {

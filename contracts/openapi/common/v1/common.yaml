@@ -186,6 +186,12 @@ components:
         application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
+    PreconditionRequired:
+      description: Falta o `If-Match`; a atualização exige a versão da última leitura.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     UnprocessableEntity:
       description: Corpo bem formado, mas com campos inválidos.
       content:

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth"
 )
 
 const envPrefix = "CATALOG"
@@ -21,6 +23,7 @@ type Config struct {
 	GRPC GRPCConfig `mapstructure:"grpc"`
 	Log  LogConfig  `mapstructure:"log"`
 	DB   DBConfig   `mapstructure:"db"`
+	Auth AuthConfig `mapstructure:"auth"`
 }
 
 type AppConfig struct {
@@ -50,6 +53,21 @@ type DBConfig struct {
 	SlowQuery       time.Duration `mapstructure:"slow_query"`
 	MigrateOnStart  bool          `mapstructure:"migrate_on_start"`
 }
+
+// AuthConfig descreve os JWT aceitos nas rotas /v1/admin/*.
+type AuthConfig struct {
+	JWTSecret string        `mapstructure:"jwt_secret"`
+	Issuer    string        `mapstructure:"issuer"`
+	Audience  string        `mapstructure:"audience"`
+	Leeway    time.Duration `mapstructure:"leeway"`
+}
+
+func (a AuthConfig) Options() auth.Options {
+	return auth.Options{Secret: a.JWTSecret, Issuer: a.Issuer, Audience: a.Audience, Leeway: a.Leeway}
+}
+
+// DevJWTSecret é o segredo do ambiente local; fora dele o serviço não sobe com este valor.
+const DevJWTSecret = "dev-only-compra-facil-jwt-secret-troque-em-producao" //nolint:gosec // segredo público de dev, barrado fora do local
 
 type LogConfig struct {
 	Level string `mapstructure:"level"`
@@ -104,6 +122,10 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("db.conn_max_lifetime", "30m")
 	v.SetDefault("db.slow_query", "200ms")
 	v.SetDefault("db.migrate_on_start", true)
+	v.SetDefault("auth.jwt_secret", DevJWTSecret)
+	v.SetDefault("auth.issuer", "compra-facil")
+	v.SetDefault("auth.audience", "catalog")
+	v.SetDefault("auth.leeway", "30s")
 }
 
 func (c Config) validate() error {
@@ -115,6 +137,12 @@ func (c Config) validate() error {
 	}
 	if c.DB.DSN == "" {
 		return errors.New("db.dsn é obrigatório")
+	}
+	if len(c.Auth.JWTSecret) < auth.MinSecretLen {
+		return errors.New("auth.jwt_secret deve ter pelo menos 32 caracteres")
+	}
+	if c.Auth.JWTSecret == DevJWTSecret && c.App.Env != "local" && c.App.Env != "compose" {
+		return fmt.Errorf("auth.jwt_secret de desenvolvimento não pode ser usado em app.env=%s", c.App.Env)
 	}
 	switch strings.ToLower(c.Log.Level) {
 	case "debug", "info", "warn", "error":
