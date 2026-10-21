@@ -127,3 +127,43 @@ func TestCampaignRepository_ListActiveAndPaginate(t *testing.T) {
 	assert.Equal(t, "passada", second.Items[0].Slug)
 	assert.Empty(t, second.NextCursor)
 }
+
+func TestCampaignRepository_OverlappingProducts(t *testing.T) {
+	resetDB(t)
+	repo := NewCampaignRepository(testDB)
+	cat := mustCategory(t, "tv", nil)
+	a, b, c := mustProduct(t, "A-01", cat.ID), mustProduct(t, "B-01", cat.ID), mustProduct(t, "C-01", cat.ID)
+	// "bf" vai de now até now+24h com A e B
+	bf := mustCampaign(t, "bf", 30, now, now.Add(24*time.Hour), a.ID, b.ID)
+	nova := mustCampaign(t, "nova", 10, now.Add(48*time.Hour), now.Add(72*time.Hour), c.ID)
+
+	tests := []struct {
+		name       string
+		start, end time.Time
+		ids        []uuid.UUID
+		want       []uuid.UUID
+	}{
+		{"período cruza: A conflita", now.Add(12 * time.Hour), now.Add(36 * time.Hour), []uuid.UUID{a.ID, c.ID}, []uuid.UUID{a.ID}},
+		{"começa quando a outra termina: sem conflito", now.Add(24 * time.Hour), now.Add(48 * time.Hour), []uuid.UUID{a.ID}, nil},
+		{"lista vazia", now, now.Add(time.Hour), []uuid.UUID{}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := repo.OverlappingProducts(ctx, nova.ID, tt.start, tt.end, tt.ids)
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tt.want, got)
+		})
+	}
+
+	t.Run("nil usa os produtos atuais da campanha (mudança de datas)", func(t *testing.T) {
+		require.NoError(t, repo.SetProducts(ctx, nova.ID, []uuid.UUID{b.ID, c.ID}))
+		got, err := repo.OverlappingProducts(ctx, nova.ID, now, now.Add(time.Hour), nil)
+		require.NoError(t, err)
+		assert.Equal(t, []uuid.UUID{b.ID}, got)
+	})
+	t.Run("ignora a própria campanha", func(t *testing.T) {
+		got, err := repo.OverlappingProducts(ctx, bf.ID, now, now.Add(time.Hour), []uuid.UUID{a.ID})
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
