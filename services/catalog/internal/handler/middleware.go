@@ -42,7 +42,7 @@ func Logger(log *slog.Logger) gin.HandlerFunc {
 			level = slog.LevelWarn
 		}
 
-		log.LogAttrs(c.Request.Context(), level, "http request",
+		attrs := []slog.Attr{
 			slog.String("method", c.Request.Method),
 			slog.String("path", c.FullPath()),
 			slog.String("uri", c.Request.URL.RequestURI()),
@@ -50,7 +50,11 @@ func Logger(log *slog.Logger) gin.HandlerFunc {
 			slog.Float64("latency_ms", float64(time.Since(start).Microseconds())/1000),
 			slog.String("client_ip", c.ClientIP()),
 			slog.String(ctxRequestID, c.GetString(ctxRequestID)),
-		)
+		}
+		if sub := c.GetString(ctxSubject); sub != "" {
+			attrs = append(attrs, slog.String(ctxSubject, sub)) // operador autenticado (rotas admin)
+		}
+		log.LogAttrs(c.Request.Context(), level, "http request", attrs...)
 	}
 }
 

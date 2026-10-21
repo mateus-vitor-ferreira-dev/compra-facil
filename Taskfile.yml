@@ -145,3 +145,10 @@ tasks:
         msg: "seed ainda não existe (tarefa #71: services/catalog/cmd/seed)"
     cmds:
       - go run ./cmd/seed {{.CLI_ARGS}}
+
+  token:
+    desc: "Emite um JWT de operador para as rotas admin (ex.: task token -- -sub ana -ttl 1h)"
+    dir: services/catalog
+    silent: true
+    cmds:
+      - go run ./cmd/token {{.CLI_ARGS}}
