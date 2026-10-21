@@ -1,0 +1,110 @@
+# Comandos do dia a dia (https://taskfile.dev). `task --list` mostra todos.
+# test/lint descobrem os módulos sozinhos: um serviço novo entra sem mexer aqui.
+version: "3"
+
+vars:
+  # Módulos Go e solutions .NET existentes no repositório
+  GO_MODULES:
+    sh: find services libs -name go.mod -not -path '*/node_modules/*' -exec dirname {} \; 2>/dev/null | sort
+  DOTNET_SOLUTIONS:
+    sh: find services libs \( -name '*.slnx' -o -name '*.sln' \) 2>/dev/null | sort
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  # ---------- ambiente ----------
+  up:
+    desc: Sobe a infraestrutura local e espera ficar saudável
+    cmds:
+      - docker compose up -d --wait
+
+  down:
+    desc: Para o ambiente (mantém os dados)
+    cmds:
+      - docker compose down
+
+  reset:
+    desc: Recria o ambiente do zero (apaga volumes e bancos)
+    prompt: Isso apaga todos os dados locais. Continuar?
+    cmds:
+      - docker compose down -v
+      - docker compose up -d --wait
+
+  ps:
+    desc: Estado dos containers
+    cmds:
+      - docker compose ps
+
+  logs:
+    desc: "Logs em tempo real (ex.: task logs -- redpanda)"
+    cmds:
+      - docker compose logs -f {{.CLI_ARGS}}
+
+  # ---------- testes ----------
+  test:
+    desc: Roda os testes de todos os serviços (Go + .NET)
+    cmds:
+      - task: test:go
+      - task: test:dotnet
+
+  test:go:
+    desc: go test em cada módulo Go
+    cmds:
+      - for: { var: GO_MODULES }
+        cmd: echo "==> go test {{.ITEM}}" && cd {{.ITEM}} && go test -race ./...
+
+  test:dotnet:
+    desc: dotnet test em cada solution .NET
+    cmds:
+      - for: { var: DOTNET_SOLUTIONS }
+        cmd: echo "==> dotnet test {{.ITEM}}" && dotnet test {{.ITEM}}
+
+  # ---------- lint ----------
+  lint:
+    desc: Lint de tudo (golangci-lint, dotnet format, buf lint)
+    cmds:
+      - task: lint:go
+      - task: lint:dotnet
+      - task: lint:proto
+
+  lint:go:
+    desc: golangci-lint em cada módulo Go
+    cmds:
+      - for: { var: GO_MODULES }
+        cmd: echo "==> golangci-lint {{.ITEM}}" && cd {{.ITEM}} && golangci-lint run ./...
+
+  lint:dotnet:
+    desc: dotnet format --verify-no-changes em cada solution
+    cmds:
+      - for: { var: DOTNET_SOLUTIONS }
+        cmd: echo "==> dotnet format {{.ITEM}}" && dotnet format {{.ITEM}} --verify-no-changes
+
+  lint:proto:
+    desc: buf lint nos contratos gRPC
+    status:
+      # pula enquanto não existir buf.yaml (tarefa #57)
+      - test ! -f contracts/proto/buf.yaml
+    dir: contracts/proto
+    cmds:
+      - buf lint
+
+  fmt:
+    desc: Formata o código (gofmt/goimports via golangci-lint, dotnet format)
+    cmds:
+      - for: { var: GO_MODULES }
+        cmd: cd {{.ITEM}} && golangci-lint fmt ./...
+      - for: { var: DOTNET_SOLUTIONS }
+        cmd: dotnet format {{.ITEM}}
+
+  # ---------- dados ----------
+  seed:
+    desc: Popula o banco do catálogo com produtos de exemplo
+    dir: services/catalog
+    preconditions:
+      - sh: test -d cmd/seed
+        msg: "seed ainda não existe (tarefa #71: services/catalog/cmd/seed)"
+    cmds:
+      - go run ./cmd/seed {{.CLI_ARGS}}
