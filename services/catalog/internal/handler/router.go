@@ -8,8 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// NewRouter monta o engine Gin com os middlewares padrão e as rotas de saúde.
-func NewRouter(log *slog.Logger, health *Health) *gin.Engine {
+// Registrar é um grupo de rotas (ex.: CatalogHandler, Docs) plugado no router.
+type Registrar interface {
+	Register(r gin.IRouter)
+}
+
+// NewRouter monta o engine Gin com os middlewares padrão, as rotas de saúde e os registrars.
+func NewRouter(log *slog.Logger, health *Health, registrars ...Registrar) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
@@ -18,6 +23,9 @@ func NewRouter(log *slog.Logger, health *Health) *gin.Engine {
 
 	r.GET("/health", health.Live)
 	r.GET("/ready", health.Ready)
+	for _, reg := range registrars {
+		reg.Register(r)
+	}
 
 	r.NoRoute(func(c *gin.Context) {
 		WriteProblem(c, http.StatusNotFound, "Recurso não encontrado", "")

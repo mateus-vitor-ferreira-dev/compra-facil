@@ -12,9 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/api/openapi"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/handler"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/repository"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/service"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/telemetry"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/migrations"
 )
@@ -58,9 +60,20 @@ func run() error {
 
 	health := handler.NewHealth()
 	health.AddCheck("postgres", repository.Ping(db))
+
+	products := repository.NewProductRepository(db)
+	categories := repository.NewCategoryRepository(db)
+	campaigns := repository.NewCampaignRepository(db)
+	catalogAPI := handler.NewCatalogHandler(
+		service.NewProductService(products, categories, time.Now),
+		service.NewCategoryService(categories),
+		service.NewCampaignService(campaigns, time.Now),
+		log,
+	)
+
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr(),
-		Handler:           handler.NewRouter(log, health),
+		Handler:           handler.NewRouter(log, health, catalogAPI, handler.NewDocs(openapi.Files)),
 		ReadTimeout:       cfg.HTTP.ReadTimeout,
 		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
 		WriteTimeout:      cfg.HTTP.WriteTimeout,

@@ -1,0 +1,256 @@
+openapi: 3.1.0
+info:
+  title: CompraFácil — Orders API
+  version: 1.0.0
+  summary: Criação e consulta de pedidos.
+  description: |
+    API do serviço **orders** (time de Processamento de compras, ASP.NET Core).
+
+    Criar um pedido **inicia a SAGA de compra** e responde `202 Accepted` com o pedido em `pending`.
+    O resultado chega de forma assíncrona:
+
+    `pending` → `confirmed` (estoque reservado e pagamento aprovado) **ou** `cancelled`
+    (`cancellation_reason`: `out_of_stock` ou `payment_failed`).
+
+    Acompanhe por `GET /v1/orders/{order_id}` (polling) ou pelo e-mail do `notifications`.
+    Itens e preços são validados no catálogo via gRPC na criação; o preço fica congelado no pedido.
+
+    Identidade do cliente: enquanto não há serviço de autenticação, o `customer_id` vai no corpo/query.
+servers:
+  - url: http://localhost:8002
+    description: Serviço direto (dev)
+  - url: http://localhost/orders
+    description: Via gateway Traefik
+tags:
+  - name: orders
+    description: Pedidos de compra.
+
+paths:
+  /v1/orders:
+    post:
+      tags: [orders]
+      operationId: placeOrder
+      summary: Cria um pedido e inicia a SAGA de compra
+      description: |
+        Valida os itens no catálogo (existem, estão ativos, preço vigente) e grava o pedido como
+        `pending` junto com o evento `OrderPlaced` (outbox). Requisições repetidas com o mesmo
+        `Idempotency-Key` devolvem o pedido já criado.
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - $ref: "./common/v1/common.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceOrderRequest"
+      responses:
+        "202":
+          description: Pedido aceito e em processamento.
+          headers:
+            Location:
+              $ref: "./common/v1/common.yaml#/components/headers/Location"
+            X-Request-ID:
+              $ref: "./common/v1/common.yaml#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "409":
+          description: |
+            Itens recusados pelo catálogo (produto inexistente/inativo ou preço alterado desde a
+            exibição). O `detail` lista os itens.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "503":
+          description: Catálogo indisponível e sem snapshot local para validar os itens.
+          headers:
+            Retry-After:
+              description: Segundos sugeridos até nova tentativa.
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    get:
+      tags: [orders]
+      operationId: listOrders
+      summary: Lista os pedidos de um cliente
+      description: Do mais recente para o mais antigo.
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Cursor"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Limit"
+        - name: customer_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+      responses:
+        "200":
+          description: Página de pedidos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+                  page:
+                    $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/orders/{order_id}:
+    get:
+      tags: [orders]
+      operationId: getOrder
+      summary: Detalhe e situação de um pedido
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Pedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+components:
+  schemas:
+    OrderStatus:
+      type: string
+      enum: [pending, confirmed, cancelled]
+
+    CancellationReason:
+      type: string
+      description: "`out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança."
+      enum: [out_of_stock, payment_failed]
+
+    PlaceOrderRequest:
+      type: object
+      required: [customer_id, customer_email, items]
+      additionalProperties: false
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        customer_email:
+          type: string
+          format: email
+          description: Destino dos e-mails de confirmação/cancelamento.
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: Um item por produto (sem repetir `product_id`).
+          items:
+            $ref: "#/components/schemas/PlaceOrderItem"
+
+    PlaceOrderItem:
+      type: object
+      required: [product_id, quantity]
+      additionalProperties: false
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 99
+        expected_unit_price_cents:
+          type: integer
+          format: int64
+          minimum: 1
+          description: |
+            Preço que o cliente viu. Se informado e diferente do vigente no catálogo, o pedido é
+            recusado com 409 (evita cobrar um preço que mudou no meio da campanha).
+
+    Order:
+      type: object
+      required: [id, customer_id, status, items, total, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        cancellation_reason:
+          oneOf:
+            - $ref: "#/components/schemas/CancellationReason"
+            - type: "null"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        total:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        payment_id:
+          type: [string, "null"]
+          format: uuid
+          description: Preenchido quando o payments processa a cobrança.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      required: [product_id, sku, name, quantity, unit_price, line_total]
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+          description: Nome no momento da compra.
+        quantity:
+          type: integer
+          minimum: 1
+        unit_price:
+          description: Preço efetivo (com campanha) congelado na criação do pedido.
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        line_total:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        campaign_id:
+          type: [string, "null"]
+          format: uuid
