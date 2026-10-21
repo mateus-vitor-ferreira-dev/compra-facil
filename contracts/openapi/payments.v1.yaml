@@ -1,0 +1,121 @@
+openapi: 3.1.0
+info:
+  title: CompraFácil — Payments API
+  version: 1.0.0
+  summary: Consulta de pagamentos.
+  description: |
+    API do serviço **payments** (time de Processamento de compras, ASP.NET Core).
+
+    A cobrança **não** é iniciada por HTTP: o payments consome `StockReserved`, cobra no gateway de
+    pagamento (fake em dev; Stripe em modo teste, opcional) e publica `PaymentApproved` ou
+    `PaymentFailed`. Cada pedido é cobrado no máximo uma vez (idempotência por `order_id`).
+
+    Esta API serve para consulta e suporte.
+servers:
+  - url: http://localhost:8004
+    description: Serviço direto (dev)
+  - url: http://localhost/payments
+    description: Via gateway Traefik
+tags:
+  - name: payments
+    description: Pagamentos de pedidos.
+
+paths:
+  /v1/payments:
+    get:
+      tags: [payments]
+      operationId: listPayments
+      summary: Pagamentos de um pedido
+      description: Normalmente um por pedido; mais de um só se houver nova tentativa após falha.
+      parameters:
+        - name: order_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Pagamentos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Payment"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/payments/{payment_id}:
+    get:
+      tags: [payments]
+      operationId: getPayment
+      summary: Detalhe de um pagamento
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Pagamento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+components:
+  schemas:
+    PaymentStatus:
+      type: string
+      description: "`processing`: enviado ao gateway · `approved` · `failed`."
+      enum: [processing, approved, failed]
+
+    FailureReason:
+      type: string
+      enum: [card_declined, insufficient_funds, fraud_suspected, gateway_error]
+
+    Payment:
+      type: object
+      required: [id, order_id, amount, status, provider, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        amount:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        failure_reason:
+          oneOf:
+            - $ref: "#/components/schemas/FailureReason"
+            - type: "null"
+        provider:
+          type: string
+          enum: [fake, stripe]
+        provider_reference:
+          type: [string, "null"]
+          description: "ID da cobrança no gateway (ex.: `pi_...` no Stripe)."
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time

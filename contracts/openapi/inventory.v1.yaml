@@ -1,0 +1,241 @@
+openapi: 3.1.0
+info:
+  title: CompraFácil — Inventory API
+  version: 1.0.0
+  summary: Consulta e ajuste de estoque.
+  description: |
+    API do serviço **inventory** (time de Processamento de compras, ASP.NET Core).
+
+    Reservas e liberações **não** têm endpoint: acontecem pela SAGA (`OrderPlaced` → reserva,
+    `OrderCancelled` → liberação). Esta API serve para consultar o saldo e para o time ajustar o
+    estoque físico (entrada de mercadoria, inventário, avaria).
+
+    `available = on_hand - reserved`. Reservas concorrentes usam concorrência otimista: o estoque
+    nunca fica negativo.
+servers:
+  - url: http://localhost:8003
+    description: Serviço direto (dev)
+  - url: http://localhost/inventory
+    description: Via gateway Traefik
+tags:
+  - name: stock
+    description: Saldo de estoque.
+  - name: reservations
+    description: Reservas feitas pela SAGA (somente leitura).
+  - name: admin
+    description: Ajustes de estoque (role `admin`).
+
+paths:
+  /v1/stock:
+    get:
+      tags: [stock]
+      operationId: listStock
+      summary: Saldo de vários produtos
+      parameters:
+        - name: product_ids
+          in: query
+          required: true
+          description: IDs separados por vírgula (até 100).
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+      responses:
+        "200":
+          description: Saldos. Produtos sem registro de estoque aparecem com tudo zerado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/StockLevel"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/stock/{product_id}:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [stock]
+      operationId: getStock
+      summary: Saldo de um produto
+      responses:
+        "200":
+          description: Saldo.
+          headers:
+            ETag:
+              $ref: "./common/v1/common.yaml#/components/headers/ETag"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockLevel"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/reservations/{order_id}:
+    get:
+      tags: [reservations]
+      operationId: getReservation
+      summary: Reserva de um pedido
+      description: Útil para depurar a SAGA.
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Reserva.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/stock/{product_id}/adjustments:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    post:
+      tags: [admin]
+      operationId: adjustStock
+      summary: Ajusta o estoque físico
+      description: |
+        Soma `delta` ao `on_hand` (negativo para baixa). Recusa com 409 se o resultado ficar abaixo do
+        que já está reservado. Cria o registro do produto se ainda não existir.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockAdjustment"
+      responses:
+        "200":
+          description: Saldo após o ajuste.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockLevel"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+components:
+  parameters:
+    ProductId:
+      name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    StockLevel:
+      type: object
+      required: [product_id, on_hand, reserved, available, updated_at]
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        on_hand:
+          type: integer
+          minimum: 0
+          description: Unidades fisicamente em estoque.
+        reserved:
+          type: integer
+          minimum: 0
+          description: Unidades presas a pedidos `pending`.
+        available:
+          type: integer
+          minimum: 0
+          description: "`on_hand - reserved`: o que ainda pode ser vendido."
+        updated_at:
+          type: string
+          format: date-time
+
+    ReservationStatus:
+      type: string
+      description: "`reserved`: aguardando pagamento · `committed`: pedido confirmado · `released`: devolvida."
+      enum: [reserved, committed, released]
+
+    Reservation:
+      type: object
+      required: [order_id, status, items, created_at, updated_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ReservationStatus"
+        items:
+          type: array
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id:
+                type: string
+                format: uuid
+              quantity:
+                type: integer
+                minimum: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    StockAdjustment:
+      type: object
+      required: [delta, reason]
+      additionalProperties: false
+      properties:
+        delta:
+          type: integer
+          description: Diferente de zero.
+          minimum: -100000
+          maximum: 100000
+          not:
+            const: 0
+        reason:
+          type: string
+          enum: [restock, inventory_count, damage, other]
+        note:
+          type: string
+          maxLength: 500
+
+  securitySchemes:
+    bearerAuth:
+      $ref: "./common/v1/common.yaml#/components/securitySchemes/bearerAuth"
