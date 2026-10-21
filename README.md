@@ -1,9 +1,15 @@
-# CompraFácil — do monolito modular ao microsserviço de Catálogo
+# CompraFácil — microsserviços com .NET e Go
 
-Implementação da **Proposta B** do trabalho *Monolito x Microsserviços*: o Catálogo sai do monolito e vira um
-microsserviço, implantado e escalado de forma independente. Pedidos, Estoque, Pagamentos e Notificações
-continuam no monolito. A extração usa o padrão **Strangler Fig**, e o serviço novo convive com a
-implementação antiga enquanto é validado.
+O e-commerce da CompraFácil, do trabalho *Monolito x Microsserviços*, construído direto em microsserviços.
+Os serviços seguem a divisão dos **dois times do enunciado**:
+
+| Time | Serviços | Stack |
+|---|---|---|
+| Catálogo e campanhas | `catalog` | **Go 1.26 + Gin + GORM** |
+| Processamento de compras | `orders`, `inventory`, `payments`, `notifications` | **C# / ASP.NET Core 10 (Web API) + EF Core** |
+
+O catálogo, que concentra o pico de leitura nas campanhas, escala e é implantado sozinho. O fluxo de
+compra é uma **SAGA coreografada sobre Kafka**.
 
 > Enunciado: [`docs/Trabalho_MonolitoXMicrosservicos.pdf`](docs/Trabalho_MonolitoXMicrosservicos.pdf) ·
 > Parecer: [`docs/parecer.md`](docs/parecer.md) · Stack e decisões: [`docs/stack.md`](docs/stack.md)
@@ -11,62 +17,66 @@ implementação antiga enquanto é validado.
 ## Visão geral
 
 ```
-                    ┌──────────────── Traefik (gateway / strangler) ────────────────┐
-  cliente ─────────▶│  /catalog/*  ──weight──▶ catalog-service (Go)   ◀── mirror ──┐ │
-                    │              └─────────▶ monolith /catalog (legado) ──────────┘ │
-                    │  /orders, /payments ...──▶ monolith (.NET)                      │
-                    └─────────────────────────────────────────────────────────────────┘
-   monolith ──gRPC──▶ catalog-service          (validar itens/preço ao criar pedido)
-   catalog-service ──Kafka (Redpanda)──▶ monolith   (catalog.product.v1 → read model local)
-   tudo ──OTLP──▶ OpenTelemetry Collector ──▶ Grafana LGTM (Tempo · Loki · Prometheus)
+                         ┌─────────── Traefik (API gateway) ───────────┐
+   cliente ─────────────▶│ /catalog  /orders  /payments  /inventory     │
+                         └──────┬─────────┬──────────┬──────────┬───────┘
+                                ▼         ▼          ▼          ▼
+                          catalog(Go)  orders     payments   inventory      notifications
+                           Redis│   ◀─gRPC─┘ (.NET)  (.NET)     (.NET)          (.NET)
+                                │                │          │          │              ▲
+                                └────────────────┴──── Kafka (Redpanda) ──────────────┘
+      cada serviço: banco PostgreSQL próprio + outbox    ·    tudo ──OTLP──▶ Grafana LGTM
 ```
+
+SAGA de compra: `OrderPlaced` → inventory reserva → `StockReserved` → payments cobra →
+`PaymentApproved` → orders confirma. Uma falha dispara a compensação (`StockReleased`, `OrderCancelled`).
 
 ## Estrutura
 
 ```
 compra-facil/
-├── docs/                    # parecer, arquitetura (C4), ADRs, runbooks
-├── contracts/               # fonte da verdade dos contratos entre os times
-│   ├── proto/catalog/v1/    #   gRPC interno (Buf: lint + breaking change)
-│   ├── openapi/             #   REST público do catálogo
-│   └── asyncapi/            #   eventos Kafka (catalog.product.v1)
-├── monolith/                # .NET 10 — monolito modular
-│   ├── src/
-│   │   ├── CompraFacil.Host/          # Program.cs, composição dos módulos
-│   │   ├── CompraFacil.SharedKernel/  # tipos comuns (Result, Money, eventos)
-│   │   └── Modules/
-│   │       ├── Catalog/               # LEGADO, desligado no corte
-│   │       ├── Orders/
-│   │       ├── Inventory/
-│   │       ├── Payments/
-│   │       └── Notifications/
-│   │           # cada módulo: <Modulo>/ (internal) + <Modulo>.Contracts/ (única API pública)
-│   └── tests/
-│       ├── CompraFacil.ArchitectureTests/   # NetArchTest: módulo não acessa internals de outro
-│       └── CompraFacil.IntegrationTests/    # Testcontainers (Postgres, Redpanda)
+├── docs/                          # parecer, arquitetura (C4), ADRs, runbooks
+├── contracts/                     # contratos entre os times (fonte da verdade)
+│   ├── proto/catalog/v1/          #   gRPC  (Buf: lint + breaking change)
+│   ├── openapi/                   #   REST de cada serviço
+│   └── asyncapi/                  #   eventos Kafka
 ├── services/
-│   └── catalog/             # Go — microsservício de Catálogo
-│       ├── cmd/catalog/     #   main.go
-│       ├── internal/
-│       │   ├── product/     #   domínio + regras
-│       │   ├── httpapi/     #   REST público (net/http)
-│       │   ├── grpcapi/     #   gRPC interno
-│       │   ├── storage/postgres/  # sqlc + pgx
-│       │   ├── cache/       #   Redis (cache-aside)
-│       │   ├── events/      #   outbox + producer Kafka (franz-go)
-│       │   └── platform/    #   config, logger, OpenTelemetry
-│       └── db/{migrations,queries}/   # goose + sqlc
-├── gateway/traefik/         # roteamento ponderado + mirroring
+│   ├── catalog/                   # Go + Gin + GORM
+│   │   ├── cmd/api/main.go
+│   │   ├── internal/
+│   │   │   ├── config/            #   Viper
+│   │   │   ├── domain/            #   entidades e regras
+│   │   │   ├── handler/           #   rotas Gin (≈ @RestController)
+│   │   │   ├── service/           #   casos de uso (≈ @Service)
+│   │   │   ├── repository/        #   GORM (≈ JpaRepository)
+│   │   │   ├── grpcserver/        #   gRPC interno
+│   │   │   ├── cache/             #   Redis
+│   │   │   ├── events/            #   outbox + producer Kafka
+│   │   │   └── telemetry/         #   OpenTelemetry
+│   │   ├── migrations/            #   golang-migrate
+│   │   └── test/                  #   integração (testcontainers-go)
+│   ├── orders/                    # ASP.NET Core — mesmo layout nos 4 serviços .NET:
+│   │   ├── src/
+│   │   │   ├── CompraFacil.Orders.Api/            # Controllers, Program.cs
+│   │   │   ├── CompraFacil.Orders.Application/    # casos de uso, DTOs, validação
+│   │   │   ├── CompraFacil.Orders.Domain/         # entidades, regras, eventos
+│   │   │   └── CompraFacil.Orders.Infrastructure/ # EF Core, Kafka, gRPC client
+│   │   └── tests/{UnitTests,IntegrationTests}/
+│   ├── inventory/
+│   ├── payments/
+│   └── notifications/
+├── libs/dotnet/CompraFacil.BuildingBlocks/   # outbox, Kafka, OTel comuns aos serviços .NET
+├── gateway/traefik/
 ├── infra/
-│   ├── compose/             # ambiente local completo
-│   ├── otel/                # config do Collector
-│   ├── grafana/dashboards/  # RED por serviço, painel da campanha
-│   └── k8s/helm/            # fase final: HPA só no catálogo
-├── load-tests/k6/           # simulação de campanha promocional
-├── scripts/                 # backfill de dados, seeds
-└── .github/workflows/       # um pipeline por app (path filters) = deploy independente
+│   ├── compose/                   # ambiente local completo
+│   ├── otel/                      # OpenTelemetry Collector
+│   ├── grafana/dashboards/
+│   └── k8s/helm/                  # fase final: HPA no catálogo
+├── load-tests/k6/                 # simulação de campanha promocional
+├── scripts/                       # seeds
+└── .github/workflows/             # um pipeline por serviço (path filters)
 ```
 
 ## Rodando localmente
 
-> Preenchido na tarefa *F0 · Docker Compose base*.
+> Preenchido na tarefa *Docker Compose base*.
