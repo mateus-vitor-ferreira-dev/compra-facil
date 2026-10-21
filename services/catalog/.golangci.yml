@@ -22,6 +22,9 @@ linters:
         - name: exported
           disabled: true # tipos exportados internos não precisam de doc obrigatória
     wrapcheck:
+      # erros do GORM são traduzidos por repository.mapError na borda do pacote
+      ignore-package-globs:
+        - gorm.io/*
       ignore-sigs:
         - .Errorf(
         - errors.New(

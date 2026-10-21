@@ -14,7 +14,9 @@ import (
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/handler"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/repository"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/telemetry"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/migrations"
 )
 
 // drainDelay dá tempo ao gateway de ver o /ready em 503 antes de pararmos de aceitar conexões.
@@ -38,7 +40,24 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	if cfg.DB.MigrateOnStart {
+		if err := migrations.Up(cfg.DB.DSN); err != nil {
+			return fmt.Errorf("migrações: %w", err)
+		}
+		log.Info("migrações aplicadas")
+	}
+	db, err := repository.Open(cfg.DB, log)
+	if err != nil {
+		return fmt.Errorf("postgres: %w", err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("postgres: %w", err)
+	}
+	defer sqlDB.Close()
+
 	health := handler.NewHealth()
+	health.AddCheck("postgres", repository.Ping(db))
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr(),
 		Handler:           handler.NewRouter(log, health),
