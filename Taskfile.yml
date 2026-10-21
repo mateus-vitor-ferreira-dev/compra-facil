@@ -66,11 +66,12 @@ tasks:
 
   # ---------- lint ----------
   lint:
-    desc: Lint de tudo (golangci-lint, dotnet format, buf lint, spectral)
+    desc: Lint de tudo (golangci-lint, dotnet format, buf lint/breaking, spectral)
     cmds:
       - task: lint:go
       - task: lint:dotnet
       - task: lint:proto
+      - task: proto:breaking
       - task: lint:openapi
 
   lint:go:
@@ -86,13 +87,30 @@ tasks:
         cmd: echo "==> dotnet format {{.ITEM}}" && dotnet format {{.ITEM}} --verify-no-changes
 
   lint:proto:
-    desc: buf lint nos contratos gRPC
-    status:
-      # pula enquanto não existir buf.yaml (tarefa #57)
-      - test ! -f contracts/proto/buf.yaml
+    desc: buf lint + formatação nos contratos gRPC
     dir: contracts/proto
     cmds:
       - buf lint
+      - buf format --diff --exit-code
+
+  proto:breaking:
+    desc: "Barra mudança incompatível nos .proto (padrão: contra main; task proto:breaking BASE=develop)"
+    dir: contracts/proto
+    vars:
+      BASE: '{{.BASE | default "main"}}'
+    cmds:
+      - |
+        if git ls-tree -r --name-only {{.BASE}} -- . | grep -q '[.]proto$'; then
+          buf breaking --against '../../.git#branch={{.BASE}},subdir=contracts/proto'
+        else
+          echo "{{.BASE}} ainda não tem .proto: nada a comparar"
+        fi
+
+  proto:generate:
+    desc: Gera o código Go do catalog a partir dos .proto (C# é gerado pelo Grpc.Tools no build)
+    dir: contracts/proto
+    cmds:
+      - buf generate
 
   lint:openapi:
     desc: Spectral nos contratos REST (regras em contracts/openapi/.spectral.yaml)
