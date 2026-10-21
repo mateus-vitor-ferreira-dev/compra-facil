@@ -1,0 +1,8 @@
+# Módulo Buf dos contratos gRPC. Rodar a partir de contracts/proto (ou via task lint:proto).
+version: v2
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
