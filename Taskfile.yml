@@ -19,9 +19,9 @@ tasks:
 
   # ---------- ambiente ----------
   up:
-    desc: Sobe a infraestrutura local e espera ficar saudável
+    desc: Sobe o ambiente local (rebuilda as imagens dos serviços) e espera ficar saudável
     cmds:
-      - docker compose up -d --wait
+      - docker compose up -d --build --wait
 
   down:
     desc: Para o ambiente (mantém os dados)
@@ -33,7 +33,7 @@ tasks:
     prompt: Isso apaga todos os dados locais. Continuar?
     cmds:
       - docker compose down -v
-      - docker compose up -d --wait
+      - docker compose up -d --build --wait
 
   ps:
     desc: Estado dos containers
