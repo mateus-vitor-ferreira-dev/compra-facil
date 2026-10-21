@@ -79,4 +79,21 @@ compra-facil/
 
 ## Rodando localmente
 
-> Preenchido na tarefa *Docker Compose base*.
+Pré-requisito: Docker com Compose v2.
+
+```bash
+cp .env.example .env        # opcional: só se precisar trocar alguma porta
+docker compose up -d --wait # sobe a infraestrutura e espera todos ficarem saudáveis
+docker compose down         # para tudo (-v também apaga os dados)
+```
+
+| Componente | Acesso pelo host | Uso |
+|---|---|---|
+| PostgreSQL 17 | `localhost:55432` | um banco por serviço: `catalog`, `orders`, `inventory`, `payments`, `notifications` (usuário = nome do banco, senha `compra-facil`) |
+| Redis 8 | `localhost:6379` | cache do catálogo |
+| Redpanda (Kafka) | `localhost:19092` (dentro do compose: `redpanda:9092`) | eventos da SAGA e do catálogo |
+| Redpanda Console | http://localhost:8080 | inspecionar tópicos e mensagens |
+| Mailpit | SMTP `localhost:1025` · UI http://localhost:8025 | e-mails do `notifications` |
+
+Os bancos são criados por `infra/compose/postgres/init-databases.sh` apenas na **primeira** subida do volume.
+Para recriá-los: `docker compose down -v && docker compose up -d --wait`.
