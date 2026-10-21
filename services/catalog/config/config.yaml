@@ -11,3 +11,12 @@ http:
 
 log:
   level: info
+
+db:
+  # compose local (task up); em container use CATALOG_DB_DSN apontando para postgres:5432
+  dsn: postgres://catalog:compra-facil@localhost:55432/catalog?sslmode=disable
+  max_open_conns: 20
+  max_idle_conns: 10
+  conn_max_lifetime: 30m
+  slow_query: 200ms
+  migrate_on_start: true
