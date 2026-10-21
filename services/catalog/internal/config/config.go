@@ -19,6 +19,7 @@ type Config struct {
 	App  AppConfig  `mapstructure:"app"`
 	HTTP HTTPConfig `mapstructure:"http"`
 	Log  LogConfig  `mapstructure:"log"`
+	DB   DBConfig   `mapstructure:"db"`
 }
 
 type AppConfig struct {
@@ -31,6 +32,15 @@ type HTTPConfig struct {
 	ReadTimeout     time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration `mapstructure:"write_timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+}
+
+type DBConfig struct {
+	DSN             string        `mapstructure:"dsn"`
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
+	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
+	SlowQuery       time.Duration `mapstructure:"slow_query"`
+	MigrateOnStart  bool          `mapstructure:"migrate_on_start"`
 }
 
 type LogConfig struct {
@@ -78,11 +88,20 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("http.write_timeout", "10s")
 	v.SetDefault("http.shutdown_timeout", "15s")
 	v.SetDefault("log.level", "info")
+	v.SetDefault("db.dsn", "postgres://catalog:compra-facil@localhost:55432/catalog?sslmode=disable")
+	v.SetDefault("db.max_open_conns", 20)
+	v.SetDefault("db.max_idle_conns", 10)
+	v.SetDefault("db.conn_max_lifetime", "30m")
+	v.SetDefault("db.slow_query", "200ms")
+	v.SetDefault("db.migrate_on_start", true)
 }
 
 func (c Config) validate() error {
 	if c.HTTP.Port <= 0 || c.HTTP.Port > 65535 {
 		return fmt.Errorf("http.port inválida: %d", c.HTTP.Port)
+	}
+	if c.DB.DSN == "" {
+		return errors.New("db.dsn é obrigatório")
 	}
 	switch strings.ToLower(c.Log.Level) {
 	case "debug", "info", "warn", "error":

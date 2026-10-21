@@ -19,6 +19,9 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, ":8001", cfg.HTTP.Addr())
 	assert.Equal(t, 15*time.Second, cfg.HTTP.ShutdownTimeout)
 	assert.Equal(t, "info", cfg.Log.Level)
+	assert.Contains(t, cfg.DB.DSN, "localhost:55432/catalog")
+	assert.True(t, cfg.DB.MigrateOnStart)
+	assert.Equal(t, 30*time.Minute, cfg.DB.ConnMaxLifetime)
 }
 
 func TestLoad_FileAndEnvPrecedence(t *testing.T) {
