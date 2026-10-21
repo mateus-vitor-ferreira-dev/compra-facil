@@ -25,6 +25,8 @@ linters:
       # erros do GORM são traduzidos por repository.mapError na borda do pacote
       ignore-package-globs:
         - gorm.io/*
+        # erros de domínio (ValidationError, ErrNotFound...) sobem de propósito sem embrulho
+        - github.com/mateus-vitor-ferreira-dev/compra-facil/*
       ignore-sigs:
         - .Errorf(
         - errors.New(

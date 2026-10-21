@@ -56,4 +56,7 @@ type CampaignRepository interface {
 	List(ctx context.Context, cursor string, limit int) (Page[Campaign], error)
 	// SetProducts substitui a lista de produtos da campanha (transação única).
 	SetProducts(ctx context.Context, campaignID uuid.UUID, productIDs []uuid.UUID) error
+	// OverlappingProducts devolve, dentre productIDs, os que já estão em OUTRA campanha cujo período
+	// cruza [start, end). Com productIDs nil, considera os produtos atuais da própria campanha.
+	OverlappingProducts(ctx context.Context, campaignID uuid.UUID, start, end time.Time, productIDs []uuid.UUID) ([]uuid.UUID, error)
 }
