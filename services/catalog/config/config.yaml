@@ -9,6 +9,11 @@ http:
   write_timeout: 10s
   shutdown_timeout: 15s
 
+grpc:
+  port: 9001
+  # reflexão permite usar grpcurl sem o .proto; desligue em produção (CATALOG_GRPC_REFLECTION=false)
+  reflection: true
+
 log:
   level: info
 

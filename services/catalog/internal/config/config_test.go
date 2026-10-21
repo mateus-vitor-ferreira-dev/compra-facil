@@ -21,6 +21,8 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, "info", cfg.Log.Level)
 	assert.Contains(t, cfg.DB.DSN, "localhost:55432/catalog")
 	assert.True(t, cfg.DB.MigrateOnStart)
+	assert.Equal(t, ":9001", cfg.GRPC.Addr())
+	assert.True(t, cfg.GRPC.Reflection)
 	assert.Equal(t, 30*time.Minute, cfg.DB.ConnMaxLifetime)
 }
 
@@ -42,6 +44,7 @@ func TestLoad_Invalid(t *testing.T) {
 	tests := map[string]map[string]string{
 		"porta fora do intervalo": {"CATALOG_HTTP_PORT": "70000"},
 		"nível de log":            {"CATALOG_LOG_LEVEL": "verbose"},
+		"grpc na porta do http":   {"CATALOG_GRPC_PORT": "8001"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {

@@ -18,6 +18,7 @@ const envPrefix = "CATALOG"
 type Config struct {
 	App  AppConfig  `mapstructure:"app"`
 	HTTP HTTPConfig `mapstructure:"http"`
+	GRPC GRPCConfig `mapstructure:"grpc"`
 	Log  LogConfig  `mapstructure:"log"`
 	DB   DBConfig   `mapstructure:"db"`
 }
@@ -33,6 +34,13 @@ type HTTPConfig struct {
 	WriteTimeout    time.Duration `mapstructure:"write_timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }
+
+type GRPCConfig struct {
+	Port       int  `mapstructure:"port"`
+	Reflection bool `mapstructure:"reflection"`
+}
+
+func (g GRPCConfig) Addr() string { return fmt.Sprintf(":%d", g.Port) }
 
 type DBConfig struct {
 	DSN             string        `mapstructure:"dsn"`
@@ -87,6 +95,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("http.read_timeout", "5s")
 	v.SetDefault("http.write_timeout", "10s")
 	v.SetDefault("http.shutdown_timeout", "15s")
+	v.SetDefault("grpc.port", 9001)
+	v.SetDefault("grpc.reflection", true)
 	v.SetDefault("log.level", "info")
 	v.SetDefault("db.dsn", "postgres://catalog:compra-facil@localhost:55432/catalog?sslmode=disable")
 	v.SetDefault("db.max_open_conns", 20)
@@ -99,6 +109,9 @@ func setDefaults(v *viper.Viper) {
 func (c Config) validate() error {
 	if c.HTTP.Port <= 0 || c.HTTP.Port > 65535 {
 		return fmt.Errorf("http.port inválida: %d", c.HTTP.Port)
+	}
+	if c.GRPC.Port <= 0 || c.GRPC.Port > 65535 || c.GRPC.Port == c.HTTP.Port {
+		return fmt.Errorf("grpc.port inválida: %d", c.GRPC.Port)
 	}
 	if c.DB.DSN == "" {
 		return errors.New("db.dsn é obrigatório")

@@ -1,4 +1,4 @@
-// Comando api sobe o serviço de catálogo (HTTP; gRPC entra na tarefa #66).
+// Comando api sobe o serviço de catálogo: REST (Gin) e gRPC interno no mesmo processo.
 package main
 
 import (
@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/api/openapi"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/grpcserver"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/handler"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/repository"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/service"
@@ -64,8 +66,9 @@ func run() error {
 	products := repository.NewProductRepository(db)
 	categories := repository.NewCategoryRepository(db)
 	campaigns := repository.NewCampaignRepository(db)
+	productSvc := service.NewProductService(products, categories, time.Now)
 	catalogAPI := handler.NewCatalogHandler(
-		service.NewProductService(products, categories, time.Now),
+		productSvc,
 		service.NewCategoryService(categories),
 		service.NewCampaignService(campaigns, time.Now),
 		log,
@@ -78,31 +81,47 @@ func run() error {
 		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
 		WriteTimeout:      cfg.HTTP.WriteTimeout,
 	}
+	grpcSrv, grpcHealth := grpcserver.New(productSvc, log, grpcserver.Options{Reflection: cfg.GRPC.Reflection})
+	grpcLis, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.GRPC.Addr())
+	if err != nil {
+		return fmt.Errorf("gRPC: %w", err)
+	}
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() {
 		log.Info("servidor HTTP no ar", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- err
+			errCh <- fmt.Errorf("servidor HTTP: %w", err)
 		}
-		close(errCh)
+	}()
+	go func() {
+		log.Info("servidor gRPC no ar", "addr", cfg.GRPC.Addr(), "reflection", cfg.GRPC.Reflection)
+		if err := grpcSrv.Serve(grpcLis); err != nil {
+			errCh <- fmt.Errorf("servidor gRPC: %w", err)
+		}
 	}()
 
 	select {
 	case err := <-errCh:
-		return fmt.Errorf("servidor HTTP: %w", err)
+		return err
 	case <-ctx.Done():
 	}
 	stop() // um segundo Ctrl+C mata o processo na hora
 
 	log.Info("desligando", "timeout", cfg.HTTP.ShutdownTimeout.String())
 	health.MarkShuttingDown()
+	grpcHealth.Shutdown() // health gRPC passa a NOT_SERVING
 	if cfg.App.Env != "local" {
 		time.Sleep(drainDelay)
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.HTTP.ShutdownTimeout)
 	defer cancel()
+	go func() {
+		<-shutdownCtx.Done()
+		grpcSrv.Stop() // timeout: corta as chamadas que não terminaram
+	}()
+	grpcSrv.GracefulStop()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}

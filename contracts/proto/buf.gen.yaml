@@ -1,0 +1,19 @@
+# Geração de código a partir dos .proto.
+#
+# - Go (provider, catalog): gerado aqui e versionado em services/catalog/gen.
+# - C# (consumer, orders): o Grpc.Tools compila os .proto no build do .NET
+#   (<Protobuf Include="../../../../contracts/proto/catalog/v1/catalog.proto" GrpcServices="Client" />),
+#   então não há saída C# neste arquivo. O namespace vem de `option csharp_namespace` no .proto.
+version: v2
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/gen
+plugins:
+  - local: protoc-gen-go
+    out: ../../services/catalog/gen
+    opt: paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: ../../services/catalog/gen
+    opt: paths=source_relative
