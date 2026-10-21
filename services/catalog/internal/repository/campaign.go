@@ -135,6 +135,30 @@ func (r *CampaignRepository) SetProducts(ctx context.Context, campaignID uuid.UU
 	return mapError(err)
 }
 
+func (r *CampaignRepository) OverlappingProducts(
+	ctx context.Context, campaignID uuid.UUID, start, end time.Time, productIDs []uuid.UUID,
+) ([]uuid.UUID, error) {
+	q := r.db.WithContext(ctx).
+		Table("campaign_products cp").
+		Distinct("cp.product_id").
+		Joins("JOIN campaigns c ON c.id = cp.campaign_id").
+		Where("c.id <> ? AND c.starts_at < ? AND c.ends_at > ?", campaignID, end, start)
+	if productIDs == nil {
+		q = q.Where("cp.product_id IN (SELECT product_id FROM campaign_products WHERE campaign_id = ?)", campaignID)
+	} else {
+		if len(productIDs) == 0 {
+			return nil, nil
+		}
+		q = q.Where("cp.product_id IN ?", productIDs)
+	}
+
+	var ids []uuid.UUID
+	if err := q.Order("cp.product_id").Pluck("cp.product_id", &ids).Error; err != nil {
+		return nil, mapError(err)
+	}
+	return ids, nil
+}
+
 func toCampaigns(recs []campaignRecord) []domain.Campaign {
 	out := make([]domain.Campaign, len(recs))
 	for i, rec := range recs {
