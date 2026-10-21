@@ -96,4 +96,17 @@ docker compose down         # para tudo (-v também apaga os dados)
 | Mailpit | SMTP `localhost:1025` · UI http://localhost:8025 | e-mails do `notifications` |
 
 Os bancos são criados por `infra/compose/postgres/init-databases.sh` apenas na **primeira** subida do volume.
-Para recriá-los: `docker compose down -v && docker compose up -d --wait`.
+Para recriá-los: `task reset` (ou `docker compose down -v && docker compose up -d --wait`).
+
+### Comandos do dia a dia ([go-task](https://taskfile.dev))
+
+```bash
+go install github.com/go-task/task/v3/cmd/task@latest   # uma vez
+task            # lista tudo
+task up         # / task down / task reset / task logs -- <serviço>
+task test       # go test + dotnet test em todos os serviços
+task lint       # golangci-lint, dotnet format --verify-no-changes, buf lint
+task seed       # popula o catálogo
+```
+
+`test` e `lint` descobrem sozinhos os módulos Go (`go.mod`) e as solutions .NET em `services/` e `libs/`.
