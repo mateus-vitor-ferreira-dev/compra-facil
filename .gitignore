@@ -17,3 +17,4 @@ coverage.out
 !.vscode/extensions.json
 *.log
 k6-results/
+contracts/openapi/dist/

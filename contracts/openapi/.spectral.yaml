@@ -1,0 +1,62 @@
+# Regras de estilo dos contratos REST. Rodar: task lint:openapi
+extends:
+  - spectral:oas
+
+rules:
+  # o servidor de cada spec é http://localhost em dev
+  oas3-server-not-example.com: off
+
+  operation-operationId: error
+  operation-tags: error
+  operation-description: off
+  info-contact: off
+
+  compra-facil-paths-kebab-case:
+    description: Caminhos em kebab-case, com versão no início (/v1/...).
+    severity: error
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^/v[0-9]+(/([a-z0-9]+(-[a-z0-9]+)*|\\{[a-z_]+\\}))*$"
+
+  compra-facil-properties-snake-case:
+    description: Propriedades JSON em snake_case.
+    severity: error
+    given: $..properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+
+  compra-facil-query-params-snake-case:
+    description: Parâmetros de query e path em snake_case.
+    severity: error
+    given: $..parameters[?(@.in == 'query' || @.in == 'path')].name
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+
+  compra-facil-errors-are-problem-details:
+    description: Respostas 4xx/5xx usam application/problem+json (RFC 9457).
+    severity: error
+    given: $.paths[*][*].responses[?(@property.match(/^[45]/))].content
+    then:
+      field: application/problem+json
+      function: truthy
+
+  compra-facil-5xx-documented:
+    description: Toda operação documenta o 500.
+    severity: warn
+    given: $.paths[*][get,post,put,patch,delete].responses
+    then:
+      field: "500"
+      function: truthy
+
+overrides:
+  # common.yaml é só uma biblioteca de componentes, sem paths nem servers
+  - files: ["common/**/*.yaml"]
+    rules:
+      oas3-api-servers: off
+      oas3-unused-component: off

@@ -8,6 +8,8 @@ vars:
     sh: find services libs -name go.mod -not -path '*/node_modules/*' -exec dirname {} \; 2>/dev/null | sort
   DOTNET_SOLUTIONS:
     sh: find services libs \( -name '*.slnx' -o -name '*.sln' \) 2>/dev/null | sort
+  SPECTRAL: npx -y @stoplight/spectral-cli@6.17.0
+  REDOCLY: npx -y @redocly/cli@2.67.1
 
 tasks:
   default:
@@ -64,11 +66,12 @@ tasks:
 
   # ---------- lint ----------
   lint:
-    desc: Lint de tudo (golangci-lint, dotnet format, buf lint)
+    desc: Lint de tudo (golangci-lint, dotnet format, buf lint, spectral)
     cmds:
       - task: lint:go
       - task: lint:dotnet
       - task: lint:proto
+      - task: lint:openapi
 
   lint:go:
     desc: golangci-lint em cada módulo Go
@@ -90,6 +93,22 @@ tasks:
     dir: contracts/proto
     cmds:
       - buf lint
+
+  lint:openapi:
+    desc: Spectral nos contratos REST (regras em contracts/openapi/.spectral.yaml)
+    dir: contracts/openapi
+    cmds:
+      - "{{.SPECTRAL}} lint --fail-severity=warn '*.v1.yaml' 'common/**/*.yaml'"
+
+  openapi:bundle:
+    desc: "Gera um arquivo único por contrato (resolve os $ref) em contracts/openapi/dist/"
+    dir: contracts/openapi
+    cmds:
+      - for: { var: SPECS }
+        cmd: "{{.REDOCLY}} bundle {{.ITEM}} -o dist/{{.ITEM}}"
+    vars:
+      SPECS:
+        sh: ls *.v1.yaml
 
   fmt:
     desc: Formata o código (gofmt/goimports via golangci-lint, dotnet format)
