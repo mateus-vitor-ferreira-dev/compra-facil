@@ -1,5 +1,5 @@
 # Infraestrutura do ambiente local: um Postgres com um banco por serviço, Redis,
-# Redpanda (Kafka) + Console e Mailpit. Os serviços entram aqui nas próximas tarefas.
+# Redpanda (Kafka) + Console, Mailpit e os serviços da aplicação.
 name: compra-facil
 
 services:
@@ -86,6 +86,37 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # ---------- serviços ----------
+  catalog:
+    build:
+      context: ../../services/catalog
+      target: api
+      args:
+        VERSION: ${VERSION:-dev}
+    image: compra-facil/catalog:${VERSION:-dev}
+    environment:
+      CATALOG_APP_ENV: compose
+      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+    ports:
+      - "${CATALOG_HTTP_PORT:-8001}:8001"
+      - "${CATALOG_GRPC_PORT:-9001}:9001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # só roda sob demanda: docker compose run --rm catalog-seed [-reset] [-products N]
+  catalog-seed:
+    build:
+      context: ../../services/catalog
+      target: seed
+    image: compra-facil/catalog-seed:${VERSION:-dev}
+    profiles: [tools]
+    environment:
+      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres-data:

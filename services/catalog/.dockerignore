@@ -1,0 +1,11 @@
+# só o necessário para o build entra no contexto
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!migrations/
+!gen/
+!api/
+!config/
+**/*_test.go
