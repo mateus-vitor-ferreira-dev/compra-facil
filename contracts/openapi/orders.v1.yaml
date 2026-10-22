@@ -37,6 +37,10 @@ paths:
         Valida os itens no catálogo (existem, estão ativos, preço vigente) e grava o pedido como
         `pending` junto com o evento `OrderPlaced` (outbox). Requisições repetidas com o mesmo
         `Idempotency-Key` devolvem o pedido já criado.
+
+        Com o catálogo fora ou lento (prazo, novas tentativas e circuit breaker), a validação e o
+        preço saem da cópia local do catálogo que o orders mantém pelos eventos, com as mesmas
+        regras (campanha vigente de maior desconto).
       parameters:
         - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
         - $ref: "./common/v1/common.yaml#/components/parameters/IdempotencyKey"

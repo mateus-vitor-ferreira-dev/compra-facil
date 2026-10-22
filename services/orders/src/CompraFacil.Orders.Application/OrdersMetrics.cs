@@ -18,4 +18,9 @@ public static class OrdersMetrics
     /// <summary>Valor dos pedidos confirmados, em centavos.</summary>
     public static readonly Counter<long> ConfirmedAmount = s_meter.CreateCounter<long>(
         "compra_facil.orders.confirmed_amount", unit: "{cent}", description: "Receita dos pedidos confirmados (centavos).");
+
+    /// <summary>Pedidos precificados pela cópia local porque o catalog não respondeu (por motivo).</summary>
+    public static readonly Counter<long> CatalogFallback = s_meter.CreateCounter<long>(
+        "compra_facil.orders.catalog_fallback", unit: "{order}",
+        description: "Precificações pela cópia local do catálogo (timeout, unavailable, circuit_open).");
 }

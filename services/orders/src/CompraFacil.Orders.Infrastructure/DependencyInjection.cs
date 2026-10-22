@@ -22,8 +22,10 @@ public static class DependencyInjection
 
         builder.Services.Configure<CatalogOptions>(builder.Configuration.GetSection("Catalog"));
         builder.Services.AddGrpcClient<CatalogService.CatalogServiceClient>((sp, o) =>
-            o.Address = sp.GetRequiredService<IOptions<CatalogOptions>>().Value.GrpcAddress);
-        builder.Services.AddScoped<ICatalogPricing, CatalogGrpcPricing>();
+                o.Address = sp.GetRequiredService<IOptions<CatalogOptions>>().Value.GrpcAddress)
+            // cancelamento pelo prazo do Polly vira OperationCanceledException (e o Polly, timeout)
+            .ConfigureChannel(c => c.ThrowOperationCanceledOnCancellation = true);
+        builder.Services.AddCatalogPricing();
 
         // contracts/asyncapi/orders.v1.yaml: publica orders.order.v1; consome o resultado da SAGA e o
         // catálogo (snapshot)

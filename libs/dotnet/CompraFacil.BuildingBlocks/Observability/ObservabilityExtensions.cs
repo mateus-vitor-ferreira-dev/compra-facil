@@ -35,6 +35,8 @@ public static class ObservabilityExtensions
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
                 .AddMeter("Npgsql")
+                // retries, timeouts e circuit breaker (pipelines do Polly.Extensions)
+                .AddMeter("Polly")
                 // métricas próprias: mensageria (BuildingBlocks) e de negócio de cada serviço
                 .AddMeter("CompraFacil.*"))
             // logs também vão por OTLP (Loki), com trace_id/span_id em cada registro

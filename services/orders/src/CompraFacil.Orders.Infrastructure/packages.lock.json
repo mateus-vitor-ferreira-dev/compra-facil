@@ -24,6 +24,17 @@
         "resolved": "2.84.0",
         "contentHash": "SarjdfpQYU/mmdu/fWgSW8kEHQ54jiyG2+I4THu9eubtAud+QJf+1iJdGtoKTJ/ZRaI0qAG+7ttsK2WUTao2OQ=="
       },
+      "Polly.Extensions": {
+        "type": "Direct",
+        "requested": "[8.8.0, )",
+        "resolved": "8.8.0",
+        "contentHash": "Xfdb9l/IcEXoWzJAMTfiWM20Cp2+/Kn/BmIEkDXwhy+DdEmdEt778xEkQsmDqXFoR15cA7aKamSHjbDQvcdUXg==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.0",
+          "Microsoft.Extensions.Options": "8.0.0",
+          "Polly.Core": "8.8.0"
+        }
+      },
       "Grpc.Core.Api": {
         "type": "Transitive",
         "resolved": "2.84.0",
@@ -352,6 +363,11 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
           "OpenTelemetry.Api": "1.19.1"
         }
+      },
+      "Polly.Core": {
+        "type": "Transitive",
+        "resolved": "8.8.0",
+        "contentHash": "TewV9uNFsoRFggoFbTAGFwsMYPuckA+wTIpQPyhLL9BANRPQRENz2S4bwATrB3HBOakN5oKLFIllPiDnVecmJg=="
       },
       "System.IdentityModel.Tokens.Jwt": {
         "type": "Transitive",

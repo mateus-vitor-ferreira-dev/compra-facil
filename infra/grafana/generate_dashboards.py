@@ -150,6 +150,16 @@ saga = dashboard(
         panel("timeseries", "Tratamento de evento p95", [(
             "histogram_quantile(0.95, sum by (le, service_name, event_type) (rate(compra_facil_messaging_process_duration_seconds_bucket[$__rate_interval])))",
             "{{service_name}} {{event_type}}")], 0, 23, 24, 8, unit="s"),
+        row("Catálogo fora (fallback do orders, #81)", 31),
+        panel("timeseries", "Pedidos precificados pela cópia local", [(
+            "sum by (reason) (rate(compra_facil_orders_catalog_fallback_total[$__rate_interval]))", "{{reason}}")],
+              0, 32, 12, 8, unit="ops", stack=True,
+              description="O catalog não respondeu (unavailable, timeout) ou o circuito estava aberto (circuit_open): "
+                          "o preço saiu da cópia local que o orders mantém pelos eventos."),
+        panel("timeseries", "Retries e circuit breaker (Polly)", [(
+            'sum by (event_name) (increase(resilience_polly_strategy_events_total{pipeline_name="catalog-grpc", event_name!="PipelineExecuting"}[$__rate_interval]))',
+            "{{event_name}}")], 12, 32, 12, 8, decimals=0,
+              description="OnRetry: nova tentativa no catalog; OnCircuitOpened/HalfOpened/Closed: estado do circuito."),
     ],
 )
 

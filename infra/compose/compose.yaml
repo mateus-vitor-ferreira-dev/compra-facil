@@ -262,7 +262,7 @@ services:
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
       # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud orders
       Auth__AllowDevSecret: "true"
-      # valida itens e preços no catalog (gRPC); catalog fora = 503 até a #81 (fallback no snapshot)
+      # valida itens e preços no catalog (gRPC, com Polly); catalog fora = preço pela cópia local (#81)
       Catalog__GrpcAddress: http://catalog:9001
 
   inventory:
