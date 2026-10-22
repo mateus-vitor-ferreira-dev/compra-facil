@@ -195,6 +195,17 @@ campaign = dashboard(
         panel("timeseries", "Cache: consultas por resultado", [(
             'sum by (result) (rate(catalog_cache_lookups_total[$__rate_interval]))', "{{result}}")], 12, 13, 12, 8, unit="ops", stack=True,
               description="error = Redis fora (a leitura cai no banco)."),
+        row("Teste de carga (k6: task load / task experiment)", 21),
+        panel("timeseries", "k6: requisições por cenário", [(
+            "sum by (scenario) (rate(k6_http_reqs_total[$__rate_interval]))", "{{scenario}}")], 0, 22, 8, 8, unit="reqps", stack=True,
+              description="browse = leitura do catálogo (90%); buy = compras (10%). A rodada do experimento vem no label round."),
+        panel("timeseries", "k6: p95 por cenário (visto pelo cliente)", [(
+            "max by (scenario) (k6_http_req_duration_p95{name!=\"setup\"})", "{{scenario}}")], 8, 22, 8, 8, unit="ms",
+              description="p95 de cada intervalo de envio do k6 (maior entre as rotas do cenário). Meta da #89: < 300 ms."),
+        panel("timeseries", "k6: usuários virtuais e requisições não enviadas", [
+            ("sum(k6_vus)", "VUs", "A"),
+            ("sum(rate(k6_dropped_iterations_total[$__rate_interval]))", "não enviadas/s (saturação)", "B"),
+        ], 16, 22, 8, 8),
     ],
     refresh="5s", time_from="now-15m",
 )

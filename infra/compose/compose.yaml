@@ -204,6 +204,9 @@ services:
       - ../../load-tests/k6:/scripts:ro
     environment:
       BASE_URL: http://catalog:8001
+      # com -o experimental-prometheus-rw, as métricas do k6 vão para o Prometheus (dashboard Campanha)
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(95),p(99),avg
 
   # ---------- serviços (sem porta no host: entram pelo gateway) ----------
   catalog:

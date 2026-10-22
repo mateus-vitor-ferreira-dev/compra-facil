@@ -219,6 +219,16 @@ tasks:
         sleep 20 && echo "==> catalog de volta" && docker compose start catalog
         wait $K6
 
+  load:
+    desc: "k6: campanha promocional, 90% leitura e 10% compras, com rampa até o pico; métricas no Prometheus (ex.: task load -- -e PEAK_RATE=800)"
+    cmds:
+      - docker compose run --rm k6 run -o experimental-prometheus-rw {{.CLI_ARGS}} /scripts/campanha.js
+
+  experiment:
+    desc: "Escala independente (#90): campanha com 1 e com N réplicas do catalog, relatório em docs/resultados-carga.md"
+    cmds:
+      - python3 load-tests/experiment.py {{.CLI_ARGS}}
+
   load:catalog-cache:
     desc: "k6: hit ratio do cache do catálogo, meta > 90% (ex.: task load:catalog-cache -- -e RATE=500)"
     cmds:

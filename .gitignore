@@ -18,3 +18,4 @@ coverage.out
 *.log
 k6-results/
 contracts/openapi/dist/
+__pycache__/

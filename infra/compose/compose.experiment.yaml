@@ -1,0 +1,25 @@
+# Experimento da escala independente (#90): limita os recursos de cada réplica, para que escalar o
+# catalog faça diferença mensurável: sem limite, uma réplica usaria todos os núcleos da máquina, e com
+# o cache o catalog atende ~800 req/s com 0,5 CPU (p95 de 1 ms). Com 0,2 CPU, satura perto de 500 req/s.
+#   CATALOG_REPLICAS=3 docker compose -f compose.yaml -f infra/compose/compose.experiment.yaml up -d --wait
+# Quem roda as duas rodadas e gera o relatório: task experiment (load-tests/experiment.py).
+x-limits: &limits
+  cpus: "${SERVICE_CPUS:-1}"
+  memory: 512M
+
+services:
+  catalog:
+    deploy:
+      replicas: ${CATALOG_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${CATALOG_CPUS:-0.2}"
+          memory: 256M
+  orders:
+    deploy: { resources: { limits: *limits } }
+  inventory:
+    deploy: { resources: { limits: *limits } }
+  payments:
+    deploy: { resources: { limits: *limits } }
+  notifications:
+    deploy: { resources: { limits: *limits } }
