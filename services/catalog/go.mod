@@ -1,6 +1,6 @@
 module github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog
 
-go 1.26.5
+go 1.26.10
 
 require (
 	github.com/gin-gonic/gin v1.12.0
