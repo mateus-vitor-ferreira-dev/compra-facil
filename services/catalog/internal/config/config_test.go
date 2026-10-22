@@ -26,6 +26,9 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, 30*time.Minute, cfg.DB.ConnMaxLifetime)
 	assert.Equal(t, DevJWTSecret, cfg.Auth.JWTSecret)
 	assert.Equal(t, "catalog", cfg.Auth.Audience)
+	assert.True(t, cfg.Cache.Enabled)
+	assert.Equal(t, 5*time.Minute, cfg.Cache.ProductTTL)
+	assert.Equal(t, "localhost:6379", cfg.Cache.Redis.Addr)
 }
 
 func TestLoad_FileAndEnvPrecedence(t *testing.T) {
@@ -49,6 +52,8 @@ func TestLoad_Invalid(t *testing.T) {
 		"grpc na porta do http":        {"CATALOG_GRPC_PORT": "8001"},
 		"segredo jwt curto":            {"CATALOG_AUTH_JWT_SECRET": "curto"},
 		"segredo de dev fora do local": {"CATALOG_APP_ENV": "production"},
+		"timeout do redis zerado":      {"CATALOG_CACHE_REDIS_TIMEOUT": "0s"},
+		"ttl do cache zerado":          {"CATALOG_CACHE_LIST_TTL": "0s"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {
