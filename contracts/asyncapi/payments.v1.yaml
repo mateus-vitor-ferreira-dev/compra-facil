@@ -1,0 +1,168 @@
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — Payments Events
+  version: 1.0.0
+  description: |
+    Eventos do serviço **payments** (time de Processamento de compras, ASP.NET Core).
+
+    Junta dois eventos do mesmo pedido antes de cobrar:
+
+    - `OrderPlaced` → grava uma cobrança pendente com `customer_id` e `total`;
+    - `StockReserved` → marca o estoque como garantido.
+
+    Quando os dois chegaram, **em qualquer ordem** (são tópicos diferentes), cobra o `total` no gateway
+    de pagamento (fake em dev; Stripe em modo teste, opcional) e publica `PaymentApproved` ou
+    `PaymentFailed`. `OrderCancelled` antes da cobrança descarta a pendência (caso da reserva recusada).
+
+    Cada pedido é cobrado no máximo uma vez: evento repetido para o mesmo `order_id` não gera nova
+    cobrança.
+defaultContentType: application/json
+
+servers:
+  dev:
+    $ref: "./common/v1/common.yaml#/components/servers/dev"
+  dev-internal:
+    $ref: "./common/v1/common.yaml#/components/servers/dev-internal"
+
+channels:
+  paymentEvents:
+    address: payments.payment.v1
+    title: Pagamentos
+    description: Resultado da cobrança de cada pedido. Chave = `order_id`.
+    messages:
+      PaymentApproved:
+        $ref: "#/components/messages/PaymentApproved"
+      PaymentFailed:
+        $ref: "#/components/messages/PaymentFailed"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: payments.payment.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+  # Canais de outros serviços que o payments consome (definidos no contrato do dono)
+  orderEvents:
+    $ref: "./orders.v1.yaml#/channels/orderEvents"
+  reservationEvents:
+    $ref: "./inventory.v1.yaml#/channels/reservationEvents"
+
+operations:
+  publishPaymentEvents:
+    action: send
+    channel:
+      $ref: "#/channels/paymentEvents"
+    summary: Publica o resultado da cobrança (outbox).
+    messages:
+      - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
+      - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
+
+  onOrderEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/orderEvents"
+    summary: Grava a cobrança pendente (placed) ou a descarta se ainda não foi feita (cancelled).
+    messages:
+      - $ref: "#/channels/orderEvents/messages/OrderPlaced"
+      - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+    bindings:
+      $ref: "#/components/operationBindings/PaymentsGroup"
+
+  onStockReserved:
+    action: receive
+    channel:
+      $ref: "#/channels/reservationEvents"
+    summary: Marca o estoque como garantido; cobra se o `OrderPlaced` já chegou.
+    messages:
+      - $ref: "#/channels/reservationEvents/messages/StockReserved"
+    bindings:
+      $ref: "#/components/operationBindings/PaymentsGroup"
+
+components:
+  operationBindings:
+    PaymentsGroup:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: payments
+
+  messages:
+    PaymentApproved:
+      name: PaymentApproved
+      title: Pagamento aprovado
+      summary: Cobrança aprovada. O orders confirma o pedido.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PaymentApproved
+              event_version:
+                const: 1
+              producer:
+                const: payments
+              data:
+                type: object
+                required: [order_id, payment_id, amount, provider]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  payment_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  provider:
+                    $ref: "#/components/schemas/Provider"
+                  provider_reference:
+                    type: [string, "null"]
+                    description: "ID da cobrança no gateway (ex.: `pi_...` no Stripe)."
+
+    PaymentFailed:
+      name: PaymentFailed
+      title: Pagamento recusado
+      summary: Cobrança recusada. O orders cancela o pedido, o que libera a reserva de estoque.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PaymentFailed
+              event_version:
+                const: 1
+              producer:
+                const: payments
+              data:
+                type: object
+                required: [order_id, payment_id, amount, provider, failure_reason]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  payment_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  provider:
+                    $ref: "#/components/schemas/Provider"
+                  failure_reason:
+                    $ref: "../openapi/payments.v1.yaml#/components/schemas/FailureReason"
+
+  schemas:
+    Provider:
+      type: string
+      enum: [fake, stripe]

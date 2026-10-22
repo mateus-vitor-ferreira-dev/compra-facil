@@ -1,0 +1,208 @@
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — Catalog Events
+  version: 1.0.0
+  description: |
+    Eventos publicados pelo serviço **catalog** (time de Catálogo e campanhas, Go) a partir do outbox.
+
+    Mudanças de produto viram eventos para que os outros serviços mantenham uma cópia local do que
+    precisam, sem chamar o catálogo a cada leitura:
+
+    - **orders** guarda um snapshot (SKU, nome, preço, status) para validar pedidos quando o gRPC
+      do catálogo está fora (ver `503` em `POST /v1/orders`);
+    - **inventory** cria o saldo zerado do produto novo e bloqueia reservas de produto removido.
+
+    Toda alteração publica `ProductUpdated` com o estado completo (é ele que mantém as cópias).
+    Quando o preço de tabela muda, sai também `ProductPriceChanged`, com o antes e o depois, para quem
+    só se interessa por preço. Campanhas mudam o preço **efetivo** sem gerar evento: quem precisa do
+    preço cobrado consulta o gRPC `ValidateItems`.
+defaultContentType: application/json
+
+servers:
+  dev:
+    $ref: "./common/v1/common.yaml#/components/servers/dev"
+  dev-internal:
+    $ref: "./common/v1/common.yaml#/components/servers/dev-internal"
+
+channels:
+  productEvents:
+    address: catalog.product.v1
+    title: Produtos do catálogo
+    description: Ciclo de vida dos produtos. Chave = `product_id`.
+    messages:
+      ProductCreated:
+        $ref: "#/components/messages/ProductCreated"
+      ProductUpdated:
+        $ref: "#/components/messages/ProductUpdated"
+      ProductPriceChanged:
+        $ref: "#/components/messages/ProductPriceChanged"
+      ProductDeleted:
+        $ref: "#/components/messages/ProductDeleted"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: catalog.product.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+
+operations:
+  publishProductEvents:
+    action: send
+    channel:
+      $ref: "#/channels/productEvents"
+    summary: Publica as mudanças de produto (outbox + franz-go).
+    messages:
+      - $ref: "#/channels/productEvents/messages/ProductCreated"
+      - $ref: "#/channels/productEvents/messages/ProductUpdated"
+      - $ref: "#/channels/productEvents/messages/ProductPriceChanged"
+      - $ref: "#/channels/productEvents/messages/ProductDeleted"
+
+components:
+  messages:
+    ProductCreated:
+      name: ProductCreated
+      title: Produto criado
+      summary: Produto cadastrado pelo admin (`POST /v1/admin/products`).
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/ProductKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: ProductCreated
+              event_version:
+                const: 1
+              producer:
+                const: catalog
+              data:
+                $ref: "#/components/schemas/ProductSnapshot"
+
+    ProductUpdated:
+      name: ProductUpdated
+      title: Produto alterado
+      summary: Qualquer alteração (dados, preço ou status). Traz o estado completo após a mudança.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/ProductKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: ProductUpdated
+              event_version:
+                const: 1
+              producer:
+                const: catalog
+              data:
+                $ref: "#/components/schemas/ProductSnapshot"
+
+    ProductPriceChanged:
+      name: ProductPriceChanged
+      title: Preço de tabela alterado
+      summary: Publicado junto com o `ProductUpdated` da mesma alteração, quando `price` muda.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/ProductKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: ProductPriceChanged
+              event_version:
+                const: 1
+              producer:
+                const: catalog
+              data:
+                type: object
+                required: [product_id, sku, old_price, new_price, version]
+                properties:
+                  product_id:
+                    $ref: "#/components/schemas/ProductId"
+                  sku:
+                    type: string
+                  old_price:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  new_price:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  version:
+                    $ref: "#/components/schemas/ProductVersion"
+
+    ProductDeleted:
+      name: ProductDeleted
+      title: Produto removido
+      summary: Soft delete pelo admin. O SKU fica livre para recadastro (com outro `product_id`).
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/ProductKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: ProductDeleted
+              event_version:
+                const: 1
+              producer:
+                const: catalog
+              data:
+                type: object
+                required: [product_id, sku, version]
+                properties:
+                  product_id:
+                    $ref: "#/components/schemas/ProductId"
+                  sku:
+                    type: string
+                  version:
+                    $ref: "#/components/schemas/ProductVersion"
+
+  schemas:
+    ProductId:
+      type: string
+      format: uuid
+
+    ProductVersion:
+      type: integer
+      minimum: 1
+      description: |
+        Mesmo `version` do REST/gRPC. O consumidor descarta evento com versão menor ou igual à que já
+        aplicou (chegada fora de ordem após retry).
+
+    ProductSnapshot:
+      type: object
+      description: Estado do produto após a mudança. Só o que os consumidores usam; detalhe completo no REST.
+      required: [product_id, sku, name, category_id, price, status, version, updated_at]
+      properties:
+        product_id:
+          $ref: "#/components/schemas/ProductId"
+        sku:
+          type: string
+          examples: ["CF-000123"]
+        name:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        price:
+          description: Preço de tabela (sem campanha).
+          $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+        status:
+          $ref: "../openapi/catalog.v1.yaml#/components/schemas/ProductStatus"
+        version:
+          $ref: "#/components/schemas/ProductVersion"
+        updated_at:
+          type: string
+          format: date-time

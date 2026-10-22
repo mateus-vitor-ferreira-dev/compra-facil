@@ -1,0 +1,36 @@
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — Notifications Events
+  version: 1.0.0
+  description: |
+    O serviço **notifications** (time de Processamento de compras, ASP.NET Core) só consome eventos:
+    envia o e-mail de pedido confirmado ou cancelado (Mailpit em dev). Não publica nada.
+
+    O e-mail de um mesmo `event_id` sai no máximo uma vez.
+defaultContentType: application/json
+
+servers:
+  dev:
+    $ref: "./common/v1/common.yaml#/components/servers/dev"
+  dev-internal:
+    $ref: "./common/v1/common.yaml#/components/servers/dev-internal"
+
+channels:
+  orderEvents:
+    $ref: "./orders.v1.yaml#/channels/orderEvents"
+
+operations:
+  onOrderOutcome:
+    action: receive
+    channel:
+      $ref: "#/channels/orderEvents"
+    summary: Avisa o cliente do resultado do pedido.
+    messages:
+      - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
+      - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications

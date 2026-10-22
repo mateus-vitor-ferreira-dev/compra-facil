@@ -1,0 +1,231 @@
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — Orders Events
+  version: 1.0.0
+  description: |
+    Eventos do serviço **orders** (time de Processamento de compras, ASP.NET Core), que abre e fecha a
+    SAGA de compra:
+
+    1. `POST /v1/orders` grava o pedido `pending` e o `OrderPlaced` na mesma transação (outbox);
+    2. `PaymentApproved` → pedido `confirmed` → `OrderConfirmed`;
+    3. `StockReservationFailed` → `cancelled` (`out_of_stock`) → `OrderCancelled`;
+    4. `PaymentFailed` → `cancelled` (`payment_failed`) → `OrderCancelled`, que faz o inventory
+       liberar a reserva (compensação).
+
+    Também consome `catalog.product.v1` para manter o snapshot local de produtos.
+defaultContentType: application/json
+
+servers:
+  dev:
+    $ref: "./common/v1/common.yaml#/components/servers/dev"
+  dev-internal:
+    $ref: "./common/v1/common.yaml#/components/servers/dev-internal"
+
+channels:
+  orderEvents:
+    address: orders.order.v1
+    title: Pedidos
+    description: Ciclo de vida do pedido. Chave = `order_id`.
+    messages:
+      OrderPlaced:
+        $ref: "#/components/messages/OrderPlaced"
+      OrderConfirmed:
+        $ref: "#/components/messages/OrderConfirmed"
+      OrderCancelled:
+        $ref: "#/components/messages/OrderCancelled"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: orders.order.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+  # Canais de outros serviços que o orders consome (definidos no contrato do dono)
+  reservationEvents:
+    $ref: "./inventory.v1.yaml#/channels/reservationEvents"
+  paymentEvents:
+    $ref: "./payments.v1.yaml#/channels/paymentEvents"
+  productEvents:
+    $ref: "./catalog.v1.yaml#/channels/productEvents"
+
+operations:
+  publishOrderEvents:
+    action: send
+    channel:
+      $ref: "#/channels/orderEvents"
+    summary: Publica as mudanças de estado do pedido (outbox).
+    messages:
+      - $ref: "#/channels/orderEvents/messages/OrderPlaced"
+      - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
+      - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+
+  onStockReservationFailed:
+    action: receive
+    channel:
+      $ref: "#/channels/reservationEvents"
+    summary: Cancela o pedido por falta de estoque.
+    messages:
+      - $ref: "#/channels/reservationEvents/messages/StockReservationFailed"
+    bindings:
+      $ref: "#/components/operationBindings/OrdersGroup"
+
+  onPaymentResult:
+    action: receive
+    channel:
+      $ref: "#/channels/paymentEvents"
+    summary: Confirma (aprovado) ou cancela (recusado) o pedido.
+    messages:
+      - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
+      - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
+    bindings:
+      $ref: "#/components/operationBindings/OrdersGroup"
+
+  onProductChanged:
+    action: receive
+    channel:
+      $ref: "#/channels/productEvents"
+    summary: Atualiza o snapshot local de produtos (fallback quando o gRPC do catálogo está fora).
+    messages:
+      - $ref: "#/channels/productEvents/messages/ProductCreated"
+      - $ref: "#/channels/productEvents/messages/ProductUpdated"
+      - $ref: "#/channels/productEvents/messages/ProductDeleted"
+    bindings:
+      $ref: "#/components/operationBindings/OrdersGroup"
+
+components:
+  operationBindings:
+    OrdersGroup:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: orders
+
+  messages:
+    OrderPlaced:
+      name: OrderPlaced
+      title: Pedido criado
+      summary: Início da SAGA. O inventory tenta reservar os itens; o payments guarda o valor a cobrar.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: OrderPlaced
+              event_version:
+                const: 1
+              producer:
+                const: orders
+              data:
+                type: object
+                required: [order_id, customer_id, items, total]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  customer_id:
+                    $ref: "#/components/schemas/CustomerId"
+                  items:
+                    type: array
+                    minItems: 1
+                    maxItems: 50
+                    items:
+                      $ref: "../openapi/orders.v1.yaml#/components/schemas/OrderItem"
+                  total:
+                    description: Soma dos `line_total`, com os preços congelados na criação.
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+
+    OrderConfirmed:
+      name: OrderConfirmed
+      title: Pedido confirmado
+      summary: Fim feliz da SAGA. O inventory efetiva a reserva e o notifications envia o e-mail.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: OrderConfirmed
+              event_version:
+                const: 1
+              producer:
+                const: orders
+              data:
+                type: object
+                required: [order_id, customer_id, customer_email, payment_id, items, total]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  customer_id:
+                    $ref: "#/components/schemas/CustomerId"
+                  customer_email:
+                    $ref: "#/components/schemas/CustomerEmail"
+                  payment_id:
+                    type: string
+                    format: uuid
+                  items:
+                    type: array
+                    items:
+                      $ref: "../openapi/orders.v1.yaml#/components/schemas/OrderItem"
+                  total:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+
+    OrderCancelled:
+      name: OrderCancelled
+      title: Pedido cancelado
+      summary: |
+        Fim da SAGA com compensação. O inventory libera a reserva, se houver (com `out_of_stock` não
+        há), o payments descarta a cobrança pendente e o notifications avisa o cliente.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: OrderCancelled
+              event_version:
+                const: 1
+              producer:
+                const: orders
+              data:
+                type: object
+                required: [order_id, customer_id, customer_email, reason]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  customer_id:
+                    $ref: "#/components/schemas/CustomerId"
+                  customer_email:
+                    $ref: "#/components/schemas/CustomerEmail"
+                  reason:
+                    $ref: "../openapi/orders.v1.yaml#/components/schemas/CancellationReason"
+                  payment_failure_reason:
+                    description: Repassado do `PaymentFailed`; `null` quando `reason` é `out_of_stock`.
+                    oneOf:
+                      - $ref: "../openapi/payments.v1.yaml#/components/schemas/FailureReason"
+                      - type: "null"
+
+  schemas:
+    OrderId:
+      type: string
+      format: uuid
+    CustomerId:
+      type: string
+      format: uuid
+    CustomerEmail:
+      type: string
+      format: email
+      description: Destino dos e-mails do notifications.
