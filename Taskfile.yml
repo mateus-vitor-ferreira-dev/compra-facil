@@ -219,6 +219,18 @@ tasks:
         sleep 20 && echo "==> catalog de volta" && docker compose start catalog
         wait $K6
 
+  e2e:
+    desc: "Teste ponta a ponta da compra pelo gateway: confirmada, sem estoque e pagamento recusado (ambiente no ar + seed)"
+    vars:
+      CATALOG_TOKEN:
+        sh: cd services/catalog && go run ./cmd/token -ttl 10m
+      INVENTORY_TOKEN:
+        sh: cd services/catalog && go run ./cmd/token -aud inventory -ttl 10m
+    cmds:
+      - >-
+        docker compose run --rm -e CATALOG_TOKEN={{.CATALOG_TOKEN}} -e INVENTORY_TOKEN={{.INVENTORY_TOKEN}}
+        k6 run --quiet /scripts/e2e-compra.js
+
   load:
     desc: "k6: campanha promocional, 90% leitura e 10% compras, com rampa até o pico; métricas no Prometheus (ex.: task load -- -e PEAK_RATE=800)"
     cmds:
