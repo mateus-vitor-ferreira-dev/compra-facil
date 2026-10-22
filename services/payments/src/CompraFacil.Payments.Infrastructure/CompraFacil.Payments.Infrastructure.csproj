@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- EF Core + Npgsql (banco payments); depois, Kafka e clientes de outros serviços. -->
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Payments.Application/CompraFacil.Payments.Application.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,111 @@
+# Pipeline do catalog (time de catálogo, Go). Não depende de nada do .NET: mudanças em libs/dotnet, nos
+# serviços de compras ou nos contratos deles não disparam este, e mudar o catalog não dispara os deles.
+name: catalog
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - services/catalog/**
+      # só os contratos que o catalog serve ou valida (o dele e os comuns): mudança no contrato de
+      # outro serviço não republica o catalog (#91)
+      - contracts/proto/catalog/**
+      - contracts/openapi/catalog.v1.yaml
+      - contracts/openapi/common/**
+      - contracts/asyncapi/catalog.v1.yaml
+      - contracts/asyncapi/common/**
+      - contracts/consumer/orders-catalog.json # contrato que o orders espera (ADR 0004)
+      - .github/workflows/catalog.yml
+  pull_request:
+    paths:
+      - services/catalog/**
+      # só os contratos que o catalog serve ou valida (o dele e os comuns): mudança no contrato de
+      # outro serviço não republica o catalog (#91)
+      - contracts/proto/catalog/**
+      - contracts/openapi/catalog.v1.yaml
+      - contracts/openapi/common/**
+      - contracts/asyncapi/catalog.v1.yaml
+      - contracts/asyncapi/common/**
+      - contracts/consumer/orders-catalog.json # contrato que o orders espera (ADR 0004)
+      - .github/workflows/catalog.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: services/catalog
+
+jobs:
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: services/catalog/go.mod
+          cache-dependency-path: services/catalog/go.sum
+      # módulos baixados antes: com o cache frio, carregar os pacotes estourava o prazo do lint
+      - run: go mod download
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.14.0
+          working-directory: services/catalog
+          args: --timeout=8m
+
+  test:
+    name: testes (-race)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: services/catalog/go.mod
+          cache-dependency-path: services/catalog/go.sum
+      - name: go test (Postgres e Redpanda reais via testcontainers-go)
+        run: go test -race -count=1 ./...
+
+  # "can-i-deploy": a imagem só sai depois dos testes, que verificam o contrato do orders
+  # (test/contract_orders_test.go contra contracts/consumer/orders-catalog.json, ADR 0004)
+  image:
+    name: imagem no GHCR
+    needs: [lint, test]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/compra-facil-catalog
+          tags: |
+            type=sha,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v7.4.0
+        with:
+          context: services/catalog
+          target: api
+          build-args: VERSION=${{ github.sha }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=catalog
+          cache-to: type=gha,scope=catalog,mode=max

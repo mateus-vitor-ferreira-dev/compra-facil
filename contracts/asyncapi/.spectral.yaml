@@ -1,0 +1,67 @@
+# Regras de estilo dos contratos de eventos. Rodar: task lint:asyncapi
+extends:
+  - spectral:asyncapi
+
+rules:
+  # metadados de API pública que não se aplicam a contratos internos
+  asyncapi-info-contact: off
+  asyncapi-info-license: off
+  asyncapi-3-tags: off
+  asyncapi-3-operation-description: off
+
+  compra-facil-topic-name:
+    description: "Tópico no formato <serviço>.<agregado>.v<N> (ex.: orders.order.v1)."
+    severity: error
+    given: $.channels[*].address
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z]+\\.[a-z]+(-[a-z]+)*\\.v[0-9]+$"
+
+  compra-facil-message-name-pascal-case:
+    description: Nome do evento em PascalCase, no passado (OrderPlaced).
+    severity: error
+    given: $.components.messages[*].name
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[A-Z][A-Za-z0-9]+$"
+
+  compra-facil-properties-snake-case:
+    description: Propriedades do payload em snake_case.
+    severity: error
+    given: $..payload..properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+
+  compra-facil-schema-properties-snake-case:
+    description: Propriedades dos schemas em snake_case.
+    severity: error
+    given: $.components.schemas..properties[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+
+  compra-facil-message-uses-envelope:
+    description: Todo evento estende o envelope comum (allOf com EventEnvelope).
+    severity: error
+    resolved: false
+    given: $.components.messages[*].payload
+    then:
+      - field: allOf.0.$ref
+        function: truthy
+      - field: allOf.0.$ref
+        function: pattern
+        functionOptions:
+          match: "#/components/schemas/EventEnvelope$"
+
+overrides:
+  # common.yaml é só uma biblioteca de componentes, sem canais nem operações
+  - files: ["common/**/*.yaml"]
+    rules:
+      asyncapi-servers: off
+      asyncapi-unused-components-schema: off
+      asyncapi-unused-components-server: off

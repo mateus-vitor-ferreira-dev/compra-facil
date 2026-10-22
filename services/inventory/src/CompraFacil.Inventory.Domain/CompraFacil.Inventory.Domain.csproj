@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Entidades e regras do inventory. Não depende de ASP.NET nem de EF Core. -->
+</Project>

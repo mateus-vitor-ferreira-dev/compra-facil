@@ -1,0 +1,211 @@
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — Inventory Events
+  version: 1.0.0
+  description: |
+    Eventos do serviço **inventory** (time de Processamento de compras, ASP.NET Core).
+
+    - `OrderPlaced` → reserva todos os itens ou nenhum → `StockReserved` ou `StockReservationFailed`;
+    - `OrderConfirmed` → a reserva vira baixa definitiva (`committed`), sem evento;
+    - `OrderCancelled` → devolve a reserva ao saldo → `StockReleased`. Sem reserva (pedido recusado
+      por falta de estoque), não há o que devolver e nada é publicado.
+
+    O inventory não lida com valores: o payments obtém o `total` do próprio `OrderPlaced`.
+defaultContentType: application/json
+
+servers:
+  dev:
+    $ref: "./common/v1/common.yaml#/components/servers/dev"
+  dev-internal:
+    $ref: "./common/v1/common.yaml#/components/servers/dev-internal"
+
+channels:
+  reservationEvents:
+    address: inventory.reservation.v1
+    title: Reservas de estoque
+    description: Reservas feitas pela SAGA. Chave = `order_id`.
+    messages:
+      StockReserved:
+        $ref: "#/components/messages/StockReserved"
+      StockReservationFailed:
+        $ref: "#/components/messages/StockReservationFailed"
+      StockReleased:
+        $ref: "#/components/messages/StockReleased"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: inventory.reservation.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+  # Canais de outros serviços que o inventory consome (definidos no contrato do dono)
+  orderEvents:
+    $ref: "./orders.v1.yaml#/channels/orderEvents"
+  productEvents:
+    $ref: "./catalog.v1.yaml#/channels/productEvents"
+
+operations:
+  publishReservationEvents:
+    action: send
+    channel:
+      $ref: "#/channels/reservationEvents"
+    summary: Publica o resultado das reservas e as liberações (outbox).
+    messages:
+      - $ref: "#/channels/reservationEvents/messages/StockReserved"
+      - $ref: "#/channels/reservationEvents/messages/StockReservationFailed"
+      - $ref: "#/channels/reservationEvents/messages/StockReleased"
+
+  onOrderEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/orderEvents"
+    summary: Reserva (placed), efetiva (confirmed) ou libera (cancelled) o estoque do pedido.
+    messages:
+      - $ref: "#/channels/orderEvents/messages/OrderPlaced"
+      - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
+      - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+    bindings:
+      $ref: "#/components/operationBindings/InventoryGroup"
+
+  onProductLifecycle:
+    action: receive
+    channel:
+      $ref: "#/channels/productEvents"
+    summary: Cria o saldo zerado do produto novo; produto removido não aceita mais reserva.
+    messages:
+      - $ref: "#/channels/productEvents/messages/ProductCreated"
+      - $ref: "#/channels/productEvents/messages/ProductDeleted"
+    bindings:
+      $ref: "#/components/operationBindings/InventoryGroup"
+
+components:
+  operationBindings:
+    InventoryGroup:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: inventory
+
+  messages:
+    StockReserved:
+      name: StockReserved
+      title: Estoque reservado
+      summary: Todos os itens do pedido foram reservados. O payments faz a cobrança.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: StockReserved
+              event_version:
+                const: 1
+              producer:
+                const: inventory
+              data:
+                type: object
+                required: [order_id, items]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  items:
+                    $ref: "#/components/schemas/ReservedItems"
+
+    StockReservationFailed:
+      name: StockReservationFailed
+      title: Reserva recusada
+      summary: Algum item não tem saldo (ou o produto foi removido). Nada fica reservado.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: StockReservationFailed
+              event_version:
+                const: 1
+              producer:
+                const: inventory
+              data:
+                type: object
+                required: [order_id, unavailable_items]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  unavailable_items:
+                    type: array
+                    minItems: 1
+                    description: Só os itens que impediram a reserva.
+                    items:
+                      type: object
+                      required: [product_id, requested, available, reason]
+                      properties:
+                        product_id:
+                          type: string
+                          format: uuid
+                        requested:
+                          type: integer
+                          minimum: 1
+                        available:
+                          type: integer
+                          minimum: 0
+                        reason:
+                          type: string
+                          description: "`insufficient_stock`: saldo menor que o pedido · `unknown_product`: sem saldo cadastrado ou removido."
+                          enum: [insufficient_stock, unknown_product]
+
+    StockReleased:
+      name: StockReleased
+      title: Reserva liberada
+      summary: Compensação do pedido cancelado. As unidades voltam ao saldo disponível.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: StockReleased
+              event_version:
+                const: 1
+              producer:
+                const: inventory
+              data:
+                type: object
+                required: [order_id, items]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  items:
+                    $ref: "#/components/schemas/ReservedItems"
+
+  schemas:
+    OrderId:
+      type: string
+      format: uuid
+    ReservedItems:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        required: [product_id, quantity]
+        properties:
+          product_id:
+            type: string
+            format: uuid
+          quantity:
+            type: integer
+            minimum: 1

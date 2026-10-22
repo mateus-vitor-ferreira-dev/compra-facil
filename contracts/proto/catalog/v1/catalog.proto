@@ -1,0 +1,129 @@
+// Contrato gRPC interno do catálogo. Consumidor principal: orders, que valida itens e congela preços
+// ao criar o pedido. Mudanças incompatíveis são barradas pelo `buf breaking`; para quebrar, crie v2.
+syntax = "proto3";
+
+package catalog.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "CompraFacil.Contracts.Catalog.V1";
+
+// CatalogService expõe leitura de produtos para os outros serviços (porta 9001 em dev).
+service CatalogService {
+  // GetProduct devolve um produto em qualquer status. NOT_FOUND se não existe ou foi removido.
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+
+  // BatchGetProducts devolve vários produtos de uma vez (até 100). Ids desconhecidos vêm em not_found_ids.
+  rpc BatchGetProducts(BatchGetProductsRequest) returns (BatchGetProductsResponse);
+
+  // ValidateItems confere se os itens de um pedido podem ser vendidos agora e calcula o preço
+  // efetivo (com campanha). Não reserva estoque. Itens com problema não geram erro gRPC:
+  // vêm com status != ITEM_STATUS_OK e valid = false.
+  // INVALID_ARGUMENT: lista vazia, mais de 50 itens, product_id repetido ou que não é UUID.
+  rpc ValidateItems(ValidateItemsRequest) returns (ValidateItemsResponse);
+}
+
+// Money em centavos, igual ao REST.
+message Money {
+  int64 amount_cents = 1;
+  // ISO 4217, ex.: "BRL".
+  string currency = 2;
+}
+
+enum ProductStatus {
+  PRODUCT_STATUS_UNSPECIFIED = 0;
+  PRODUCT_STATUS_DRAFT = 1;
+  PRODUCT_STATUS_ACTIVE = 2;
+  PRODUCT_STATUS_INACTIVE = 3;
+}
+
+message CampaignRef {
+  string id = 1;
+  string name = 2;
+  int32 discount_percent = 3;
+  google.protobuf.Timestamp ends_at = 4;
+}
+
+message Product {
+  // UUID.
+  string id = 1;
+  string sku = 2;
+  string name = 3;
+  ProductStatus status = 4;
+  // Preço de tabela.
+  Money price = 5;
+  // Preço cobrado agora (com a campanha ativa, se houver).
+  Money effective_price = 6;
+  // Campanha que gerou o desconto; ausente quando não há.
+  CampaignRef campaign = 7;
+  // Incrementa a cada alteração (mesmo valor do ETag no REST).
+  int32 version = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  string category_id = 10;
+}
+
+message GetProductRequest {
+  string product_id = 1;
+}
+
+message GetProductResponse {
+  Product product = 1;
+}
+
+message BatchGetProductsRequest {
+  repeated string product_ids = 1;
+}
+
+message BatchGetProductsResponse {
+  repeated Product products = 1;
+  repeated string not_found_ids = 2;
+}
+
+message ValidateItemsRequest {
+  repeated ItemToValidate items = 1;
+}
+
+message ItemToValidate {
+  string product_id = 1;
+  // 1 a 99.
+  int32 quantity = 2;
+  // Preço que o cliente viu. Se informado e diferente do efetivo, o item volta como PRICE_CHANGED.
+  optional int64 expected_unit_price_cents = 3;
+}
+
+enum ItemStatus {
+  ITEM_STATUS_UNSPECIFIED = 0;
+  // Pode ser vendido pelo unit_price informado.
+  ITEM_STATUS_OK = 1;
+  ITEM_STATUS_NOT_FOUND = 2;
+  // Existe, mas está em rascunho ou inativo.
+  ITEM_STATUS_NOT_ACTIVE = 3;
+  // expected_unit_price_cents difere do preço efetivo atual.
+  ITEM_STATUS_PRICE_CHANGED = 4;
+  // Quantidade fora de 1..99.
+  ITEM_STATUS_INVALID_QUANTITY = 5;
+}
+
+message ValidatedItem {
+  string product_id = 1;
+  ItemStatus status = 2;
+  int32 quantity = 3;
+  // Preenchidos quando o produto existe (inclusive com status de erro, para o orders explicar o motivo).
+  string sku = 4;
+  string name = 5;
+  Money unit_price = 6;
+  Money line_total = 7;
+  // Campanha aplicada ao unit_price, se houver.
+  string campaign_id = 8;
+}
+
+message ValidateItemsResponse {
+  // true só se todos os itens estão ITEM_STATUS_OK.
+  bool valid = 1;
+  // Mesma ordem do request.
+  repeated ValidatedItem items = 2;
+  // Soma dos line_total dos itens OK.
+  Money total = 3;
+  // Instante usado no cálculo (vigência das campanhas).
+  google.protobuf.Timestamp priced_at = 4;
+}

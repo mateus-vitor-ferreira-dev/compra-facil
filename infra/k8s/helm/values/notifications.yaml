@@ -1,0 +1,12 @@
+image: { repository: compra-facil/notifications }
+port: 8005
+env:
+  ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=compra-facil
+  Kafka__BootstrapServers: redpanda:9092
+  Auth__AllowDevSecret: "true" # cluster local, não produção
+  Smtp__Host: mailpit
+  Smtp__Port: "1025"
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: "1", memory: 384Mi }
+ingress: { enabled: false } # só consome eventos

@@ -1,0 +1,233 @@
+# Componentes compartilhados por todos os contratos REST da CompraFácil.
+# Não é uma API: os specs dos serviços referenciam este arquivo via $ref.
+openapi: 3.1.0
+info:
+  title: CompraFácil — componentes comuns
+  version: 1.0.0
+  description: Erros (RFC 9457), dinheiro, paginação por cursor e headers padrão.
+paths: {}
+
+components:
+  schemas:
+    Problem:
+      type: object
+      description: Erro no formato ProblemDetails (RFC 9457), servido como `application/problem+json`.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: URI que identifica o tipo do problema. `about:blank` quando não há tipo específico.
+          examples: ["about:blank"]
+        title:
+          type: string
+          description: Resumo legível do problema; não muda entre ocorrências do mesmo tipo.
+          examples: ["Recurso não encontrado"]
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          examples: [404]
+        detail:
+          type: string
+          description: Explicação específica desta ocorrência.
+        instance:
+          type: string
+          format: uri-reference
+          description: Caminho da requisição que gerou o problema.
+          examples: ["/v1/products/0f8fad5b-d9cb-469f-a165-70867728950e"]
+        request_id:
+          type: string
+          description: Mesmo valor do header `X-Request-ID`, para correlacionar com os logs.
+        trace_id:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          description: Mesmo valor do header `X-Trace-Id`; abre o trace da requisição no Grafana (Tempo).
+
+    ValidationProblem:
+      description: Problema de validação (HTTP 422), com um item por campo inválido.
+      allOf:
+        - $ref: "#/components/schemas/Problem"
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field:
+                    type: string
+                    description: Caminho do campo no corpo (`items[0].quantity`) ou nome do parâmetro.
+                    examples: ["items[0].quantity"]
+                  message:
+                    type: string
+                    examples: ["deve ser maior que 0"]
+
+    Money:
+      type: object
+      description: Valor monetário em centavos, para evitar erro de ponto flutuante.
+      required: [amount_cents, currency]
+      properties:
+        amount_cents:
+          type: integer
+          format: int64
+          minimum: 0
+          examples: [19990]
+        currency:
+          type: string
+          description: Código ISO 4217.
+          pattern: "^[A-Z]{3}$"
+          default: BRL
+          examples: ["BRL"]
+
+    PageInfo:
+      type: object
+      description: Paginação por cursor. Sem `next_cursor`, não há mais páginas.
+      required: [has_more]
+      properties:
+        next_cursor:
+          type: [string, "null"]
+          description: Cursor opaco para a próxima página; envie de volta em `?cursor=`.
+        has_more:
+          type: boolean
+
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Cursor opaco devolvido em `page.next_cursor`. Omitir para a primeira página.
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Itens por página.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta.
+      schema:
+        type: string
+        maxLength: 128
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Chave única por operação (UUID recomendado). Repetir a mesma chave com o mesmo corpo devolve
+        a resposta original; com corpo diferente, responde 422.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: ETag da última leitura do recurso (concorrência otimista).
+      schema:
+        type: string
+
+  headers:
+    RequestId:
+      description: Identificador da requisição (recebido ou gerado).
+      schema:
+        type: string
+    TraceId:
+      description: Trace W3C da requisição (32 hex). Abre o trace no Grafana (Explore → Tempo) ou com `task trace -- <id>`.
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{32}$"
+    ETag:
+      description: Versão do recurso; envie em `If-Match` para atualizar.
+      schema:
+        type: string
+    Location:
+      description: URL do recurso criado.
+      schema:
+        type: string
+        format: uri-reference
+
+  responses:
+    BadRequest:
+      description: Requisição malformada (JSON inválido, parâmetro com tipo errado).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: Token ausente, inválido ou expirado.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Forbidden:
+      description: Token válido, mas sem a permissão necessária.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Recurso não encontrado.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Conflict:
+      description: Conflito com o estado atual (duplicidade ou versão desatualizada).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    PreconditionFailed:
+      description: O `If-Match` não corresponde à versão atual do recurso.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    PreconditionRequired:
+      description: Falta o `If-Match`; a atualização exige a versão da última leitura.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: Corpo bem formado, mas com campos inválidos.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ValidationProblem"
+    TooManyRequests:
+      description: Limite de requisições excedido (rate limit do gateway).
+      headers:
+        Retry-After:
+          description: Segundos até poder tentar de novo.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    InternalError:
+      description: Erro inesperado.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT emitido para operadores; a role `admin` libera os endpoints `/v1/admin/*`.

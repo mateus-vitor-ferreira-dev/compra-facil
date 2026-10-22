@@ -1,0 +1,315 @@
+# Comandos do dia a dia (https://taskfile.dev). `task --list` mostra todos.
+# test/lint descobrem os módulos sozinhos: um serviço novo entra sem mexer aqui.
+version: "3"
+
+vars:
+  # Módulos Go e solutions .NET existentes no repositório
+  GO_MODULES:
+    sh: find services libs -name go.mod -not -path '*/node_modules/*' -exec dirname {} \; 2>/dev/null | sort
+  DOTNET_SOLUTIONS:
+    sh: find services libs \( -name '*.slnx' -o -name '*.sln' \) 2>/dev/null | sort
+  SPECTRAL: npx -y @stoplight/spectral-cli@6.17.0
+  REDOCLY: npx -y @redocly/cli@2.67.1
+  ASYNCAPI: npx -y @asyncapi/cli@6.2.1
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  # ---------- ambiente ----------
+  up:
+    desc: Sobe o ambiente local (rebuilda as imagens dos serviços) e espera ficar saudável
+    cmds:
+      - docker compose up -d --build --wait
+
+  up:debug:
+    desc: Como o up, mas publicando as portas dos serviços no host (8001-8005, gRPC 9001) para depuração
+    cmds:
+      - docker compose -f compose.yaml -f infra/compose/compose.debug.yaml up -d --build --wait
+
+  down:
+    desc: Para o ambiente (mantém os dados)
+    cmds:
+      - docker compose down
+
+  reset:
+    desc: Recria o ambiente do zero (apaga volumes e bancos)
+    prompt: Isso apaga todos os dados locais. Continuar?
+    cmds:
+      - docker compose down -v
+      - docker compose up -d --build --wait
+
+  ps:
+    desc: Estado dos containers
+    cmds:
+      - docker compose ps
+
+  logs:
+    desc: "Logs em tempo real (ex.: task logs -- redpanda)"
+    cmds:
+      - docker compose logs -f {{.CLI_ARGS}}
+
+  # ---------- testes ----------
+  test:
+    desc: Roda os testes de todos os serviços (Go + .NET)
+    cmds:
+      - task: test:go
+      - task: test:dotnet
+
+  test:go:
+    desc: go test em cada módulo Go
+    cmds:
+      - for: { var: GO_MODULES }
+        cmd: echo "==> go test {{.ITEM}}" && cd {{.ITEM}} && go test -race ./...
+
+  test:dotnet:
+    desc: dotnet test em cada solution .NET
+    cmds:
+      - for: { var: DOTNET_SOLUTIONS }
+        cmd: echo "==> dotnet test {{.ITEM}}" && dotnet test --solution {{.ITEM}}
+
+  # ---------- lint ----------
+  lint:
+    desc: Lint de tudo (golangci-lint, dotnet format, buf lint/breaking, spectral, asyncapi)
+    cmds:
+      - task: lint:go
+      - task: lint:dotnet
+      - task: lint:proto
+      - task: proto:breaking
+      - task: lint:openapi
+      - task: lint:asyncapi
+
+  lint:go:
+    desc: golangci-lint em cada módulo Go
+    cmds:
+      - for: { var: GO_MODULES }
+        cmd: echo "==> golangci-lint {{.ITEM}}" && cd {{.ITEM}} && golangci-lint run ./...
+
+  lint:dotnet:
+    desc: dotnet format --verify-no-changes em cada solution
+    cmds:
+      - for: { var: DOTNET_SOLUTIONS }
+        cmd: echo "==> dotnet format {{.ITEM}}" && dotnet format {{.ITEM}} --verify-no-changes
+
+  lint:proto:
+    desc: buf lint + formatação nos contratos gRPC
+    dir: contracts/proto
+    cmds:
+      - buf lint
+      - buf format --diff --exit-code
+
+  proto:breaking:
+    desc: "Barra mudança incompatível nos .proto (padrão: contra main; task proto:breaking BASE=develop)"
+    dir: contracts/proto
+    vars:
+      BASE: '{{.BASE | default "main"}}'
+    cmds:
+      - |
+        if git ls-tree -r --name-only {{.BASE}} -- . | grep -q '[.]proto$'; then
+          buf breaking --against '../../.git#branch={{.BASE}},subdir=contracts/proto'
+        else
+          echo "{{.BASE}} ainda não tem .proto: nada a comparar"
+        fi
+
+  proto:generate:
+    desc: Gera o código Go do catalog a partir dos .proto (C# é gerado pelo Grpc.Tools no build)
+    dir: contracts/proto
+    cmds:
+      - buf generate
+
+  lint:openapi:
+    desc: Spectral nos contratos REST (regras em contracts/openapi/.spectral.yaml)
+    dir: contracts/openapi
+    cmds:
+      - "{{.SPECTRAL}} lint --fail-severity=warn '*.v1.yaml' 'common/**/*.yaml'"
+
+  lint:asyncapi:
+    desc: AsyncAPI CLI (schema e $ref) + Spectral (regras em contracts/asyncapi/.spectral.yaml) nos contratos de eventos
+    dir: contracts/asyncapi
+    env:
+      CI: "true" # o AsyncAPI CLI não envia telemetria com CI=true
+      SUPPRESS_NO_CONFIG_WARNING: "true"
+    vars:
+      SPECS:
+        sh: ls *.v1.yaml
+    cmds:
+      - for: { var: SPECS }
+        cmd: "{{.ASYNCAPI}} validate {{.ITEM}}"
+      - "{{.SPECTRAL}} lint --fail-severity=warn '*.v1.yaml' 'common/**/*.yaml'"
+
+  openapi:bundle:
+    desc: "Gera um arquivo único por contrato (resolve os $ref) em contracts/openapi/dist/"
+    dir: contracts/openapi
+    cmds:
+      - for: { var: SPECS }
+        cmd: "{{.REDOCLY}} bundle {{.ITEM}} -o dist/{{.ITEM}}"
+    vars:
+      SPECS:
+        sh: ls *.v1.yaml
+
+  fmt:
+    desc: Formata o código (gofmt/goimports via golangci-lint, dotnet format)
+    cmds:
+      - for: { var: GO_MODULES }
+        cmd: cd {{.ITEM}} && golangci-lint fmt ./...
+      - for: { var: DOTNET_SOLUTIONS }
+        cmd: dotnet format {{.ITEM}}
+
+  # ---------- dados ----------
+  seed:
+    desc: Popula o banco do catálogo com produtos de exemplo
+    dir: services/catalog
+    preconditions:
+      - sh: test -d cmd/seed
+        msg: "seed ainda não existe (tarefa #71: services/catalog/cmd/seed)"
+    cmds:
+      - go run ./cmd/seed {{.CLI_ARGS}}
+
+  token:
+    desc: "Emite um JWT de operador para as rotas admin (ex.: task token -- -sub ana -ttl 1h; outro serviço: -aud inventory)"
+    dir: services/catalog
+    silent: true
+    cmds:
+      - go run ./cmd/token {{.CLI_ARGS}}
+
+  # ---------- observabilidade (Grafana em http://127.0.0.1:3001) ----------
+  grafana:
+    desc: Abre o Grafana no dashboard Início
+    cmds:
+      - python3 scripts/grafana.py
+
+  trace:
+    desc: "Abre um trace no Grafana pelo id do header X-Trace-Id (ex.: task trace -- 4bf92f3577b34da6a3ce929d0e0e4736)"
+    cmds:
+      - python3 scripts/grafana.py trace {{.CLI_ARGS}}
+
+  grafana:logs:
+    desc: "Abre os logs de um serviço no Grafana (ex.: task grafana:logs -- orders)"
+    cmds:
+      - python3 scripts/grafana.py logs {{.CLI_ARGS}}
+
+  # ---------- dead letter topic (ADR 0003) ----------
+  dlt:
+    desc: "Mensagens pendentes na DLT de um serviço .NET (ex.: task dlt -- payments)"
+    silent: true
+    cmds:
+      - task: _dlt-call
+        vars: { METHOD: GET, ROUTE: /v1/admin/dead-letters, SERVICE: "{{.CLI_ARGS}}" }
+
+  dlt:replay:
+    desc: "Reprocessa a DLT de um serviço .NET depois de corrigir a causa (ex.: task dlt:replay -- payments)"
+    silent: true
+    cmds:
+      - task: _dlt-call
+        vars: { METHOD: POST, ROUTE: /v1/admin/dead-letters/replay, SERVICE: "{{.CLI_ARGS}}" }
+
+  _dlt-call:
+    internal: true
+    silent: true
+    requires:
+      vars: [SERVICE]
+    vars:
+      # porta de cada serviço na rede do compose (o notifications não passa pelo gateway)
+      PORT: '{{get (dict "orders" "8002" "inventory" "8003" "payments" "8004" "notifications" "8005") .SERVICE}}'
+      TOKEN:
+        sh: cd services/catalog && go run ./cmd/token -aud {{.SERVICE}} -ttl 5m
+    preconditions:
+      - sh: '[ -n "{{.PORT}}" ]'
+        msg: "serviço desconhecido: '{{.SERVICE}}' (orders, inventory, payments ou notifications)"
+    cmds:
+      - >-
+        docker run --rm --network comprafacil_default curlimages/curl:8.11.1 -sS -X {{.METHOD}}
+        -H "Authorization: Bearer {{.TOKEN}}" http://{{.SERVICE}}:{{.PORT}}{{.ROUTE}}
+      - echo
+
+  # ---------- Kubernetes local (k3d + Helm; precisa de k3d, kubectl e helm no PATH) ----------
+  k8s:up:
+    desc: "Cluster k3d com os 5 serviços (chart Helm), Traefik como ingress em http://localhost:8088 e HPA no catalog"
+    vars:
+      SERVICES: catalog orders inventory payments notifications
+      IMAGES: catalog catalog-seed orders inventory payments notifications
+    cmds:
+      - k3d cluster list compra-facil >/dev/null 2>&1 || k3d cluster create compra-facil --agents 1 -p "8088:80@loadbalancer" --wait
+      - docker compose build {{.IMAGES}}
+      - k3d image import -c compra-facil {{range (splitList " " .IMAGES)}}compra-facil/{{.}}:dev {{end}}
+      - kubectl create namespace compra-facil --dry-run=client -o yaml | kubectl apply -f -
+      - >-
+        kubectl -n compra-facil create configmap postgres-init
+        --from-file=init-databases.sh=infra/compose/postgres/init-databases.sh --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl -n compra-facil apply -f infra/k8s/deps.yaml
+      - kubectl -n compra-facil wait --for=condition=available deploy/postgres deploy/redis deploy/redpanda deploy/mailpit --timeout=300s
+      - for: { var: SERVICES, split: " " }
+        cmd: >-
+          helm upgrade --install {{.ITEM}} infra/k8s/helm/compra-facil-service -n compra-facil
+          -f infra/k8s/helm/values/{{.ITEM}}.yaml --wait --timeout 5m
+      - kubectl -n compra-facil get deploy,hpa
+
+  k8s:seed:
+    desc: Popula o catálogo no cluster (Job com a imagem do seed)
+    cmds:
+      - kubectl -n compra-facil delete job catalog-seed --ignore-not-found --cascade=foreground --wait
+      - kubectl -n compra-facil apply -f infra/k8s/seed-job.yaml
+      - kubectl -n compra-facil wait --for=condition=complete job/catalog-seed --timeout=300s
+      - kubectl -n compra-facil logs job/catalog-seed
+
+  k8s:load:
+    desc: "k6 de campanha dentro do cluster e o HPA do catalog reagindo (ex.: task k8s:load -- 600 3m)"
+    vars:
+      PEAK_RATE: '{{index (splitList " " (printf "%s 400 2m" .CLI_ARGS | trim)) 0}}'
+      PEAK: '{{index (splitList " " (printf "%s 400 2m" .CLI_ARGS | trim)) 1}}'
+    cmds:
+      - >-
+        kubectl -n compra-facil create configmap k6-scripts --from-file=load-tests/k6/campanha.js
+        --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl -n compra-facil delete job k6-campanha --ignore-not-found --cascade=foreground --wait
+      - sed -e 's/PEAK_RATE_PLACEHOLDER/{{.PEAK_RATE}}/' -e 's/PEAK_PLACEHOLDER/{{.PEAK}}/' infra/k8s/k6-job.yaml | kubectl -n compra-facil apply -f -
+      - kubectl -n compra-facil wait --for=condition=ready pod -l job-name=k6-campanha --timeout=120s
+      - kubectl -n compra-facil logs -f -l job-name=k6-campanha --tail=-1
+      # o que o HPA fez durante a carga (as réplicas descem sozinhas um minuto depois)
+      - kubectl -n compra-facil get hpa,deploy catalog
+      - kubectl -n compra-facil events --for hpa/catalog
+
+  k8s:down:
+    desc: Apaga o cluster k3d
+    cmds:
+      - k3d cluster delete compra-facil
+
+  # ---------- carga ----------
+  chaos:catalog:
+    desc: "Caos da #81: k6 criando pedidos, catalog derrubado aos 20 s e de volta aos 40 s (ex.: task chaos:catalog -- -e RATE=50)"
+    cmds:
+      - |
+        docker compose run --rm k6 run {{.CLI_ARGS}} /scripts/orders-catalog-down.js &
+        K6=$!
+        sleep 20 && echo "==> derrubando o catalog" && docker compose stop catalog
+        sleep 20 && echo "==> catalog de volta" && docker compose start catalog
+        wait $K6
+
+  e2e:
+    desc: "Teste ponta a ponta da compra pelo gateway: confirmada, sem estoque e pagamento recusado (ambiente no ar + seed)"
+    vars:
+      CATALOG_TOKEN:
+        sh: cd services/catalog && go run ./cmd/token -ttl 10m
+      INVENTORY_TOKEN:
+        sh: cd services/catalog && go run ./cmd/token -aud inventory -ttl 10m
+    cmds:
+      - >-
+        docker compose run --rm -e CATALOG_TOKEN={{.CATALOG_TOKEN}} -e INVENTORY_TOKEN={{.INVENTORY_TOKEN}}
+        k6 run --quiet /scripts/e2e-compra.js
+
+  load:
+    desc: "k6: campanha promocional, 90% leitura e 10% compras, com rampa até o pico; métricas no Prometheus (ex.: task load -- -e PEAK_RATE=800)"
+    cmds:
+      - docker compose run --rm k6 run -o experimental-prometheus-rw {{.CLI_ARGS}} /scripts/campanha.js
+
+  experiment:
+    desc: "Escala independente (#90): campanha com 1 e com N réplicas do catalog, relatório em docs/resultados-carga.md"
+    cmds:
+      - python3 load-tests/experiment.py {{.CLI_ARGS}}
+
+  load:catalog-cache:
+    desc: "k6: hit ratio do cache do catálogo, meta > 90% (ex.: task load:catalog-cache -- -e RATE=500)"
+    cmds:
+      - docker compose run --rm k6 run {{.CLI_ARGS}} /scripts/catalog-cache.js

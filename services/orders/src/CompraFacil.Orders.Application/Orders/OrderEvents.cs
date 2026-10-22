@@ -1,0 +1,64 @@
+using CompraFacil.Orders.Domain;
+
+namespace CompraFacil.Orders.Application.Orders;
+
+/// <summary>Eventos do orders (contracts/asyncapi/orders.v1.yaml, tópico orders.order.v1).</summary>
+public static class OrderEvents
+{
+    public const string Topic = "orders.order.v1";
+    public const string OrderPlaced = nameof(OrderPlaced);
+    public const string OrderConfirmed = nameof(OrderConfirmed);
+    public const string OrderCancelled = nameof(OrderCancelled);
+
+    public const string ReservationsTopic = "inventory.reservation.v1";
+    public const string PaymentsTopic = "payments.payment.v1";
+}
+
+/// <summary>Item do pedido nos eventos (OrderItem do contrato REST).</summary>
+public sealed record OrderItemData(
+    Guid ProductId, string Sku, string Name, int Quantity, Money UnitPrice, Money LineTotal, Guid? CampaignId)
+{
+    public static OrderItemData From(OrderItem i) => new(i.ProductId, i.Sku, i.Name, i.Quantity, i.UnitPrice, i.LineTotal, i.CampaignId);
+}
+
+/// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor).</summary>
+public sealed record OrderPlacedData(Guid OrderId, Guid CustomerId, IReadOnlyList<OrderItemData> Items, Money Total)
+{
+    public static OrderPlacedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, [.. order.Items.Select(OrderItemData.From)], order.Total);
+    }
+}
+
+/// <summary>data do OrderConfirmed: fim feliz (inventory dá baixa, notifications avisa o cliente).</summary>
+public sealed record OrderConfirmedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total)
+{
+    public static OrderConfirmedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.PaymentId!.Value,
+            [.. order.Items.Select(OrderItemData.From)], order.Total);
+    }
+}
+
+/// <summary>data do OrderCancelled: compensação (inventory libera, payments descarta, notifications avisa).</summary>
+public sealed record OrderCancelledData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, CancellationReason Reason, string? PaymentFailureReason)
+{
+    public static OrderCancelledData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.CancellationReason!.Value, order.PaymentFailureReason);
+    }
+}
+
+// ---- consumidos dos outros serviços (só os campos usados) ----
+
+public sealed record StockReservationFailedData(Guid OrderId);
+
+public sealed record PaymentApprovedData(Guid OrderId, Guid PaymentId);
+
+public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, string FailureReason);
+

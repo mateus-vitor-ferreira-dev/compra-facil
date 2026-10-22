@@ -1,0 +1,24 @@
+# k6 dentro do cluster contra o catalog e o orders pelo Traefik (balanceia por requisição entre as
+# réplicas que o HPA cria). O script é o mesmo do compose (ConfigMap k6-scripts). Rodar: task k8s:load
+apiVersion: batch/v1
+kind: Job
+metadata: { name: k6-campanha }
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: k6
+          image: grafana/k6:1.3.0
+          args: ["run", "--quiet", "/scripts/campanha.js"]
+          env:
+            - { name: CATALOG_URL, value: "http://traefik.kube-system.svc/catalog" }
+            - { name: ORDERS_URL, value: "http://traefik.kube-system.svc/orders" }
+            - { name: PEAK_RATE, value: "PEAK_RATE_PLACEHOLDER" }
+            - { name: PEAK, value: "PEAK_PLACEHOLDER" }
+          volumeMounts: [{ name: scripts, mountPath: /scripts }]
+      volumes:
+        - name: scripts
+          configMap: { name: k6-scripts }

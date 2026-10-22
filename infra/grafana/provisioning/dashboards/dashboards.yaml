@@ -1,0 +1,12 @@
+# Dashboards versionados em infra/grafana/dashboards (JSON), carregados na subida e recarregados ao salvar.
+apiVersion: 1
+
+providers:
+  - name: compra-facil
+    folder: CompraFácil
+    type: file
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

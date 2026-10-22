@@ -1,0 +1,10 @@
+<h1>Pedido confirmado!</h1>
+<p>Recebemos o pagamento do seu pedido <strong>{{ order_number }}</strong> e ele já está sendo separado.</p>
+<table cellpadding="6" style="border-collapse: collapse">
+  <tr><th align="left">Produto</th><th>Qtd.</th><th align="right">Preço</th><th align="right">Subtotal</th></tr>
+  {% for item in items %}
+  <tr><td>{{ item.name }}</td><td align="center">{{ item.quantity }}</td><td align="right">{{ item.unit_price }}</td><td align="right">{{ item.line_total }}</td></tr>
+  {% endfor %}
+  <tr><td colspan="3" align="right"><strong>Total</strong></td><td align="right"><strong>{{ total }}</strong></td></tr>
+</table>
+<p>Obrigado por comprar na CompraFácil.</p>

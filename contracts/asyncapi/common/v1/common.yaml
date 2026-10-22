@@ -1,0 +1,107 @@
+# Componentes compartilhados por todos os contratos de eventos da CompraFácil.
+# Não é uma API: os specs dos serviços referenciam este arquivo via $ref.
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — componentes comuns de eventos
+  version: 1.0.0
+  description: Envelope dos eventos, headers Kafka e servidores do ambiente local.
+
+components:
+  servers:
+    dev:
+      host: localhost:19092
+      protocol: kafka
+      description: Redpanda do compose, acessado do host (`dotnet run` / `go run`).
+    dev-internal:
+      host: redpanda:9092
+      protocol: kafka
+      description: Redpanda do compose, acessado pelos containers.
+
+  schemas:
+    EventEnvelope:
+      type: object
+      description: |
+        Envelope de todo evento publicado. O conteúdo específico vai em `data`; os metadados permitem
+        deduplicar (`event_id`), rastrear a cadeia de causa (`correlation_id`, `causation_id`) e
+        escolher o handler sem olhar o conteúdo (`event_type` + `event_version`).
+      required: [event_id, event_type, event_version, occurred_at, producer, correlation_id, data]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: |
+            Único por evento. É a chave de idempotência do consumidor: o mesmo `event_id` entregue
+            de novo (retry do producer, rebalance) deve ser ignorado.
+          examples: ["7d5c9a4e-6a0b-4b8f-9f0e-2b1c3d4e5f60"]
+        event_type:
+          type: string
+          description: Nome do evento em PascalCase, no passado (`OrderPlaced`, `StockReserved`).
+          pattern: "^[A-Z][A-Za-z0-9]+$"
+          examples: ["OrderPlaced"]
+        event_version:
+          type: integer
+          minimum: 1
+          description: |
+            Versão do formato de `data` para este `event_type`. Sobe a cada mudança compatível
+            relevante (campo novo); mudança incompatível vai para um tópico `.v2`.
+          examples: [1]
+        occurred_at:
+          type: string
+          format: date-time
+          description: Quando o fato aconteceu (UTC), não quando foi publicado pelo outbox.
+        producer:
+          type: string
+          description: Serviço dono do evento.
+          enum: [catalog, orders, inventory, payments]
+        correlation_id:
+          type: string
+          maxLength: 128
+          description: |
+            Identifica o fluxo de negócio inteiro. Nasce do `X-Request-ID` da requisição HTTP que
+            começou o fluxo e é copiado, sem alteração, para todo evento derivado dele.
+        causation_id:
+          type: [string, "null"]
+          format: uuid
+          description: "`event_id` do evento que provocou este; `null` quando a causa foi uma requisição HTTP."
+        data:
+          type: object
+          description: Conteúdo do evento; o schema depende de `event_type`.
+
+  messageTraits:
+    KafkaEvent:
+      contentType: application/json
+      headers:
+        type: object
+        description: Headers Kafka. O trace distribuído (OpenTelemetry) atravessa o broker por eles.
+        properties:
+          traceparent:
+            type: string
+            description: W3C Trace Context do span que publicou o evento.
+            examples: ["00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"]
+          tracestate:
+            type: string
+            description: W3C Trace Context (opcional).
+
+  messageBindings:
+    # Chave da mensagem: id do agregado. Garante ordem entre eventos do mesmo pedido/produto/campanha.
+    OrderKey:
+      kafka:
+        bindingVersion: 0.5.0
+        key:
+          type: string
+          format: uuid
+          description: "`order_id`."
+    ProductKey:
+      kafka:
+        bindingVersion: 0.5.0
+        key:
+          type: string
+          format: uuid
+          description: "`product_id`."
+    CampaignKey:
+      kafka:
+        bindingVersion: 0.5.0
+        key:
+          type: string
+          format: uuid
+          description: "`campaign_id`."

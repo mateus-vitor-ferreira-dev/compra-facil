@@ -1,0 +1,77 @@
+# Endpoints de operação da dead letter topic, iguais em todos os serviços .NET que consomem eventos
+# (BuildingBlocks: MapDeadLetters). Não é uma API: os specs dos serviços declaram as rotas
+# /v1/admin/dead-letters e /v1/admin/dead-letters/replay e referenciam os componentes daqui.
+# Desenho em docs/adr/0003-retries-e-dead-letter-topics.md.
+openapi: 3.1.0
+info:
+  title: CompraFácil — dead letter topic
+  version: 1.0.0
+  description: Consulta e reprocessamento das mensagens que esgotaram as tentativas.
+paths: {}
+
+components:
+  parameters:
+    DeadLetterLimit:
+      name: limit
+      in: query
+      description: Máximo de mensagens devolvidas.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
+
+  responses:
+    KafkaUnavailable:
+      description: Kafka fora do ar; tente de novo.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "./common.yaml#/components/schemas/Problem"
+
+  schemas:
+    DeadLetterList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeadLetter"
+    DeadLetter:
+      type: object
+      required: [event_id, event_type, topic, partition, offset, attempts, error, failed_at]
+      properties:
+        event_id:
+          type: [string, "null"]
+          format: uuid
+          description: Nulo quando a mensagem nem é um envelope válido.
+        event_type:
+          type: [string, "null"]
+        topic:
+          type: string
+          description: "Tópico de origem (ex.: orders.order.v1)."
+        partition:
+          type: [integer, "null"]
+          description: Partição no tópico de origem.
+        offset:
+          type: [integer, "null"]
+          format: int64
+          description: Offset no tópico de origem.
+        attempts:
+          type: integer
+          minimum: 0
+          description: Estágios em que a mensagem falhou (origem e cada nível de retry).
+        error:
+          type: [string, "null"]
+          description: Última falha (tipo e mensagem da exceção).
+        failed_at:
+          type: [string, "null"]
+          format: date-time
+    DeadLetterReplay:
+      type: object
+      required: [replayed]
+      properties:
+        replayed:
+          type: integer
+          minimum: 0

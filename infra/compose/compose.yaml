@@ -1,0 +1,345 @@
+# Infraestrutura do ambiente local: um Postgres com um banco por serviço, Redis,
+# Redpanda (Kafka) + Console, Mailpit e os serviços da aplicação.
+name: compra-facil
+
+# Base dos serviços .NET: mesmo Dockerfile (services/dotnet.Dockerfile), contexto na raiz do repo
+x-dotnet-service: &dotnet-service
+  depends_on:
+    postgres:
+      condition: service_healthy
+    # Kafka é opcional: sem ele as escritas seguem e os eventos esperam no outbox
+    redpanda:
+      condition: service_started
+      required: false
+
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SERVICE_DATABASES: catalog,orders,inventory,payments,notifications
+      SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-databases.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8.8.3-alpine
+    command: ["redis-server", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redpanda:
+    image: redpandadata/redpanda:v26.2.5
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --default-log-level=warn
+      # "internal" é usado pelos containers; "external" pelo host (dotnet run / go run)
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:${KAFKA_PORT:-19092}
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+    ports:
+      - "${KAFKA_PORT:-19092}:19092"
+      - "${SCHEMA_REGISTRY_PORT:-18081}:18081"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      # prontidão do broker (admin API); o "rpk cluster health" também reprova por motivos que não
+      # impedem o uso, como pouco disco livre na máquina (o que acontece no CI depois do build das imagens)
+      test: ["CMD", "curl", "-sf", "http://localhost:9644/v1/status/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 60s # máquina disputada (CI construindo imagens) demora mais para o broker subir
+
+  redpanda-console:
+    image: redpandadata/console:v3.13.0
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      SCHEMAREGISTRY_ENABLED: "true"
+      SCHEMAREGISTRY_URLS: http://redpanda:8081
+      REDPANDA_ADMINAPI_ENABLED: "true"
+      REDPANDA_ADMINAPI_URLS: http://redpanda:9644
+    ports:
+      - "${REDPANDA_CONSOLE_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/admin/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    ports:
+      - "${SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------- observabilidade (tudo open source) ----------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      # OTLP para serviços rodando fora do compose (dotnet run / go run)
+      - "127.0.0.1:${OTLP_GRPC_PORT:-4317}:4317"
+      - "127.0.0.1:${OTLP_HTTP_PORT:-4318}:4318"
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+
+  tempo:
+    image: grafana/tempo:2.10.10
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    user: root # grava em /var/tempo (volume)
+    volumes:
+      - ../tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+
+  loki:
+    image: grafana/loki:3.7.9
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - loki-data:/loki
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver
+      - --web.enable-remote-write-receiver
+      # zero no início de cada contador (start time do OTLP): increase() enxerga o primeiro salto de um
+      # contador recém-criado, em vez de ver a série já nascendo com o valor acumulado
+      - --enable-feature=exemplar-storage,created-timestamp-zero-ingestion
+      - --storage.tsdb.retention.time=3d
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    environment:
+      # só na máquina local: entra direto, sem login
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+      # abre direto no dashboard Início (atalhos, erros recentes, como achar um trace)
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/inicio.json
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      # 3001: a 3000 fica livre para o front
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
+  # ---------- gateway: única entrada externa ----------
+  gateway:
+    image: traefik:v3.7.16
+    command: ["--configFile=/etc/traefik/traefik.yml"]
+    environment:
+      # origens do front liberadas no CORS (lista separada por vírgula)
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    ports:
+      - "${GATEWAY_PORT:-80}:80"
+      # dashboard só na máquina local
+      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8090}:8080"
+    volumes:
+      - ../../gateway/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../../gateway/traefik/dynamic:/etc/traefik/dynamic:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      catalog:
+        condition: service_started
+      orders:
+        condition: service_started
+      inventory:
+        condition: service_started
+      payments:
+        condition: service_started
+
+  # só roda sob demanda (task load:catalog-cache): k6 dentro da rede, direto no catalog (sem o rate
+  # limit do gateway, que mediria outra coisa)
+  k6:
+    image: grafana/k6:1.3.0
+    profiles: [tools]
+    volumes:
+      - ../../load-tests/k6:/scripts:ro
+    environment:
+      BASE_URL: http://catalog:8001
+      # com -o experimental-prometheus-rw, as métricas do k6 vão para o Prometheus (dashboard Campanha)
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(95),p(99),avg
+
+  # ---------- serviços (sem porta no host: entram pelo gateway) ----------
+  catalog:
+    build:
+      context: ../../services/catalog
+      target: api
+      args:
+        VERSION: ${VERSION:-dev}
+    image: compra-facil/catalog:${VERSION:-dev}
+    environment:
+      CATALOG_APP_ENV: compose
+      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+      CATALOG_CACHE_REDIS_ADDR: redis:6379
+      CATALOG_EVENTS_BROKERS: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # cache é opcional: o catalog sobe e lê do banco mesmo sem o Redis
+      redis:
+        condition: service_started
+        required: false
+      # Kafka também: sem ele as escritas seguem e os eventos esperam no outbox
+      redpanda:
+        condition: service_started
+        required: false
+
+  # só roda sob demanda: docker compose run --rm catalog-seed [-reset] [-products N]
+  catalog-seed:
+    build:
+      context: ../../services/catalog
+      target: seed
+    image: compra-facil/catalog-seed:${VERSION:-dev}
+    profiles: [tools]
+    environment:
+      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  orders:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: orders
+        PROJECT: CompraFacil.Orders.Api
+        PORT: 8002
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/orders:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud orders
+      Auth__AllowDevSecret: "true"
+      # valida itens e preços no catalog (gRPC, com Polly); catalog fora = preço pela cópia local (#81)
+      Catalog__GrpcAddress: http://catalog:9001
+
+  inventory:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: inventory
+        PROJECT: CompraFacil.Inventory.Api
+        PORT: 8003
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/inventory:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # só no ambiente local: os 10 mil produtos do seed nascem com estoque para a SAGA andar
+      Inventory__InitialOnHandForNewProducts: 100
+      # JWT de dev (o mesmo do catalog): task token -- -aud inventory
+      Auth__AllowDevSecret: "true"
+
+  payments:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: payments
+        PROJECT: CompraFacil.Payments.Api
+        PORT: 8004
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/payments:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud payments
+      Auth__AllowDevSecret: "true"
+      # cliente com cartão recusado no gateway fake: cenário de pagamento recusado do e2e (task e2e)
+      Payments__Fake__DeclinedCustomers__0: 0e2e0000-0000-4000-8000-00000000dec1
+
+  notifications:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: notifications
+        PROJECT: CompraFacil.Notifications.Api
+        PORT: 8005
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/notifications:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud notifications
+      Auth__AllowDevSecret: "true"
+      # e-mails vão para o Mailpit (UI em http://localhost:8025)
+      Smtp__Host: mailpit
+      Smtp__Port: 1025
+
+volumes:
+  postgres-data:
+  redpanda-data:
+  tempo-data:
+  loki-data:
+  prometheus-data:

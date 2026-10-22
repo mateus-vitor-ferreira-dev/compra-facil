@@ -1,0 +1,87 @@
+# Contratos entre os times (#60): gRPC (Buf), REST (Spectral) e eventos (AsyncAPI CLI + Spectral).
+# Um PR que quebra um contrato ou deixa o código gerado desatualizado não passa.
+name: contracts
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - contracts/**
+      - services/catalog/gen/**
+      - Taskfile.yml
+      - .github/workflows/contracts.yml
+  pull_request:
+    paths:
+      - contracts/**
+      - services/catalog/gen/**
+      - Taskfile.yml
+      - .github/workflows/contracts.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  proto:
+    name: gRPC (buf lint, breaking, código gerado)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: contracts/proto
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # o breaking compara com a branch de destino
+      - uses: bufbuild/buf-action@v1.6.0
+        with:
+          version: "1.73.0"
+          setup_only: true
+      - name: buf lint + format
+        run: |
+          buf lint
+          buf format --diff --exit-code
+      - name: buf breaking (contra a branch de destino do PR)
+        if: github.event_name == 'pull_request'
+        # sem .proto no destino (ex.: o primeiro release para a main) não há o que quebrar
+        run: |
+          if git ls-tree -r --name-only "origin/${{ github.base_ref }}" -- . | grep -q '\.proto$'; then
+            buf breaking --against "../../.git#ref=origin/${{ github.base_ref }},subdir=contracts/proto"
+          else
+            echo "origin/${{ github.base_ref }} ainda não tem contratos gRPC: nada para comparar"
+          fi
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: services/catalog/go.mod
+          cache: false
+      - name: Código Go gerado está em dia
+        run: |
+          # mesmas versões que geraram o services/catalog/gen versionado
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          buf generate
+          git diff --exit-code -- ../../services/catalog/gen || {
+            echo "::error::services/catalog/gen desatualizado: rode 'task proto:generate' e versione o resultado"
+            exit 1
+          }
+
+  openapi-asyncapi:
+    name: REST e eventos (Spectral, AsyncAPI)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 22
+      - uses: arduino/setup-task@v3.0.0
+        with:
+          version: 3.45.4
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: OpenAPI (Spectral)
+        run: task lint:openapi
+      - name: AsyncAPI (CLI + Spectral)
+        run: task lint:asyncapi

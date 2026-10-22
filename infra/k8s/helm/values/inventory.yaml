@@ -1,0 +1,11 @@
+image: { repository: compra-facil/inventory }
+port: 8003
+env:
+  ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=compra-facil
+  Kafka__BootstrapServers: redpanda:9092
+  Auth__AllowDevSecret: "true" # cluster local, não produção
+  Inventory__InitialOnHandForNewProducts: "100"
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: "1", memory: 384Mi }
+ingress: { prefix: /inventory }

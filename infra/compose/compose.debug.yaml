@@ -1,0 +1,15 @@
+# Publica as portas dos serviços no host, para depuração (o tráfego normal entra pelo gateway).
+#   docker compose -f compose.yaml -f infra/compose/compose.debug.yaml up -d --wait   (ou: task up:debug)
+services:
+  catalog:
+    ports:
+      - "${CATALOG_HTTP_PORT:-8001}:8001"
+      - "${CATALOG_GRPC_PORT:-9001}:9001"
+  orders:
+    ports: ["${ORDERS_HTTP_PORT:-8002}:8002"]
+  inventory:
+    ports: ["${INVENTORY_HTTP_PORT:-8003}:8003"]
+  payments:
+    ports: ["${PAYMENTS_HTTP_PORT:-8004}:8004"]
+  notifications:
+    ports: ["${NOTIFICATIONS_HTTP_PORT:-8005}:8005"]

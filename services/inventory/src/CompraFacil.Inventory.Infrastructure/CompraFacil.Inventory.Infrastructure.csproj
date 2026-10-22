@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- EF Core + Npgsql (banco inventory); depois, Kafka e clientes de outros serviços. -->
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Inventory.Application/CompraFacil.Inventory.Application.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

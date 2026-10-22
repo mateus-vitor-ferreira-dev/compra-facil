@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="CompraFacil.BuildingBlocks.Testing/CompraFacil.BuildingBlocks.Testing.csproj" />
+  <Project Path="CompraFacil.BuildingBlocks.Tests/CompraFacil.BuildingBlocks.Tests.csproj" />
+  <Project Path="CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+</Solution>
