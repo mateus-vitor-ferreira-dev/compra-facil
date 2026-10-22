@@ -18,12 +18,13 @@ import (
 const envPrefix = "CATALOG"
 
 type Config struct {
-	App  AppConfig  `mapstructure:"app"`
-	HTTP HTTPConfig `mapstructure:"http"`
-	GRPC GRPCConfig `mapstructure:"grpc"`
-	Log  LogConfig  `mapstructure:"log"`
-	DB   DBConfig   `mapstructure:"db"`
-	Auth AuthConfig `mapstructure:"auth"`
+	App   AppConfig   `mapstructure:"app"`
+	HTTP  HTTPConfig  `mapstructure:"http"`
+	GRPC  GRPCConfig  `mapstructure:"grpc"`
+	Log   LogConfig   `mapstructure:"log"`
+	DB    DBConfig    `mapstructure:"db"`
+	Auth  AuthConfig  `mapstructure:"auth"`
+	Cache CacheConfig `mapstructure:"cache"`
 }
 
 type AppConfig struct {
@@ -68,6 +69,21 @@ func (a AuthConfig) Options() auth.Options {
 
 // DevJWTSecret é o segredo do ambiente local; fora dele o serviço não sobe com este valor.
 const DevJWTSecret = "dev-only-compra-facil-jwt-secret-troque-em-producao" //nolint:gosec // segredo público de dev, barrado fora do local
+
+// CacheConfig liga o cache-aside (Redis) das leituras públicas. Redis fora não derruba o serviço.
+type CacheConfig struct {
+	Enabled    bool          `mapstructure:"enabled"`
+	ProductTTL time.Duration `mapstructure:"product_ttl"`
+	ListTTL    time.Duration `mapstructure:"list_ttl"`
+	Redis      RedisConfig   `mapstructure:"redis"`
+}
+
+type RedisConfig struct {
+	Addr     string        `mapstructure:"addr"`
+	Password string        `mapstructure:"password"`
+	DB       int           `mapstructure:"db"`
+	Timeout  time.Duration `mapstructure:"timeout"`
+}
 
 type LogConfig struct {
 	Level string `mapstructure:"level"`
@@ -126,6 +142,13 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("auth.issuer", "compra-facil")
 	v.SetDefault("auth.audience", "catalog")
 	v.SetDefault("auth.leeway", "30s")
+	v.SetDefault("cache.enabled", true)
+	v.SetDefault("cache.product_ttl", "5m")
+	v.SetDefault("cache.list_ttl", "1m")
+	v.SetDefault("cache.redis.addr", "localhost:6379")
+	v.SetDefault("cache.redis.password", "")
+	v.SetDefault("cache.redis.db", 0)
+	v.SetDefault("cache.redis.timeout", "100ms")
 }
 
 func (c Config) validate() error {
@@ -143,6 +166,14 @@ func (c Config) validate() error {
 	}
 	if c.Auth.JWTSecret == DevJWTSecret && c.App.Env != "local" && c.App.Env != "compose" {
 		return fmt.Errorf("auth.jwt_secret de desenvolvimento não pode ser usado em app.env=%s", c.App.Env)
+	}
+	if c.Cache.Enabled {
+		if c.Cache.Redis.Addr == "" {
+			return errors.New("cache.redis.addr é obrigatório com o cache ligado")
+		}
+		if c.Cache.ProductTTL <= 0 || c.Cache.ListTTL <= 0 || c.Cache.Redis.Timeout <= 0 {
+			return errors.New("cache.product_ttl, cache.list_ttl e cache.redis.timeout devem ser positivos")
+		}
 	}
 	switch strings.ToLower(c.Log.Level) {
 	case "debug", "info", "warn", "error":
