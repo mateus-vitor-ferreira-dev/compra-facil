@@ -1,0 +1,47 @@
+# Pipeline do orders (time de compras). Só roda quando algo que afeta o orders muda: o próprio serviço,
+# a lib comum (libs/dotnet), os contratos ou o build .NET. Mudança só no catalog não dispara este.
+name: orders
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - services/orders/**
+      - libs/dotnet/**
+      - contracts/**
+      - services/dotnet.Dockerfile
+      - Directory.Build.props
+      - Directory.Packages.props
+      - global.json
+      - .editorconfig
+      - dotnet-tools.json
+      - .github/workflows/orders.yml
+      - .github/workflows/_dotnet-service.yml
+  pull_request:
+    paths:
+      - services/orders/**
+      - libs/dotnet/**
+      - contracts/**
+      - services/dotnet.Dockerfile
+      - Directory.Build.props
+      - Directory.Packages.props
+      - global.json
+      - .editorconfig
+      - dotnet-tools.json
+      - .github/workflows/orders.yml
+      - .github/workflows/_dotnet-service.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  orders:
+    uses: ./.github/workflows/_dotnet-service.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      service: orders
+      project: CompraFacil.Orders.Api
+      port: "8002"
