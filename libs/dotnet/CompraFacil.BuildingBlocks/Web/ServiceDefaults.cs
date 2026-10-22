@@ -144,6 +144,10 @@ public static class Problems
         }
         problem.Instance ??= ctx.HttpContext.Request.Path;
         problem.Extensions["request_id"] = ctx.HttpContext.TraceIdentifier;
+        if (RequestIdMiddleware.TraceId() is { } traceId)
+        {
+            problem.Extensions["trace_id"] = traceId;
+        }
     }
 
     // títulos que o próprio ASP.NET põe: a reason phrase ou, no exception handler, esta frase

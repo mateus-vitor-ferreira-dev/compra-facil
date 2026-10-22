@@ -58,7 +58,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -105,7 +106,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -164,7 +166,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -227,7 +230,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -295,7 +299,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -343,7 +348,8 @@
           "legendFormat": "{{status}} {{reason}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -396,7 +402,8 @@
           "legendFormat": "{{result}} {{reason}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -449,7 +456,8 @@
           "legendFormat": "{{result}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -515,7 +523,8 @@
           "legendFormat": "{{group}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -568,7 +577,8 @@
           "legendFormat": "{{result}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -621,7 +631,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -684,7 +695,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -747,7 +759,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -794,7 +807,8 @@
           "legendFormat": "{{service_name}} {{event_type}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": true
         }
       ],
       "fieldConfig": {
@@ -860,7 +874,8 @@
           "legendFormat": "{{reason}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -913,7 +928,8 @@
           "legendFormat": "{{event_name}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {

@@ -62,6 +62,11 @@ O parecer da atividade, com a escolha entre as propostas e os critérios para av
 | **5 serviços**, **5 pipelines** independentes e contratos versionados em gRPC, REST e eventos | [`.github/workflows`](.github/workflows) |
 | Um pedido vira **um trace só**: 57 spans passando por 6 componentes | Grafana → Tempo |
 
+<p align="center">
+  <img src="docs/img/grafana-campanha.gif" alt="Dashboard Campanha no Grafana durante o teste de carga" width="900"><br>
+  <sub>Dashboard <b>Campanha</b> durante <code>task load</code>: a rampa até o pico, o p95 do catálogo em ~5 ms e o cache acima de 96%.</sub>
+</p>
+
 ## 🚀 Início rápido
 
 Só precisa de Docker (com Compose v2):
@@ -176,10 +181,31 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 - **Base:** `http://localhost/<serviço>/v1/...` (ex.: `POST http://localhost/orders/v1/orders`). Os contratos, que são a
   fonte da verdade, estão em [`contracts/openapi`](contracts/openapi), e o Swagger de cada serviço fica em `/<serviço>/docs`.
 - **CORS:** liberado para `CORS_ALLOWED_ORIGINS` (padrão `http://localhost:5173` e `http://localhost:3000`). O front
-  pode ler os headers `Location`, `ETag`, `X-Request-ID`, `Retry-After` e `X-Cache`.
-- **Erros:** sempre em `application/problem+json`, com `request_id`. A vitrine tem rate limit por IP (`429` com `Retry-After`).
+  pode ler os headers `Location`, `ETag`, `X-Request-ID`, `X-Trace-Id`, `Retry-After` e `X-Cache`.
+- **Erros:** sempre em `application/problem+json`, com `request_id` e `trace_id`. A vitrine tem rate limit por IP (`429` com `Retry-After`).
 - **Compra:** `POST /orders/v1/orders` (com header `Idempotency-Key`) responde `202` com o pedido `pending`.
   Depois, consulte `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`).
+
+## 🔍 Como investigar um pedido
+
+Toda resposta da API traz o header **`X-Trace-Id`**, e todo erro traz o campo `trace_id` no corpo. Com ele:
+
+```bash
+curl -si -X POST http://localhost/orders/v1/orders ... | grep -i x-trace-id   # X-Trace-Id: 60b01a04681c551a4a433e55a7426783
+task trace -- 60b01a04681c551a4a433e55a7426783                              # abre o trace no Grafana
+```
+
+O trace mostra a compra inteira: o gateway, o orders validando no catalog por gRPC, o evento passando pelo Kafka, a
+reserva no inventory, a cobrança no payments, a confirmação e o e-mail. São 61 spans em 6 serviços, e de cada span
+se vai para os logs dele.
+
+![Trace de um pedido no Grafana](docs/img/grafana-trace-pedido.png)
+
+Para uma visão geral, o Grafana (`task grafana`) abre no dashboard **Início**. Ele mostra a saúde de cada serviço, os
+traces e logs com erro mais recentes e os pedidos da última hora, com atalhos para os dashboards de RED, SAGA e
+Campanha. Para ver os logs de um serviço: `task grafana:logs -- orders`.
+
+![Dashboard Início do Grafana](docs/img/grafana-inicio.png)
 
 ## 🛠 Desenvolvimento
 
@@ -196,6 +222,9 @@ task load                     # k6: campanha promocional (métricas no Grafana)
 task experiment               # escala independente: 1 × N réplicas do catálogo, gera o relatório
 task chaos:catalog            # k6 criando pedidos com o catálogo derrubado no meio
 task dlt -- payments          # mensagens na dead letter topic; task dlt:replay -- payments reprocessa
+task grafana                  # abre o Grafana no dashboard Início
+task trace -- <trace_id>      # abre o trace de uma resposta (header X-Trace-Id)
+task e2e                      # compra ponta a ponta pelo gateway (confirmada, sem estoque, pagamento recusado)
 ```
 
 <details>

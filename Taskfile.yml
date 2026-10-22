@@ -174,6 +174,22 @@ tasks:
     cmds:
       - go run ./cmd/token {{.CLI_ARGS}}
 
+  # ---------- observabilidade (Grafana em http://127.0.0.1:3001) ----------
+  grafana:
+    desc: Abre o Grafana no dashboard Início
+    cmds:
+      - python3 scripts/grafana.py
+
+  trace:
+    desc: "Abre um trace no Grafana pelo id do header X-Trace-Id (ex.: task trace -- 4bf92f3577b34da6a3ce929d0e0e4736)"
+    cmds:
+      - python3 scripts/grafana.py trace {{.CLI_ARGS}}
+
+  grafana:logs:
+    desc: "Abre os logs de um serviço no Grafana (ex.: task grafana:logs -- orders)"
+    cmds:
+      - python3 scripts/grafana.py logs {{.CLI_ARGS}}
+
   # ---------- dead letter topic (ADR 0003) ----------
   dlt:
     desc: "Mensagens pendentes na DLT de um serviço .NET (ex.: task dlt -- payments)"

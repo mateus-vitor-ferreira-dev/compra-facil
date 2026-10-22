@@ -130,5 +130,9 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.Equal("smoke-req", problem.GetProperty("request_id").GetString());
+        // o trace da requisição, no header e no corpo: da resposta direto ao trace no Grafana
+        var traceId = Assert.Single(response.Headers.GetValues(RequestIdMiddleware.TraceHeader));
+        Assert.Matches("^[0-9a-f]{32}$", traceId);
+        Assert.Equal(traceId, problem.GetProperty("trace_id").GetString());
     }
 }
