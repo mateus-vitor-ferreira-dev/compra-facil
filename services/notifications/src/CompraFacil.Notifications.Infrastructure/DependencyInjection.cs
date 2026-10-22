@@ -1,17 +1,34 @@
 using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
+using CompraFacil.Notifications.Application.Emails;
+using CompraFacil.Notifications.Infrastructure.Email;
+using CompraFacil.Notifications.Infrastructure.Persistence;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace CompraFacil.Notifications.Infrastructure;
 
 public static class DependencyInjection
 {
-    /// <summary>Banco (ConnectionStrings:Default) e demais adaptadores de infraestrutura.</summary>
+    /// <summary>Banco, SMTP e mensageria do notifications.</summary>
     public static IHostApplicationBuilder AddInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddPostgres<NotificationsDbContext>();
-        // só consome (contracts/asyncapi/notifications.v1.yaml); handlers entram com o serviço (#77)
-        builder.AddMessaging<NotificationsDbContext>("notifications", _ => { });
+        builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+
+        var smtp = builder.Configuration.GetSection("Smtp");
+        builder.Services.Configure<SmtpOptions>(smtp);
+        builder.Services.AddSingleton<IEmailSender, MailKitEmailSender>();
+        if (smtp.GetValue("DispatcherEnabled", defaultValue: true))
+        {
+            builder.Services.AddHostedService<EmailDispatcher>();
+        }
+
+        // contracts/asyncapi/notifications.v1.yaml: só consome o resultado do pedido
+        builder.AddMessaging<NotificationsDbContext>("notifications", m => m
+            .Handle<OrderConfirmedData, OnOrderConfirmed>(NotificationEvents.OrdersTopic, NotificationEvents.OrderConfirmed)
+            .Handle<OrderCancelledData, OnOrderCancelled>(NotificationEvents.OrdersTopic, NotificationEvents.OrderCancelled));
         return builder;
     }
 }
