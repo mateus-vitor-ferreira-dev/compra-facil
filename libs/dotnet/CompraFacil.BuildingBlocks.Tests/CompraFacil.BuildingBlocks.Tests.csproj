@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- contrato de mentira para os testes de /docs e /openapi -->
+    <Content Include="openapi/**/*.yaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

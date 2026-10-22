@@ -63,7 +63,7 @@ tasks:
     desc: dotnet test em cada solution .NET
     cmds:
       - for: { var: DOTNET_SOLUTIONS }
-        cmd: echo "==> dotnet test {{.ITEM}}" && dotnet test {{.ITEM}}
+        cmd: echo "==> dotnet test {{.ITEM}}" && dotnet test --solution {{.ITEM}}
 
   # ---------- lint ----------
   lint:

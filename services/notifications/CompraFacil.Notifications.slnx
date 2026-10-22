@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CompraFacil.Notifications.Api/CompraFacil.Notifications.Api.csproj" />
+    <Project Path="src/CompraFacil.Notifications.Application/CompraFacil.Notifications.Application.csproj" />
+    <Project Path="src/CompraFacil.Notifications.Domain/CompraFacil.Notifications.Domain.csproj" />
+    <Project Path="src/CompraFacil.Notifications.Infrastructure/CompraFacil.Notifications.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CompraFacil.Notifications.IntegrationTests/CompraFacil.Notifications.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="../../libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+    <Project Path="../../libs/dotnet/CompraFacil.BuildingBlocks.Testing/CompraFacil.BuildingBlocks.Testing.csproj" />
+  </Folder>
+</Solution>

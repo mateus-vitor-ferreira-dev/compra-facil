@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Casos de uso do notifications: orquestram o domínio e validam a entrada (FluentValidation). -->
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Notifications.Domain/CompraFacil.Notifications.Domain.csproj" />
+  </ItemGroup>
+</Project>

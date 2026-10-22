@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Base dos testes de integração dos serviços: Postgres real (Testcontainers) e o smoke test
+       comum (health, ready, docs, ProblemDetails), herdado por cada serviço em vez de copiado. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.extensibility.core" />
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

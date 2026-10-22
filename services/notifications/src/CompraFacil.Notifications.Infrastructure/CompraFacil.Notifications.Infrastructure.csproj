@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- EF Core + Npgsql (banco notifications); depois, Kafka e clientes de outros serviços. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Notifications.Application/CompraFacil.Notifications.Application.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

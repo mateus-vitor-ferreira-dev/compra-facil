@@ -1,0 +1,11 @@
+# Contexto dos builds na raiz (services/dotnet.Dockerfile). O catalog usa services/catalog como
+# contexto e tem o próprio .dockerignore.
+.git
+**/bin
+**/obj
+**/TestResults
+services/catalog
+load-tests/
+docs/
+infra/
+.env

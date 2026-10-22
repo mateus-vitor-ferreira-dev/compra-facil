@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Casos de uso do orders: orquestram o domínio e validam a entrada (FluentValidation). -->
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Orders.Domain/CompraFacil.Orders.Domain.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CompraFacil.Payments.Api/CompraFacil.Payments.Api.csproj" />
+    <Project Path="src/CompraFacil.Payments.Application/CompraFacil.Payments.Application.csproj" />
+    <Project Path="src/CompraFacil.Payments.Domain/CompraFacil.Payments.Domain.csproj" />
+    <Project Path="src/CompraFacil.Payments.Infrastructure/CompraFacil.Payments.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CompraFacil.Payments.IntegrationTests/CompraFacil.Payments.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="../../libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+    <Project Path="../../libs/dotnet/CompraFacil.BuildingBlocks.Testing/CompraFacil.BuildingBlocks.Testing.csproj" />
+  </Folder>
+</Solution>
