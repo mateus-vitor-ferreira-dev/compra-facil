@@ -224,6 +224,58 @@ tasks:
         -H "Authorization: Bearer {{.TOKEN}}" http://{{.SERVICE}}:{{.PORT}}{{.ROUTE}}
       - echo
 
+  # ---------- Kubernetes local (k3d + Helm; precisa de k3d, kubectl e helm no PATH) ----------
+  k8s:up:
+    desc: "Cluster k3d com os 5 serviços (chart Helm), Traefik como ingress em http://localhost:8088 e HPA no catalog"
+    vars:
+      SERVICES: catalog orders inventory payments notifications
+      IMAGES: catalog catalog-seed orders inventory payments notifications
+    cmds:
+      - k3d cluster list compra-facil >/dev/null 2>&1 || k3d cluster create compra-facil --agents 1 -p "8088:80@loadbalancer" --wait
+      - docker compose build {{.IMAGES}}
+      - k3d image import -c compra-facil {{range (splitList " " .IMAGES)}}compra-facil/{{.}}:dev {{end}}
+      - kubectl create namespace compra-facil --dry-run=client -o yaml | kubectl apply -f -
+      - >-
+        kubectl -n compra-facil create configmap postgres-init
+        --from-file=init-databases.sh=infra/compose/postgres/init-databases.sh --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl -n compra-facil apply -f infra/k8s/deps.yaml
+      - kubectl -n compra-facil wait --for=condition=available deploy/postgres deploy/redis deploy/redpanda deploy/mailpit --timeout=300s
+      - for: { var: SERVICES, split: " " }
+        cmd: >-
+          helm upgrade --install {{.ITEM}} infra/k8s/helm/compra-facil-service -n compra-facil
+          -f infra/k8s/helm/values/{{.ITEM}}.yaml --wait --timeout 5m
+      - kubectl -n compra-facil get deploy,hpa
+
+  k8s:seed:
+    desc: Popula o catálogo no cluster (Job com a imagem do seed)
+    cmds:
+      - kubectl -n compra-facil delete job catalog-seed --ignore-not-found --cascade=foreground --wait
+      - kubectl -n compra-facil apply -f infra/k8s/seed-job.yaml
+      - kubectl -n compra-facil wait --for=condition=complete job/catalog-seed --timeout=300s
+      - kubectl -n compra-facil logs job/catalog-seed
+
+  k8s:load:
+    desc: "k6 de campanha dentro do cluster e o HPA do catalog reagindo (ex.: task k8s:load -- 600 3m)"
+    vars:
+      PEAK_RATE: '{{index (splitList " " (printf "%s 400 2m" .CLI_ARGS | trim)) 0}}'
+      PEAK: '{{index (splitList " " (printf "%s 400 2m" .CLI_ARGS | trim)) 1}}'
+    cmds:
+      - >-
+        kubectl -n compra-facil create configmap k6-scripts --from-file=load-tests/k6/campanha.js
+        --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl -n compra-facil delete job k6-campanha --ignore-not-found --cascade=foreground --wait
+      - sed -e 's/PEAK_RATE_PLACEHOLDER/{{.PEAK_RATE}}/' -e 's/PEAK_PLACEHOLDER/{{.PEAK}}/' infra/k8s/k6-job.yaml | kubectl -n compra-facil apply -f -
+      - kubectl -n compra-facil wait --for=condition=ready pod -l job-name=k6-campanha --timeout=120s
+      - kubectl -n compra-facil logs -f -l job-name=k6-campanha --tail=-1
+      # o que o HPA fez durante a carga (as réplicas descem sozinhas um minuto depois)
+      - kubectl -n compra-facil get hpa,deploy catalog
+      - kubectl -n compra-facil events --for hpa/catalog
+
+  k8s:down:
+    desc: Apaga o cluster k3d
+    cmds:
+      - k3d cluster delete compra-facil
+
   # ---------- carga ----------
   chaos:catalog:
     desc: "Caos da #81: k6 criando pedidos, catalog derrubado aos 20 s e de volta aos 40 s (ex.: task chaos:catalog -- -e RATE=50)"
