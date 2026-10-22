@@ -15,6 +15,7 @@ import (
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/api/openapi"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/cache"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/grpcserver"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/handler"
@@ -103,14 +104,41 @@ func run() error {
 	productSvc := service.NewProductService(products, categories, time.Now)
 	categorySvc := service.NewCategoryService(categories)
 	campaignSvc := service.NewCampaignService(campaigns, time.Now)
-	catalogAPI := handler.NewCatalogHandler(productSvc, categorySvc, campaignSvc, log)
 
 	verifier, err := auth.NewVerifier(cfg.Auth.Options())
 	if err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}
-	adminAPI := handler.NewAdminHandler(productSvc, categorySvc, campaignSvc,
-		handler.RequireRole(verifier, auth.RoleAdmin, log), log)
+	requireAdmin := handler.RequireRole(verifier, auth.RoleAdmin, log)
+
+	var catalogAPI *handler.CatalogHandler
+	var adminAPI *handler.AdminHandler
+	if cfg.Cache.Enabled {
+		store := cache.NewRedisStore(cache.RedisOptions{
+			Addr:         cfg.Cache.Redis.Addr,
+			Password:     cfg.Cache.Redis.Password,
+			DB:           cfg.Cache.Redis.DB,
+			DialTimeout:  cfg.Cache.Redis.Timeout,
+			ReadTimeout:  cfg.Cache.Redis.Timeout,
+			WriteTimeout: cfg.Cache.Redis.Timeout,
+		})
+		defer store.Close()
+		// fora do /ready de propósito: sem Redis o serviço segue atendendo pelo banco
+		if err := store.Ping(ctx); err != nil {
+			log.Warn("redis indisponível na subida, leituras vão direto ao banco", "addr", cfg.Cache.Redis.Addr, "error", err.Error())
+		}
+		cached, err := cache.NewCatalog(store, productSvc, categorySvc, campaignSvc,
+			cache.Options{ProductTTL: cfg.Cache.ProductTTL, ListTTL: cfg.Cache.ListTTL}, time.Now, log)
+		if err != nil {
+			return fmt.Errorf("cache: %w", err)
+		}
+		catalogAPI = handler.NewCatalogHandler(cached, cached, cached, log)
+		adminAPI = handler.NewAdminHandler(cache.NewProductWriter(productSvc, cached),
+			cache.NewCategoryWriter(categorySvc, cached), cache.NewCampaignWriter(campaignSvc, cached), requireAdmin, log)
+	} else {
+		catalogAPI = handler.NewCatalogHandler(productSvc, categorySvc, campaignSvc, log)
+		adminAPI = handler.NewAdminHandler(productSvc, categorySvc, campaignSvc, requireAdmin, log)
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr(),

@@ -33,3 +33,17 @@ auth:
   issuer: compra-facil
   audience: catalog
   leeway: 30s
+
+cache:
+  # cache-aside das leituras públicas (detalhe, listagens, categorias, campanhas). Escrita admin
+  # invalida tudo; o TTL também é encurtado para o fim da campanha que dá o desconto.
+  enabled: true
+  product_ttl: 5m
+  list_ttl: 1m
+  redis:
+    # compose local; em container use CATALOG_CACHE_REDIS_ADDR=redis:6379
+    addr: localhost:6379
+    password: ""
+    db: 0
+    # timeout curto: se o Redis travar, a leitura cai no banco em vez de esperar
+    timeout: 100ms
