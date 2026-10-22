@@ -10,6 +10,7 @@ vars:
     sh: find services libs \( -name '*.slnx' -o -name '*.sln' \) 2>/dev/null | sort
   SPECTRAL: npx -y @stoplight/spectral-cli@6.17.0
   REDOCLY: npx -y @redocly/cli@2.67.1
+  ASYNCAPI: npx -y @asyncapi/cli@6.2.1
 
 tasks:
   default:
@@ -66,13 +67,14 @@ tasks:
 
   # ---------- lint ----------
   lint:
-    desc: Lint de tudo (golangci-lint, dotnet format, buf lint/breaking, spectral)
+    desc: Lint de tudo (golangci-lint, dotnet format, buf lint/breaking, spectral, asyncapi)
     cmds:
       - task: lint:go
       - task: lint:dotnet
       - task: lint:proto
       - task: proto:breaking
       - task: lint:openapi
+      - task: lint:asyncapi
 
   lint:go:
     desc: golangci-lint em cada módulo Go
@@ -116,6 +118,20 @@ tasks:
     desc: Spectral nos contratos REST (regras em contracts/openapi/.spectral.yaml)
     dir: contracts/openapi
     cmds:
+      - "{{.SPECTRAL}} lint --fail-severity=warn '*.v1.yaml' 'common/**/*.yaml'"
+
+  lint:asyncapi:
+    desc: AsyncAPI CLI (schema e $ref) + Spectral (regras em contracts/asyncapi/.spectral.yaml) nos contratos de eventos
+    dir: contracts/asyncapi
+    env:
+      CI: "true" # o AsyncAPI CLI não envia telemetria com CI=true
+      SUPPRESS_NO_CONFIG_WARNING: "true"
+    vars:
+      SPECS:
+        sh: ls *.v1.yaml
+    cmds:
+      - for: { var: SPECS }
+        cmd: "{{.ASYNCAPI}} validate {{.ITEM}}"
       - "{{.SPECTRAL}} lint --fail-severity=warn '*.v1.yaml' 'common/**/*.yaml'"
 
   openapi:bundle:
