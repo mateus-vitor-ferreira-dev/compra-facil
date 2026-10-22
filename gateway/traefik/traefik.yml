@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://www.schemastore.org/traefik-v3.json
 # Configuração estática do gateway (Traefik v3). Rotas e middlewares: dynamic/*.yml (recarregados ao salvar).
 entryPoints:
   web:
