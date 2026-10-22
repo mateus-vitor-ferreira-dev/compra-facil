@@ -1,5 +1,7 @@
 # Parecer — Proposta B: Extrair o Catálogo para um microsserviço
 
+**Repositório do projeto:** <https://github.com/mateus-vitor-ferreira-dev/compra-facil>
+
 **Recomendação:** adotar a **Proposta B**, com duas condições: extração **gradual**, com o catálogo novo
 convivendo com o módulo antigo até ser validado, e **capacitação da equipe** em sistemas distribuídos
 antes de ampliar a separação para outras partes do sistema.
@@ -75,13 +77,13 @@ Os números acima vêm da implementação de referência deste repositório, que
 também o processamento de compras, para exercitar os mecanismos que a extração exige (contratos, eventos,
 SAGA, observabilidade):
 
-- **Escala independente:** [`docs/resultados-carga.md`](resultados-carga.md) (`task experiment`).
-- **Autonomia de entrega:** [`docs/resultados-entrega.md`](resultados-entrega.md) (`scripts/delivery_metrics.py`).
-- **Escala automática:** [`infra/k8s/README.md`](../infra/k8s/README.md) (`task k8s:load`): o HPA levou o catálogo de 1 para 4 réplicas e de volta a 1.
+- **Escala independente:** [resultados de carga](https://github.com/mateus-vitor-ferreira-dev/compra-facil/blob/main/docs/resultados-carga.md) (`task experiment`).
+- **Autonomia de entrega:** [resultados de entrega](https://github.com/mateus-vitor-ferreira-dev/compra-facil/blob/main/docs/resultados-entrega.md) (`scripts/delivery_metrics.py`).
+- **Escala automática:** [Kubernetes local](https://github.com/mateus-vitor-ferreira-dev/compra-facil/blob/main/infra/k8s/README.md) (`task k8s:load`): o HPA levou o catálogo de 1 para 4 réplicas e de volta a 1.
 - **Catálogo fora do ar sem derrubar as compras:** `task chaos:catalog`, com 0 falhas em 1.202 pedidos.
 - **Integração segura:** contrato consumer-driven do orders verificado pelo catálogo antes de cada publicação
-  (ADR 0004) e teste ponta a ponta da compra no CI.
+  ([ADR 0004](https://github.com/mateus-vitor-ferreira-dev/compra-facil/blob/main/docs/adr/0004-contrato-consumer-driven-sem-pact.md)) e teste ponta a ponta da compra no CI.
 - **Um limite observado:** com o catálogo escalado, o gargalo do pico passou para o pagamento, que processa um
   evento por vez. Escalar uma parte desloca o problema para a seguinte, por isso o critério 1 olha o sistema,
   não só o serviço extraído.
-- **Arquitetura e decisões:** [`docs/arquitetura/c4.md`](arquitetura/c4.md) e [`docs/adr`](adr).
+- **Arquitetura e decisões:** [diagramas C4](https://github.com/mateus-vitor-ferreira-dev/compra-facil/blob/main/docs/arquitetura/c4.md) e [ADRs](https://github.com/mateus-vitor-ferreira-dev/compra-facil/tree/main/docs/adr).
