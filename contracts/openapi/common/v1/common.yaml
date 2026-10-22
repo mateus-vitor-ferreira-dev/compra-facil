@@ -39,6 +39,10 @@ components:
         request_id:
           type: string
           description: Mesmo valor do header `X-Request-ID`, para correlacionar com os logs.
+        trace_id:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+          description: Mesmo valor do header `X-Trace-Id`; abre o trace da requisição no Grafana (Tempo).
 
     ValidationProblem:
       description: Problema de validação (HTTP 422), com um item por campo inválido.
@@ -139,6 +143,11 @@ components:
       description: Identificador da requisição (recebido ou gerado).
       schema:
         type: string
+    TraceId:
+      description: Trace W3C da requisição (32 hex). Abre o trace no Grafana (Explore → Tempo) ou com `task trace -- <id>`.
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{32}$"
     ETag:
       description: Versão do recurso; envie em `If-Match` para atualizar.
       schema:

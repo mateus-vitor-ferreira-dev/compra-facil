@@ -7,13 +7,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/events"
 )
 
 const (
 	HeaderRequestID = "X-Request-ID"
-	ctxRequestID    = "request_id"
+	// HeaderTraceID devolve o trace W3C da requisição, para ir da resposta direto ao trace no Grafana.
+	HeaderTraceID = "X-Trace-Id"
+	ctxRequestID  = "request_id"
 )
 
 // RequestID reaproveita o X-Request-ID recebido (ex.: do gateway) ou gera um novo. Ele também vira
@@ -26,9 +29,20 @@ func RequestID() gin.HandlerFunc {
 		}
 		c.Set(ctxRequestID, id)
 		c.Header(HeaderRequestID, id)
+		if traceID := traceIDOf(c); traceID != "" {
+			c.Header(HeaderTraceID, traceID)
+		}
 		c.Request = c.Request.WithContext(events.WithCorrelationID(c.Request.Context(), id))
 		c.Next()
 	}
+}
+
+// traceIDOf devolve o trace da requisição (o span do otelgin); vazio sem tracing ou fora da amostragem.
+func traceIDOf(c *gin.Context) string {
+	if sc := trace.SpanContextFromContext(c.Request.Context()); sc.IsValid() && sc.IsSampled() {
+		return sc.TraceID().String()
+	}
+	return ""
 }
 
 // Logger registra uma linha JSON por requisição.

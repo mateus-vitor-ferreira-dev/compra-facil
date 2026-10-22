@@ -104,8 +104,11 @@ public sealed class ServiceDefaultsTests : IAsyncLifetime
         Assert.Equal(404, problem.GetProperty("status").GetInt32());
         Assert.Equal("/v1/nada", problem.GetProperty("instance").GetString());
         Assert.Equal("req-404", problem.GetProperty("request_id").GetString());
-        // trace_id (W3C) fica de propósito, em snake_case como o resto do JSON
-        Assert.Matches("^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$", problem.GetProperty("trace_id").GetString());
+        // trace_id: só o id do trace (o que o Tempo pesquisa), igual ao header X-Trace-Id e ao catalog;
+        // não o traceparent inteiro que o ASP.NET põe por padrão
+        var traceId = problem.GetProperty("trace_id").GetString();
+        Assert.Matches("^[0-9a-f]{32}$", traceId);
+        Assert.Equal(traceId, Assert.Single(response.Headers.GetValues(RequestIdMiddleware.TraceHeader)));
         Assert.False(problem.TryGetProperty("traceId", out _));
     }
 

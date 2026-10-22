@@ -9,11 +9,14 @@ namespace CompraFacil.BuildingBlocks.Web;
 /// <summary>
 /// Reaproveita o X-Request-ID recebido (ex.: do gateway) ou gera um novo, devolve no header da
 /// resposta e o põe em <see cref="HttpContext.TraceIdentifier"/> (usado no ProblemDetails) e no
-/// escopo de log. Ao fim, registra uma linha por requisição. É o mesmo comportamento do catalog.
+/// escopo de log. Devolve também o X-Trace-Id (o trace W3C da requisição), para ir da resposta
+/// direto ao trace no Grafana. Ao fim, registra uma linha por requisição. É o mesmo comportamento
+/// do catalog.
 /// </summary>
 public sealed partial class RequestIdMiddleware(RequestDelegate next, ILogger<RequestIdMiddleware> logger)
 {
     public const string Header = "X-Request-ID";
+    public const string TraceHeader = "X-Trace-Id";
     private const int MaxLength = 128;
 
     public async Task InvokeAsync(HttpContext context)
@@ -30,6 +33,10 @@ public sealed partial class RequestIdMiddleware(RequestDelegate next, ILogger<Re
         context.Response.OnStarting(() =>
         {
             context.Response.Headers[Header] = id;
+            if (TraceId() is { } traceId)
+            {
+                context.Response.Headers[TraceHeader] = traceId;
+            }
             return Task.CompletedTask;
         });
 
@@ -54,6 +61,10 @@ public sealed partial class RequestIdMiddleware(RequestDelegate next, ILogger<Re
             }
         }
     }
+
+    /// <summary>Trace W3C da requisição em andamento; nulo sem tracing (ex.: /health, OTel desligado).</summary>
+    internal static string? TraceId() =>
+        Activity.Current is { IdFormat: ActivityIdFormat.W3C } a && a.Recorded ? a.TraceId.ToHexString() : null;
 
     private static LogLevel LevelFor(int status) => status switch
     {

@@ -15,6 +15,7 @@ type Problem struct {
 	Detail    string `json:"detail,omitempty"`
 	Instance  string `json:"instance,omitempty"`
 	RequestID string `json:"request_id,omitempty"`
+	TraceID   string `json:"trace_id,omitempty"`
 }
 
 func WriteProblem(c *gin.Context, status int, title, detail string) {
@@ -26,6 +27,7 @@ func WriteProblem(c *gin.Context, status int, title, detail string) {
 		Detail:    detail,
 		Instance:  c.Request.URL.Path,
 		RequestID: c.GetString(ctxRequestID),
+		TraceID:   traceIDOf(c),
 	})
 }
 

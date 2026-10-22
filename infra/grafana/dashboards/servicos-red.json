@@ -79,7 +79,8 @@
           "legendFormat": "{{service_name}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -132,7 +133,8 @@
           "legendFormat": "{{service_name}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -185,7 +187,8 @@
           "legendFormat": "{{service_name}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": true
         }
       ],
       "fieldConfig": {
@@ -238,7 +241,8 @@
           "legendFormat": "{{service_name}} {{http_route}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": true
         }
       ],
       "fieldConfig": {
@@ -304,7 +308,8 @@
           "legendFormat": "{{service}} {{span_name}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -357,7 +362,8 @@
           "legendFormat": "{{service}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {

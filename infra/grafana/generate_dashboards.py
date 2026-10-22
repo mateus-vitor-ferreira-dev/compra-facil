@@ -11,7 +11,9 @@ DS = {"type": "prometheus", "uid": "prometheus"}
 
 
 def target(expr, legend="", ref="A", instant=False):
-    return {"datasource": DS, "expr": expr, "legendFormat": legend, "refId": ref, "instant": instant, "range": not instant}
+    # histogramas de duração mostram exemplars: o ponto no gráfico abre o trace que o gerou
+    return {"datasource": DS, "expr": expr, "legendFormat": legend, "refId": ref, "instant": instant, "range": not instant,
+            "exemplar": "_duration_seconds_bucket" in expr and not instant}
 
 
 def panel(kind, title, targets, x, y, w, h, unit=None, description="", thresholds=None, stack=False, decimals=None):
@@ -210,7 +212,68 @@ campaign = dashboard(
     refresh="5s", time_from="now-15m",
 )
 
+# ---------------------------------------------------------------- 0. Início (home do Grafana)
+TEMPO = {"type": "tempo", "uid": "tempo"}
+LOKI = {"type": "loki", "uid": "loki"}
+START_TEXT = """\
+### Por onde começar
+
+| | |
+|---|---|
+| **Saúde dos serviços** | [Serviços (RED)](/d/compra-facil-red): taxa, erros e latência por serviço e rota |
+| **Pedidos e mensageria** | [SAGA de compra](/d/compra-facil-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |
+| **Pico de campanha** | [Campanha](/d/compra-facil-campanha): RPS, p95, cache, réplicas e o k6 |
+
+### Investigar uma requisição
+
+Toda resposta da API traz o header **`X-Trace-Id`**, e todo erro traz o campo `trace_id`:
+
+- **no terminal:** `task trace -- <trace_id>` abre o trace aqui;
+- **na mão:** *Explore → Tempo* e cole o id no campo TraceQL.
+
+Do trace se vai para os logs do mesmo trace (botão *Logs for this span*), e de cada log de volta para o trace.
+Logs de um serviço: `task grafana:logs -- orders`.
+"""
+home = dashboard(
+    "compra-facil-inicio", "CompraFácil — Início",
+    "Ponto de partida: saúde dos serviços, erros recentes (traces e logs) e atalhos para os outros dashboards.",
+    [
+        {"type": "text", "title": "", "gridPos": {"x": 0, "y": 0, "w": 12, "h": 11},
+         "options": {"mode": "markdown", "content": START_TEXT}},
+        panel("stat", "Requisições/s por serviço (5 min)", [(
+            "sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))", "{{service_name}}", "A", True)],
+              12, 0, 12, 5, unit="reqps", decimals=1),
+        panel("stat", "Erros 5xx por serviço (5 min)", [(
+            'sum by (service_name) (increase(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m])) '
+            "or sum by (service_name) (0 * rate(http_server_request_duration_seconds_count[5m]))", "{{service_name}}", "A", True)],
+              12, 5, 12, 6, decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": BAD, "value": 1}]),
+        {"type": "table", "title": "Traces recentes com erro", "datasource": TEMPO,
+         "description": "Clique no trace para abrir a cascata de spans.",
+         "gridPos": {"x": 0, "y": 11, "w": 12, "h": 10},
+         "targets": [{"datasource": TEMPO, "refId": "A", "queryType": "traceql", "query": "{ status = error }", "limit": 20}],
+         "fieldConfig": {"defaults": {}, "overrides": []}, "options": {}},
+        {"type": "logs", "title": "Erros e avisos recentes (logs)", "datasource": LOKI,
+         "gridPos": {"x": 12, "y": 11, "w": 12, "h": 10},
+         "targets": [{"datasource": LOKI, "refId": "A",
+                      "expr": '{service_namespace="compra-facil"} | detected_level=~"error|warn"'}],
+         "fieldConfig": {"defaults": {}, "overrides": []},
+         "options": {"showTime": True, "wrapLogMessage": True, "sortOrder": "Descending", "enableLogDetails": True}},
+        row("Compras na última hora", 21),
+        panel("stat", "Pedidos criados", [("sum(increase(compra_facil_orders_placed_total[1h])) or vector(0)", "", "A", True)],
+              0, 22, 6, 4, decimals=0),
+        panel("stat", "Confirmados", [(f'sum(increase({FIN}{{status="Confirmed"}}[1h])) or vector(0)', "", "A", True)],
+              6, 22, 6, 4, decimals=0, thresholds=[{"color": GOOD, "value": None}]),
+        panel("stat", "Cancelados", [(f'sum(increase({FIN}{{status="Cancelled"}}[1h])) or vector(0)', "", "A", True)],
+              12, 22, 6, 4, decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 1}]),
+        panel("stat", "Mensagens na DLT", [(
+            'sum(increase(compra_facil_messaging_consumed_total{result="dead_lettered"}[1h])) or vector(0)', "", "A", True)],
+              18, 22, 6, 4, decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": BAD, "value": 1}],
+              description="Ver e reprocessar: task dlt -- <serviço>."),
+    ],
+    refresh="10s", time_from="now-1h",
+)
+
 OUT.mkdir(exist_ok=True)
-for name, d in [("servicos-red", red), ("saga", saga), ("campanha", campaign)]:
+for name, d in [("inicio", home), ("servicos-red", red), ("saga", saga), ("campanha", campaign)]:
     (OUT / f"{name}.json").write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"{name}.json: {len([p for p in d['panels'] if p['type'] != 'row'])} painéis")

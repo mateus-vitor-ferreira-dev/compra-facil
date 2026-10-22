@@ -45,7 +45,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -93,7 +94,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -160,7 +162,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -228,7 +231,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -275,7 +279,8 @@
           "legendFormat": "",
           "refId": "A",
           "instant": true,
-          "range": false
+          "range": false,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -338,7 +343,8 @@
           "legendFormat": "{{code}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -391,7 +397,8 @@
           "legendFormat": "p50",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": true
         },
         {
           "datasource": {
@@ -402,7 +409,8 @@
           "legendFormat": "p95",
           "refId": "B",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": true
         },
         {
           "datasource": {
@@ -413,7 +421,8 @@
           "legendFormat": "p99",
           "refId": "C",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": true
         }
       ],
       "fieldConfig": {
@@ -466,7 +475,8 @@
           "legendFormat": "{{kind}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -519,7 +529,8 @@
           "legendFormat": "{{result}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -585,7 +596,8 @@
           "legendFormat": "{{scenario}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -638,7 +650,8 @@
           "legendFormat": "{{scenario}}",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
@@ -691,7 +704,8 @@
           "legendFormat": "VUs",
           "refId": "A",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         },
         {
           "datasource": {
@@ -702,7 +716,8 @@
           "legendFormat": "não enviadas/s (saturação)",
           "refId": "B",
           "instant": false,
-          "range": true
+          "range": true,
+          "exemplar": false
         }
       ],
       "fieldConfig": {
