@@ -34,7 +34,7 @@ Catálogo em **Go**, compras em **.NET**, SAGA coreografada sobre **Kafka**, obs
 
 ## O problema
 
-A CompraFácil é a loja do trabalho *Monolito x Microsserviços* ([enunciado](docs/Trabalho_MonolitoXMicrosservicos.pdf)).
+A CompraFácil é a loja do trabalho *Monolito x Microsserviços* ([enunciado](docs/_Trabalho_MonolitoXMicrosservicos.pdf)).
 Em campanha promocional, a consulta ao catálogo cresce muito mais que o resto da loja, e o monolito só
 aguenta escalando **tudo** junto. Dois times (catálogo e compras) dependem de **uma implantação conjunta**.
 
