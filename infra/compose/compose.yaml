@@ -209,6 +209,9 @@ services:
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
+      # e-mails vão para o Mailpit (UI em http://localhost:8025)
+      Smtp__Host: mailpit
+      Smtp__Port: 1025
     ports:
       - "${NOTIFICATIONS_HTTP_PORT:-8005}:8005"
 

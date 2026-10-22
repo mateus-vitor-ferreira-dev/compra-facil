@@ -2,8 +2,18 @@
   <!-- Casos de uso do notifications: orquestram o domínio e validam a entrada (FluentValidation). -->
   <ItemGroup>
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Fluid.Core" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../CompraFacil.Notifications.Domain/CompraFacil.Notifications.Domain.csproj" />
+    <!-- IHandleEvent e EventContext -->
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CompraFacil.Notifications.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- templates dos e-mails (Liquid), embutidos no assembly -->
+    <EmbeddedResource Include="Templates/*.liquid" />
   </ItemGroup>
 </Project>

@@ -45,7 +45,7 @@ sequenceDiagram
     O->>O: pending → confirmed
     O-)I: OrderConfirmed
     I->>I: reserva vira baixa
-    O-)N: OrderConfirmed (e-mail, #77)
+    O-)N: OrderConfirmed (e-mail)
 ```
 
 O payments só cobra quando tem os dois fatos — o valor (`OrderPlaced`) e o estoque garantido
@@ -110,6 +110,7 @@ sequenceDiagram
 | Estoque não fica negativo | Reserva tudo-ou-nada com concorrência otimista + `CHECK` no banco |
 | Ordem por pedido | Chave da mensagem = `order_id` (mesma partição) |
 | Mensagem fora do contrato não trava a fila | Registrada como erro e pulada |
+| E-mail sai no máximo uma vez | Notificação reservada (`sending`) antes do envio; queda no meio não reenvia |
 
 Ainda não: pedido parado em `pending` por um serviço fora do ar indefinidamente (timeout da SAGA), retries
 limitados com dead letter topic (#80) e fallback do catálogo quando o gRPC cai (#81).
