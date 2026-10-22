@@ -29,7 +29,7 @@ portfólio).
 | Consistência | **Transactional Outbox** + consumidores idempotentes | Evita perder ou duplicar evento | ✅ |
 | Fluxo de compra | **SAGA coreografada** | Sem transação distribuída; a compensação reverte reserva e pedido | parcial |
 | Gateway | **Traefik v3** | Roteamento, rate limit, canário por peso | ✅ |
-| Contratos | **OpenAPI** · **AsyncAPI** · **Pact** | Acordo entre os times, verificado no CI | ✅ |
+| Contratos | **OpenAPI** · **AsyncAPI** · **Buf** · contrato consumer-driven (ADR 0004) | Acordo entre os times, verificado no CI | ✅ |
 | Observabilidade | **OpenTelemetry** → Collector → **Grafana LGTM** (Tempo, Loki, Prometheus) | Um trace atravessa gateway → orders → catalog → Kafka → payments | ✅ tracing |
 | Carga | **k6** | Simula a campanha e mede os critérios | ✅ |
 | CI/CD | **GitHub Actions** com path filters + **GHCR** | Deploy independente por serviço | parcial |
@@ -49,4 +49,4 @@ portfólio).
 1. **Escala independente**: p95 e taxa de erro do catálogo no pico do k6, escalando só o catálogo,
    e o CPU/memória total gastos.
 2. **Autonomia de entrega**: deploys por semana e *lead time* por serviço (histórico do GitHub Actions).
-3. **Saúde da integração**: SAGAs concluídas e compensadas, *lag* dos consumidores Kafka e falhas do Pact.
+3. **Saúde da integração**: SAGAs concluídas e compensadas, *lag* dos consumidores Kafka e falhas da verificação do contrato consumer-driven (ADR 0004).

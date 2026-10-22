@@ -25,6 +25,8 @@ const SAGA_TIMEOUT_S = 60;
 export const options = {
   iterations: 1,
   vus: 1,
+  // o inventory consome os 10 mil ProductCreated do seed antes dos produtos do teste: no CI passa de 1 min
+  setupTimeout: '5m',
   thresholds: { checks: ['rate==1'] }, // qualquer verificação falhando reprova o teste
 };
 
@@ -64,7 +66,7 @@ function createProduct(categoryId, label) {
   if (res.status !== 201) fail(`criar produto ${label}: ${res.status} ${res.body}`);
   const id = res.json('id');
   // o inventory cria o saldo ao consumir o ProductCreated
-  eventually(`saldo do produto ${label} no inventory`, () => stockOf(id));
+  eventually(`saldo do produto ${label} no inventory`, () => stockOf(id), 240);
   return id;
 }
 

@@ -138,7 +138,7 @@ estados, sequências e garantias da SAGA: [`docs/arquitetura/saga.md`](docs/arqu
 | **SAGA coreografada** | Reserva de estoque tudo-ou-nada, cobrança idempotente, compensação, e-mail no máximo uma vez |
 | **Mensageria confiável** | Outbox transacional (Go e .NET), inbox por `event_id`, retry em tópicos com atraso, DLT com reprocessamento |
 | **Resiliência** | Polly (timeout, retry com jitter, circuit breaker) e fallback para a cópia local do catálogo |
-| **Contratos primeiro** | gRPC (Buf, com checagem de breaking change), OpenAPI 3.1 (Spectral) e AsyncAPI 3, validados no CI e nos testes |
+| **Contratos primeiro** | gRPC (Buf, com checagem de breaking change), OpenAPI 3.1 (Spectral), AsyncAPI 3 e um contrato consumer-driven do orders verificado pelo catalog antes de publicar |
 | **Observabilidade** | OpenTelemetry → Tempo, Loki, Prometheus e Grafana, com 3 dashboards provisionados (RED, SAGA, Campanha) |
 | **Gateway** | Traefik com CORS, rate limit na vitrine (429 em ProblemDetails) e tracing |
 | **CI/CD por serviço** | Filtro de caminho por pipeline, lint, testes com Testcontainers e imagem no GHCR por serviço |
@@ -178,6 +178,7 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 | [0001](docs/adr/0001-microsservicos-por-time.md) | Microsserviços divididos por time, com stack poliglota |
 | [0002](docs/adr/0002-eventos-de-campanha.md) | Campanhas publicam o próprio estado; o preço efetivo é calculado na leitura |
 | [0003](docs/adr/0003-retries-e-dead-letter-topics.md) | Retries em tópicos próprios e dead letter topic por serviço |
+| [0004](docs/adr/0004-contrato-consumer-driven-sem-pact.md) | Contrato consumer-driven orders → catalog sem Pact (o PactNet não suporta gRPC) |
 
 ## 🔌 Para quem consome as APIs
 
