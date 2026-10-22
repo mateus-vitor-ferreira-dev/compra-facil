@@ -1,0 +1,194 @@
+{
+  "consumer": "orders",
+  "provider": "catalog",
+  "rpc": "catalog.v1.CatalogService/ValidateItems",
+  "rules": [
+    "given: produtos que o catalog cria antes da interação; a chave é a referência usada em request/response",
+    "produto citado no request e ausente de given não existe no catalog",
+    "response: um item por produto do request; só os campos listados são verificados",
+    "\"<string>\" casa com qualquer texto não vazio; \"<uuid>\" com qualquer UUID; \"\" exige vazio"
+  ],
+  "interactions": [
+    {
+      "description": "produto ativo sem campanha: OK, com o preço de tabela",
+      "given": {
+        "p1": {
+          "status": "active",
+          "price_cents": 1990
+        }
+      },
+      "request": [
+        {
+          "product": "p1",
+          "quantity": 2
+        }
+      ],
+      "response": [
+        {
+          "product": "p1",
+          "status": "ITEM_STATUS_OK",
+          "quantity": 2,
+          "sku": "<string>",
+          "name": "<string>",
+          "unit_price": {
+            "amount_cents": 1990,
+            "currency": "BRL"
+          },
+          "campaign_id": ""
+        }
+      ]
+    },
+    {
+      "description": "produto em campanha de 25%: OK, com o preço com desconto (arredondado para baixo) e a campanha",
+      "given": {
+        "p1": {
+          "status": "active",
+          "price_cents": 1990,
+          "campaign_discount_percent": 25
+        }
+      },
+      "request": [
+        {
+          "product": "p1",
+          "quantity": 1
+        }
+      ],
+      "response": [
+        {
+          "product": "p1",
+          "status": "ITEM_STATUS_OK",
+          "quantity": 1,
+          "sku": "<string>",
+          "name": "<string>",
+          "unit_price": {
+            "amount_cents": 1492,
+            "currency": "BRL"
+          },
+          "campaign_id": "<uuid>"
+        }
+      ]
+    },
+    {
+      "description": "preço esperado diferente do atual: PRICE_CHANGED, com o preço atual",
+      "given": {
+        "p1": {
+          "status": "active",
+          "price_cents": 1990
+        }
+      },
+      "request": [
+        {
+          "product": "p1",
+          "quantity": 1,
+          "expected_unit_price_cents": 1000
+        }
+      ],
+      "response": [
+        {
+          "product": "p1",
+          "status": "ITEM_STATUS_PRICE_CHANGED",
+          "sku": "<string>",
+          "unit_price": {
+            "amount_cents": 1990,
+            "currency": "BRL"
+          }
+        }
+      ]
+    },
+    {
+      "description": "produto fora de venda: NOT_ACTIVE",
+      "given": {
+        "p1": {
+          "status": "inactive",
+          "price_cents": 1990
+        }
+      },
+      "request": [
+        {
+          "product": "p1",
+          "quantity": 1
+        }
+      ],
+      "response": [
+        {
+          "product": "p1",
+          "status": "ITEM_STATUS_NOT_ACTIVE",
+          "sku": "<string>"
+        }
+      ]
+    },
+    {
+      "description": "produto que não existe: NOT_FOUND",
+      "given": {},
+      "request": [
+        {
+          "product": "fantasma",
+          "quantity": 1
+        }
+      ],
+      "response": [
+        {
+          "product": "fantasma",
+          "status": "ITEM_STATUS_NOT_FOUND"
+        }
+      ]
+    },
+    {
+      "description": "pedido com vários itens: cada um com o próprio resultado",
+      "given": {
+        "p1": {
+          "status": "active",
+          "price_cents": 1990
+        },
+        "p2": {
+          "status": "active",
+          "price_cents": 500
+        }
+      },
+      "request": [
+        {
+          "product": "p1",
+          "quantity": 1
+        },
+        {
+          "product": "fantasma",
+          "quantity": 1
+        },
+        {
+          "product": "p2",
+          "quantity": 3
+        }
+      ],
+      "response": [
+        {
+          "product": "p1",
+          "status": "ITEM_STATUS_OK",
+          "quantity": 1,
+          "sku": "<string>",
+          "name": "<string>",
+          "unit_price": {
+            "amount_cents": 1990,
+            "currency": "BRL"
+          },
+          "campaign_id": ""
+        },
+        {
+          "product": "fantasma",
+          "status": "ITEM_STATUS_NOT_FOUND"
+        },
+        {
+          "product": "p2",
+          "status": "ITEM_STATUS_OK",
+          "quantity": 3,
+          "sku": "<string>",
+          "name": "<string>",
+          "unit_price": {
+            "amount_cents": 500,
+            "currency": "BRL"
+          },
+          "campaign_id": ""
+        }
+      ]
+    }
+  ]
+}
