@@ -1,6 +1,7 @@
 using CompraFacil.Orders.Application.Orders;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CompraFacil.Orders.Application;
 
@@ -12,7 +13,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
         services.AddScoped<PlaceOrder>();
         services.AddScoped<OrderQueries>();
-        services.AddSingleton(TimeProvider.System);
+        services.TryAddSingleton(TimeProvider.System); // o AddPostgres troca pelo relógio do banco
         return services;
     }
 }

@@ -2,6 +2,7 @@ using CompraFacil.BuildingBlocks.Web;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -24,6 +25,8 @@ public static partial class PostgresExtensions
             .UseNpgsql(connectionString)
             .UseSnakeCaseNamingConvention());
         builder.Services.AddHealthChecks().AddDbContextCheck<TContext>("postgres", tags: [ServiceDefaults.ReadyTag]);
+        // datas na precisão do Postgres: a resposta da escrita é igual à da leitura seguinte
+        builder.Services.Replace(ServiceDescriptor.Singleton<TimeProvider>(PostgresTimeProvider.Instance));
         return builder;
     }
 
@@ -50,4 +53,19 @@ public static partial class PostgresExtensions
 
     [LoggerMessage(Level = LogLevel.Information, Message = "migrações aplicadas ({Context})")]
     private static partial void LogMigrated(ILogger logger, string context);
+}
+
+/// <summary>
+/// Relógio truncado em microssegundos, a precisão do timestamptz. Sem isso, um DateTimeOffset criado
+/// em memória (100 ns) sai diferente do mesmo valor lido do banco depois.
+/// </summary>
+public sealed class PostgresTimeProvider : TimeProvider
+{
+    public static readonly PostgresTimeProvider Instance = new();
+
+    public override DateTimeOffset GetUtcNow()
+    {
+        var now = System.GetUtcNow();
+        return now.AddTicks(-(now.Ticks % (TimeSpan.TicksPerMillisecond / 1000)));
+    }
 }

@@ -54,6 +54,9 @@ public static class ServiceDefaults
         builder.Services.AddExceptionHandler<ApplicationExceptionHandler>();
 
         builder.Services.AddHealthChecks();
+        // sem esquema: nada é exigido; o serviço com rotas admin chama AddAdminAuth
+        builder.Services.AddAuthentication();
+        builder.Services.AddAuthorization();
         builder.AddObservability(service.Name);
         return builder;
     }
@@ -64,7 +67,9 @@ public static class ServiceDefaults
         ArgumentNullException.ThrowIfNull(app);
         app.UseMiddleware<RequestIdMiddleware>();
         app.UseExceptionHandler();
-        app.UseStatusCodePages(); // 404/405 sem corpo viram ProblemDetails
+        app.UseStatusCodePages(); // 404/405 (e 401/403 do JWT) sem corpo viram ProblemDetails
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         // liveness não olha dependências: só diz que o processo responde
         app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });

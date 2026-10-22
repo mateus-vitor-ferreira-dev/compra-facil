@@ -26,7 +26,12 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
 - **Docs do contrato**: `contracts/openapi/<serviço>.v1.yaml` em `/openapi` e o Swagger UI em `/docs`.
   O serviço implementa o contrato; não há OpenAPI gerado do código. Contrato ausente = falha na subida.
 - **Postgres** (`AddPostgres<TContext>`): EF Core + Npgsql com nomes em `snake_case`, check no `/ready`
-  e migrations aplicadas na subida (`Database:MigrateOnStart`, padrão `true`).
+  e migrations aplicadas na subida (`Database:MigrateOnStart`, padrão `true`). Registra um `TimeProvider`
+  truncado em microssegundos (precisão do `timestamptz`): a resposta de uma escrita bate com a leitura.
+- **Rotas admin** (`AddAdminAuth(audience)` + `[Authorize(Policy = AdminAuth.Policy)]`): o mesmo JWT do
+  catalog (HS256, `iss` compra-facil, `roles` com `admin`, `sub` e `exp`), com a audiência = serviço.
+  Token local: `task token -- -aud inventory`. Segredo de dev barrado fora de Development, salvo
+  `Auth__AllowDevSecret=true` (só no compose).
 - **OpenTelemetry**: traces (HTTP de entrada e saída, Npgsql, Kafka) e métricas (ASP.NET, runtime,
   Npgsql). Exporta por OTLP quando `OTEL_EXPORTER_OTLP_ENDPOINT` está definido.
 
@@ -56,7 +61,8 @@ await db.SaveChangesAsync(ct);
   a configuração do contrato (3 partições, 7 dias).
 - **Consumer** (group = nome do serviço): `IHandleEvent<TData>` roda na mesma transação que grava o
   `event_id` no **inbox**; o offset só é confirmado depois. Evento repetido é ignorado, `event_type` sem
-  handler é pulado, mensagem que não é envelope é registrada e pulada. Handler que falha segura a
+  handler é pulado, mensagem que não é envelope (ou cujo `data` não segue o contrato: campo obrigatório
+  ausente) é registrada como erro e pulada, em vez de travar a partição. Handler que falha segura a
   partição e tenta de novo com backoff (retries limitados e dead letter topic: #80).
 - Configuração na seção `Kafka` (`Kafka:BootstrapServers`, `PollInterval`, `PublishTimeout`, `MaxBackoff`,
   `BatchSize`, `Enabled`). No compose: `Kafka__BootstrapServers=redpanda:9092`.

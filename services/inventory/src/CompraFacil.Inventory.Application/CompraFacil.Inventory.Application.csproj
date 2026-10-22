@@ -5,5 +5,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../CompraFacil.Inventory.Domain/CompraFacil.Inventory.Domain.csproj" />
+    <!-- IOutbox, IHandleEvent e as exceções que viram ProblemDetails -->
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
   </ItemGroup>
 </Project>
