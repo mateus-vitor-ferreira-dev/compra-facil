@@ -6,7 +6,7 @@
 ## Contexto
 
 O catálogo concentra o pico de carga das campanhas. Os dois times (catálogo/campanhas e compras) hoje
-dependem de uma implantação conjunta (ver `docs/Trabalho_MonolitoXMicrosservicos.pdf`).
+dependem de uma implantação conjunta (ver `docs/_Trabalho_MonolitoXMicrosservicos.pdf`).
 
 ## Decisão
 
