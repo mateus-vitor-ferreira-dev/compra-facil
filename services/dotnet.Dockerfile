@@ -12,7 +12,7 @@ ARG PROJECT
 WORKDIR /src
 
 COPY global.json Directory.Build.props Directory.Packages.props .editorconfig ./
-COPY contracts/openapi contracts/openapi
+COPY contracts contracts
 COPY libs/dotnet libs/dotnet
 COPY services/${SERVICE}/src services/${SERVICE}/src
 

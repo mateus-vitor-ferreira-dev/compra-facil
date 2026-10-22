@@ -1,17 +1,39 @@
 using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
+using CompraFacil.Contracts.Catalog.V1;
+using CompraFacil.Orders.Application.Catalog;
+using CompraFacil.Orders.Application.Orders;
+using CompraFacil.Orders.Infrastructure.Catalog;
+using CompraFacil.Orders.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace CompraFacil.Orders.Infrastructure;
 
 public static class DependencyInjection
 {
-    /// <summary>Banco (ConnectionStrings:Default) e demais adaptadores de infraestrutura.</summary>
+    /// <summary>Banco, catálogo (gRPC) e mensageria do orders.</summary>
     public static IHostApplicationBuilder AddInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddPostgres<OrdersDbContext>();
-        // tópico do contrato (contracts/asyncapi); handlers dos eventos consumidos entram com o serviço
-        builder.AddMessaging<OrdersDbContext>("orders", messaging => messaging.Produces("orders.order.v1"));
+        builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+        builder.Services.AddScoped<ICatalogSnapshotStore, CatalogSnapshotStore>();
+
+        builder.Services.Configure<CatalogOptions>(builder.Configuration.GetSection("Catalog"));
+        builder.Services.AddGrpcClient<CatalogService.CatalogServiceClient>((sp, o) =>
+            o.Address = sp.GetRequiredService<IOptions<CatalogOptions>>().Value.GrpcAddress);
+        builder.Services.AddScoped<ICatalogPricing, CatalogGrpcPricing>();
+
+        // contracts/asyncapi/orders.v1.yaml: publica orders.order.v1; consome o catálogo para o snapshot
+        builder.AddMessaging<OrdersDbContext>("orders", m => m
+            .Produces(OrderEvents.Topic)
+            .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductCreated")
+            .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductUpdated")
+            .Handle<ProductDeletedData, ProductDeleted>(CatalogEvents.ProductsTopic, "ProductDeleted")
+            .Handle<CampaignSnapshotData, CampaignChanged>(CatalogEvents.CampaignsTopic, "CampaignCreated")
+            .Handle<CampaignSnapshotData, CampaignChanged>(CatalogEvents.CampaignsTopic, "CampaignUpdated")
+            .Handle<CampaignDeletedData, CampaignDeleted>(CatalogEvents.CampaignsTopic, "CampaignDeleted"));
         return builder;
     }
 }

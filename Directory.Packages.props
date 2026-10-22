@@ -20,6 +20,11 @@
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
     <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
   </ItemGroup>
+  <ItemGroup Label="gRPC">
+    <PackageVersion Include="Grpc.Net.ClientFactory" Version="2.84.0" />
+    <PackageVersion Include="Grpc.Tools" Version="2.84.0" />
+    <PackageVersion Include="Google.Protobuf" Version="3.36.2" />
+  </ItemGroup>
   <ItemGroup Label="Aplicação">
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
@@ -32,5 +37,8 @@
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.12" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.Redpanda" Version="4.15.0" />
+    <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
+    <PackageVersion Include="Yaml2JsonNode" Version="3.0.1" />
+    <PackageVersion Include="Grpc.AspNetCore" Version="2.84.0" />
   </ItemGroup>
 </Project>
