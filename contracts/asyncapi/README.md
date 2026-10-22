@@ -7,6 +7,7 @@ Fonte da verdade dos eventos no Kafka (Redpanda em dev). Cada serviço tem um ar
 | Arquivo | Tópico que publica | Eventos | Quem consome |
 |---|---|---|---|
 | [`catalog.v1.yaml`](catalog.v1.yaml) | `catalog.product.v1` | `ProductCreated`, `ProductUpdated`, `ProductPriceChanged`, `ProductDeleted` | orders (snapshot), inventory |
+| | `catalog.campaign.v1` | `CampaignCreated`, `CampaignUpdated`, `CampaignDeleted` | orders (snapshot) |
 | [`orders.v1.yaml`](orders.v1.yaml) | `orders.order.v1` | `OrderPlaced`, `OrderConfirmed`, `OrderCancelled` | inventory, payments, notifications |
 | [`inventory.v1.yaml`](inventory.v1.yaml) | `inventory.reservation.v1` | `StockReserved`, `StockReservationFailed`, `StockReleased` | payments, orders |
 | [`payments.v1.yaml`](payments.v1.yaml) | `payments.payment.v1` | `PaymentApproved`, `PaymentFailed` | orders |
@@ -60,8 +61,8 @@ Todo evento é um JSON com os metadados no topo e o conteúdo em `data`
 | `correlation_id` | `X-Request-ID` da requisição que iniciou o fluxo, copiado para todos os eventos derivados |
 | `causation_id` | `event_id` do evento que causou este (`null` se a causa foi HTTP) |
 
-- **Chave da mensagem** = id do agregado (`order_id` ou `product_id`): eventos do mesmo pedido/produto
-  caem na mesma partição e chegam em ordem.
+- **Chave da mensagem** = id do agregado (`order_id`, `product_id` ou `campaign_id`): eventos do mesmo
+  pedido/produto/campanha caem na mesma partição e chegam em ordem.
 - **Headers**: `traceparent`/`tracestate` (W3C) levam o trace do OpenTelemetry através do broker.
 - **Tópicos**: `<serviço>.<agregado>.v<N>`, 3 partições, retenção de 7 dias.
 - **Consumer group** = nome do serviço (`orders`, `inventory`, `payments`, `notifications`).
@@ -72,8 +73,10 @@ Todo evento é um JSON com os metadados no topo e o conteúdo em `data`
   *at least once*.
 - **Tolerância**: ignore campos desconhecidos em `data` e `event_type` que o serviço não trata. É isso
   que permite evolução compatível sem coordenar deploy entre os times.
-- **Ordem no catálogo**: aplique um evento de produto só se `data.version` for maior que a versão já
-  guardada.
+- **Ordem no catálogo**: aplique um evento de produto ou campanha só se `data.version` for maior que a
+  versão já guardada.
+- **Campanhas**: guarde o estado e calcule o preço efetivo na leitura, com a regra de
+  `CampaignSnapshot`. Não existe evento de "campanha começou/acabou" ([ADR 0002](../../docs/adr/0002-eventos-de-campanha.md)).
 - Retries, *dead letter topics* e o que fazer com mensagem inválida ficam na tarefa #80.
 
 ## Versionamento

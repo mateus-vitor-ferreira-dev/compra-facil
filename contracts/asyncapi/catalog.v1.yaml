@@ -14,8 +14,12 @@ info:
 
     Toda alteração publica `ProductUpdated` com o estado completo (é ele que mantém as cópias).
     Quando o preço de tabela muda, sai também `ProductPriceChanged`, com o antes e o depois, para quem
-    só se interessa por preço. Campanhas mudam o preço **efetivo** sem gerar evento: quem precisa do
-    preço cobrado consulta o gRPC `ValidateItems`.
+    só se interessa por preço.
+
+    **Campanhas** (ADR 0002) publicam o próprio estado em `catalog.campaign.v1`, só quando o admin as
+    altera. Início e fim não geram evento: o consumidor guarda a campanha e calcula o preço efetivo na
+    hora da leitura, com a regra de `CampaignSnapshot`. O preço cobrado de verdade continua vindo do
+    gRPC `ValidateItems`; a cópia local é para quando ele está fora.
 defaultContentType: application/json
 
 servers:
@@ -47,6 +51,26 @@ channels:
           cleanup.policy: [delete]
           retention.ms: 604800000
 
+  campaignEvents:
+    address: catalog.campaign.v1
+    title: Campanhas promocionais
+    description: Estado das campanhas, publicado a cada alteração do admin. Chave = `campaign_id`.
+    messages:
+      CampaignCreated:
+        $ref: "#/components/messages/CampaignCreated"
+      CampaignUpdated:
+        $ref: "#/components/messages/CampaignUpdated"
+      CampaignDeleted:
+        $ref: "#/components/messages/CampaignDeleted"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: catalog.campaign.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+
 operations:
   publishProductEvents:
     action: send
@@ -58,6 +82,16 @@ operations:
       - $ref: "#/channels/productEvents/messages/ProductUpdated"
       - $ref: "#/channels/productEvents/messages/ProductPriceChanged"
       - $ref: "#/channels/productEvents/messages/ProductDeleted"
+
+  publishCampaignEvents:
+    action: send
+    channel:
+      $ref: "#/channels/campaignEvents"
+    summary: Publica as alterações de campanha (outbox), inclusive a troca de produtos.
+    messages:
+      - $ref: "#/channels/campaignEvents/messages/CampaignCreated"
+      - $ref: "#/channels/campaignEvents/messages/CampaignUpdated"
+      - $ref: "#/channels/campaignEvents/messages/CampaignDeleted"
 
 components:
   messages:
@@ -169,7 +203,133 @@ components:
                   version:
                     $ref: "#/components/schemas/ProductVersion"
 
+    CampaignCreated:
+      name: CampaignCreated
+      title: Campanha criada
+      summary: Campanha cadastrada (`POST /v1/admin/campaigns`). Nasce sem produtos.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/CampaignKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: CampaignCreated
+              event_version:
+                const: 1
+              producer:
+                const: catalog
+              data:
+                $ref: "#/components/schemas/CampaignSnapshot"
+
+    CampaignUpdated:
+      name: CampaignUpdated
+      title: Campanha alterada
+      summary: |
+        Qualquer alteração: nome, desconto, período ou a lista de produtos
+        (`PUT /v1/admin/campaigns/{campaign_id}/products`). Traz o estado completo após a mudança.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/CampaignKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: CampaignUpdated
+              event_version:
+                const: 1
+              producer:
+                const: catalog
+              data:
+                $ref: "#/components/schemas/CampaignSnapshot"
+
+    CampaignDeleted:
+      name: CampaignDeleted
+      title: Campanha removida
+      summary: Removida pelo admin. Se estava vigente, os produtos voltam ao preço de tabela na hora.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/CampaignKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: CampaignDeleted
+              event_version:
+                const: 1
+              producer:
+                const: catalog
+              data:
+                type: object
+                required: [campaign_id, version]
+                properties:
+                  campaign_id:
+                    $ref: "#/components/schemas/CampaignId"
+                  version:
+                    $ref: "#/components/schemas/CampaignVersion"
+
   schemas:
+    CampaignId:
+      type: string
+      format: uuid
+
+    CampaignVersion:
+      type: integer
+      minimum: 1
+      description: |
+        Incrementa a cada alteração da campanha, inclusive troca de produtos. O consumidor descarta
+        evento com versão menor ou igual à que já aplicou.
+
+    CampaignSnapshot:
+      type: object
+      description: |
+        Estado da campanha após a mudança. O consumidor calcula o preço efetivo de um produto no
+        instante `t` exatamente como o catálogo (`domain.Product.EffectivePriceCents`):
+
+        1. campanhas do produto vigentes em `t`: `starts_at <= t < ends_at`;
+        2. se houver mais de uma, vale a de maior `discount_percent` e, empatando, a que acaba antes;
+        3. `preço efetivo = floor(price.amount_cents * (100 - discount_percent) / 100)`, em inteiros
+           (arredonda a favor do cliente). Sem campanha vigente, é o preço de tabela.
+      required: [campaign_id, slug, name, discount_percent, starts_at, ends_at, product_ids, version]
+      properties:
+        campaign_id:
+          $ref: "#/components/schemas/CampaignId"
+        slug:
+          type: string
+          examples: ["black-friday-2026"]
+        name:
+          type: string
+        discount_percent:
+          type: integer
+          minimum: 1
+          maximum: 90
+        starts_at:
+          type: string
+          format: date-time
+          description: Início, inclusivo (UTC).
+        ends_at:
+          type: string
+          format: date-time
+          description: Fim, exclusivo (UTC).
+        product_ids:
+          type: array
+          maxItems: 1000
+          uniqueItems: true
+          description: Lista completa de produtos da campanha (substitui a anterior).
+          items:
+            $ref: "#/components/schemas/ProductId"
+        version:
+          $ref: "#/components/schemas/CampaignVersion"
+
     ProductId:
       type: string
       format: uuid
