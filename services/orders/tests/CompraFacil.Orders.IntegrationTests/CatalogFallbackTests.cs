@@ -29,16 +29,30 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
         var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
         db.ProductSnapshots.Add(new ProductSnapshotRecord
         {
-            ProductId = id, Sku = "SNAP-" + cents, Name = "Produto da cópia", CategoryId = Guid.NewGuid(),
-            PriceCents = cents, Currency = "BRL", Status = status, Version = 1, Deleted = deleted, UpdatedAt = DateTimeOffset.UtcNow,
+            ProductId = id,
+            Sku = "SNAP-" + cents,
+            Name = "Produto da cópia",
+            CategoryId = Guid.NewGuid(),
+            PriceCents = cents,
+            Currency = "BRL",
+            Status = status,
+            Version = 1,
+            Deleted = deleted,
+            UpdatedAt = DateTimeOffset.UtcNow,
         });
         var now = DateTimeOffset.UtcNow;
         foreach (var (discount, started, ends) in campaigns)
         {
             db.CampaignSnapshots.Add(new CampaignSnapshotRecord
             {
-                CampaignId = Guid.NewGuid(), Slug = $"camp-{Guid.NewGuid():N}", Name = $"{discount}%", DiscountPercent = discount,
-                StartsAt = now.AddHours(-started), EndsAt = now.AddHours(ends), ProductIds = [id], Version = 1,
+                CampaignId = Guid.NewGuid(),
+                Slug = $"camp-{Guid.NewGuid():N}",
+                Name = $"{discount}%",
+                DiscountPercent = discount,
+                StartsAt = now.AddHours(-started),
+                EndsAt = now.AddHours(ends),
+                ProductIds = [id],
+                Version = 1,
             });
         }
         await db.SaveChangesAsync(Ct);
