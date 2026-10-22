@@ -2,6 +2,12 @@
 # Redpanda (Kafka) + Console, Mailpit e os serviços da aplicação.
 name: compra-facil
 
+# Base dos serviços .NET: mesmo Dockerfile (services/dotnet.Dockerfile), contexto na raiz do repo
+x-dotnet-service: &dotnet-service
+  depends_on:
+    postgres:
+      condition: service_healthy
+
 services:
   postgres:
     image: postgres:17.11-alpine
@@ -127,6 +133,70 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  orders:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: orders
+        PROJECT: CompraFacil.Orders.Api
+        PORT: 8002
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/orders:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+    ports:
+      - "${ORDERS_HTTP_PORT:-8002}:8002"
+
+  inventory:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: inventory
+        PROJECT: CompraFacil.Inventory.Api
+        PORT: 8003
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/inventory:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+    ports:
+      - "${INVENTORY_HTTP_PORT:-8003}:8003"
+
+  payments:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: payments
+        PROJECT: CompraFacil.Payments.Api
+        PORT: 8004
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/payments:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+    ports:
+      - "${PAYMENTS_HTTP_PORT:-8004}:8004"
+
+  notifications:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: notifications
+        PROJECT: CompraFacil.Notifications.Api
+        PORT: 8005
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/notifications:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+    ports:
+      - "${NOTIFICATIONS_HTTP_PORT:-8005}:8005"
 
 volumes:
   postgres-data:

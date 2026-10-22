@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CompraFacil.Orders.Api/CompraFacil.Orders.Api.csproj" />
+    <Project Path="src/CompraFacil.Orders.Application/CompraFacil.Orders.Application.csproj" />
+    <Project Path="src/CompraFacil.Orders.Domain/CompraFacil.Orders.Domain.csproj" />
+    <Project Path="src/CompraFacil.Orders.Infrastructure/CompraFacil.Orders.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CompraFacil.Orders.IntegrationTests/CompraFacil.Orders.IntegrationTests.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="../../libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+    <Project Path="../../libs/dotnet/CompraFacil.BuildingBlocks.Testing/CompraFacil.BuildingBlocks.Testing.csproj" />
+  </Folder>
+</Solution>

@@ -95,6 +95,18 @@ docker compose down         # para tudo (-v também apaga os dados)
 | Redpanda Console | http://localhost:8080 | inspecionar tópicos e mensagens |
 | Mailpit | SMTP `localhost:1025` · UI http://localhost:8025 | e-mails do `notifications` |
 
+E os serviços da aplicação (todos com `/health`, `/ready` e, os que têm API pública, o contrato em `/docs`):
+
+| Serviço | Stack | Porta | Docs |
+|---|---|---|---|
+| `catalog` | Go + Gin | `8001` (gRPC `9001`) | http://localhost:8001/docs |
+| `orders` | ASP.NET Core | `8002` | http://localhost:8002/docs |
+| `inventory` | ASP.NET Core | `8003` | http://localhost:8003/docs |
+| `payments` | ASP.NET Core | `8004` | http://localhost:8004/docs |
+| `notifications` | ASP.NET Core | `8005` | — (só consome eventos) |
+
+Os serviços .NET seguem um template comum ([`libs/dotnet/README.md`](libs/dotnet/README.md)).
+
 Os bancos são criados por `infra/compose/postgres/init-databases.sh` apenas na **primeira** subida do volume.
 Para recriá-los: `task reset` (ou `docker compose down -v && docker compose up -d --wait`).
 
