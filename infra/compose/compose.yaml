@@ -132,7 +132,9 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --web.enable-otlp-receiver
       - --web.enable-remote-write-receiver
-      - --enable-feature=exemplar-storage
+      # zero no início de cada contador (start time do OTLP): increase() enxerga o primeiro salto de um
+      # contador recém-criado, em vez de ver a série já nascendo com o valor acumulado
+      - --enable-feature=exemplar-storage,created-timestamp-zero-ingestion
       - --storage.tsdb.retention.time=3d
     volumes:
       - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -257,6 +259,7 @@ services:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
       # valida itens e preços no catalog (gRPC); catalog fora = 503 até a #81 (fallback no snapshot)
       Catalog__GrpcAddress: http://catalog:9001
 
@@ -275,6 +278,7 @@ services:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
       # só no ambiente local: os 10 mil produtos do seed nascem com estoque para a SAGA andar
       Inventory__InitialOnHandForNewProducts: 100
       # JWT de dev (o mesmo do catalog): task token -- -aud inventory
@@ -295,6 +299,7 @@ services:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
 
   notifications:
     <<: *dotnet-service
@@ -311,6 +316,7 @@ services:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
       # e-mails vão para o Mailpit (UI em http://localhost:8025)
       Smtp__Host: mailpit
       Smtp__Port: 1025
