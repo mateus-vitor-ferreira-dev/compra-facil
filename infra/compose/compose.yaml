@@ -62,7 +62,9 @@ services:
     volumes:
       - redpanda-data:/var/lib/redpanda/data
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      # prontidão do broker (admin API); o "rpk cluster health" também reprova por motivos que não
+      # impedem o uso, como pouco disco livre na máquina (o que acontece no CI depois do build das imagens)
+      test: ["CMD", "curl", "-sf", "http://localhost:9644/v1/status/ready"]
       interval: 5s
       timeout: 5s
       retries: 15
