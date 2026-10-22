@@ -19,6 +19,9 @@ public interface IOrderRepository
 {
     Task<Order?> GetAsync(Guid id, CancellationToken ct);
 
+    /// <summary>Pedido rastreado, para mudar de estado (SAGA).</summary>
+    Task<Order?> GetForUpdateAsync(Guid id, CancellationToken ct);
+
     Task<Order?> FindByIdempotencyKeyAsync(Guid customerId, string key, CancellationToken ct);
 
     /// <summary>Do mais recente para o mais antigo, paginado por cursor opaco.</summary>
@@ -28,5 +31,9 @@ public interface IOrderRepository
 
     /// <summary>Grava o pedido e os eventos do outbox na mesma transação.</summary>
     /// <exception cref="DuplicateIdempotencyKeyException">Outra requisição criou o pedido com a mesma chave.</exception>
+    /// <exception cref="BuildingBlocks.Data.ConcurrencyConflictException">Outra transação mudou o pedido (xmin).</exception>
     Task SaveChangesAsync(CancellationToken ct);
+
+    /// <summary>Descarta o que foi carregado, para tentar de novo com dados frescos.</summary>
+    void Reset();
 }

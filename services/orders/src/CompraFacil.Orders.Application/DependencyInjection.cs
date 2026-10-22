@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
         services.AddScoped<PlaceOrder>();
         services.AddScoped<OrderQueries>();
+        services.AddScoped<OrderOutcome>();
         services.TryAddSingleton(TimeProvider.System); // o AddPostgres troca pelo relógio do banco
         return services;
     }

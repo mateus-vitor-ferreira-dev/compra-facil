@@ -1,5 +1,6 @@
 using System.Buffers.Text;
 using System.Text.Json;
+using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.Orders.Application.Orders;
 using CompraFacil.Orders.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,9 @@ internal sealed class OrderRepository(OrdersDbContext db) : IOrderRepository
 {
     public Task<Order?> GetAsync(Guid id, CancellationToken ct) =>
         db.Orders.AsNoTracking().SingleOrDefaultAsync(o => o.Id == id, ct);
+
+    public Task<Order?> GetForUpdateAsync(Guid id, CancellationToken ct) =>
+        db.Orders.SingleOrDefaultAsync(o => o.Id == id, ct);
 
     public Task<Order?> FindByIdempotencyKeyAsync(Guid customerId, string key, CancellationToken ct) =>
         db.Orders.AsNoTracking().SingleOrDefaultAsync(o => o.CustomerId == customerId && o.IdempotencyKey == key, ct);
@@ -47,12 +51,18 @@ internal sealed class OrderRepository(OrdersDbContext db) : IOrderRepository
         {
             await db.SaveChangesAsync(ct);
         }
+        catch (DbUpdateConcurrencyException e)
+        {
+            throw new ConcurrencyConflictException("pedido alterado por outra transação", e);
+        }
         catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
             && pg.ConstraintName?.Contains("idempotency_key", StringComparison.Ordinal) == true)
         {
             throw new DuplicateIdempotencyKeyException(e.Message, e);
         }
     }
+
+    public void Reset() => db.ChangeTracker.Clear();
 
     private sealed record Cursor(DateTimeOffset CreatedAt, Guid Id);
 
