@@ -1,0 +1,48 @@
+# Testes da lib comum dos serviços .NET. Os serviços que a usam rodam os pipelines deles também.
+name: buildingblocks
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - libs/dotnet/**
+      - contracts/**
+      - Directory.Build.props
+      - Directory.Packages.props
+      - global.json
+      - .editorconfig
+      - .github/workflows/buildingblocks.yml
+  pull_request:
+    paths:
+      - libs/dotnet/**
+      - contracts/**
+      - Directory.Build.props
+      - Directory.Packages.props
+      - global.json
+      - .editorconfig
+      - .github/workflows/buildingblocks.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: formatação e testes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - run: dotnet restore libs/dotnet/CompraFacil.BuildingBlocks.slnx
+      - run: dotnet format libs/dotnet/CompraFacil.BuildingBlocks.slnx --verify-no-changes --no-restore
+      - run: dotnet build libs/dotnet/CompraFacil.BuildingBlocks.slnx --no-restore -c Release
+      - name: Testes (Postgres e Redpanda reais via Testcontainers)
+        run: dotnet test --solution libs/dotnet/CompraFacil.BuildingBlocks.slnx --no-build -c Release
