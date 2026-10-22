@@ -172,8 +172,10 @@ campaign = dashboard(
     "compra-facil-campanha", "CompraFácil — Campanha (catálogo)",
     "O pico de leitura das campanhas: RPS e p95 do catálogo, rate limit do gateway, cache e réplicas (critérios do parecer).",
     [
-        panel("stat", "RPS no catálogo (gateway)", [(
-            'sum(rate(traefik_service_requests_total{service="catalog@file"}[1m]))', "", "A", True)], 0, 0, 5, 5, unit="reqps", decimals=1),
+        panel("stat", "RPS no catálogo", [(
+            'sum(rate(http_server_request_duration_seconds_count{service_name="catalog"}[1m]))', "", "A", True)], 0, 0, 5, 5, unit="reqps", decimals=1,
+              thresholds=[{"color": "blue", "value": None}],
+              description="Medido no próprio catalog: conta o tráfego pelo gateway e o direto (k6, gRPC não entra)."),
         panel("stat", "p95 do catálogo", [(
             'histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="catalog"}[5m])))', "", "A", True)],
               5, 0, 5, 5, unit="s", thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 0.2}, {"color": BAD, "value": 0.5}]),
@@ -184,8 +186,12 @@ campaign = dashboard(
         panel("stat", "Recusados pelo rate limit (429)", [(
             'sum(increase(traefik_service_requests_total{service="catalog@file", code="429"}[$__range])) or vector(0)', "", "A", True)], 19, 0, 5, 5,
               decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 1}]),
-        panel("timeseries", "RPS pelo gateway, por código", [(
-            'sum by (code) (rate(traefik_service_requests_total{service="catalog@file"}[$__rate_interval]))', "{{code}}")], 0, 5, 12, 8, unit="reqps", stack=True),
+        panel("timeseries", "RPS no catálogo, por status", [
+            ('sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{service_name="catalog"}[$__rate_interval]))',
+             "{{http_response_status_code}}", "A"),
+            ('sum(rate(traefik_service_requests_total{service="catalog@file", code="429"}[$__rate_interval]))', "429 (gateway)", "B"),
+        ], 0, 5, 12, 8, unit="reqps",
+              description="Respostas do catalog por status, mais os 429 que o rate limit do gateway devolve sem chegar ao serviço."),
         panel("timeseries", "Duração do catálogo (p50, p95, p99)", [
             ('histogram_quantile(0.50, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="catalog"}[$__rate_interval])))', "p50", "A"),
             ('histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name="catalog"}[$__rate_interval])))', "p95", "B"),
@@ -202,7 +208,7 @@ campaign = dashboard(
             "sum by (scenario) (rate(k6_http_reqs_total[$__rate_interval]))", "{{scenario}}")], 0, 22, 8, 8, unit="reqps", stack=True,
               description="browse = leitura do catálogo (90%); buy = compras (10%). A rodada do experimento vem no label round."),
         panel("timeseries", "k6: p95 por cenário (visto pelo cliente)", [(
-            "max by (scenario) (k6_http_req_duration_p95{name!=\"setup\"})", "{{scenario}}")], 8, 22, 8, 8, unit="ms",
+            "max by (scenario) (k6_http_req_duration_p95{name!=\"setup\"})", "{{scenario}}")], 8, 22, 8, 8, unit="s",
               description="p95 de cada intervalo de envio do k6 (maior entre as rotas do cenário). Meta da #89: < 300 ms."),
         panel("timeseries", "k6: usuários virtuais e requisições não enviadas", [
             ("sum(k6_vus)", "VUs", "A"),

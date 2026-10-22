@@ -62,6 +62,11 @@ O parecer da atividade, com a escolha entre as propostas e os critérios para av
 | **5 serviços**, **5 pipelines** independentes e contratos versionados em gRPC, REST e eventos | [`.github/workflows`](.github/workflows) |
 | Um pedido vira **um trace só**: 57 spans passando por 6 componentes | Grafana → Tempo |
 
+<p align="center">
+  <img src="docs/img/grafana-campanha.gif" alt="Dashboard Campanha no Grafana durante o teste de carga" width="900"><br>
+  <sub>Dashboard <b>Campanha</b> durante <code>task load</code>: a rampa até o pico, o p95 do catálogo em ~5 ms e o cache acima de 96%.</sub>
+</p>
+
 ## 🚀 Início rápido
 
 Só precisa de Docker (com Compose v2):

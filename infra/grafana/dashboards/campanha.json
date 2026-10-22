@@ -23,8 +23,8 @@
   "panels": [
     {
       "type": "stat",
-      "title": "RPS no catálogo (gateway)",
-      "description": "",
+      "title": "RPS no catálogo",
+      "description": "Medido no próprio catalog: conta o tráfego pelo gateway e o direto (k6, gRPC não entra).",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -41,7 +41,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(traefik_service_requests_total{service=\"catalog@file\"}[1m]))",
+          "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=\"catalog\"}[1m]))",
           "legendFormat": "",
           "refId": "A",
           "instant": true,
@@ -52,7 +52,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
-          "decimals": 1
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
         },
         "overrides": []
       },
@@ -321,8 +333,8 @@
     },
     {
       "type": "timeseries",
-      "title": "RPS pelo gateway, por código",
-      "description": "",
+      "title": "RPS no catálogo, por status",
+      "description": "Respostas do catalog por status, mais os 429 que o rate limit do gateway devolve sem chegar ao serviço.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -339,9 +351,21 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (code) (rate(traefik_service_requests_total{service=\"catalog@file\"}[$__rate_interval]))",
-          "legendFormat": "{{code}}",
+          "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{service_name=\"catalog\"}[$__rate_interval]))",
+          "legendFormat": "{{http_response_status_code}}",
           "refId": "A",
+          "instant": false,
+          "range": true,
+          "exemplar": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(traefik_service_requests_total{service=\"catalog@file\", code=\"429\"}[$__rate_interval]))",
+          "legendFormat": "429 (gateway)",
+          "refId": "B",
           "instant": false,
           "range": true,
           "exemplar": false
@@ -352,10 +376,10 @@
           "unit": "reqps",
           "custom": {
             "lineWidth": 2,
-            "fillOpacity": 15,
+            "fillOpacity": 5,
             "showPoints": "never",
             "stacking": {
-              "mode": "normal"
+              "mode": "none"
             }
           }
         },
@@ -656,7 +680,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": {
             "lineWidth": 2,
             "fillOpacity": 5,
