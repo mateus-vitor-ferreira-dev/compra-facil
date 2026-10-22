@@ -83,7 +83,7 @@ components:
             description: W3C Trace Context (opcional).
 
   messageBindings:
-    # Chave da mensagem: id do agregado. Garante ordem entre eventos do mesmo pedido/produto.
+    # Chave da mensagem: id do agregado. Garante ordem entre eventos do mesmo pedido/produto/campanha.
     OrderKey:
       kafka:
         bindingVersion: 0.5.0
@@ -98,3 +98,10 @@ components:
           type: string
           format: uuid
           description: "`product_id`."
+    CampaignKey:
+      kafka:
+        bindingVersion: 0.5.0
+        key:
+          type: string
+          format: uuid
+          description: "`campaign_id`."

@@ -34,6 +34,16 @@ func (s *CampaignService) ListActive(ctx context.Context) ([]domain.Campaign, er
 	return cs, nil
 }
 
+// NextStart diz quando começa a próxima campanha (zero se nenhuma): o cache não pode passar dele,
+// porque o preço efetivo dos produtos dela muda nesse instante.
+func (s *CampaignService) NextStart(ctx context.Context) (time.Time, error) {
+	next, err := s.campaigns.NextStart(ctx, s.now())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("buscando a próxima campanha: %w", err)
+	}
+	return next, nil
+}
+
 func (s *CampaignService) AdminList(ctx context.Context, cursor string, limit int) (domain.Page[domain.Campaign], error) {
 	if err := validateLimit(limit); err != nil {
 		return domain.Page[domain.Campaign]{}, domain.Invalid("limit", err.Error())

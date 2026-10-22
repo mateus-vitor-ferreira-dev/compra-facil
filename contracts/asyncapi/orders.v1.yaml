@@ -12,7 +12,8 @@ info:
     4. `PaymentFailed` → `cancelled` (`payment_failed`) → `OrderCancelled`, que faz o inventory
        liberar a reserva (compensação).
 
-    Também consome `catalog.product.v1` para manter o snapshot local de produtos.
+    Também consome `catalog.product.v1` e `catalog.campaign.v1` para manter o snapshot local de
+    produtos e campanhas, usado só quando o gRPC do catálogo está fora.
 defaultContentType: application/json
 
 servers:
@@ -48,6 +49,8 @@ channels:
     $ref: "./payments.v1.yaml#/channels/paymentEvents"
   productEvents:
     $ref: "./catalog.v1.yaml#/channels/productEvents"
+  campaignEvents:
+    $ref: "./catalog.v1.yaml#/channels/campaignEvents"
 
 operations:
   publishOrderEvents:
@@ -90,6 +93,18 @@ operations:
       - $ref: "#/channels/productEvents/messages/ProductCreated"
       - $ref: "#/channels/productEvents/messages/ProductUpdated"
       - $ref: "#/channels/productEvents/messages/ProductDeleted"
+    bindings:
+      $ref: "#/components/operationBindings/OrdersGroup"
+
+  onCampaignChanged:
+    action: receive
+    channel:
+      $ref: "#/channels/campaignEvents"
+    summary: Atualiza as campanhas do snapshot, para o fallback calcular o preço com desconto.
+    messages:
+      - $ref: "#/channels/campaignEvents/messages/CampaignCreated"
+      - $ref: "#/channels/campaignEvents/messages/CampaignUpdated"
+      - $ref: "#/channels/campaignEvents/messages/CampaignDeleted"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"
 

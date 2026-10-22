@@ -41,11 +41,13 @@ type categoryReader interface {
 
 type campaignReader interface {
 	ListActive(ctx context.Context) ([]domain.Campaign, error)
+	NextStart(ctx context.Context) (time.Time, error)
 }
 
 type Options struct {
 	// ProductTTL vale para o detalhe; ListTTL para listagens, categorias e campanhas.
-	// Ambos são encurtados para não passar do fim da campanha que dá o desconto.
+	// Ambos são encurtados para não passar de quando o preço efetivo muda: o fim da campanha que
+	// dá o desconto ou o início da próxima campanha.
 	ProductTTL time.Duration
 	ListTTL    time.Duration
 }
@@ -80,36 +82,38 @@ func NewCatalog(store Store, p productReader, c categoryReader, camp campaignRea
 func (c *Catalog) GetPublic(ctx context.Context, id uuid.UUID) (domain.Product, error) {
 	return cached(ctx, c, "product", "product:"+id.String(),
 		func(ctx context.Context) (domain.Product, error) { return c.products.GetPublic(ctx, id) },
-		func(p domain.Product) time.Duration { return c.capTTL(c.opts.ProductTTL, campaignEnd(p)) },
+		func(ctx context.Context, p domain.Product) time.Duration {
+			return c.capTTL(ctx, c.opts.ProductTTL, campaignEnd(p))
+		},
 	)
 }
 
 func (c *Catalog) ListPublic(ctx context.Context, in service.ListProductsInput) (domain.Page[domain.Product], error) {
 	return cached(ctx, c, "products", "products:"+hashKey(in),
 		func(ctx context.Context) (domain.Page[domain.Product], error) { return c.products.ListPublic(ctx, in) },
-		func(page domain.Page[domain.Product]) time.Duration {
+		func(ctx context.Context, page domain.Page[domain.Product]) time.Duration {
 			ends := make([]time.Time, 0, len(page.Items))
 			for _, p := range page.Items {
 				ends = append(ends, campaignEnd(p))
 			}
-			return c.capTTL(c.opts.ListTTL, ends...)
+			return c.capTTL(ctx, c.opts.ListTTL, ends...)
 		},
 	)
 }
 
 func (c *Catalog) List(ctx context.Context) ([]domain.Category, error) {
 	return cached(ctx, c, "categories", "categories", c.categories.List,
-		func([]domain.Category) time.Duration { return c.opts.ListTTL })
+		func(context.Context, []domain.Category) time.Duration { return c.opts.ListTTL })
 }
 
 func (c *Catalog) ListActive(ctx context.Context) ([]domain.Campaign, error) {
 	return cached(ctx, c, "campaigns", "campaigns", c.campaigns.ListActive,
-		func(cs []domain.Campaign) time.Duration {
+		func(ctx context.Context, cs []domain.Campaign) time.Duration {
 			ends := make([]time.Time, len(cs))
 			for i, camp := range cs {
 				ends[i] = camp.EndsAt
 			}
-			return c.capTTL(c.opts.ListTTL, ends...)
+			return c.capTTL(ctx, c.opts.ListTTL, ends...)
 		})
 }
 
@@ -123,7 +127,10 @@ func (c *Catalog) Invalidate(ctx context.Context) {
 
 // cached faz o cache-aside de uma leitura: hit devolve do Redis; miss carrega (uma vez só por
 // chave, mesmo com muitas requisições simultâneas) e grava com o TTL de ttlFor.
-func cached[T any](ctx context.Context, c *Catalog, kind, key string, load func(context.Context) (T, error), ttlFor func(T) time.Duration) (T, error) {
+func cached[T any](
+	ctx context.Context, c *Catalog, kind, key string,
+	load func(context.Context) (T, error), ttlFor func(context.Context, T) time.Duration,
+) (T, error) {
 	gen, err := c.generation(ctx)
 	if err != nil {
 		c.record(ctx, kind, "error", err)
@@ -155,7 +162,7 @@ func cached[T any](ctx context.Context, c *Catalog, kind, key string, load func(
 		if err != nil {
 			return v, err
 		}
-		if ttl := ttlFor(v); ttl > 0 {
+		if ttl := ttlFor(loadCtx, v); ttl > 0 {
 			if b, err := json.Marshal(v); err == nil {
 				if err := c.store.Set(loadCtx, fullKey, b, ttl); err != nil {
 					c.log.WarnContext(ctx, "falha ao gravar no cache", slog.String("key", fullKey), slog.String("error", err.Error()))
@@ -194,10 +201,21 @@ func (c *Catalog) record(ctx context.Context, kind, result string, err error) {
 	}
 }
 
-// capTTL encurta o TTL para a entrada expirar quando a primeira campanha envolvida acabar
-// (o preço efetivo muda nesse instante). Instantes zero são ignorados.
-func (c *Catalog) capTTL(ttl time.Duration, ends ...time.Time) time.Duration {
+// capTTL encurta o TTL para a entrada expirar quando o preço efetivo pode mudar: no fim da primeira
+// campanha envolvida (ends) ou no início da próxima campanha, de qualquer produto. O início vale
+// para todos porque a entrada guardada antes dele não sabe que o produto vai entrar em promoção.
+// Instantes zero são ignorados.
+func (c *Catalog) capTTL(ctx context.Context, ttl time.Duration, ends ...time.Time) time.Duration {
+	next, err := c.campaigns.NextStart(ctx)
+	if err != nil {
+		// sem saber quando a próxima campanha começa, não guarda: evita servir preço sem desconto
+		c.log.WarnContext(ctx, "próxima campanha desconhecida, resposta fora do cache", slog.String("error", err.Error()))
+		return 0
+	}
 	now := c.now()
+	if !next.IsZero() {
+		ttl = min(ttl, next.Sub(now))
+	}
 	for _, end := range ends {
 		if !end.IsZero() {
 			ttl = min(ttl, end.Sub(now))
