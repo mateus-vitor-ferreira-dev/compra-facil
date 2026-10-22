@@ -1,3 +1,4 @@
+using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.Inventory.Domain;
 
@@ -12,7 +13,7 @@ public sealed class ReserveStock(IStockRepository stock, IOutbox outbox, TimePro
     public Task HandleAsync(OrderPlacedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return Retry.OnConflictAsync(stock, () => AttemptAsync(data, ct));
+        return OptimisticConcurrency.RetryAsync(stock.Reset, () => AttemptAsync(data, ct));
     }
 
     private async Task<bool> AttemptAsync(OrderPlacedData data, CancellationToken ct)
@@ -63,7 +64,7 @@ public sealed class CommitReservation(IStockRepository stock, TimeProvider clock
     public Task HandleAsync(OrderConfirmedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return Retry.OnConflictAsync(stock, async () =>
+        return OptimisticConcurrency.RetryAsync(stock.Reset, async () =>
         {
             var reservation = await stock.GetReservationAsync(data.OrderId, forUpdate: true, ct);
             if (reservation is not { Status: ReservationStatus.Reserved })
@@ -92,7 +93,7 @@ public sealed class ReleaseReservation(IStockRepository stock, IOutbox outbox, T
     public Task HandleAsync(OrderCancelledData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return Retry.OnConflictAsync(stock, async () =>
+        return OptimisticConcurrency.RetryAsync(stock.Reset, async () =>
         {
             var reservation = await stock.GetReservationAsync(data.OrderId, forUpdate: true, ct);
             if (reservation is not { Status: ReservationStatus.Reserved })

@@ -1,3 +1,4 @@
+using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.Inventory.Domain;
 using Microsoft.Extensions.Options;
@@ -34,7 +35,7 @@ public sealed class ProductDeleted(IStockRepository stock, TimeProvider clock) :
     public Task HandleAsync(ProductDeletedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return Retry.OnConflictAsync(stock, async () =>
+        return OptimisticConcurrency.RetryAsync(stock.Reset, async () =>
         {
             var now = clock.GetUtcNow();
             var item = (await stock.GetForUpdateAsync([data.ProductId], ct)).SingleOrDefault();

@@ -2,9 +2,6 @@ using CompraFacil.Inventory.Domain;
 
 namespace CompraFacil.Inventory.Application.Stock;
 
-/// <summary>Outra transação mudou a linha entre a leitura e a gravação (xmin).</summary>
-public sealed class ConcurrencyConflictException(string message, Exception inner) : Exception(message, inner);
-
 /// <summary>Já existe ajuste deste produto com a mesma Idempotency-Key (corrida entre requisições).</summary>
 public sealed class DuplicateAdjustmentException(string message, Exception inner) : Exception(message, inner);
 
@@ -32,7 +29,7 @@ public interface IStockRepository
 
     void Add(StockAdjustmentRecord adjustment);
 
-    /// <exception cref="ConcurrencyConflictException">Saldo alterado por outra transação.</exception>
+    /// <exception cref="BuildingBlocks.Data.ConcurrencyConflictException">Saldo alterado por outra transação.</exception>
     /// <exception cref="DuplicateAdjustmentException">Ajuste concorrente com a mesma chave.</exception>
     Task SaveChangesAsync(CancellationToken ct);
 
