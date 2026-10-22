@@ -39,6 +39,8 @@ public sealed class ServiceDefaultsTests : IAsyncLifetime
             new ValidationFailure("Items[0].ProductId", "produto obrigatório"),
             new ValidationFailure("CustomerEmail", "e-mail inválido"),
         ])));
+        _app.MapGet("/conflict", (Func<IResult>)(() => throw new ConflictException("Itens recusados", "produto inativo")));
+        _app.MapGet("/unavailable", (Func<IResult>)(() => throw new DependencyUnavailableException("catálogo fora", TimeSpan.FromSeconds(1.2))));
         await _app.StartAsync();
         _http = _app.GetTestClient();
     }
@@ -131,6 +133,22 @@ public sealed class ServiceDefaultsTests : IAsyncLifetime
             .Select(e => (e.GetProperty("field").GetString(), e.GetProperty("message").GetString()))
             .ToList();
         Assert.Equal([("items[0].product_id", "produto obrigatório"), ("customer_email", "e-mail inválido")], errors);
+    }
+
+    [Fact]
+    public async Task ApplicationExceptions_KeepStatusTitleAndDetail()
+    {
+        using var conflict = await _http.GetAsync(new Uri("/conflict", UriKind.Relative), Ct);
+        using var unavailable = await _http.GetAsync(new Uri("/unavailable", UriKind.Relative), Ct);
+
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        var problem = await ProblemOf(conflict);
+        Assert.Equal("Itens recusados", problem.GetProperty("title").GetString());
+        Assert.Equal("produto inativo", problem.GetProperty("detail").GetString());
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, unavailable.StatusCode);
+        Assert.Equal(TimeSpan.FromSeconds(2), unavailable.Headers.RetryAfter?.Delta); // arredonda para cima
+        Assert.Equal("Serviço indisponível", (await ProblemOf(unavailable)).GetProperty("title").GetString());
     }
 
     [Fact]

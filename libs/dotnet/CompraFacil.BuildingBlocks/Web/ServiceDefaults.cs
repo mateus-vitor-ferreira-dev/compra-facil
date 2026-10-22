@@ -51,6 +51,7 @@ public static class ServiceDefaults
 
         builder.Services.AddProblemDetails(o => o.CustomizeProblemDetails = Problems.Customize);
         builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+        builder.Services.AddExceptionHandler<ApplicationExceptionHandler>();
 
         builder.Services.AddHealthChecks();
         builder.AddObservability(service.Name);

@@ -6,7 +6,7 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
 | Projeto | O que é |
 |---|---|
 | `CompraFacil.BuildingBlocks` | Padrões HTTP, dados, mensageria (outbox, Kafka, inbox) e OpenTelemetry usados por todos (abaixo). |
-| `CompraFacil.BuildingBlocks.Testing` | Postgres real via Testcontainers e o smoke test comum, herdado pelos serviços. |
+| `CompraFacil.BuildingBlocks.Testing` | Postgres real via Testcontainers, o smoke test comum (herdado pelos serviços) e o `ContractAssert`: valida eventos e corpos HTTP contra `contracts/` (AsyncAPI e OpenAPI), seguindo os `$ref` entre arquivos. |
 | `CompraFacil.BuildingBlocks.Tests` | Testes da própria lib. |
 
 ## O que o `AddServiceDefaults` / `UseServiceDefaults` dá a cada serviço
@@ -15,6 +15,8 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
 - **Erros em ProblemDetails** (RFC 9457) no formato do contrato: `type: about:blank`, título em
   português, `instance`, `request_id` e `trace_id` (W3C, para achar o trace no Grafana). Vale para
   exceções (500), rota inexistente (404), JSON malformado (400) e validação.
+- **Erros de aplicação**: `NotFoundException` (404), `ConflictException` (409) e
+  `DependencyUnavailableException` (503 com `Retry-After`) viram ProblemDetails sem código no controller.
 - **Validação**: o caso de uso lança a `ValidationException` do FluentValidation e a resposta vira o
   `422` do contrato, com `errors: [{ field: "items[0].quantity", message }]` no caminho do JSON.
 - **X-Request-ID**: reaproveitado (ou gerado), devolvido na resposta, no ProblemDetails e no escopo de
