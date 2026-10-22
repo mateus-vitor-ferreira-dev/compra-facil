@@ -1,24 +1,12 @@
 # Teste ponta a ponta da compra (#83): o ambiente inteiro do compose, com as imagens construídas do
-# código do PR, e o k6 pelo gateway nos três cenários (confirmada, sem estoque, pagamento recusado).
-# Roda quando muda algo que participa da compra; demora mais que os pipelines dos serviços (build de
-# todas as imagens), por isso não roda para mudança só em docs.
+# código, e o k6 pelo gateway nos três cenários (confirmada, sem estoque, pagamento recusado).
+# Leva ~7 min (build de todas as imagens), então não bloqueia PR: roda a cada merge em develop/main
+# e sob demanda ("Run workflow"). Nos PRs, valem os pipelines de cada serviço e o contrato (ADR 0004).
 name: e2e
 
 on:
   push:
     branches: [main, develop]
-    paths:
-      - services/**
-      - libs/**
-      - contracts/**
-      - gateway/**
-      - infra/compose/**
-      - compose.yaml
-      - Directory.Build.props
-      - Directory.Packages.props
-      - load-tests/k6/e2e-compra.js
-      - .github/workflows/e2e.yml
-  pull_request:
     paths:
       - services/**
       - libs/**
@@ -45,23 +33,22 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      # o build das 6 imagens + as da infra não cabem no disco padrão do runner: tira SDKs que este job
-      # não usa (o .NET e o Go das imagens vêm dentro delas)
-      - name: Libera espaço no runner
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
-          df -h /
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0 # só para emitir os JWT de admin (services/catalog/cmd/token)
         with:
           go-version-file: services/catalog/go.mod
           cache-dependency-path: services/catalog/go.sum
 
-      - name: Sobe o ambiente (build das imagens do PR)
-        run: docker compose up -d --build --wait --wait-timeout 600
+      - name: Constrói as imagens
+        run: docker compose build
 
-      - name: Limpa o cache de build (as imagens já estão prontas)
+      # o cache de build das 6 imagens enche o disco do runner (e aí o Redpanda e o pull do k6 falham);
+      # as imagens já estão prontas, o cache não serve mais para nada aqui
+      - name: Limpa o cache de build
         run: docker builder prune -af && df -h /
+
+      - name: Sobe o ambiente
+        run: docker compose up -d --wait --wait-timeout 600
 
       - name: Popula o catálogo
         run: docker compose run --rm catalog-seed
