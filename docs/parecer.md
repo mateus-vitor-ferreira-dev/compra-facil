@@ -30,10 +30,12 @@ aprendizado e do risco.
 1. **Escala independente, com custo proporcional ao pico.** Num experimento com a mesma carga de campanha
    (pico de 1.000 requisições/s, 90% leituras de catálogo), escalar **só o catálogo** de 1 para 3 réplicas
    levou o p95 de **686 ms para 5 ms**. O custo foi **+0,27 núcleo de CPU** e +14 MiB de memória, sem tocar
-   nos demais serviços. No monolito, o mesmo ganho exigiria replicar a aplicação inteira.
+   nos demais serviços. Num cluster Kubernetes, o ajuste é automático: o autoescalonador levou o catálogo de
+   1 para 4 réplicas durante o pico e de volta a 1 depois, com 0% de erros. No monolito, o mesmo ganho
+   exigiria replicar a aplicação inteira.
 2. **Autonomia de entrega do time de catálogo.** Com pipeline, contrato e banco próprios, uma mudança só no
-   catálogo publica só o catálogo. No projeto, uma mudança desse tipo foi do commit à imagem publicada sem
-   envolver nenhum outro serviço, e o lead time mediano ficou em torno de 25 minutos.
+   catálogo publica só o catálogo, sem esperar o calendário do outro time. No projeto, o lead time mediano do
+   catálogo, do primeiro commit à imagem publicada, ficou em torno de 25 minutos.
 
 **Limitações**
 
@@ -45,7 +47,8 @@ aprendizado e do risco.
    painel de monitoramento e ponto de falha. Investigar um problema passa a exigir **observabilidade
    distribuída** (traces que atravessam serviços, métricas por serviço), e a equipe precisa aprender isso.
    Parte do acoplamento também persiste: bibliotecas e contratos compartilhados ainda forçam implantações
-   conjuntas, se não forem tratados.
+   conjuntas. No projeto, só 1 de 5 implantações do catálogo saiu sozinha; as outras vieram de mudanças
+   comuns a todos os serviços (pipeline, observabilidade).
 
 ## 3. Como verificar se a escolha foi adequada?
 
@@ -74,5 +77,11 @@ SAGA, observabilidade):
 
 - **Escala independente:** [`docs/resultados-carga.md`](resultados-carga.md) (`task experiment`).
 - **Autonomia de entrega:** [`docs/resultados-entrega.md`](resultados-entrega.md) (`scripts/delivery_metrics.py`).
+- **Escala automática:** [`infra/k8s/README.md`](../infra/k8s/README.md) (`task k8s:load`): o HPA levou o catálogo de 1 para 4 réplicas e de volta a 1.
 - **Catálogo fora do ar sem derrubar as compras:** `task chaos:catalog`, com 0 falhas em 1.202 pedidos.
+- **Integração segura:** contrato consumer-driven do orders verificado pelo catálogo antes de cada publicação
+  (ADR 0004) e teste ponta a ponta da compra no CI.
+- **Um limite observado:** com o catálogo escalado, o gargalo do pico passou para o pagamento, que processa um
+  evento por vez. Escalar uma parte desloca o problema para a seguinte, por isso o critério 1 olha o sistema,
+  não só o serviço extraído.
 - **Arquitetura e decisões:** [`docs/arquitetura/c4.md`](arquitetura/c4.md) e [`docs/adr`](adr).
