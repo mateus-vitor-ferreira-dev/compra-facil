@@ -1,0 +1,6 @@
+apiVersion: v2
+name: compra-facil-service
+description: Um serviço da CompraFácil (Deployment, Service, HPA opcional e rota no Traefik). Um release por serviço.
+type: application
+version: 0.1.0
+appVersion: dev

@@ -1,0 +1,11 @@
+image: { repository: compra-facil/orders }
+port: 8002
+env:
+  ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=compra-facil
+  Kafka__BootstrapServers: redpanda:9092
+  Auth__AllowDevSecret: "true" # cluster local, não produção
+  Catalog__GrpcAddress: http://catalog:9001
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: "1", memory: 384Mi }
+ingress: { prefix: /orders }

@@ -165,6 +165,9 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
   Actions. O lead time mediano do commit à imagem publicada fica entre 21 e 25 min. O relatório também mostra
   onde o deploy ainda é conjunto: a biblioteca comum dos serviços .NET republica os quatro juntos
   ([`docs/resultados-entrega.md`](docs/resultados-entrega.md)).
+- **Escala automática no Kubernetes:** no cluster k3d (`task k8s:up`), o HPA levou o catálogo de 1 para 4
+  réplicas durante o pico do k6 e de volta a 1 depois, com 0% de erro e p95 de 5,4 ms, sem tocar nos outros
+  serviços ([`infra/k8s`](infra/k8s/README.md)).
 - **Catálogo fora do ar:** com 20 pedidos/s e o catalog derrubado dos 20 s aos 40 s, houve 0 falhas e
   nenhum 503, com p95 de 11 ms (`task chaos:catalog`).
 
@@ -225,6 +228,8 @@ task dlt -- payments          # mensagens na dead letter topic; task dlt:replay 
 task grafana                  # abre o Grafana no dashboard Início
 task trace -- <trace_id>      # abre o trace de uma resposta (header X-Trace-Id)
 task e2e                      # compra ponta a ponta pelo gateway (confirmada, sem estoque, pagamento recusado)
+task k8s:up && task k8s:seed  # o mesmo sistema num cluster k3d (Helm), com HPA no catálogo
+task k8s:load -- 600 2m       # k6 dentro do cluster: o catálogo escala sozinho de 1 para 4 réplicas
 ```
 
 <details>

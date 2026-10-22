@@ -1,0 +1,34 @@
+# Valores padrão; cada serviço sobrescreve em infra/k8s/helm/values/<serviço>.yaml.
+image:
+  repository: compra-facil/catalog
+  tag: dev
+  pullPolicy: IfNotPresent # no k3d, as imagens entram por "k3d image import"
+
+replicas: 1
+
+# porta HTTP do serviço (a mesma da imagem) e, opcional, a gRPC
+port: 8001
+grpcPort: null
+
+env: {}
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 384Mi }
+
+# sondas nas rotas que todos os serviços expõem (BuildingBlocks e catalog)
+probes:
+  liveness: /health
+  readiness: /ready
+
+# HPA por CPU (o metrics-server vem com o k3s); só o catalog liga
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60
+
+# rota /<prefixo> no Traefik (ingress do k3s), sem o prefixo ao chegar no serviço
+ingress:
+  enabled: true
+  prefix: /catalog

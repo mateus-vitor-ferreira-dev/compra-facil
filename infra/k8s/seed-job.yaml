@@ -1,0 +1,16 @@
+# Popula o catálogo (mesma imagem do "docker compose run catalog-seed"). Rodar: task k8s:seed
+apiVersion: batch/v1
+kind: Job
+metadata: { name: catalog-seed }
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          image: compra-facil/catalog-seed:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - { name: CATALOG_DB_DSN, value: "postgres://catalog:compra-facil@postgres:5432/catalog?sslmode=disable" }
