@@ -25,9 +25,13 @@ public static class DependencyInjection
             o.Address = sp.GetRequiredService<IOptions<CatalogOptions>>().Value.GrpcAddress);
         builder.Services.AddScoped<ICatalogPricing, CatalogGrpcPricing>();
 
-        // contracts/asyncapi/orders.v1.yaml: publica orders.order.v1; consome o catálogo para o snapshot
+        // contracts/asyncapi/orders.v1.yaml: publica orders.order.v1; consome o resultado da SAGA e o
+        // catálogo (snapshot)
         builder.AddMessaging<OrdersDbContext>("orders", m => m
             .Produces(OrderEvents.Topic)
+            .Handle<StockReservationFailedData, OnStockReservationFailed>(OrderEvents.ReservationsTopic, "StockReservationFailed")
+            .Handle<PaymentApprovedData, OnPaymentApproved>(OrderEvents.PaymentsTopic, "PaymentApproved")
+            .Handle<PaymentFailedData, OnPaymentFailed>(OrderEvents.PaymentsTopic, "PaymentFailed")
             .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductCreated")
             .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductUpdated")
             .Handle<ProductDeletedData, ProductDeleted>(CatalogEvents.ProductsTopic, "ProductDeleted")

@@ -29,7 +29,8 @@ compra é uma **SAGA coreografada sobre Kafka**.
 ```
 
 SAGA de compra: `OrderPlaced` → inventory reserva → `StockReserved` → payments cobra →
-`PaymentApproved` → orders confirma. Uma falha dispara a compensação (`StockReleased`, `OrderCancelled`).
+`PaymentApproved` → orders confirma. Uma falha dispara a compensação (`OrderCancelled` → inventory devolve
+a reserva). Estados, sequências e garantias: [`docs/arquitetura/saga.md`](docs/arquitetura/saga.md).
 
 ## Estrutura
 
