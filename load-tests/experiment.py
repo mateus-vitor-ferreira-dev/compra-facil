@@ -201,6 +201,19 @@ Metas da #89: p95 < 300 ms e erros < 1%.
 
 {interpretation(a, b)}
 
+## O que este experimento não mede: a SAGA depois do 202
+
+O k6 mede a **aceitação** do pedido (`202`, pedido `pending`), não a conclusão da SAGA. A compra segue de
+forma assíncrona, e o payments trata um evento por vez, cerca de 6 por segundo, porque o gateway fake simula
+150 ms por cobrança. No pico de compras do experimento (cerca de 100 pedidos/s), a fila do payments
+cresceu: depois das rodadas, o consumer group tinha mais de 170 mil mensagens atrasadas, o que significa horas
+até todos os pedidos do pico serem confirmados.
+
+Escalar o catálogo resolve a vitrine e a entrada do pedido, mas a etapa seguinte vira o gargalo. Para a
+conclusão da SAGA acompanhar o pico, o próximo passo seria escalar o payments: até 3 instâncias, uma por
+partição do tópico, ou processar em paralelo dentro da partição por chave de pedido. É também o argumento
+para o lag dos consumers estar no painel da SAGA.
+
 Os números brutos (resumo do k6 e as médias de recurso) estão em `load-tests/results/`.
 """
     REPORT.write_text(text)
