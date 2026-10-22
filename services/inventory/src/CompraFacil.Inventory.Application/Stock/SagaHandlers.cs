@@ -54,6 +54,7 @@ public sealed class ReserveStock(IStockRepository stock, IOutbox outbox, TimePro
             outbox.Add(InventoryEvents.Topic, key, InventoryEvents.StockReserved, new StockReservedData(data.OrderId, lines));
         }
         await stock.SaveChangesAsync(ct);
+        InventoryMetrics.Reservations.Add(1, new KeyValuePair<string, object?>("result", unavailable.Count > 0 ? "failed" : "reserved"));
         return true;
     }
 }
@@ -110,6 +111,7 @@ public sealed class ReleaseReservation(IStockRepository stock, IOutbox outbox, T
             outbox.Add(InventoryEvents.Topic, data.OrderId.ToString(), InventoryEvents.StockReleased,
                 new StockReleasedData(data.OrderId, reservation.Items));
             await stock.SaveChangesAsync(ct);
+            InventoryMetrics.Reservations.Add(1, new KeyValuePair<string, object?>("result", "released"));
             return true;
         });
     }

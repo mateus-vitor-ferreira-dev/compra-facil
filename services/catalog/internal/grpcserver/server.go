@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -54,6 +56,8 @@ func New(p products, log *slog.Logger, opts Options) (*grpc.Server, *health.Serv
 	})}
 
 	srv := grpc.NewServer(
+		// traces de cada chamada (o contexto vem do orders no header traceparent); health check fora
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithFilter(filters.Not(filters.HealthCheck())))),
 		grpc.ChainUnaryInterceptor(
 			logging.UnaryServerInterceptor(slogAdapter(log), logOpts...),
 			recovery.UnaryServerInterceptor(recoverOpts...),

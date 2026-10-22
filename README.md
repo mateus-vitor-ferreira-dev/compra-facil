@@ -110,6 +110,27 @@ prefixo. O Swagger de cada um abre pelo gateway:
 
 Para depurar um serviço direto (portas 8001–8005, gRPC 9001): `task up:debug`.
 
+### Observabilidade (OpenTelemetry + Grafana, tudo open source)
+
+Os 5 serviços e o gateway mandam **traces, métricas e logs** por OTLP para o OpenTelemetry Collector
+(`infra/otel/collector.yaml`), que distribui para **Tempo** (traces), **Loki** (logs) e **Prometheus**
+(métricas). O Collector também lê o lag dos consumers direto do Redpanda.
+
+| | Acesso | |
+|---|---|---|
+| Grafana | http://127.0.0.1:3001 | entra sem login (só local); datasources e dashboards provisionados |
+| Prometheus | http://127.0.0.1:9090 | |
+| OTLP | `127.0.0.1:4317` (gRPC), `:4318` (HTTP) | para serviços rodando fora do compose |
+
+- Um pedido vira **um trace só**: gateway → orders → catalog (gRPC) → Kafka → inventory/payments → orders →
+  notifications. No Grafana: *Explore → Tempo*, e do trace para os logs dele (e do log para o trace, pelo
+  `trace_id`).
+- Métricas próprias: `compra_facil_orders_placed_total`, `compra_facil_orders_finished_total{status,reason}`
+  (SAGAs concluídas × compensadas), `compra_facil_payments_charges_total`, `compra_facil_inventory_reservations_total`,
+  `compra_facil_messaging_consumed_total{result}`, `catalog_cache_lookups_total{result}` (hit ratio) e
+  `kafka_consumer_group_lag_sum_ratio{group}`; RED por serviço vem do OTel e das métricas que o Tempo gera dos traces.
+- Laços de manutenção (relay do outbox, despachante de e-mails) e `/health`/`/ready` não geram traces.
+
 ### Para quem consome as APIs (front)
 
 - Base: `http://localhost/<serviço>/v1/...` (ex.: `POST http://localhost/orders/v1/orders`). Contratos em

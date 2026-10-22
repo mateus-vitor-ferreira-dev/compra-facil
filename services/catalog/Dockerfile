@@ -3,7 +3,7 @@
 # Contexto do build: services/catalog (docker build -t catalog services/catalog)
 # O seed tem imagem própria (--target seed) para não pesar na imagem da api.
 
-FROM golang:1.26.5-alpine3.24 AS build
+FROM golang:1.26.10-alpine3.24 AS build
 WORKDIR /src
 
 # dependências primeiro: a camada só é refeita quando go.mod/go.sum mudam

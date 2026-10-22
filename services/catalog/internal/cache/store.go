@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,7 +38,7 @@ type RedisStore struct{ client *redis.Client }
 // Sem novas tentativas: com o Redis fora, cada leitura paga no máximo um timeout antes do banco
 // (os defaults do go-redis somam segundos de retry/backoff por requisição).
 func NewRedisStore(opts RedisOptions) *RedisStore {
-	return &RedisStore{client: redis.NewClient(&redis.Options{
+	client := redis.NewClient(&redis.Options{
 		Addr:          opts.Addr,
 		Password:      opts.Password,
 		DB:            opts.DB,
@@ -46,7 +47,10 @@ func NewRedisStore(opts RedisOptions) *RedisStore {
 		WriteTimeout:  opts.WriteTimeout,
 		MaxRetries:    -1,
 		DialerRetries: 1,
-	})}
+	})
+	// span por comando (só erro de configuração faz falhar; aí segue sem instrumentar)
+	_ = redisotel.InstrumentTracing(client)
+	return &RedisStore{client: client}
 }
 
 func (s *RedisStore) Get(ctx context.Context, key string) ([]byte, error) {

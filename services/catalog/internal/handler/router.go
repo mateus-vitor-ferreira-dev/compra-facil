@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 // Registrar é um grupo de rotas (ex.: CatalogHandler, Docs) plugado no router.
@@ -19,6 +20,10 @@ func NewRouter(log *slog.Logger, health *Health, registrars ...Registrar) *gin.E
 
 	r := gin.New()
 	r.ContextWithFallback = true // c.Request.Context() chega aos services e ao GORM
+	// otelgin primeiro: o span já existe quando o log da requisição é escrito (trace_id no log)
+	r.Use(otelgin.Middleware("catalog", otelgin.WithFilter(func(req *http.Request) bool {
+		return req.URL.Path != "/health" && req.URL.Path != "/ready" // sondas não viram trace
+	})))
 	r.Use(RequestID(), Logger(log), Recovery(log))
 
 	r.GET("/health", health.Live)

@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using CompraFacil.Notifications.Domain;
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using OpenTelemetry;
 
 namespace CompraFacil.Notifications.Infrastructure.Email;
 
@@ -81,7 +83,11 @@ public sealed partial class EmailDispatcher(
             var sent = 0;
             try
             {
-                sent = await DispatchOnceAsync(stoppingToken);
+                // laço de manutenção: sem traces das consultas de fila vazia
+                using (SuppressInstrumentationScope.Begin())
+                {
+                    sent = await DispatchOnceAsync(stoppingToken);
+                }
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -102,6 +108,12 @@ public sealed partial class EmailDispatcher(
     }
 
     /// <summary>Reserva um lote e envia. Devolve quantas foram reservadas.</summary>
+    private static readonly Meter s_meter = new("CompraFacil.Notifications");
+
+    /// <summary>E-mails por tipo e resultado (Sent; Pending = vai tentar de novo; Failed = desistiu).</summary>
+    private static readonly Counter<long> s_emails = s_meter.CreateCounter<long>(
+        "compra_facil.notifications.emails", unit: "{email}", description: "E-mails por tipo e resultado.");
+
     public async Task<int> DispatchOnceAsync(CancellationToken ct)
     {
         await using var scope = scopes.CreateAsyncScope();
@@ -132,6 +144,7 @@ public sealed partial class EmailDispatcher(
                 LogSendFailed(logger, e, notification.Id, notification.Attempts, notification.Status);
             }
             await db.SaveChangesAsync(ct);
+            s_emails.Add(1, new KeyValuePair<string, object?>("kind", notification.Kind), new KeyValuePair<string, object?>("result", notification.Status.ToString()));
         }
         return claimed.Count;
     }

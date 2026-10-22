@@ -98,11 +98,13 @@ public sealed partial class EventConsumer<TContext>(
                 catch (PoisonMessageException e)
                 {
                     LogPoisonMessage(logger, e, result.Topic, result.Partition.Value, result.Offset.Value);
+                    Count(result.Topic, "-", "poison");
                     consumer.Commit(result);
                     break;
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
+                    Count(result.Topic, "-", "error");
                     LogHandlerFailed(logger, e, result.Topic, result.Partition.Value, result.Offset.Value);
                     await DelayAsync(backoff, ct);
                     backoff = TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, options.MaxBackoff.Ticks));
@@ -119,12 +121,15 @@ public sealed partial class EventConsumer<TContext>(
         if (envelope is null)
         {
             LogInvalidMessage(logger, result.Topic, result.Partition.Value, result.Offset.Value);
+            Count(result.Topic, "-", "poison");
             return; // mensagem que não é envelope não volta a ser válida; segue (DLT na #80)
         }
         if (!_handlers.TryGetValue((result.Topic, envelope.EventType), out var registration))
         {
+            Count(result.Topic, envelope.EventType, "skipped");
             return; // event_type que este serviço não trata
         }
+        var started = Stopwatch.GetTimestamp();
 
         var headers = result.Message.Headers?.ToDictionary(h => h.Key, h => Encoding.UTF8.GetString(h.GetValueBytes()))
             ?? [];
@@ -146,6 +151,7 @@ public sealed partial class EventConsumer<TContext>(
             if (await db.Set<InboxMessage>().AnyAsync(m => m.EventId == envelope.EventId, ct))
             {
                 activity?.SetTag("compra_facil.duplicate", true);
+                Count(result.Topic, envelope.EventType, "duplicate");
                 return; // já processado (redelivery): o efeito não se repete
             }
 
@@ -161,12 +167,22 @@ public sealed partial class EventConsumer<TContext>(
             });
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+            Count(result.Topic, envelope.EventType, "processed");
+            MessagingTelemetry.ProcessDuration.Record(Stopwatch.GetElapsedTime(started).TotalSeconds,
+                new KeyValuePair<string, object?>("topic", result.Topic),
+                new KeyValuePair<string, object?>("event_type", envelope.EventType));
         }
         finally
         {
             CorrelationContext.Current = previous;
         }
     }
+
+    private static void Count(string topic, string eventType, string outcome) =>
+        MessagingTelemetry.Consumed.Add(1,
+            new KeyValuePair<string, object?>("topic", topic),
+            new KeyValuePair<string, object?>("event_type", eventType),
+            new KeyValuePair<string, object?>("result", outcome));
 
     private static async Task DelayAsync(TimeSpan delay, CancellationToken ct)
     {

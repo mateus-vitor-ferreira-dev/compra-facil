@@ -1,0 +1,21 @@
+# Prometheus: recebe métricas por OTLP (Collector) e por remote write (Tempo). Só raspa a si mesmo.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# atributos de recurso do OTel que viram labels (para filtrar por serviço e ambiente)
+otlp:
+  promote_resource_attributes:
+    - service.name
+    - service.namespace
+    - service.instance.id
+    - deployment.environment
+
+storage:
+  tsdb:
+    out_of_order_time_window: 30m
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [localhost:9090]
