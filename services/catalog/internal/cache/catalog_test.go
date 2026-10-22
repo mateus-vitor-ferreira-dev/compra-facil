@@ -83,6 +83,8 @@ type fakeReaders struct {
 	product   domain.Product
 	page      domain.Page[domain.Product]
 	campaigns []domain.Campaign
+	nextStart time.Time
+	nextErr   error
 	err       error
 	delay     time.Duration
 	getCalls  atomic.Int32
@@ -110,6 +112,10 @@ func (f *fakeReaders) List(context.Context) ([]domain.Category, error) {
 func (f *fakeReaders) ListActive(context.Context) ([]domain.Campaign, error) {
 	f.campCalls.Add(1)
 	return f.campaigns, f.err
+}
+
+func (f *fakeReaders) NextStart(context.Context) (time.Time, error) {
+	return f.nextStart, f.nextErr
 }
 
 var now = time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
@@ -180,6 +186,61 @@ func TestTTL_CappedByCampaignEnd(t *testing.T) {
 	ttl, ok := store.ttlOf(keyPrefix + "0:product:")
 	require.True(t, ok)
 	assert.Equal(t, 90*time.Second, ttl, "expira junto com a campanha, não em ProductTTL")
+}
+
+func TestTTL_CappedByNextCampaignStart(t *testing.T) {
+	store := newMemStore()
+	// produto sem desconto agora; uma campanha (dele ou de outro produto) começa em 40s
+	r := &fakeReaders{product: domain.Product{ID: uuid.New()}, nextStart: now.Add(40 * time.Second)}
+	c := newTestCatalog(t, store, r)
+	ctx := context.Background()
+
+	_, err := c.GetPublic(ctx, r.product.ID)
+	require.NoError(t, err)
+	_, err = c.ListActive(ctx)
+	require.NoError(t, err)
+
+	productTTL, ok := store.ttlOf(keyPrefix + "0:product:")
+	require.True(t, ok)
+	assert.Equal(t, 40*time.Second, productTTL, "o desconto começa a valer antes de ProductTTL")
+	campaignsTTL, ok := store.ttlOf(keyPrefix + "0:campaigns")
+	require.True(t, ok)
+	assert.Equal(t, 40*time.Second, campaignsTTL, "a campanha nova entra na lista quando começa")
+}
+
+func TestTTL_EarliestBoundaryWins(t *testing.T) {
+	store := newMemStore()
+	r := &fakeReaders{
+		product: domain.Product{
+			ID:             uuid.New(),
+			ActiveCampaign: &domain.CampaignRef{EndsAt: now.Add(30 * time.Second)},
+		},
+		nextStart: now.Add(2 * time.Minute),
+	}
+	c := newTestCatalog(t, store, r)
+
+	_, err := c.GetPublic(context.Background(), r.product.ID)
+	require.NoError(t, err)
+
+	ttl, ok := store.ttlOf(keyPrefix + "0:product:")
+	require.True(t, ok)
+	assert.Equal(t, 30*time.Second, ttl)
+}
+
+func TestTTL_UnknownNextStartIsNotCached(t *testing.T) {
+	store := newMemStore()
+	r := &fakeReaders{product: domain.Product{ID: uuid.New()}, nextErr: errors.New("banco fora")}
+	c := newTestCatalog(t, store, r)
+	ctx := context.Background()
+
+	p, err := c.GetPublic(ctx, r.product.ID)
+	require.NoError(t, err, "a leitura em si deu certo; só não vai para o cache")
+	assert.Equal(t, r.product, p)
+	_, _ = c.GetPublic(ctx, r.product.ID)
+
+	_, ok := store.ttlOf(keyPrefix + "0:product:")
+	assert.False(t, ok)
+	assert.EqualValues(t, 2, r.getCalls.Load())
 }
 
 func TestTTL_ExpiredCampaignIsNotCached(t *testing.T) {

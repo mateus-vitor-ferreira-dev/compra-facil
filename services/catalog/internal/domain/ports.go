@@ -53,6 +53,9 @@ type CampaignRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (Campaign, error)
 	ListActive(ctx context.Context, now time.Time) ([]Campaign, error)
+	// NextStart devolve o início da próxima campanha (a primeira com starts_at > now), de qualquer
+	// produto; instante zero se não houver nenhuma agendada.
+	NextStart(ctx context.Context, now time.Time) (time.Time, error)
 	List(ctx context.Context, cursor string, limit int) (Page[Campaign], error)
 	// SetProducts substitui a lista de produtos da campanha (transação única).
 	SetProducts(ctx context.Context, campaignID uuid.UUID, productIDs []uuid.UUID) error

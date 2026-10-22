@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,6 +82,20 @@ func (r *CampaignRepository) ListActive(ctx context.Context, now time.Time) ([]d
 		return nil, mapError(err)
 	}
 	return toCampaigns(recs), nil
+}
+
+func (r *CampaignRepository) NextStart(ctx context.Context, now time.Time) (time.Time, error) {
+	var next sql.NullTime // min() de nenhuma linha é NULL
+	err := r.db.WithContext(ctx).Model(&campaignRecord{}).
+		Select("min(starts_at)").Where("starts_at > ?", now).
+		Row().Scan(&next)
+	if err != nil {
+		return time.Time{}, mapError(err)
+	}
+	if !next.Valid {
+		return time.Time{}, nil
+	}
+	return next.Time.UTC(), nil
 }
 
 // List ordena das campanhas que começam mais tarde para as mais antigas.

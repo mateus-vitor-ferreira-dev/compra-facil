@@ -90,6 +90,11 @@ func (m *campaignRepoMock) ListActive(ctx context.Context, now time.Time) ([]dom
 	return args.Get(0).([]domain.Campaign), args.Error(1)
 }
 
+func (m *campaignRepoMock) NextStart(ctx context.Context, now time.Time) (time.Time, error) {
+	args := m.Called(ctx, now)
+	return args.Get(0).(time.Time), args.Error(1)
+}
+
 func (m *campaignRepoMock) List(ctx context.Context, cursor string, limit int) (domain.Page[domain.Campaign], error) {
 	args := m.Called(ctx, cursor, limit)
 	return args.Get(0).(domain.Page[domain.Campaign]), args.Error(1)

@@ -128,6 +128,24 @@ func TestCampaignRepository_ListActiveAndPaginate(t *testing.T) {
 	assert.Empty(t, second.NextCursor)
 }
 
+func TestCampaignRepository_NextStart(t *testing.T) {
+	resetDB(t)
+	repo := NewCampaignRepository(testDB)
+
+	next, err := repo.NextStart(ctx, now)
+	require.NoError(t, err)
+	assert.True(t, next.IsZero(), "sem campanha agendada")
+
+	mustCampaign(t, "vigente", 20, now.Add(-time.Hour), now.Add(time.Hour))
+	mustCampaign(t, "comeca-agora", 10, now, now.Add(time.Hour)) // já começou: não é a próxima
+	mustCampaign(t, "depois", 30, now.Add(3*time.Hour), now.Add(48*time.Hour))
+	mustCampaign(t, "proxima", 15, now.Add(2*time.Hour), now.Add(4*time.Hour))
+
+	next, err = repo.NextStart(ctx, now)
+	require.NoError(t, err)
+	assert.True(t, now.Add(2*time.Hour).Equal(next), "esperava o início de 'proxima', veio %s", next)
+}
+
 func TestCampaignRepository_OverlappingProducts(t *testing.T) {
 	resetDB(t)
 	repo := NewCampaignRepository(testDB)
