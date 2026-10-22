@@ -67,7 +67,16 @@ public sealed class MessagingTests(MessagingFixture fx) : IClassFixture<Messagin
         var deadline = DateTime.UtcNow + s_timeout;
         while (found.Count < expected && DateTime.UtcNow < deadline)
         {
-            var result = consumer.Consume(TimeSpan.FromMilliseconds(500));
+            ConsumeResult<string, string>? result;
+            try
+            {
+                result = consumer.Consume(TimeSpan.FromMilliseconds(500));
+            }
+            catch (ConsumeException e) when (e.Error.Code == ErrorCode.UnknownTopicOrPart)
+            {
+                // o relay cria o tópico na primeira publicação: em máquina lenta (CI) a leitura chega antes
+                continue;
+            }
             if (result?.Message.Key == key)
             {
                 found.Add(EventEnvelope.TryParse(result.Message.Value)!);
