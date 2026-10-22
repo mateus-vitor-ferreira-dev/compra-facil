@@ -209,6 +209,16 @@ tasks:
       - echo
 
   # ---------- carga ----------
+  chaos:catalog:
+    desc: "Caos da #81: k6 criando pedidos, catalog derrubado aos 20 s e de volta aos 40 s (ex.: task chaos:catalog -- -e RATE=50)"
+    cmds:
+      - |
+        docker compose run --rm k6 run {{.CLI_ARGS}} /scripts/orders-catalog-down.js &
+        K6=$!
+        sleep 20 && echo "==> derrubando o catalog" && docker compose stop catalog
+        sleep 20 && echo "==> catalog de volta" && docker compose start catalog
+        wait $K6
+
   load:catalog-cache:
     desc: "k6: hit ratio do cache do catálogo, meta > 90% (ex.: task load:catalog-cache -- -e RATE=500)"
     cmds:

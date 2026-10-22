@@ -103,6 +103,7 @@ public sealed class OrdersFixture : IAsyncLifetime
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Catalog:GrpcAddress", catalogAddress)
+            .UseSetting("Catalog:BreakDuration", "00:00:00.500") // o circuito fecha rápido entre testes
             .UseSetting("Kafka:Enabled", "false")); // aqui o evento é conferido no outbox
         using var _ = Factory.CreateClient(); // sobe e migra
     }

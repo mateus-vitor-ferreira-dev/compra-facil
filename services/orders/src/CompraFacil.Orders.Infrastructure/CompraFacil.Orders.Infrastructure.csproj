@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- EF Core + Npgsql (banco orders); depois, Kafka e clientes de outros serviços. -->
+  <!-- EF Core + Npgsql (banco orders), cliente gRPC do catalog (com Polly) e mensageria. -->
   <ItemGroup>
     <PackageReference Include="Grpc.Net.ClientFactory" />
     <PackageReference Include="Google.Protobuf" />
     <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+    <PackageReference Include="Polly.Extensions" />
   </ItemGroup>
   <ItemGroup>
     <!-- cliente gerado do contrato gRPC do catalog (o servidor Go gera o dele com o Buf). A base do

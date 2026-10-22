@@ -234,6 +234,11 @@
           "OpenTelemetry.Api": "1.19.1"
         }
       },
+      "Polly.Core": {
+        "type": "Transitive",
+        "resolved": "8.8.0",
+        "contentHash": "TewV9uNFsoRFggoFbTAGFwsMYPuckA+wTIpQPyhLL9BANRPQRENz2S4bwATrB3HBOakN5oKLFIllPiDnVecmJg=="
+      },
       "System.CodeDom": {
         "type": "Transitive",
         "resolved": "6.0.0",
@@ -331,7 +336,8 @@
           "CompraFacil.BuildingBlocks": "[1.0.0, )",
           "CompraFacil.Orders.Application": "[1.0.0, )",
           "Google.Protobuf": "[3.36.2, )",
-          "Grpc.Net.ClientFactory": "[2.84.0, )"
+          "Grpc.Net.ClientFactory": "[2.84.0, )",
+          "Polly.Extensions": "[8.8.0, )"
         }
       },
       "Confluent.Kafka": {
@@ -475,6 +481,15 @@
         "contentHash": "VIH2tQ2h31j4wQyZ9Utk8ZXIyj7Z1j0xIiyPRGjYu1MmZjJtpxRh0Y/NnB6fEBimNg/WrX0jDyfMeEjPQqmaMA==",
         "dependencies": {
           "OpenTelemetry.Api": "[1.19.0, 2.0.0)"
+        }
+      },
+      "Polly.Extensions": {
+        "type": "CentralTransitive",
+        "requested": "[8.8.0, )",
+        "resolved": "8.8.0",
+        "contentHash": "Xfdb9l/IcEXoWzJAMTfiWM20Cp2+/Kn/BmIEkDXwhy+DdEmdEt778xEkQsmDqXFoR15cA7aKamSHjbDQvcdUXg==",
+        "dependencies": {
+          "Polly.Core": "8.8.0"
         }
       }
     }
