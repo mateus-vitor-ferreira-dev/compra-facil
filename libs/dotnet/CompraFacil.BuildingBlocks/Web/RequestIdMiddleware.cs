@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using CompraFacil.BuildingBlocks.Messaging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,8 @@ public sealed partial class RequestIdMiddleware(RequestDelegate next, ILogger<Re
             id = Guid.NewGuid().ToString();
         }
         context.TraceIdentifier = id;
+        // eventos publicados nesta requisição levam o request id como correlation_id
+        CorrelationContext.Current = new CorrelationContext(id, CausationId: null);
         context.Response.OnStarting(() =>
         {
             context.Response.Headers[Header] = id;

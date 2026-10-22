@@ -4,6 +4,7 @@ using System.Text.Json;
 using CompraFacil.BuildingBlocks.Web;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Npgsql;
 using Xunit;
 
 namespace CompraFacil.BuildingBlocks.Testing;
@@ -18,13 +19,16 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
     where TProgram : class
 {
     private readonly WebApplicationFactory<TProgram> _factory;
+    private readonly string _connectionString;
     private HttpClient _http = null!;
 
     protected ServiceSmokeTests(PostgresFixture postgres)
     {
         ArgumentNullException.ThrowIfNull(postgres);
-        _factory = new WebApplicationFactory<TProgram>().WithWebHostBuilder(b =>
-            b.UseSetting("ConnectionStrings:Default", postgres.ConnectionString));
+        _connectionString = postgres.ConnectionString;
+        _factory = new WebApplicationFactory<TProgram>().WithWebHostBuilder(b => b
+            .UseSetting("ConnectionStrings:Default", postgres.ConnectionString)
+            .UseSetting("Kafka:Enabled", "false")); // o smoke não precisa de broker
     }
 
     /// <summary>Arquivo do contrato em contracts/openapi; nulo se o serviço não tem API pública.</summary>
@@ -57,6 +61,27 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
     {
         using var response = await _http.GetAsync(new Uri("/ready", UriKind.Relative), Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Migrations_CreateTheMessagingTables()
+    {
+        using var _ = _factory.CreateClient(); // sobe o host: MigrateOnStart aplica as migrations
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(Ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('outbox', 'inbox') ORDER BY 1",
+            conn);
+        var tables = new List<string>();
+        await using (var reader = await cmd.ExecuteReaderAsync(Ct))
+        {
+            while (await reader.ReadAsync(Ct))
+            {
+                tables.Add(reader.GetString(0));
+            }
+        }
+        Assert.Equal(["inbox", "outbox"], tables);
     }
 
     [Fact]

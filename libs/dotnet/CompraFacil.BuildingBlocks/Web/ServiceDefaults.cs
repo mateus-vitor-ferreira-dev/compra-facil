@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CompraFacil.BuildingBlocks.Observability;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
@@ -52,6 +53,7 @@ public static class ServiceDefaults
         builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 
         builder.Services.AddHealthChecks();
+        builder.AddObservability(service.Name);
         return builder;
     }
 

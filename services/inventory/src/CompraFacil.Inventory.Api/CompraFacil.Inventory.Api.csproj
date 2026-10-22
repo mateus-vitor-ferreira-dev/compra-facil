@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <!-- Saldo e reservas de estoque. -->
   <ItemGroup>
+    <!-- ferramentas do EF (dotnet ef migrations) usam a Api como projeto de startup -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../CompraFacil.Inventory.Application/CompraFacil.Inventory.Application.csproj" />
     <ProjectReference Include="../CompraFacil.Inventory.Infrastructure/CompraFacil.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
