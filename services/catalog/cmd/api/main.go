@@ -113,6 +113,7 @@ func run() error {
 
 	var catalogAPI *handler.CatalogHandler
 	var adminAPI *handler.AdminHandler
+	wrap := func(h http.Handler) http.Handler { return h }
 	if cfg.Cache.Enabled {
 		store := cache.NewRedisStore(cache.RedisOptions{
 			Addr:         cfg.Cache.Redis.Addr,
@@ -135,6 +136,7 @@ func run() error {
 		catalogAPI = handler.NewCatalogHandler(cached, cached, cached, log)
 		adminAPI = handler.NewAdminHandler(cache.NewProductWriter(productSvc, cached),
 			cache.NewCategoryWriter(categorySvc, cached), cache.NewCampaignWriter(campaignSvc, cached), requireAdmin, log)
+		wrap = cache.HeaderMiddleware
 	} else {
 		catalogAPI = handler.NewCatalogHandler(productSvc, categorySvc, campaignSvc, log)
 		adminAPI = handler.NewAdminHandler(productSvc, categorySvc, campaignSvc, requireAdmin, log)
@@ -142,7 +144,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr(),
-		Handler:           handler.NewRouter(log, health, catalogAPI, adminAPI, handler.NewDocs(openapi.Files)),
+		Handler:           wrap(handler.NewRouter(log, health, catalogAPI, adminAPI, handler.NewDocs(openapi.Files))),
 		ReadTimeout:       cfg.HTTP.ReadTimeout,
 		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
 		WriteTimeout:      cfg.HTTP.WriteTimeout,
