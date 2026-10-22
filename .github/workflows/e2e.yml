@@ -39,16 +39,21 @@ jobs:
           go-version-file: services/catalog/go.mod
           cache-dependency-path: services/catalog/go.sum
 
+      # o build das 6 imagens enche o disco do runner (e aí o Redpanda e o pull do k6 falham). Apagar os
+      # SDKs que o job não usa leva ~4 min, então roda em segundo plano, junto com o build. (O
+      # "docker builder prune" travou no runner, por isso não é usado.)
+      - name: Libera espaço em segundo plano
+        run: |
+          sudo nohup rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL \
+            > /dev/null 2>&1 &
+
       - name: Constrói as imagens
         run: docker compose build
 
-      # o cache de build das 6 imagens enche o disco do runner (e aí o Redpanda e o pull do k6 falham);
-      # as imagens já estão prontas, o cache não serve mais para nada aqui
-      - name: Limpa o cache de build
-        run: docker builder prune -af && df -h /
-
       - name: Sobe o ambiente
-        run: docker compose up -d --wait --wait-timeout 600
+        run: |
+          df -h /
+          docker compose up -d --wait --wait-timeout 600
 
       - name: Popula o catálogo
         run: docker compose run --rm catalog-seed
