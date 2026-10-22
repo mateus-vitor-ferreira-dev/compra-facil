@@ -91,20 +91,37 @@ docker compose down         # para tudo (-v também apaga os dados)
 | Componente | Acesso pelo host | Uso |
 |---|---|---|
 | PostgreSQL 17 | `localhost:55432` | um banco por serviço: `catalog`, `orders`, `inventory`, `payments`, `notifications` (usuário = nome do banco, senha `compra-facil`) |
-| Redis 8 | `localhost:6379` | cache do catálogo |
+| Redis 8 | `localhost:6379` (`REDIS_PORT`) | cache do catálogo |
 | Redpanda (Kafka) | `localhost:19092` (dentro do compose: `redpanda:9092`) | eventos da SAGA e do catálogo |
 | Redpanda Console | http://localhost:8080 | inspecionar tópicos e mensagens |
 | Mailpit | SMTP `localhost:1025` · UI http://localhost:8025 | e-mails do `notifications` |
 
-E os serviços da aplicação (todos com `/health`, `/ready` e, os que têm API pública, o contrato em `/docs`):
+Os serviços da aplicação **só entram pelo gateway** (Traefik, `http://localhost`), cada um com o seu
+prefixo. O Swagger de cada um abre pelo gateway:
 
-| Serviço | Stack | Porta | Docs |
+| Serviço | Stack | Pelo gateway | Docs |
 |---|---|---|---|
-| `catalog` | Go + Gin | `8001` (gRPC `9001`) | http://localhost:8001/docs |
-| `orders` | ASP.NET Core | `8002` | http://localhost:8002/docs |
-| `inventory` | ASP.NET Core | `8003` | http://localhost:8003/docs |
-| `payments` | ASP.NET Core | `8004` | http://localhost:8004/docs |
-| `notifications` | ASP.NET Core | `8005` | — (só consome eventos) |
+| `catalog` | Go + Gin | `http://localhost/catalog` | http://localhost/catalog/docs |
+| `orders` | ASP.NET Core | `http://localhost/orders` | http://localhost/orders/docs |
+| `inventory` | ASP.NET Core | `http://localhost/inventory` | http://localhost/inventory/docs |
+| `payments` | ASP.NET Core | `http://localhost/payments` | http://localhost/payments/docs |
+| `notifications` | ASP.NET Core | — (só consome eventos) | — |
+| Dashboard do Traefik | | http://127.0.0.1:8090/dashboard/ | |
+
+Para depurar um serviço direto (portas 8001–8005, gRPC 9001): `task up:debug`.
+
+### Para quem consome as APIs (front)
+
+- Base: `http://localhost/<serviço>/v1/...` (ex.: `POST http://localhost/orders/v1/orders`). Contratos em
+  [`contracts/openapi`](contracts/openapi).
+- **CORS** liberado no gateway para as origens de `CORS_ALLOWED_ORIGINS` (padrão: `http://localhost:5173`
+  e `http://localhost:3000`). Para o domínio do deploy: `CORS_ALLOWED_ORIGINS=https://meu-front.dev,...`.
+  Headers que o front pode ler: `Location`, `ETag`, `X-Request-ID`, `Retry-After`, `X-Cache`.
+- Erros sempre em `application/problem+json` (com `request_id`); o catálogo tem rate limit por IP
+  (`429` com `Retry-After`).
+- Compra: `POST /orders/v1/orders` (header `Idempotency-Key`) responde `202` com o pedido `pending`;
+  consulte `GET /orders/v1/orders/{id}` até `confirmed` ou `cancelled` (`cancellation_reason`).
+  Fluxo completo: [`docs/arquitetura/saga.md`](docs/arquitetura/saga.md).
 
 Os serviços .NET seguem um template comum ([`libs/dotnet/README.md`](libs/dotnet/README.md)).
 

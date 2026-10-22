@@ -23,6 +23,7 @@ func NewRouter(log *slog.Logger, health *Health, registrars ...Registrar) *gin.E
 
 	r.GET("/health", health.Live)
 	r.GET("/ready", health.Ready)
+	r.GET("/problems/:status", GatewayProblem)
 	for _, reg := range registrars {
 		reg.Register(r)
 	}

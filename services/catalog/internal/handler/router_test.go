@@ -121,3 +121,18 @@ func TestNoRoute(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	assert.Equal(t, "/nao-existe", decode(t, w)["instance"])
 }
+
+func TestGatewayProblem(t *testing.T) {
+	r := NewRouter(slog.New(slog.DiscardHandler), NewHealth())
+
+	w := do(t, r, http.MethodGet, "/problems/429", nil)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+	assert.Equal(t, "application/problem+json", w.Header().Get("Content-Type"))
+	assert.Contains(t, w.Body.String(), `"title":"Muitas requisições"`)
+	assert.Equal(t, "1", w.Header().Get("Retry-After"))
+	assert.NotContains(t, w.Body.String(), `"instance"`)
+
+	for _, path := range []string{"/problems/200", "/problems/418", "/problems/abc"} {
+		assert.Equal(t, http.StatusNotFound, do(t, r, http.MethodGet, path, nil).Code, path)
+	}
+}
