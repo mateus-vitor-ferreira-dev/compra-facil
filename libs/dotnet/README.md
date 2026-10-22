@@ -5,7 +5,7 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
 
 | Projeto | O que é |
 |---|---|
-| `CompraFacil.BuildingBlocks` | Padrões HTTP e de dados usados por todos (abaixo). Mensageria (outbox, Kafka, inbox) entra na #73. |
+| `CompraFacil.BuildingBlocks` | Padrões HTTP, dados, mensageria (outbox, Kafka, inbox) e OpenTelemetry usados por todos (abaixo). |
 | `CompraFacil.BuildingBlocks.Testing` | Postgres real via Testcontainers e o smoke test comum, herdado pelos serviços. |
 | `CompraFacil.BuildingBlocks.Tests` | Testes da própria lib. |
 
@@ -25,6 +25,43 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
   O serviço implementa o contrato; não há OpenAPI gerado do código. Contrato ausente = falha na subida.
 - **Postgres** (`AddPostgres<TContext>`): EF Core + Npgsql com nomes em `snake_case`, check no `/ready`
   e migrations aplicadas na subida (`Database:MigrateOnStart`, padrão `true`).
+- **OpenTelemetry**: traces (HTTP de entrada e saída, Npgsql, Kafka) e métricas (ASP.NET, runtime,
+  Npgsql). Exporta por OTLP quando `OTEL_EXPORTER_OTLP_ENDPOINT` está definido.
+
+## Mensageria (`AddMessaging<TContext>`)
+
+Mesmo desenho do catalog (Go), para os eventos de `contracts/asyncapi`:
+
+```csharp
+// Infrastructure/DependencyInjection.cs
+builder.AddMessaging<OrdersDbContext>("orders", m => m
+    .Produces("orders.order.v1")                                                  // tópicos de que é dono
+    .Handle<PaymentApproved, ConfirmOrder>("payments.payment.v1", "PaymentApproved")); // o que consome
+
+// num caso de uso: o evento vai no mesmo SaveChanges da escrita
+outbox.Add("orders.order.v1", order.Id.ToString(), "OrderPlaced", new OrderPlaced(...));
+await db.SaveChangesAsync(ct);
+```
+
+- **Outbox** (`IOutbox`): o evento entra no change tracker e é gravado na transação da escrita. O DbContext
+  chama `modelBuilder.AddMessagingTables()` (tabelas `outbox` e `inbox`, migration em cada serviço).
+- **Envelope** igual ao contrato: `event_id` (UUIDv7), `correlation_id` (o `X-Request-ID` da requisição ou
+  o do evento que está sendo tratado), `causation_id` (o `event_id` que causou este), `producer`, `data`
+  em `snake_case`. O `traceparent` vai nos headers do Kafka.
+- **Relay** (`BackgroundService`): lê o outbox em ordem, publica com o producer idempotente
+  (Confluent.Kafka, acks=all) e apaga o que o broker confirmou. Advisory lock: uma réplica publica por vez.
+  Kafka fora: backoff e os eventos esperam; o `/ready` não depende do Kafka. Cria os tópicos do serviço com
+  a configuração do contrato (3 partições, 7 dias).
+- **Consumer** (group = nome do serviço): `IHandleEvent<TData>` roda na mesma transação que grava o
+  `event_id` no **inbox**; o offset só é confirmado depois. Evento repetido é ignorado, `event_type` sem
+  handler é pulado, mensagem que não é envelope é registrada e pulada. Handler que falha segura a
+  partição e tenta de novo com backoff (retries limitados e dead letter topic: #80).
+- Configuração na seção `Kafka` (`Kafka:BootstrapServers`, `PollInterval`, `PublishTimeout`, `MaxBackoff`,
+  `BatchSize`, `Enabled`). No compose: `Kafka__BootstrapServers=redpanda:9092`.
+- Entrega **at-least-once** de ponta a ponta: o inbox é o que torna o efeito exatamente uma vez.
+
+Nova entidade ou tabela: `dotnet tool run dotnet-ef migrations add <Nome> --project
+services/<s>/src/<...>.Infrastructure --startup-project services/<s>/src/<...>.Api --output-dir Migrations`.
 
 ## Forma de um serviço
 

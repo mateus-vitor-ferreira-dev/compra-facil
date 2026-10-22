@@ -6,6 +6,8 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.Redpanda" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

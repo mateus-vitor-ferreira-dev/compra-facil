@@ -7,6 +7,10 @@ x-dotnet-service: &dotnet-service
   depends_on:
     postgres:
       condition: service_healthy
+    # Kafka é opcional: sem ele as escritas seguem e os eventos esperam no outbox
+    redpanda:
+      condition: service_started
+      required: false
 
 services:
   postgres:
@@ -147,6 +151,7 @@ services:
     image: compra-facil/orders:${VERSION:-dev}
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
     ports:
       - "${ORDERS_HTTP_PORT:-8002}:8002"
 
@@ -163,6 +168,7 @@ services:
     image: compra-facil/inventory:${VERSION:-dev}
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
     ports:
       - "${INVENTORY_HTTP_PORT:-8003}:8003"
 
@@ -179,6 +185,7 @@ services:
     image: compra-facil/payments:${VERSION:-dev}
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
     ports:
       - "${PAYMENTS_HTTP_PORT:-8004}:8004"
 
@@ -195,6 +202,7 @@ services:
     image: compra-facil/notifications:${VERSION:-dev}
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
     ports:
       - "${NOTIFICATIONS_HTTP_PORT:-8005}:8005"
 

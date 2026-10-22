@@ -19,7 +19,8 @@ COPY services/${SERVICE}/src services/${SERVICE}/src
 # não pode se chamar VERSION: ARG vira variável de ambiente no RUN, o MSBuild a lê como $(Version)
 # e o restore falha com "dev" (versão inválida)
 ARG APP_VERSION=dev
-RUN --mount=type=cache,target=/root/.nuget/packages \
+# sharing=locked: os 4 serviços buildam em paralelo e extrairiam o mesmo pacote ao mesmo tempo
+RUN --mount=type=cache,target=/root/.nuget/packages,sharing=locked \
     dotnet publish services/${SERVICE}/src/${PROJECT}/${PROJECT}.csproj \
       -c Release -o /app -p:InformationalVersion=${APP_VERSION} && \
     # nome fixo para o ENTRYPOINT/HEALTHCHECK, que não expandem build args
