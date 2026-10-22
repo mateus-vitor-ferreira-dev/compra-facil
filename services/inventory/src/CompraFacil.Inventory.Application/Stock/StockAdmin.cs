@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Inventory.Domain;
 using FluentValidation;
@@ -53,7 +54,7 @@ public sealed class AdjustStock(IStockRepository stock, IValidator<AdjustStockCo
 
         try
         {
-            return await Retry.OnConflictAsync(stock, async () =>
+            return await OptimisticConcurrency.RetryAsync(stock.Reset, async () =>
             {
                 var now = clock.GetUtcNow();
                 var item = (await stock.GetForUpdateAsync([command.ProductId], ct)).SingleOrDefault();

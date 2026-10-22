@@ -1,3 +1,4 @@
+using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.Inventory.Application.Stock;
 using CompraFacil.Inventory.Domain;
 using Microsoft.EntityFrameworkCore;
