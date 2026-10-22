@@ -1,5 +1,8 @@
 # Parecer — Proposta B: Extrair o Catálogo para um microsserviço
 
+**Mateus Vitor Ferreira** · Sistemas de Informação, UFLA<br>
+Manutenção e Evolução de Software · Prof. Heitor Augustus Xavier Costa
+
 **Repositório do projeto:** <https://github.com/mateus-vitor-ferreira-dev/compra-facil>
 
 **Recomendação:** adotar a **Proposta B**, com duas condições: extração **gradual**, com o catálogo novo
