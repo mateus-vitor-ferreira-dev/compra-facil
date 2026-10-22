@@ -154,6 +154,22 @@ public sealed class MessagingTests(MessagingFixture fx) : IClassFixture<Messagin
     }
 
     [Fact]
+    public async Task DataOutsideTheContract_IsSkipped_AndTheNextIsHandled()
+    {
+        var thingId = Guid.NewGuid();
+        // envelope válido, mas data sem o campo obrigatório "name": nunca vai ser processável
+        var poison = new EventEnvelope(Guid.CreateVersion7(), "ThingCreated", 1, DateTimeOffset.UtcNow, "outro", "req-poison", null,
+            JsonSerializer.SerializeToElement(new { thing_id = thingId }));
+        using var producer = new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = fx.Brokers }).Build();
+        await producer.ProduceAsync(MessagingFixture.Topic, new Message<string, string> { Key = thingId.ToString(), Value = poison.Serialize() }, Ct);
+
+        await PublishThingAsync(thingId, "req-after-poison"); // mesma chave: atrás do envenenado
+
+        await WaitUntilAsync(() => Task.FromResult(CallsFor(thingId) == 1), "evento depois do envenenado processado");
+        Assert.DoesNotContain(fx.Recorder.Calls, c => c.Context.EventId == poison.EventId);
+    }
+
+    [Fact]
     public async Task FailingHandler_IsRetried_AndRunsOnce()
     {
         var thingId = Guid.NewGuid();

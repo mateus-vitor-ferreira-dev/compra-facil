@@ -163,7 +163,7 @@ tasks:
       - go run ./cmd/seed {{.CLI_ARGS}}
 
   token:
-    desc: "Emite um JWT de operador para as rotas admin (ex.: task token -- -sub ana -ttl 1h)"
+    desc: "Emite um JWT de operador para as rotas admin (ex.: task token -- -sub ana -ttl 1h; outro serviço: -aud inventory)"
     dir: services/catalog
     silent: true
     cmds:

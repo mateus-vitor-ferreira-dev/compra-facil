@@ -8,6 +8,12 @@ using Microsoft.Extensions.Logging;
 
 namespace CompraFacil.BuildingBlocks.Messaging;
 
+/// <summary>
+/// Mensagem que nunca vai ser processada (data fora do contrato): tentar de novo só travaria a
+/// partição. O consumer registra o erro e segue; o dead letter topic entra na #80.
+/// </summary>
+public sealed class PoisonMessageException(string message, Exception inner) : Exception(message, inner);
+
 /// <summary>Metadados do evento sendo tratado.</summary>
 public sealed record EventContext(Guid EventId, string EventType, string Topic, string CorrelationId, DateTimeOffset OccurredAt);
 
@@ -86,6 +92,12 @@ public sealed partial class EventConsumer<TContext>(
                 try
                 {
                     await ProcessAsync(result, ct);
+                    consumer.Commit(result);
+                    break;
+                }
+                catch (PoisonMessageException e)
+                {
+                    LogPoisonMessage(logger, e, result.Topic, result.Partition.Value, result.Offset.Value);
                     consumer.Commit(result);
                     break;
                 }
@@ -173,6 +185,9 @@ public sealed partial class EventConsumer<TContext>(
 
     [LoggerMessage(Level = LogLevel.Error, Message = "handler falhou em {Topic}[{Partition}]@{Offset}; nova tentativa")]
     private static partial void LogHandlerFailed(ILogger logger, Exception e, string topic, int partition, long offset);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "mensagem fora do contrato em {Topic}[{Partition}]@{Offset}; ignorada")]
+    private static partial void LogPoisonMessage(ILogger logger, Exception e, string topic, int partition, long offset);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "mensagem sem envelope válido em {Topic}[{Partition}]@{Offset}; ignorada")]
     private static partial void LogInvalidMessage(ILogger logger, string topic, int partition, long offset);

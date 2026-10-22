@@ -217,7 +217,8 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     {
         var product = fx.Catalog.Add(new CatalogProduct("SKU-GET", "Produto", 1000));
         using var placed = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = product, quantity = 3 }));
-        var id = (await JsonOf(placed)).GetProperty("id").GetGuid();
+        var placedJson = await JsonOf(placed);
+        var id = placedJson.GetProperty("id").GetGuid();
 
         using var found = await _http.GetAsync(new Uri($"/v1/orders/{id}", UriKind.Relative), Ct);
         using var missing = await _http.GetAsync(new Uri($"/v1/orders/{Guid.NewGuid()}", UriKind.Relative), Ct);
@@ -226,6 +227,9 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         var json = await found.Content.ReadAsStringAsync(Ct);
         ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
         Assert.Equal(3000, JsonDocument.Parse(json).RootElement.GetProperty("total").GetProperty("amount_cents").GetInt64());
+        // datas na precisão do banco: a resposta da criação bate com a leitura
+        Assert.Equal(placedJson.GetProperty("created_at").GetString(),
+            JsonDocument.Parse(json).RootElement.GetProperty("created_at").GetString());
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
     }
 

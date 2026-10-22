@@ -23,7 +23,13 @@ public sealed record EventEnvelope(
 
     private static JsonSerializerOptions CreateJsonOptions()
     {
-        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            // data fora do contrato (campo obrigatório ausente ou nulo) falha na leitura, em vez de
+            // chegar ao handler com null: a mensagem é tratada como envenenada (EventConsumer)
+            RespectRequiredConstructorParameters = true,
+            RespectNullableAnnotations = true,
+        };
         ServiceDefaults.ConfigureJson(options);
         return options;
     }

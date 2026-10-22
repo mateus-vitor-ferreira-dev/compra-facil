@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace CompraFacil.BuildingBlocks.Messaging;
@@ -34,7 +36,18 @@ public sealed class MessagingBuilder
         Services.AddScoped<THandler>();
         Options.Handlers.Add(new HandlerRegistration(topic, eventType,
             static (sp, envelope, context, ct) =>
-                sp.GetRequiredService<THandler>().HandleAsync(envelope.DataAs<TData>(), context, ct)));
+            {
+                TData data;
+                try
+                {
+                    data = envelope.DataAs<TData>();
+                }
+                catch (JsonException e)
+                {
+                    throw new PoisonMessageException($"data de {envelope.EventType} fora do contrato: {e.Message}", e);
+                }
+                return sp.GetRequiredService<THandler>().HandleAsync(data, context, ct);
+            }));
         return this;
     }
 }
@@ -58,7 +71,7 @@ public static class MessagingExtensions
         configure(new MessagingBuilder(options, builder.Services));
 
         builder.Services.AddSingleton(options);
-        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<IOutbox, Outbox<TContext>>();
         if (options.Enabled)
         {
