@@ -5,7 +5,8 @@
 // O hit ratio sai do header X-Cache (HIT | MISS | BYPASS) que o catalog põe nas rotas públicas.
 //
 // Pré-requisitos: `task up` e `task seed`. Rodar: `task load:catalog-cache`
-// Variáveis: BASE_URL (http://localhost:8001), RATE (req/s no pico, 200), DURATION (2m).
+// Variáveis: BASE_URL (http://localhost:8001; pelo `task load:catalog-cache`, http://catalog:8001 na rede do
+// compose), RATE (req/s no pico, 200), DURATION (2m).
 //
 // Só a fase "peak" entra nos thresholds: o aquecimento existe para encher o cache, e os misses
 // dele não dizem nada sobre o regime da campanha.

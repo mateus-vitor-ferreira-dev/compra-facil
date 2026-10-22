@@ -24,6 +24,11 @@ tasks:
     cmds:
       - docker compose up -d --build --wait
 
+  up:debug:
+    desc: Como o up, mas publicando as portas dos serviços no host (8001-8005, gRPC 9001) para depuração
+    cmds:
+      - docker compose -f compose.yaml -f infra/compose/compose.debug.yaml up -d --build --wait
+
   down:
     desc: Para o ambiente (mantém os dados)
     cmds:
@@ -173,6 +178,4 @@ tasks:
   load:catalog-cache:
     desc: "k6: hit ratio do cache do catálogo, meta > 90% (ex.: task load:catalog-cache -- -e RATE=500)"
     cmds:
-      - >-
-        docker run --rm -i --network host -v ./load-tests/k6:/scripts:ro
-        grafana/k6:1.3.0 run {{.CLI_ARGS}} /scripts/catalog-cache.js
+      - docker compose run --rm k6 run {{.CLI_ARGS}} /scripts/catalog-cache.js
