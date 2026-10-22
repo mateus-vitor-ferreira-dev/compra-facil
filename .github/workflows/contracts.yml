@@ -46,7 +46,13 @@ jobs:
           buf format --diff --exit-code
       - name: buf breaking (contra a branch de destino do PR)
         if: github.event_name == 'pull_request'
-        run: buf breaking --against "../../.git#ref=origin/${{ github.base_ref }},subdir=contracts/proto"
+        # sem .proto no destino (ex.: o primeiro release para a main) não há o que quebrar
+        run: |
+          if git ls-tree -r --name-only "origin/${{ github.base_ref }}" -- . | grep -q '\.proto$'; then
+            buf breaking --against "../../.git#ref=origin/${{ github.base_ref }},subdir=contracts/proto"
+          else
+            echo "origin/${{ github.base_ref }} ainda não tem contratos gRPC: nada para comparar"
+          fi
       - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: services/catalog/go.mod
