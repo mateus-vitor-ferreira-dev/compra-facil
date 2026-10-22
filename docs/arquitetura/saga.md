@@ -109,8 +109,9 @@ sequenceDiagram
 | Efeito não se repete | Inbox por `event_id`; cobrança com Idempotency-Key; transições só a partir de `pending` |
 | Estoque não fica negativo | Reserva tudo-ou-nada com concorrência otimista + `CHECK` no banco |
 | Ordem por pedido | Chave da mensagem = `order_id` (mesma partição) |
-| Mensagem fora do contrato não trava a fila | Registrada como erro e pulada |
+| Mensagem fora do contrato não trava a fila | Vai direto para a DLT do serviço (`<serviço>.dlt`) |
+| Falha num pedido não para os outros | 3 tentativas no lugar; depois `<serviço>.retry-1..3` (5 s, 30 s, 2 min) e a DLT, com reprocessamento (ADR 0003) |
 | E-mail sai no máximo uma vez | Notificação reservada (`sending`) antes do envio; queda no meio não reenvia |
 
-Ainda não: pedido parado em `pending` por um serviço fora do ar indefinidamente (timeout da SAGA), retries
-limitados com dead letter topic (#80) e fallback do catálogo quando o gRPC cai (#81).
+Ainda não: pedido parado em `pending` por um serviço fora do ar indefinidamente ou por um evento parado na
+DLT (timeout da SAGA) e fallback do catálogo quando o gRPC cai (#81).

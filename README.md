@@ -158,6 +158,8 @@ task up         # / task down / task reset / task logs -- <serviço>
 task test       # go test + dotnet test em todos os serviços
 task lint       # golangci-lint, dotnet format --verify-no-changes, buf lint
 task seed       # popula o catálogo
+task dlt -- payments          # mensagens que esgotaram as tentativas (dead letter topic)
+task dlt:replay -- payments   # reprocessa depois de corrigir a causa (ADR 0003)
 ```
 
 `test` e `lint` descobrem sozinhos os módulos Go (`go.mod`) e as solutions .NET em `services/` e `libs/`.

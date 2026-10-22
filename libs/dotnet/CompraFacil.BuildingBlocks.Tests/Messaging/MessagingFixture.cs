@@ -90,6 +90,9 @@ public sealed class MessagingFixture : IAsyncLifetime
             ["Kafka:MaxBackoff"] = "00:00:00.500",
             ["Kafka:PublishTimeout"] = (publishTimeout ?? TimeSpan.FromSeconds(10)).ToString(),
             ["Kafka:Enabled"] = enabled.ToString(),
+            // dois níveis de retry curtos: falhando 3 vezes em cada estágio, vai para a DLT
+            ["Kafka:RetryDelays:0"] = "00:00:00.200",
+            ["Kafka:RetryDelays:1"] = "00:00:00.200",
         });
         builder.Services.AddSingleton<Recorder>();
         builder.AddPostgres<TestDb>();

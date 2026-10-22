@@ -14,5 +14,6 @@
     <!-- o contrato (fonte da verdade) vai junto do binário e é servido em /openapi e /docs -->
     <Content Include="$(RepoRoot)contracts/openapi/orders.v1.yaml" Link="openapi/orders.v1.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="$(RepoRoot)contracts/openapi/common/v1/common.yaml" Link="openapi/common/v1/common.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(RepoRoot)contracts/openapi/common/v1/dead-letters.yaml" Link="openapi/common/v1/dead-letters.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

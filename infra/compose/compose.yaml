@@ -260,6 +260,8 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud orders
+      Auth__AllowDevSecret: "true"
       # valida itens e preços no catalog (gRPC); catalog fora = 503 até a #81 (fallback no snapshot)
       Catalog__GrpcAddress: http://catalog:9001
 
@@ -300,6 +302,8 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud payments
+      Auth__AllowDevSecret: "true"
 
   notifications:
     <<: *dotnet-service
@@ -317,6 +321,8 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud notifications
+      Auth__AllowDevSecret: "true"
       # e-mails vão para o Mailpit (UI em http://localhost:8025)
       Smtp__Host: mailpit
       Smtp__Port: 1025

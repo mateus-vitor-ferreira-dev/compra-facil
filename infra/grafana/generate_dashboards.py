@@ -135,10 +135,16 @@ saga = dashboard(
               description="Quantas mensagens cada consumer group ainda não processou (lido do Redpanda pelo Collector)."),
         panel("timeseries", "Eventos consumidos por resultado", [(
             "sum by (result) (rate(compra_facil_messaging_consumed_total[$__rate_interval]))", "{{result}}")], 8, 15, 8, 8, unit="ops", stack=True,
-              description="processed, duplicate (inbox), skipped (sem handler), poison (fora do contrato) e error (handler falhou)."),
-        panel("stat", "Envenenados ou com erro", [(
-            'sum(increase(compra_facil_messaging_consumed_total{result=~"poison|error"}[$__range])) or vector(0)', "", "A", True)], 16, 15, 8, 4,
-              decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": BAD, "value": 1}]),
+              description="processed, duplicate (inbox), skipped (sem handler), error (cada tentativa que falhou), "
+                          "retried (foi para um tópico de retry) e dead_lettered (foi para a DLT; ADR 0003)."),
+        panel("stat", "Para a DLT", [(
+            'sum(increase(compra_facil_messaging_consumed_total{result="dead_lettered"}[$__range])) or vector(0)', "", "A", True)], 16, 15, 4, 4,
+              decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": BAD, "value": 1}],
+              description="Esgotaram as tentativas ou estão fora do contrato. Ver e reprocessar: task dlt -- <serviço>."),
+        panel("stat", "Para retry", [(
+            'sum(increase(compra_facil_messaging_consumed_total{result="retried"}[$__range])) or vector(0)', "", "A", True)], 20, 15, 4, 4,
+              decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 1}],
+              description="Falharam nas tentativas no lugar e foram para <serviço>.retry-N."),
         panel("stat", "E-mails enviados", [(
             'sum(increase(compra_facil_notifications_emails_total{result="Sent"}[$__range])) or vector(0)', "", "A", True)], 16, 19, 8, 4, decimals=0),
         panel("timeseries", "Tratamento de evento p95", [(
