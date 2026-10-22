@@ -97,10 +97,25 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
         Assert.Equal(HttpStatusCode.OK, docs.StatusCode);
         using var contract = await _http.GetAsync(new Uri($"/openapi/{ContractFile}", UriKind.Relative), Ct);
         using var common = await _http.GetAsync(new Uri("/openapi/common/v1/common.yaml", UriKind.Relative), Ct);
+        using var deadLetters = await _http.GetAsync(new Uri("/openapi/common/v1/dead-letters.yaml", UriKind.Relative), Ct);
         Assert.Equal(HttpStatusCode.OK, contract.StatusCode);
         Assert.Equal(HttpStatusCode.OK, common.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, deadLetters.StatusCode);
         var yaml = await contract.Content.ReadAsStringAsync(Ct);
         Assert.StartsWith("openapi: 3.1", yaml, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("GET", "/v1/admin/dead-letters")]
+    [InlineData("POST", "/v1/admin/dead-letters/replay")]
+    public async Task DeadLetters_RequireTheAdminToken(string method, string path)
+    {
+        using var request = new HttpRequestMessage(new HttpMethod(method), path);
+
+        using var response = await _http.SendAsync(request, Ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]

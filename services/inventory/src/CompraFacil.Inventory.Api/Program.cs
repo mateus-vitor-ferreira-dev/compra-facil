@@ -1,4 +1,5 @@
 using CompraFacil.BuildingBlocks.Data;
+using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Inventory.Application;
 using CompraFacil.Inventory.Infrastructure;
@@ -18,6 +19,7 @@ builder.AddInfrastructure();
 var app = builder.Build();
 app.UseServiceDefaults();
 app.MapControllers();
+app.MapDeadLetters(); // /v1/admin/dead-letters (ADR 0003)
 
 await app.MigrateDatabaseAsync<InventoryDbContext>();
 await app.RunAsync();

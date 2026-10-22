@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
-using Confluent.Kafka.Admin;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,10 +22,6 @@ public sealed partial class OutboxRelay<TContext>(
     ILogger<OutboxRelay<TContext>> logger) : BackgroundService
     where TContext : DbContext
 {
-    // configuração dos tópicos do contrato AsyncAPI (bindings kafka)
-    private const int TopicPartitions = 3;
-    private static readonly string s_retentionMs = TimeSpan.FromDays(7).TotalMilliseconds.ToString("F0", null);
-
     private readonly long _lockKey = LockKeyFor(options.ServiceName);
     private IProducer<string, string>? _producer;
     private bool _topicsReady;
@@ -150,21 +145,8 @@ public sealed partial class OutboxRelay<TContext>(
         {
             return;
         }
-        using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = options.BootstrapServers }).Build();
-        try
-        {
-            await admin.CreateTopicsAsync(options.ProducedTopics.Select(t => new TopicSpecification
-            {
-                Name = t,
-                NumPartitions = TopicPartitions,
-                ReplicationFactor = -1, // padrão do broker
-                Configs = new() { ["retention.ms"] = s_retentionMs, ["cleanup.policy"] = "delete" },
-            }), new CreateTopicsOptions { RequestTimeout = options.PublishTimeout });
-        }
-        catch (CreateTopicsException e) when (e.Results.All(r => r.Error.Code is ErrorCode.NoError or ErrorCode.TopicAlreadyExists))
-        {
-            // já existiam: ok
-        }
+        await KafkaTopics.EnsureAsync(options.BootstrapServers,
+            options.ProducedTopics.Select(t => (t, KafkaTopics.Retention)), options.PublishTimeout);
         _topicsReady = true;
     }
 

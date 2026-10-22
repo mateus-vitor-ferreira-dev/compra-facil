@@ -69,10 +69,25 @@ public static class MessagingExtensions
         var options = new MessagingOptions { ServiceName = serviceName };
         builder.Configuration.GetSection("Kafka").Bind(options);
         configure(new MessagingBuilder(options, builder.Services));
+        if (options.RetryDelays.Count == 0)
+        {
+            foreach (var delay in MessagingOptions.DefaultRetryDelays)
+            {
+                options.RetryDelays.Add(delay);
+            }
+        }
+        // o consumer de um nível de retry espera o atraso sem chamar Consume(): passando do
+        // max.poll.interval.ms (5 min), o Kafka o tiraria do group
+        if (options.RetryDelays.Any(d => d <= TimeSpan.Zero || d >= TimeSpan.FromMinutes(5)) || options.InPlaceAttempts < 1)
+        {
+            throw new InvalidOperationException("Kafka:RetryDelays precisa de atrasos entre 0 e 5 min, e Kafka:InPlaceAttempts de pelo menos 1");
+        }
 
         builder.Services.AddSingleton(options);
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<IOutbox, Outbox<TContext>>();
+        builder.Services.AddSingleton<FailureProducer>();
+        builder.Services.AddSingleton<DeadLetterStore>();
         if (options.Enabled)
         {
             if (options.ProducedTopics.Count > 0)

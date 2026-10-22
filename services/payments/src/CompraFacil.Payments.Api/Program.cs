@@ -1,4 +1,5 @@
 using CompraFacil.BuildingBlocks.Data;
+using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Payments.Application;
 using CompraFacil.Payments.Infrastructure;
@@ -11,12 +12,14 @@ if (Healthcheck.Requested(args))
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults(new ServiceInfo("payments", ContractFile: "payments.v1.yaml"));
+builder.AddAdminAuth(audience: "payments"); // /v1/admin/*: o mesmo JWT do catalog (task token -- -aud payments)
 builder.Services.AddApplication();
 builder.AddInfrastructure();
 
 var app = builder.Build();
 app.UseServiceDefaults();
 app.MapControllers();
+app.MapDeadLetters(); // /v1/admin/dead-letters (ADR 0003)
 
 await app.MigrateDatabaseAsync<PaymentsDbContext>();
 await app.RunAsync();

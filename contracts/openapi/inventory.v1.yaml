@@ -23,7 +23,7 @@ tags:
   - name: reservations
     description: Reservas feitas pela SAGA (somente leitura).
   - name: admin
-    description: Ajustes de estoque (role `admin`).
+    description: Ajustes de estoque e dead letter topic (role `admin`).
 
 paths:
   /v1/stock:
@@ -149,6 +149,63 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/dead-letters:
+    get:
+      tags: [admin]
+      operationId: listDeadLetters
+      summary: Mensagens pendentes na dead letter topic
+      description: |
+        Mensagens em `inventory.dlt` que chegaram depois do último reprocessamento: as que falharam em
+        todas as tentativas (no lugar e nos tópicos de retry) e as envenenadas (fora do contrato),
+        que vão direto para lá. Ver docs/adr/0003-retries-e-dead-letter-topics.md.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/dead-letters.yaml#/components/parameters/DeadLetterLimit"
+      responses:
+        "200":
+          description: Mensagens pendentes.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterList"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
+  /v1/admin/dead-letters/replay:
+    post:
+      tags: [admin]
+      operationId: replayDeadLetters
+      summary: Reprocessa as mensagens pendentes na dead letter topic
+      description: |
+        Devolve as pendentes para `inventory.retry-1`: só o inventory as consome de novo. Falhando outra
+        vez, voltam para a DLT. Evento já processado não repete o efeito (inbox). Use depois de
+        corrigir a causa.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Quantas mensagens foram devolvidas.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterReplay"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
 
 components:
   parameters:

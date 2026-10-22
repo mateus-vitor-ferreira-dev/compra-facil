@@ -34,6 +34,10 @@ public sealed class MessagingTests(MessagingFixture fx) : IClassFixture<Messagin
 
     private int CallsFor(Guid thingId) => fx.Recorder.Calls.Count(c => c.Data.ThingId == thingId);
 
+    private DeadLetterStore DeadLetters => fx.Host.Services.GetRequiredService<DeadLetterStore>();
+
+    private Task<IReadOnlyList<DeadLetter>> PendingDeadLettersAsync() => DeadLetters.PendingAsync(500, Ct);
+
     private static async Task WaitUntilAsync(Func<Task<bool>> condition, string because)
     {
         using var timeout = new CancellationTokenSource(s_timeout);
@@ -160,6 +164,8 @@ public sealed class MessagingTests(MessagingFixture fx) : IClassFixture<Messagin
         await PublishThingAsync(thingId, "req-after-invalid");
 
         await WaitUntilAsync(() => Task.FromResult(CallsFor(thingId) == 1), "evento depois do inválido processado");
+        var dead = await PendingDeadLettersAsync();
+        Assert.Contains(dead, d => d.EventId is null && d.Topic == MessagingFixture.Topic && d.Error!.Contains("envelope", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -176,6 +182,10 @@ public sealed class MessagingTests(MessagingFixture fx) : IClassFixture<Messagin
 
         await WaitUntilAsync(() => Task.FromResult(CallsFor(thingId) == 1), "evento depois do envenenado processado");
         Assert.DoesNotContain(fx.Recorder.Calls, c => c.Context.EventId == poison.EventId);
+        // direto para a DLT, sem passar pelos tópicos de retry
+        var dead = Assert.Single(await PendingDeadLettersAsync(), d => d.EventId == poison.EventId);
+        Assert.Equal(1, dead.Attempts);
+        Assert.StartsWith(nameof(PoisonMessageException), dead.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -188,6 +198,58 @@ public sealed class MessagingTests(MessagingFixture fx) : IClassFixture<Messagin
 
         await WaitUntilAsync(() => Task.FromResult(CallsFor(thingId) == 1), "processado depois das falhas");
         Assert.Equal(0, fx.Recorder.FailuresLeft[thingId]);
+        Assert.Equal(1, await InDbAsync(db => db.Set<SeenThing>().CountAsync(s => s.Id == thingId, Ct)));
+    }
+
+    [Fact]
+    public async Task HandlerFailingPastInPlaceAttempts_GoesThroughRetryTopic_WithoutBlockingThePartition()
+    {
+        var failing = Guid.NewGuid();
+        fx.Recorder.FailuresLeft[failing] = 3; // esgota as tentativas no lugar; a do retry-1 passa
+        var key = failing.ToString();
+
+        var eventId = await PublishThingAsync(failing, "req-retry-topic");
+        var next = Guid.NewGuid();
+        await PublishThingAsync(next, "req-behind", key: key); // mesma partição, atrás do que falha
+
+        await WaitUntilAsync(() => Task.FromResult(CallsFor(next) == 1), "o seguinte não fica preso atrás do que falha");
+        await WaitUntilAsync(() => Task.FromResult(CallsFor(failing) == 1), "processado no tópico de retry");
+        var (_, context) = fx.Recorder.Calls.Single(c => c.Data.ThingId == failing);
+        Assert.Equal(eventId, context.EventId);
+        Assert.Equal(MessagingFixture.Topic, context.Topic); // o handler e o inbox veem o tópico de origem
+        Assert.Equal(1, await InDbAsync(db => db.Set<SeenThing>().CountAsync(s => s.Id == failing, Ct)));
+        Assert.DoesNotContain(await PendingDeadLettersAsync(), d => d.EventId == eventId);
+    }
+
+    [Fact]
+    public async Task HandlerThatKeepsFailing_EndsInTheDlt_AndReplayProcessesItOnce()
+    {
+        var thingId = Guid.NewGuid();
+        fx.Recorder.FailuresLeft[thingId] = 9; // 3 no lugar + 3 no retry-1 + 3 no retry-2
+
+        var eventId = await PublishThingAsync(thingId, "req-dlt");
+
+        DeadLetter? dead = null;
+        await WaitUntilAsync(async () => (dead = (await PendingDeadLettersAsync()).SingleOrDefault(d => d.EventId == eventId)) is not null,
+            "mensagem na DLT");
+        Assert.Equal("ThingCreated", dead!.EventType);
+        Assert.Equal(MessagingFixture.Topic, dead.Topic);
+        Assert.NotNull(dead.Offset);
+        Assert.Equal(3, dead.Attempts); // origem, retry-1, retry-2
+        Assert.Contains("falha simulada", dead.Error, StringComparison.Ordinal);
+        Assert.NotNull(dead.FailedAt);
+        Assert.Equal(0, CallsFor(thingId));
+
+        // corrigida a causa (as falhas acabaram), o reprocessamento manda de volta e processa uma vez
+        Assert.True(await DeadLetters.ReplayAsync(Ct) >= 1);
+        await WaitUntilAsync(() => Task.FromResult(CallsFor(thingId) == 1), "processado depois do reprocessamento");
+        Assert.DoesNotContain(await PendingDeadLettersAsync(), d => d.EventId == eventId);
+
+        // reprocessar de novo não traz o evento de volta (as envenenadas dos outros testes, sim: voltam à DLT)
+        await DeadLetters.ReplayAsync(Ct);
+        await Task.Delay(500, Ct);
+        Assert.Equal(1, CallsFor(thingId));
+        Assert.Equal(1, await InDbAsync(db => db.Set<InboxMessage>().CountAsync(m => m.EventId == eventId, Ct)));
         Assert.Equal(1, await InDbAsync(db => db.Set<SeenThing>().CountAsync(s => s.Id == thingId, Ct)));
     }
 

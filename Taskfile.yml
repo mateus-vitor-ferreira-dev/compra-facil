@@ -174,6 +174,40 @@ tasks:
     cmds:
       - go run ./cmd/token {{.CLI_ARGS}}
 
+  # ---------- dead letter topic (ADR 0003) ----------
+  dlt:
+    desc: "Mensagens pendentes na DLT de um serviço .NET (ex.: task dlt -- payments)"
+    silent: true
+    cmds:
+      - task: _dlt-call
+        vars: { METHOD: GET, ROUTE: /v1/admin/dead-letters, SERVICE: "{{.CLI_ARGS}}" }
+
+  dlt:replay:
+    desc: "Reprocessa a DLT de um serviço .NET depois de corrigir a causa (ex.: task dlt:replay -- payments)"
+    silent: true
+    cmds:
+      - task: _dlt-call
+        vars: { METHOD: POST, ROUTE: /v1/admin/dead-letters/replay, SERVICE: "{{.CLI_ARGS}}" }
+
+  _dlt-call:
+    internal: true
+    silent: true
+    requires:
+      vars: [SERVICE]
+    vars:
+      # porta de cada serviço na rede do compose (o notifications não passa pelo gateway)
+      PORT: '{{get (dict "orders" "8002" "inventory" "8003" "payments" "8004" "notifications" "8005") .SERVICE}}'
+      TOKEN:
+        sh: cd services/catalog && go run ./cmd/token -aud {{.SERVICE}} -ttl 5m
+    preconditions:
+      - sh: '[ -n "{{.PORT}}" ]'
+        msg: "serviço desconhecido: '{{.SERVICE}}' (orders, inventory, payments ou notifications)"
+    cmds:
+      - >-
+        docker run --rm --network comprafacil_default curlimages/curl:8.11.1 -sS -X {{.METHOD}}
+        -H "Authorization: Bearer {{.TOKEN}}" http://{{.SERVICE}}:{{.PORT}}{{.ROUTE}}
+      - echo
+
   # ---------- carga ----------
   load:catalog-cache:
     desc: "k6: hit ratio do cache do catálogo, meta > 90% (ex.: task load:catalog-cache -- -e RATE=500)"
