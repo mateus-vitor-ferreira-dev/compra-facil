@@ -66,6 +66,8 @@ func mapError(err error) error {
 	switch {
 	case err == nil:
 		return nil
+	case errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrVersionConflict):
+		return err // já é erro de domínio (devolvido de dentro de uma transação)
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return domain.ErrNotFound
 	case errors.Is(err, gorm.ErrDuplicatedKey):

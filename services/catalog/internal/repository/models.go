@@ -47,6 +47,7 @@ type campaignRecord struct {
 	DiscountPercent int
 	StartsAt        time.Time
 	EndsAt          time.Time
+	Version         int
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	// preenchido só nas leituras (subquery); nunca gravado
@@ -140,7 +141,7 @@ func (r categoryRecord) toDomain() domain.Category {
 func (r campaignRecord) toDomain() domain.Campaign {
 	return domain.Campaign{
 		ID: r.ID, Slug: r.Slug, Name: r.Name, DiscountPercent: r.DiscountPercent,
-		StartsAt: r.StartsAt, EndsAt: r.EndsAt, ProductCount: r.ProductCount,
+		StartsAt: r.StartsAt, EndsAt: r.EndsAt, ProductCount: r.ProductCount, Version: r.Version,
 		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }

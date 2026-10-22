@@ -4,6 +4,10 @@
 //	go run ./cmd/seed -reset -products 50000
 //
 // É determinístico para o mesmo -seed: rodadas de k6 comparáveis usam os mesmos dados.
+//
+// Grava também um ProductCreated por produto e um CampaignCreated por campanha no outbox, na mesma
+// transação: o relay do catalog publica e os outros serviços (inventory, orders) passam a conhecer
+// a massa. O -reset não publica remoções: quem consome guarda os dados antigos até o reset dele.
 package main
 
 import (
@@ -21,6 +25,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/events"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/migrations"
 )
 
@@ -65,12 +71,12 @@ func run(ctx context.Context, opts options) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("seed: %d categorias, %d produtos, %d campanhas (%d vínculos) em %s\n",
-		stats.categories, stats.products, stats.campaigns, stats.links, time.Since(start).Round(time.Millisecond))
+	fmt.Printf("seed: %d categorias, %d produtos, %d campanhas (%d vínculos), %d eventos no outbox em %s\n",
+		stats.categories, stats.products, stats.campaigns, stats.links, stats.events, time.Since(start).Round(time.Millisecond))
 	return nil
 }
 
-type stats struct{ categories, products, campaigns, links int }
+type stats struct{ categories, products, campaigns, links, events int }
 
 func seed(ctx context.Context, conn *pgx.Conn, opts options, now time.Time) (stats, error) {
 	var st stats
@@ -101,10 +107,24 @@ func seed(ctx context.Context, conn *pgx.Conn, opts options, now time.Time) (sta
 	}
 	st.products = len(products)
 
-	st.campaigns, st.links, err = insertCampaigns(ctx, tx, rng, products, now)
+	campaigns, err := insertCampaigns(ctx, tx, rng, products, now)
 	if err != nil {
 		return st, err
 	}
+	st.campaigns = len(campaigns)
+	for _, c := range campaigns {
+		st.links += len(c.productIDs)
+	}
+
+	msgs, err := seedEvents(ctx, products, campaigns, now)
+	if err != nil {
+		return st, err
+	}
+	if err := copyOutbox(ctx, tx, msgs); err != nil {
+		return st, err
+	}
+	st.events = len(msgs)
+
 	if err := tx.Commit(ctx); err != nil {
 		return st, fmt.Errorf("commit: %w", err)
 	}
@@ -118,7 +138,8 @@ func seed(ctx context.Context, conn *pgx.Conn, opts options, now time.Time) (sta
 
 func prepare(ctx context.Context, tx pgx.Tx, reset bool) error {
 	if reset {
-		if _, err := tx.Exec(ctx, "TRUNCATE campaign_products, campaigns, products, categories CASCADE"); err != nil {
+		// o outbox junto: eventos ainda não publicados seriam de produtos que deixam de existir
+		if _, err := tx.Exec(ctx, "TRUNCATE outbox, campaign_products, campaigns, products, categories CASCADE"); err != nil {
 			return fmt.Errorf("limpando catálogo: %w", err)
 		}
 		return nil
@@ -173,6 +194,14 @@ type seedProduct struct {
 	createdAt  time.Time
 }
 
+// domain é o produto como o repositório o devolveria logo após o Create (versão 1).
+func (p seedProduct) domain() domain.Product {
+	return domain.Product{
+		ID: p.id, SKU: p.sku, Name: p.name, CategoryID: p.categoryID, PriceCents: p.price, Currency: "BRL",
+		Status: domain.ProductStatus(p.status), Version: 1, CreatedAt: p.createdAt, UpdatedAt: p.createdAt,
+	}
+}
+
 func (p seedProduct) row() []any {
 	return []any{p.id, p.sku, p.name, p.desc, p.categoryID, p.imageURL, p.price, "BRL", p.status, p.createdAt, p.createdAt}
 }
@@ -210,9 +239,14 @@ func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time) []
 	return out
 }
 
+type seededCampaign struct {
+	domain.Campaign
+	productIDs []uuid.UUID
+}
+
 // insertCampaigns cria as campanhas e distribui produtos ativos sem que um produto fique em duas
 // campanhas que se cruzam no tempo (a regra do CampaignService).
-func insertCampaigns(ctx context.Context, tx pgx.Tx, rng *rand.Rand, products []seedProduct, now time.Time) (int, int, error) {
+func insertCampaigns(ctx context.Context, tx pgx.Tx, rng *rand.Rand, products []seedProduct, now time.Time) ([]seededCampaign, error) {
 	active := make([]int, 0, len(products))
 	for i, p := range products {
 		if p.status == "active" {
@@ -224,6 +258,7 @@ func insertCampaigns(ctx context.Context, tx pgx.Tx, rng *rand.Rand, products []
 	type period struct{ start, end time.Time }
 	taken := map[int][]period{} // produto -> períodos em que já está em campanha
 	var links [][]any
+	out := make([]seededCampaign, 0, len(seedCampaigns))
 
 	for _, sc := range seedCampaigns {
 		id := newUUID(rng)
@@ -232,8 +267,11 @@ func insertCampaigns(ctx context.Context, tx pgx.Tx, rng *rand.Rand, products []
 		if _, err := tx.Exec(ctx,
 			"INSERT INTO campaigns (id, slug, name, discount_percent, starts_at, ends_at) VALUES ($1, $2, $3, $4, $5, $6)",
 			id, sc.slug, sc.name, sc.discount, start, end); err != nil {
-			return 0, 0, fmt.Errorf("campanha %s: %w", sc.slug, err)
+			return nil, fmt.Errorf("campanha %s: %w", sc.slug, err)
 		}
+		camp := seededCampaign{Campaign: domain.Campaign{
+			ID: id, Slug: sc.slug, Name: sc.name, DiscountPercent: sc.discount, StartsAt: start, EndsAt: end, Version: 1,
+		}}
 
 		eligible := active
 		if sc.rootSlug != "" {
@@ -261,15 +299,52 @@ func insertCampaigns(ctx context.Context, tx pgx.Tx, rng *rand.Rand, products []
 			}
 			taken[idx] = append(taken[idx], period{start, end})
 			links = append(links, []any{id, products[idx].id})
+			camp.productIDs = append(camp.productIDs, products[idx].id)
 			want--
 		}
+		out = append(out, camp)
 	}
 
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"campaign_products"}, []string{"campaign_id", "product_id"},
 		pgx.CopyFromRows(links)); err != nil {
-		return 0, 0, fmt.Errorf("copiando vínculos de campanha: %w", err)
+		return nil, fmt.Errorf("copiando vínculos de campanha: %w", err)
 	}
-	return len(seedCampaigns), len(links), nil
+	return out, nil
+}
+
+// seedEvents monta os eventos da carga: produtos antes das campanhas, que os referenciam.
+// Todos levam o mesmo correlation_id (um fluxo só: esta rodada do seed).
+func seedEvents(ctx context.Context, products []seedProduct, campaigns []seededCampaign, now time.Time) ([]events.Message, error) {
+	ctx = events.WithCorrelationID(ctx, "seed-"+uuid.NewString())
+	msgs := make([]events.Message, 0, len(products)+len(campaigns))
+	for _, p := range products {
+		m, err := events.ProductCreated(ctx, p.domain(), now)
+		if err != nil {
+			return nil, fmt.Errorf("evento do produto %s: %w", p.sku, err)
+		}
+		msgs = append(msgs, m)
+	}
+	for _, c := range campaigns {
+		m, err := events.CampaignCreated(ctx, c.Campaign, c.productIDs, now)
+		if err != nil {
+			return nil, fmt.Errorf("evento da campanha %s: %w", c.Slug, err)
+		}
+		msgs = append(msgs, m)
+	}
+	return msgs, nil
+}
+
+func copyOutbox(ctx context.Context, tx pgx.Tx, msgs []events.Message) error {
+	_, err := tx.CopyFrom(ctx, pgx.Identifier{"outbox"},
+		[]string{"event_id", "topic", "message_key", "event_type", "payload", "headers"},
+		pgx.CopyFromSlice(len(msgs), func(i int) ([]any, error) {
+			m := msgs[i]
+			return []any{m.EventID, m.Topic, m.Key, m.Type, string(m.Payload), "{}"}, nil
+		}))
+	if err != nil {
+		return fmt.Errorf("copiando eventos para o outbox: %w", err)
+	}
+	return nil
 }
 
 // newUUID tira o UUID (v4) do gerador semeado: mesma semente, mesmos ids entre rodadas.

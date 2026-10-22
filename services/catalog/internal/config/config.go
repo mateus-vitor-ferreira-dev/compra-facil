@@ -18,13 +18,14 @@ import (
 const envPrefix = "CATALOG"
 
 type Config struct {
-	App   AppConfig   `mapstructure:"app"`
-	HTTP  HTTPConfig  `mapstructure:"http"`
-	GRPC  GRPCConfig  `mapstructure:"grpc"`
-	Log   LogConfig   `mapstructure:"log"`
-	DB    DBConfig    `mapstructure:"db"`
-	Auth  AuthConfig  `mapstructure:"auth"`
-	Cache CacheConfig `mapstructure:"cache"`
+	App    AppConfig    `mapstructure:"app"`
+	HTTP   HTTPConfig   `mapstructure:"http"`
+	GRPC   GRPCConfig   `mapstructure:"grpc"`
+	Log    LogConfig    `mapstructure:"log"`
+	DB     DBConfig     `mapstructure:"db"`
+	Auth   AuthConfig   `mapstructure:"auth"`
+	Cache  CacheConfig  `mapstructure:"cache"`
+	Events EventsConfig `mapstructure:"events"`
 }
 
 type AppConfig struct {
@@ -83,6 +84,18 @@ type RedisConfig struct {
 	Password string        `mapstructure:"password"`
 	DB       int           `mapstructure:"db"`
 	Timeout  time.Duration `mapstructure:"timeout"`
+}
+
+// EventsConfig controla o relay que publica o outbox no Kafka. Os eventos são gravados no outbox
+// sempre; com o relay desligado (ou o Kafka fora), eles só esperam lá.
+type EventsConfig struct {
+	RelayEnabled bool          `mapstructure:"relay_enabled"`
+	Brokers      []string      `mapstructure:"brokers"`
+	PollInterval time.Duration `mapstructure:"poll_interval"`
+	BatchSize    int           `mapstructure:"batch_size"`
+	// PublishTimeout é o máximo para o broker confirmar um lote.
+	PublishTimeout time.Duration `mapstructure:"publish_timeout"`
+	MaxBackoff     time.Duration `mapstructure:"max_backoff"`
 }
 
 type LogConfig struct {
@@ -149,6 +162,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("cache.redis.password", "")
 	v.SetDefault("cache.redis.db", 0)
 	v.SetDefault("cache.redis.timeout", "100ms")
+	v.SetDefault("events.relay_enabled", true)
+	v.SetDefault("events.brokers", []string{"localhost:19092"})
+	v.SetDefault("events.poll_interval", "500ms")
+	v.SetDefault("events.batch_size", 100)
+	v.SetDefault("events.publish_timeout", "10s")
+	v.SetDefault("events.max_backoff", "10s")
 }
 
 func (c Config) validate() error {
@@ -173,6 +192,17 @@ func (c Config) validate() error {
 		}
 		if c.Cache.ProductTTL <= 0 || c.Cache.ListTTL <= 0 || c.Cache.Redis.Timeout <= 0 {
 			return errors.New("cache.product_ttl, cache.list_ttl e cache.redis.timeout devem ser positivos")
+		}
+	}
+	if c.Events.RelayEnabled {
+		if len(c.Events.Brokers) == 0 {
+			return errors.New("events.brokers é obrigatório com o relay ligado")
+		}
+		if c.Events.PollInterval <= 0 || c.Events.PublishTimeout <= 0 || c.Events.MaxBackoff < c.Events.PollInterval {
+			return errors.New("events.poll_interval e events.publish_timeout devem ser positivos e events.max_backoff >= poll_interval")
+		}
+		if c.Events.BatchSize < 1 || c.Events.BatchSize > 1000 {
+			return fmt.Errorf("events.batch_size deve estar entre 1 e 1000: %d", c.Events.BatchSize)
 		}
 	}
 	switch strings.ToLower(c.Log.Level) {
