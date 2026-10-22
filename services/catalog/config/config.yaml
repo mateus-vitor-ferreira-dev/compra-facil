@@ -36,7 +36,8 @@ auth:
 
 cache:
   # cache-aside das leituras públicas (detalhe, listagens, categorias, campanhas). Escrita admin
-  # invalida tudo; o TTL também é encurtado para o fim da campanha que dá o desconto.
+  # invalida tudo; o TTL também não passa do fim da campanha que dá o desconto nem do início da
+  # próxima campanha (o preço efetivo muda nesses instantes).
   enabled: true
   product_ttl: 5m
   list_ttl: 1m
