@@ -188,6 +188,7 @@ func (c *Catalog) generation(ctx context.Context) (string, error) {
 
 func (c *Catalog) record(ctx context.Context, kind, result string, err error) {
 	c.lookups.Add(ctx, 1, metric.WithAttributes(attribute.String("kind", kind), attribute.String("result", result)))
+	setHeader(ctx, result)
 	if err != nil {
 		c.log.WarnContext(ctx, "cache indisponível, lendo do banco", slog.String("kind", kind), slog.String("error", err.Error()))
 	}
