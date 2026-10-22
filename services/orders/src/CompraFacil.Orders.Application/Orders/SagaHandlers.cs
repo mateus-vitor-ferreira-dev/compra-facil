@@ -38,6 +38,12 @@ public sealed partial class OrderOutcome(IOrderRepository orders, IOutbox outbox
                 outbox.Add(OrderEvents.Topic, key, OrderEvents.OrderCancelled, OrderCancelledData.From(order));
             }
             await orders.SaveChangesAsync(ct);
+            var reason = order.CancellationReason?.ToString() ?? "-";
+            OrdersMetrics.Finished.Add(1, new KeyValuePair<string, object?>("status", order.Status.ToString()), new KeyValuePair<string, object?>("reason", reason));
+            if (order.Status == OrderStatus.Confirmed)
+            {
+                OrdersMetrics.ConfirmedAmount.Add(order.Total.AmountCents);
+            }
             return true;
         });
 

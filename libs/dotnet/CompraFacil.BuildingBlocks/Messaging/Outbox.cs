@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry;
@@ -58,6 +59,19 @@ public static class MessagingTelemetry
 {
     public const string SourceName = "CompraFacil.Messaging";
     internal static readonly ActivitySource Source = new(SourceName);
+
+    private static readonly Meter s_meter = new(SourceName);
+
+    /// <summary>Eventos lidos do Kafka por resultado (processed, duplicate, skipped, poison, error).</summary>
+    internal static readonly Counter<long> Consumed = s_meter.CreateCounter<long>(
+        "compra_facil.messaging.consumed", unit: "{event}", description: "Eventos consumidos por tópico, tipo e resultado.");
+
+    internal static readonly Histogram<double> ProcessDuration = s_meter.CreateHistogram<double>(
+        "compra_facil.messaging.process.duration", unit: "s", description: "Tempo para tratar um evento (handler + inbox).");
+
+    /// <summary>Eventos que o relay publicou (confirmados pelo broker).</summary>
+    internal static readonly Counter<long> Published = s_meter.CreateCounter<long>(
+        "compra_facil.messaging.published", unit: "{event}", description: "Eventos publicados pelo outbox, por tópico.");
 
     private static TextMapPropagator Propagator => Propagators.DefaultTextMapPropagator;
 

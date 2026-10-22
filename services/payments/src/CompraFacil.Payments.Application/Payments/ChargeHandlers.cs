@@ -21,15 +21,20 @@ public sealed class ChargeProcessor(IPaymentRepository payments, IPaymentGateway
                 payments.Add(charge);
             }
             record(charge, now);
+            Payment? payment = null;
             if (charge.ReadyToCharge)
             {
-                await ChargeAsync(charge, now, ct);
+                payment = await ChargeAsync(charge, now, ct);
             }
             await payments.SaveChangesAsync(ct);
+            if (payment is not null)
+            {
+                PaymentsMetrics.Charges.Add(1, new KeyValuePair<string, object?>("result", payment.Status.ToString()), new KeyValuePair<string, object?>("reason", payment.FailureReason?.ToString() ?? "-"));
+            }
             return true;
         });
 
-    private async Task ChargeAsync(Charge charge, DateTimeOffset now, CancellationToken ct)
+    private async Task<Payment> ChargeAsync(Charge charge, DateTimeOffset now, CancellationToken ct)
     {
         var amount = charge.Amount!.Value;
         var payment = Payment.Start(Guid.CreateVersion7(), charge.OrderId, amount, gateway.Provider, now);
@@ -56,6 +61,7 @@ public sealed class ChargeProcessor(IPaymentRepository payments, IPaymentGateway
             default:
                 throw new InvalidOperationException($"resposta do gateway desconhecida: {result}");
         }
+        return payment;
     }
 }
 

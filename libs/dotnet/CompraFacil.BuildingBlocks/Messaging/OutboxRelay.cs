@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry;
 
 namespace CompraFacil.BuildingBlocks.Messaging;
 
@@ -39,7 +40,13 @@ public sealed partial class OutboxRelay<TContext>(
             TimeSpan wait;
             try
             {
-                var published = await DrainOnceAsync(stoppingToken);
+                int published;
+                // laço de manutenção (consulta a cada PollInterval): sem traces, senão enterram os de
+                // pedidos. A continuidade do trace da SAGA vem do traceparent gravado com o evento.
+                using (SuppressInstrumentationScope.Begin())
+                {
+                    published = await DrainOnceAsync(stoppingToken);
+                }
                 if (failing)
                 {
                     LogRecovered(logger);
@@ -130,6 +137,10 @@ public sealed partial class OutboxRelay<TContext>(
             Headers = ToKafkaHeaders(m.Headers),
         }, ct)).ToList();
         await Task.WhenAll(deliveries);
+        foreach (var topic in batch.GroupBy(m => m.Topic))
+        {
+            MessagingTelemetry.Published.Add(topic.Count(), new KeyValuePair<string, object?>("topic", topic.Key));
+        }
     }
 
     /// <summary>Cria os tópicos do serviço (3 partições, 7 dias); existente não é alterado.</summary>

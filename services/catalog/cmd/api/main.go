@@ -74,6 +74,16 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
+	// OpenTelemetry antes do logger: com OTLP ligado, o logger também exporta (Loki)
+	shutdownTelemetry, err := telemetry.Setup(context.Background(), cfg.App.Name, version, cfg.App.Env)
+	if err != nil {
+		return fmt.Errorf("telemetria: %w", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdownTelemetry(ctx) // descarrega o que estiver no buffer
+	}()
 	log := telemetry.NewLogger(os.Stdout, cfg.Log.Level, cfg.App.Name, cfg.App.Env).With("version", version)
 	slog.SetDefault(log)
 
@@ -95,6 +105,15 @@ func run() error {
 		return fmt.Errorf("postgres: %w", err)
 	}
 	defer sqlDB.Close()
+	relayDB, err := repository.Untraced(db) // antes de instrumentar: o relay não gera traces
+	if err != nil {
+		return fmt.Errorf("postgres: %w", err)
+	}
+	if telemetry.Enabled() {
+		if err := repository.Instrument(db); err != nil {
+			return err //nolint:wrapcheck // já descreve o que falhou
+		}
+	}
 
 	health := handler.NewHealth()
 	health.AddCheck("postgres", repository.Ping(db))
@@ -151,7 +170,7 @@ func run() error {
 			return fmt.Errorf("kafka: %w", err)
 		}
 		defer kafka.Close()
-		relay := events.NewRelay(repository.NewOutboxRepository(db), kafka, events.RelayOptions{
+		relay := events.NewRelay(repository.NewOutboxRepository(relayDB), kafka, events.RelayOptions{
 			PollInterval: cfg.Events.PollInterval,
 			BatchSize:    cfg.Events.BatchSize,
 			MaxBackoff:   cfg.Events.MaxBackoff,

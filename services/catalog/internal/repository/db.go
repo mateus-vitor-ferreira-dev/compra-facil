@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
+	"gorm.io/plugin/opentelemetry/tracing"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/domain"
@@ -81,4 +82,30 @@ func mapError(err error) error {
 		return fmt.Errorf("%w: %s", domain.ErrInvalidReference, pgErr.ConstraintName)
 	}
 	return fmt.Errorf("banco de dados: %w", err)
+}
+
+// Instrument liga os traces do GORM (um span por consulta, sem os valores dos parâmetros).
+func Instrument(db *gorm.DB) error {
+	if err := db.Use(tracing.NewPlugin(tracing.WithoutMetrics(), tracing.WithoutQueryVariables())); err != nil {
+		return fmt.Errorf("instrumentando o GORM: %w", err)
+	}
+	return nil
+}
+
+// Untraced devolve outra instância do GORM sobre o mesmo pool de conexões, sem instrumentação. É a do
+// relay do outbox: a consulta a cada PollInterval viraria um trace solto a cada meio segundo.
+func Untraced(db *gorm.DB) (*gorm.DB, error) {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("obtendo *sql.DB: %w", err)
+	}
+	untraced, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
+		Logger:         db.Logger,
+		TranslateError: true,
+		NowFunc:        db.NowFunc,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("abrindo conexão sem instrumentação: %w", err)
+	}
+	return untraced, nil
 }

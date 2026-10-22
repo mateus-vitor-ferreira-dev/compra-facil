@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry;
 
 namespace CompraFacil.BuildingBlocks.Web;
 
@@ -65,6 +66,19 @@ public static class ServiceDefaults
     public static WebApplication UseServiceDefaults(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
+        // /health e /ready (chamados a cada poucos segundos): nem o request nem a consulta ao banco viram trace
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/health") || context.Request.Path.StartsWithSegments("/ready"))
+            {
+                using (SuppressInstrumentationScope.Begin())
+                {
+                    await next(context);
+                }
+                return;
+            }
+            await next(context);
+        });
         app.UseMiddleware<RequestIdMiddleware>();
         app.UseExceptionHandler();
         app.UseStatusCodePages(); // 404/405 (e 401/403 do JWT) sem corpo viram ProblemDetails

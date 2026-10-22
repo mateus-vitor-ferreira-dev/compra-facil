@@ -77,6 +77,7 @@ public sealed class PlaceOrder(
         try
         {
             await orders.SaveChangesAsync(ct);
+            OrdersMetrics.Placed.Add(1);
             return new PlaceOrderResult(order, Created: true);
         }
         catch (DuplicateIdempotencyKeyException)

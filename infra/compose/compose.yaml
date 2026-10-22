@@ -97,6 +97,73 @@ services:
       timeout: 3s
       retries: 10
 
+  # ---------- observabilidade (tudo open source) ----------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      # OTLP para serviços rodando fora do compose (dotnet run / go run)
+      - "127.0.0.1:${OTLP_GRPC_PORT:-4317}:4317"
+      - "127.0.0.1:${OTLP_HTTP_PORT:-4318}:4318"
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+
+  tempo:
+    image: grafana/tempo:2.10.10
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    user: root # grava em /var/tempo (volume)
+    volumes:
+      - ../tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+
+  loki:
+    image: grafana/loki:3.7.9
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - loki-data:/loki
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+      - --storage.tsdb.retention.time=3d
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    environment:
+      # só na máquina local: entra direto, sem login
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      # 3001: a 3000 fica livre para o front
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
   # ---------- gateway: única entrada externa ----------
   gateway:
     image: traefik:v3.7.16
@@ -149,6 +216,7 @@ services:
       CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
       CATALOG_CACHE_REDIS_ADDR: redis:6379
       CATALOG_EVENTS_BROKERS: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
         condition: service_healthy
@@ -188,6 +256,7 @@ services:
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       # valida itens e preços no catalog (gRPC); catalog fora = 503 até a #81 (fallback no snapshot)
       Catalog__GrpcAddress: http://catalog:9001
 
@@ -205,6 +274,7 @@ services:
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       # só no ambiente local: os 10 mil produtos do seed nascem com estoque para a SAGA andar
       Inventory__InitialOnHandForNewProducts: 100
       # JWT de dev (o mesmo do catalog): task token -- -aud inventory
@@ -224,6 +294,7 @@ services:
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
 
   notifications:
     <<: *dotnet-service
@@ -239,6 +310,7 @@ services:
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       # e-mails vão para o Mailpit (UI em http://localhost:8025)
       Smtp__Host: mailpit
       Smtp__Port: 1025
@@ -246,3 +318,6 @@ services:
 volumes:
   postgres-data:
   redpanda-data:
+  tempo-data:
+  loki-data:
+  prometheus-data:

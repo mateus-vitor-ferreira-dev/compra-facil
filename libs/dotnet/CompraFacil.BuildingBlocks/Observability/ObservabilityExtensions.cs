@@ -13,9 +13,10 @@ namespace CompraFacil.BuildingBlocks.Observability;
 public static class ObservabilityExtensions
 {
     /// <summary>
-    /// Traces e métricas OpenTelemetry: HTTP de entrada e saída, Postgres (Npgsql), Kafka (publicação
-    /// e consumo, com o traceparent atravessando o broker) e runtime. Exporta por OTLP quando
-    /// OTEL_EXPORTER_OTLP_ENDPOINT está definido (Collector da #85); sem ele, só instrumenta.
+    /// Traces, métricas e logs OpenTelemetry: HTTP de entrada e saída (inclui o gRPC para o catalog),
+    /// Postgres (Npgsql), Kafka (publicação e consumo, com o traceparent atravessando o broker), runtime
+    /// e as métricas CompraFacil.*. Exporta por OTLP quando OTEL_EXPORTER_OTLP_ENDPOINT está definido
+    /// (no compose, o Collector); sem ele, só instrumenta.
     /// </summary>
     public static IHostApplicationBuilder AddObservability(this IHostApplicationBuilder builder, string serviceName)
     {
@@ -33,7 +34,15 @@ public static class ObservabilityExtensions
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddRuntimeInstrumentation()
-                .AddMeter("Npgsql"));
+                .AddMeter("Npgsql")
+                // métricas próprias: mensageria (BuildingBlocks) e de negócio de cada serviço
+                .AddMeter("CompraFacil.*"))
+            // logs também vão por OTLP (Loki), com trace_id/span_id em cada registro
+            .WithLogging(logging => { }, options =>
+            {
+                options.IncludeFormattedMessage = true;
+                options.IncludeScopes = true;
+            });
 
         if (!string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
         {
