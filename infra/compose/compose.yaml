@@ -99,6 +99,7 @@ services:
       CATALOG_APP_ENV: compose
       CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
       CATALOG_CACHE_REDIS_ADDR: redis:6379
+      CATALOG_EVENTS_BROKERS: redpanda:9092
     ports:
       - "${CATALOG_HTTP_PORT:-8001}:8001"
       - "${CATALOG_GRPC_PORT:-9001}:9001"
@@ -107,6 +108,10 @@ services:
         condition: service_healthy
       # cache é opcional: o catalog sobe e lê do banco mesmo sem o Redis
       redis:
+        condition: service_started
+        required: false
+      # Kafka também: sem ele as escritas seguem e os eventos esperam no outbox
+      redpanda:
         condition: service_started
         required: false
 

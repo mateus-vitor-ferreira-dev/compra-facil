@@ -29,6 +29,18 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.True(t, cfg.Cache.Enabled)
 	assert.Equal(t, 5*time.Minute, cfg.Cache.ProductTTL)
 	assert.Equal(t, "localhost:6379", cfg.Cache.Redis.Addr)
+	assert.True(t, cfg.Events.RelayEnabled)
+	assert.Equal(t, []string{"localhost:19092"}, cfg.Events.Brokers)
+	assert.Equal(t, 100, cfg.Events.BatchSize)
+}
+
+func TestLoad_BrokersFromEnv(t *testing.T) {
+	t.Setenv("CATALOG_EVENTS_BROKERS", "redpanda-0:9092,redpanda-1:9092")
+
+	cfg, err := Load(t.TempDir())
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"redpanda-0:9092", "redpanda-1:9092"}, cfg.Events.Brokers)
 }
 
 func TestLoad_FileAndEnvPrecedence(t *testing.T) {
@@ -47,13 +59,15 @@ func TestLoad_FileAndEnvPrecedence(t *testing.T) {
 
 func TestLoad_Invalid(t *testing.T) {
 	tests := map[string]map[string]string{
-		"porta fora do intervalo":      {"CATALOG_HTTP_PORT": "70000"},
-		"nível de log":                 {"CATALOG_LOG_LEVEL": "verbose"},
-		"grpc na porta do http":        {"CATALOG_GRPC_PORT": "8001"},
-		"segredo jwt curto":            {"CATALOG_AUTH_JWT_SECRET": "curto"},
-		"segredo de dev fora do local": {"CATALOG_APP_ENV": "production"},
-		"timeout do redis zerado":      {"CATALOG_CACHE_REDIS_TIMEOUT": "0s"},
-		"ttl do cache zerado":          {"CATALOG_CACHE_LIST_TTL": "0s"},
+		"porta fora do intervalo":       {"CATALOG_HTTP_PORT": "70000"},
+		"nível de log":                  {"CATALOG_LOG_LEVEL": "verbose"},
+		"grpc na porta do http":         {"CATALOG_GRPC_PORT": "8001"},
+		"segredo jwt curto":             {"CATALOG_AUTH_JWT_SECRET": "curto"},
+		"segredo de dev fora do local":  {"CATALOG_APP_ENV": "production"},
+		"timeout do redis zerado":       {"CATALOG_CACHE_REDIS_TIMEOUT": "0s"},
+		"ttl do cache zerado":           {"CATALOG_CACHE_LIST_TTL": "0s"},
+		"lote de eventos zerado":        {"CATALOG_EVENTS_BATCH_SIZE": "0"},
+		"backoff menor que o intervalo": {"CATALOG_EVENTS_MAX_BACKOFF": "100ms"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {

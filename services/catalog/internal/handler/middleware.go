@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/events"
 )
 
 const (
@@ -14,7 +16,8 @@ const (
 	ctxRequestID    = "request_id"
 )
 
-// RequestID reaproveita o X-Request-ID recebido (ex.: do gateway) ou gera um novo.
+// RequestID reaproveita o X-Request-ID recebido (ex.: do gateway) ou gera um novo. Ele também vira
+// o correlation_id dos eventos que a requisição gerar.
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.GetHeader(HeaderRequestID)
@@ -23,6 +26,7 @@ func RequestID() gin.HandlerFunc {
 		}
 		c.Set(ctxRequestID, id)
 		c.Header(HeaderRequestID, id)
+		c.Request = c.Request.WithContext(events.WithCorrelationID(c.Request.Context(), id))
 		c.Next()
 	}
 }

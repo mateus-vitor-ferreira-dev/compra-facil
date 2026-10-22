@@ -17,6 +17,7 @@ import (
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/cache"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/events"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/grpcserver"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/handler"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/repository"
@@ -142,6 +143,32 @@ func run() error {
 		adminAPI = handler.NewAdminHandler(productSvc, categorySvc, campaignSvc, requireAdmin, log)
 	}
 
+	// fora do /ready de propósito: sem Kafka as escritas seguem e os eventos esperam no outbox
+	stopRelay := func() {}
+	if cfg.Events.RelayEnabled {
+		kafka, err := events.NewKafka(events.KafkaOptions{Brokers: cfg.Events.Brokers, Timeout: cfg.Events.PublishTimeout})
+		if err != nil {
+			return fmt.Errorf("kafka: %w", err)
+		}
+		defer kafka.Close()
+		relay := events.NewRelay(repository.NewOutboxRepository(db), kafka, events.RelayOptions{
+			PollInterval: cfg.Events.PollInterval,
+			BatchSize:    cfg.Events.BatchSize,
+			MaxBackoff:   cfg.Events.MaxBackoff,
+		}, log)
+		relayCtx, cancelRelay := context.WithCancel(context.Background())
+		relayDone := make(chan struct{})
+		go func() {
+			defer close(relayDone)
+			log.Info("relay do outbox no ar", "brokers", cfg.Events.Brokers)
+			relay.Run(relayCtx)
+		}()
+		stopRelay = func() { cancelRelay(); <-relayDone }
+		defer stopRelay() // saída por erro: para o relay antes do kafka.Close
+	} else {
+		log.Warn("relay do outbox desligado: eventos ficam no outbox sem publicar")
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr(),
 		Handler:           wrap(handler.NewRouter(log, health, catalogAPI, adminAPI, handler.NewDocs(openapi.Files))),
@@ -193,6 +220,9 @@ func run() error {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}
+	// depois do HTTP, para não sobrar escrita sem relay; o que não saiu fica no outbox para o
+	// próximo start (ou outra réplica)
+	stopRelay()
 	log.Info("desligado")
 	return nil
 }

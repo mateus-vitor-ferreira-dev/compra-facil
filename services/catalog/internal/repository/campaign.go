@@ -7,8 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/events"
 )
 
 const campaignColumns = `campaigns.*,
@@ -20,48 +22,90 @@ func NewCampaignRepository(db *gorm.DB) *CampaignRepository { return &CampaignRe
 
 var _ domain.CampaignRepository = (*CampaignRepository)(nil)
 
+// Create grava a campanha (versão 1, sem produtos) e o CampaignCreated na mesma transação.
 func (r *CampaignRepository) Create(ctx context.Context, c *domain.Campaign) error {
 	c.ID = newID(c.ID)
+	c.Version = 1
 	rec := campaignRecord{
 		ID: c.ID, Slug: c.Slug, Name: c.Name, DiscountPercent: c.DiscountPercent,
-		StartsAt: c.StartsAt, EndsAt: c.EndsAt,
+		StartsAt: c.StartsAt, EndsAt: c.EndsAt, Version: c.Version,
 	}
-	if err := r.db.WithContext(ctx).Create(&rec).Error; err != nil {
-		return mapError(err)
-	}
-	c.CreatedAt, c.UpdatedAt = rec.CreatedAt, rec.UpdatedAt
-	return nil
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&rec).Error; err != nil {
+			return err
+		}
+		c.CreatedAt, c.UpdatedAt = rec.CreatedAt, rec.UpdatedAt
+		msg, err := events.CampaignCreated(ctx, *c, nil, rec.CreatedAt)
+		if err != nil {
+			return err //nolint:wrapcheck // o builder já diz qual evento falhou
+		}
+		return enqueue(tx, msg)
+	})
+	return mapError(err)
 }
 
+// Update altera os dados da campanha, sobe a versão e grava o CampaignUpdated com a lista atual
+// de produtos, tudo na mesma transação.
 func (r *CampaignRepository) Update(ctx context.Context, c *domain.Campaign) error {
 	now := r.db.NowFunc()
-	res := r.db.WithContext(ctx).Model(&campaignRecord{}).Where("id = ?", c.ID).Updates(map[string]any{
-		"slug":             c.Slug,
-		"name":             c.Name,
-		"discount_percent": c.DiscountPercent,
-		"starts_at":        c.StartsAt,
-		"ends_at":          c.EndsAt,
-		"updated_at":       now,
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var after campaignRecord
+		res := tx.Model(&after).Clauses(clause.Returning{Columns: []clause.Column{{Name: "version"}}}).
+			Where("id = ?", c.ID).Updates(map[string]any{
+			"slug":             c.Slug,
+			"name":             c.Name,
+			"discount_percent": c.DiscountPercent,
+			"starts_at":        c.StartsAt,
+			"ends_at":          c.EndsAt,
+			"version":          gorm.Expr("version + 1"),
+			"updated_at":       now,
+		})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.ErrNotFound
+		}
+		c.Version, c.UpdatedAt = after.Version, now
+
+		productIDs, err := campaignProductIDs(tx, c.ID)
+		if err != nil {
+			return err
+		}
+		msg, err := events.CampaignUpdated(ctx, *c, productIDs, now)
+		if err != nil {
+			return err //nolint:wrapcheck // o builder já diz qual evento falhou
+		}
+		return enqueue(tx, msg)
 	})
-	if res.Error != nil {
-		return mapError(res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
-	c.UpdatedAt = now
-	return nil
+	return mapError(err)
 }
 
+// Delete remove a campanha (e os vínculos, por cascade) e grava o CampaignDeleted.
 func (r *CampaignRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	res := r.db.WithContext(ctx).Delete(&campaignRecord{}, "id = ?", id)
-	if res.Error != nil {
-		return mapError(res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
-	return nil
+	now := r.db.NowFunc()
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var before campaignRecord
+		if err := tx.Clauses(lockForUpdate).Select("version").Where("id = ?", id).Take(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&campaignRecord{}, "id = ?", id).Error; err != nil {
+			return err
+		}
+		msg, err := events.CampaignDeleted(ctx, id, before.Version+1, now)
+		if err != nil {
+			return err //nolint:wrapcheck // o builder já diz qual evento falhou
+		}
+		return enqueue(tx, msg)
+	})
+	return mapError(err)
+}
+
+func campaignProductIDs(tx *gorm.DB, campaignID uuid.UUID) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := tx.Model(&campaignProductRecord{}).Where("campaign_id = ?", campaignID).
+		Order("product_id").Pluck("product_id", &ids).Error
+	return ids, err //nolint:wrapcheck // traduzido por mapError em quem chama
 }
 
 func (r *CampaignRepository) GetByID(ctx context.Context, id uuid.UUID) (domain.Campaign, error) {
@@ -125,7 +169,9 @@ func (r *CampaignRepository) List(ctx context.Context, cursorStr string, limit i
 	return page, nil
 }
 
+// SetProducts troca a lista de produtos, sobe a versão e grava o CampaignUpdated com a lista nova.
 func (r *CampaignRepository) SetProducts(ctx context.Context, campaignID uuid.UUID, productIDs []uuid.UUID) error {
+	now := r.db.NowFunc()
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// trava a campanha: duas substituições simultâneas não se misturam
 		var rec campaignRecord
@@ -135,14 +181,28 @@ func (r *CampaignRepository) SetProducts(ctx context.Context, campaignID uuid.UU
 		if err := tx.Where("campaign_id = ?", campaignID).Delete(&campaignProductRecord{}).Error; err != nil {
 			return err
 		}
-		if len(productIDs) == 0 {
-			return nil
+		if len(productIDs) > 0 {
+			links := make([]campaignProductRecord, len(productIDs))
+			for i, pid := range productIDs {
+				links[i] = campaignProductRecord{CampaignID: campaignID, ProductID: pid}
+			}
+			if err := tx.CreateInBatches(links, 500).Error; err != nil {
+				return err
+			}
 		}
-		links := make([]campaignProductRecord, len(productIDs))
-		for i, pid := range productIDs {
-			links[i] = campaignProductRecord{CampaignID: campaignID, ProductID: pid}
+		if err := tx.Model(&campaignRecord{}).Where("id = ?", campaignID).Updates(map[string]any{
+			"version":    gorm.Expr("version + 1"),
+			"updated_at": now,
+		}).Error; err != nil {
+			return err
 		}
-		return tx.CreateInBatches(links, 500).Error
+		c := rec.toDomain()
+		c.Version, c.UpdatedAt = rec.Version+1, now
+		msg, err := events.CampaignUpdated(ctx, c, productIDs, now)
+		if err != nil {
+			return err //nolint:wrapcheck // o builder já diz qual evento falhou
+		}
+		return enqueue(tx, msg)
 	})
 	if isNotFound(err) {
 		return domain.ErrNotFound

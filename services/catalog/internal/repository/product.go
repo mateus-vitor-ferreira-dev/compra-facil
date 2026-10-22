@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/events"
 )
 
 const (
@@ -42,66 +43,100 @@ func NewProductRepository(db *gorm.DB) *ProductRepository { return &ProductRepos
 
 var _ domain.ProductRepository = (*ProductRepository)(nil)
 
+// Create grava o produto e o ProductCreated na mesma transação.
 func (r *ProductRepository) Create(ctx context.Context, p *domain.Product) error {
 	p.ID = newID(p.ID)
 	p.Version = 1
 	rec := productToRecord(p)
-	if err := r.db.WithContext(ctx).Create(&rec).Error; err != nil {
-		return mapError(err)
-	}
-	p.Currency, p.CreatedAt, p.UpdatedAt = rec.Currency, rec.CreatedAt, rec.UpdatedAt
-	return nil
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&rec).Error; err != nil {
+			return err
+		}
+		p.Currency, p.CreatedAt, p.UpdatedAt = rec.Currency, rec.CreatedAt, rec.UpdatedAt
+		msg, err := events.ProductCreated(ctx, *p, rec.CreatedAt)
+		if err != nil {
+			return err //nolint:wrapcheck // o builder já diz qual evento falhou
+		}
+		return enqueue(tx, msg)
+	})
+	return mapError(err)
 }
 
+// Update aplica a alteração se a versão bater e grava o ProductUpdated (mais o ProductPriceChanged,
+// se o preço de tabela mudou) na mesma transação.
 func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expectedVersion int) error {
 	rec := productToRecord(p)
 	now := r.db.NowFunc()
-	res := r.db.WithContext(ctx).Model(&productRecord{}).
-		Where("id = ? AND version = ?", p.ID, expectedVersion).
-		Updates(map[string]any{
-			"sku":         rec.SKU,
-			"name":        rec.Name,
-			"description": rec.Description,
-			"category_id": rec.CategoryID,
-			"image_url":   rec.ImageURL,
-			"price_cents": rec.PriceCents,
-			"currency":    rec.Currency,
-			"status":      rec.Status,
-			"version":     gorm.Expr("version + 1"),
-			"updated_at":  now,
-		})
-	if res.Error != nil {
-		return mapError(res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return r.missingOrStale(ctx, p.ID)
-	}
-	p.Version, p.Currency, p.UpdatedAt = expectedVersion+1, rec.Currency, now
-	return nil
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// lê o preço anterior travando a linha: ninguém altera entre a leitura e o UPDATE
+		var before productRecord
+		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency").
+			Where("id = ?", p.ID).Take(&before).Error; err != nil {
+			return err
+		}
+		res := tx.Model(&productRecord{}).
+			Where("id = ? AND version = ?", p.ID, expectedVersion).
+			Updates(map[string]any{
+				"sku":         rec.SKU,
+				"name":        rec.Name,
+				"description": rec.Description,
+				"category_id": rec.CategoryID,
+				"image_url":   rec.ImageURL,
+				"price_cents": rec.PriceCents,
+				"currency":    rec.Currency,
+				"status":      rec.Status,
+				"version":     gorm.Expr("version + 1"),
+				"updated_at":  now,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.ErrVersionConflict // a linha existe (travada acima), mas em outra versão
+		}
+		p.Version, p.Currency, p.UpdatedAt = expectedVersion+1, rec.Currency, now
+
+		builders := []func() (events.Message, error){
+			func() (events.Message, error) { return events.ProductUpdated(ctx, *p, now) },
+		}
+		if before.PriceCents != rec.PriceCents || before.Currency != rec.Currency {
+			builders = append(builders, func() (events.Message, error) {
+				return events.ProductPriceChanged(ctx, *p, before.PriceCents, before.Currency, now)
+			})
+		}
+		msgs, err := buildAll(builders...)
+		if err != nil {
+			return err
+		}
+		return enqueue(tx, msgs...)
+	})
+	return mapError(err)
 }
 
-// missingOrStale diferencia "não existe" de "existe em outra versão" após um UPDATE sem efeito.
-func (r *ProductRepository) missingOrStale(ctx context.Context, id uuid.UUID) error {
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&productRecord{}).Where("id = ?", id).Count(&count).Error; err != nil {
-		return mapError(err)
-	}
-	if count == 0 {
-		return domain.ErrNotFound
-	}
-	return domain.ErrVersionConflict
-}
-
-// Delete faz soft delete (deleted_at); o SKU fica livre para recadastro.
+// Delete faz soft delete (deleted_at); o SKU fica livre para recadastro. A remoção sobe a versão,
+// para o ProductDeleted não ser descartado pelo consumidor como evento velho.
 func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	res := r.db.WithContext(ctx).Delete(&productRecord{}, "id = ?", id)
-	if res.Error != nil {
-		return mapError(res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
-	return nil
+	now := r.db.NowFunc()
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var before productRecord
+		if err := tx.Clauses(lockForUpdate).Select("sku", "version").
+			Where("id = ?", id).Take(&before).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&productRecord{}).Where("id = ?", id).Updates(map[string]any{
+			"deleted_at": now,
+			"version":    gorm.Expr("version + 1"),
+			"updated_at": now,
+		}).Error; err != nil {
+			return err
+		}
+		msg, err := events.ProductDeleted(ctx, id, before.SKU, before.Version+1, now)
+		if err != nil {
+			return err //nolint:wrapcheck // o builder já diz qual evento falhou
+		}
+		return enqueue(tx, msg)
+	})
+	return mapError(err)
 }
 
 func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID, now time.Time) (domain.Product, error) {

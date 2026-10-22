@@ -81,8 +81,10 @@ type Campaign struct {
 	StartsAt        time.Time
 	EndsAt          time.Time
 	ProductCount    int
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	// Version sobe a cada alteração, inclusive troca de produtos; vai nos eventos (ADR 0002).
+	Version   int
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // ActiveAt diz se a campanha vale no instante t (início inclusivo, fim exclusivo).
