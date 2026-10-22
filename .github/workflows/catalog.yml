@@ -1,5 +1,5 @@
-# Pipeline do catalog (time de catálogo, Go). Não depende de nada do .NET: mudanças em libs/dotnet ou
-# nos serviços de compras não disparam este, e mudar o catalog não dispara os deles.
+# Pipeline do catalog (time de catálogo, Go). Não depende de nada do .NET: mudanças em libs/dotnet, nos
+# serviços de compras ou nos contratos deles não disparam este, e mudar o catalog não dispara os deles.
 name: catalog
 
 on:
@@ -7,12 +7,24 @@ on:
     branches: [main, develop]
     paths:
       - services/catalog/**
-      - contracts/**
+      # só os contratos que o catalog serve ou valida (o dele e os comuns): mudança no contrato de
+      # outro serviço não republica o catalog (#91)
+      - contracts/proto/catalog/**
+      - contracts/openapi/catalog.v1.yaml
+      - contracts/openapi/common/**
+      - contracts/asyncapi/catalog.v1.yaml
+      - contracts/asyncapi/common/**
       - .github/workflows/catalog.yml
   pull_request:
     paths:
       - services/catalog/**
-      - contracts/**
+      # só os contratos que o catalog serve ou valida (o dele e os comuns): mudança no contrato de
+      # outro serviço não republica o catalog (#91)
+      - contracts/proto/catalog/**
+      - contracts/openapi/catalog.v1.yaml
+      - contracts/openapi/common/**
+      - contracts/asyncapi/catalog.v1.yaml
+      - contracts/asyncapi/common/**
       - .github/workflows/catalog.yml
 
 concurrency:
