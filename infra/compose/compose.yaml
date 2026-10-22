@@ -66,6 +66,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 15
+      start_period: 60s # máquina disputada (CI construindo imagens) demora mais para o broker subir
 
   redpanda-console:
     image: redpandadata/console:v3.13.0

@@ -64,9 +64,11 @@ jobs:
           docker compose run --rm -e CATALOG_TOKEN="$CATALOG_TOKEN" -e INVENTORY_TOKEN="$INVENTORY_TOKEN" \
             k6 run --quiet /scripts/e2e-compra.js
 
-      - name: Logs dos serviços (em caso de falha)
+      - name: Estado e logs (em caso de falha)
         if: failure()
-        run: docker compose logs --no-color --tail 200 gateway catalog orders inventory payments notifications
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail 200
 
       - name: Derruba o ambiente
         if: always()
