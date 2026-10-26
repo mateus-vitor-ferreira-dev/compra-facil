@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# Imagem dos serviços .NET (orders, inventory, payments, notifications): um Dockerfile para os
-# quatro, o serviço vem por build arg. Runtime chiseled: sem shell, sem gerenciador de pacotes,
+# Imagem dos serviços .NET (orders, inventory, payments, notifications, identity): um Dockerfile para os
+# cinco, o serviço vem por build arg. Runtime chiseled: sem shell, sem gerenciador de pacotes,
 # usuário não-root.
 # Contexto do build: raiz do repositório (usa Directory.*.props, libs/dotnet e contracts/openapi).
 #   docker build -f services/dotnet.Dockerfile --build-arg SERVICE=orders \
@@ -19,7 +19,7 @@ COPY services/${SERVICE}/src services/${SERVICE}/src
 # não pode se chamar VERSION: ARG vira variável de ambiente no RUN, o MSBuild a lê como $(Version)
 # e o restore falha com "dev" (versão inválida)
 ARG APP_VERSION=dev
-# sharing=locked: os 4 serviços buildam em paralelo e extrairiam o mesmo pacote ao mesmo tempo
+# sharing=locked: os 5 serviços buildam em paralelo e extrairiam o mesmo pacote ao mesmo tempo
 RUN --mount=type=cache,target=/root/.nuget/packages,sharing=locked \
     dotnet publish services/${SERVICE}/src/${PROJECT}/${PROJECT}.csproj \
       -c Release -o /app -p:InformationalVersion=${APP_VERSION} && \

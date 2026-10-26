@@ -25,7 +25,7 @@ tasks:
       - docker compose up -d --build --wait
 
   up:debug:
-    desc: Como o up, mas publicando as portas dos serviços no host (8001-8005, gRPC 9001) para depuração
+    desc: Como o up, mas publicando as portas dos serviços no host (8001-8006, gRPC 9001) para depuração
     cmds:
       - docker compose -f compose.yaml -f infra/compose/compose.debug.yaml up -d --build --wait
 
@@ -226,10 +226,10 @@ tasks:
 
   # ---------- Kubernetes local (k3d + Helm; precisa de k3d, kubectl e helm no PATH) ----------
   k8s:up:
-    desc: "Cluster k3d com os 5 serviços (chart Helm), Traefik como ingress em http://localhost:8088 e HPA no catalog"
+    desc: "Cluster k3d com os 6 serviços (chart Helm), Traefik como ingress em http://localhost:8088 e HPA no catalog"
     vars:
-      SERVICES: catalog orders inventory payments notifications
-      IMAGES: catalog catalog-seed orders inventory payments notifications
+      SERVICES: catalog orders inventory payments notifications identity
+      IMAGES: catalog catalog-seed orders inventory payments notifications identity
     cmds:
       - k3d cluster list compra-facil >/dev/null 2>&1 || k3d cluster create compra-facil --agents 1 -p "8088:80@loadbalancer" --wait
       - docker compose build {{.IMAGES}}

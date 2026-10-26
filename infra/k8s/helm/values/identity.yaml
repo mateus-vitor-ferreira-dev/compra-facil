@@ -1,0 +1,11 @@
+image: { repository: compra-facil/identity }
+port: 8006
+env:
+  ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=compra-facil
+  # cluster local, não produção: o operador inicial do compose
+  Identity__Admin__Email: admin@comprafacil.local
+  Identity__Admin__Password: admin-compra-facil
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: "1", memory: 384Mi }
+ingress: { prefix: /identity }

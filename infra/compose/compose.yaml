@@ -7,6 +7,8 @@ x-dotnet-service: &dotnet-service
   depends_on:
     postgres:
       condition: service_healthy
+    postgres-databases:
+      condition: service_completed_successfully
     # Kafka é opcional: sem ele as escritas seguem e os eventos esperam no outbox
     redpanda:
       condition: service_started
@@ -18,7 +20,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      SERVICE_DATABASES: catalog,orders,inventory,payments,notifications
+      SERVICE_DATABASES: &service-databases catalog,orders,inventory,payments,notifications,identity
       SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
     ports:
       - "${POSTGRES_PORT:-55432}:5432"
@@ -30,6 +32,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # o init do Postgres só roda com o volume vazio: este cria o banco de um serviço novo num volume que
+  # já existia (o mesmo script, idempotente) e sai
+  postgres-databases:
+    image: postgres:17.11-alpine
+    entrypoint: ["bash", "/init-databases.sh"]
+    environment:
+      PGHOST: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      SERVICE_DATABASES: *service-databases
+      SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
+    volumes:
+      - ./postgres/init-databases.sh:/init-databases.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:8.8.3-alpine
@@ -199,6 +218,8 @@ services:
         condition: service_started
       payments:
         condition: service_started
+      identity:
+        condition: service_started
 
   # só roda sob demanda (task load:catalog-cache): k6 dentro da rede, direto no catalog (sem o rate
   # limit do gateway, que mediria outra coisa)
@@ -251,6 +272,31 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  identity:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: services/dotnet.Dockerfile
+      args:
+        SERVICE: identity
+        PROJECT: CompraFacil.Identity.Api
+        PORT: 8006
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/identity:${VERSION:-dev}
+    # sem Kafka: o identity não publica nem consome eventos
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-databases:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # operador inicial, só no ambiente local: entra no painel e nas rotas /v1/admin/*
+      Identity__Admin__Email: ${ADMIN_EMAIL:-admin@comprafacil.local}
+      Identity__Admin__Password: ${ADMIN_PASSWORD:-admin-compra-facil}
 
   orders:
     <<: *dotnet-service
