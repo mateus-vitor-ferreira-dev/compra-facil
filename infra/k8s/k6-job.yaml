@@ -16,6 +16,7 @@ spec:
           env:
             - { name: CATALOG_URL, value: "http://traefik.kube-system.svc/catalog" }
             - { name: ORDERS_URL, value: "http://traefik.kube-system.svc/orders" }
+            - { name: IDENTITY_URL, value: "http://identity:8006" } # direto: o cadastro dos clientes do teste
             - { name: PEAK_RATE, value: "PEAK_RATE_PLACEHOLDER" }
             - { name: PEAK, value: "PEAK_PLACEHOLDER" }
           volumeMounts: [{ name: scripts, mountPath: /scripts }]

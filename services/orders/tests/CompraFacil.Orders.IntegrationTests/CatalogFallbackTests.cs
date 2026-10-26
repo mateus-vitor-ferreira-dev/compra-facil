@@ -16,7 +16,7 @@ namespace CompraFacil.Orders.IntegrationTests;
 /// </summary>
 public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<OrdersFixture>, IDisposable
 {
-    private readonly HttpClient _http = fx.Factory.CreateClient();
+    private readonly HttpClient _http = fx.ClientAs(); // um cliente: o dono dos pedidos do teste
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -65,8 +65,6 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
         {
             Content = JsonContent.Create(new
             {
-                customer_id = Guid.NewGuid(),
-                customer_email = "ana@exemplo.com",
                 items = new[] { new { product_id = product, quantity = 2, expected_unit_price_cents = expected } },
             }),
         };

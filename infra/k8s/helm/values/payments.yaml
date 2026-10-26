@@ -6,7 +6,6 @@ env:
   # tokens do identity (rede interna do cluster, sem TLS)
   Auth__Authority: http://identity:8006
   Auth__RequireHttpsMetadata: "false"
-  Payments__Fake__DeclinedCustomers__0: 0e2e0000-0000-4000-8000-00000000dec1
 resources:
   requests: { cpu: 100m, memory: 128Mi }
   limits: { cpu: "1", memory: 384Mi }

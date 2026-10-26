@@ -265,7 +265,7 @@ tasks:
       PEAK: '{{index (splitList " " (printf "%s 400 2m" .CLI_ARGS | trim)) 1}}'
     cmds:
       - >-
-        kubectl -n compra-facil create configmap k6-scripts --from-file=load-tests/k6/campanha.js
+        kubectl -n compra-facil create configmap k6-scripts --from-file=load-tests/k6/campanha.js --from-file=load-tests/k6/identity.js
         --dry-run=client -o yaml | kubectl apply -f -
       - kubectl -n compra-facil delete job k6-campanha --ignore-not-found --cascade=foreground --wait
       - sed -e 's/PEAK_RATE_PLACEHOLDER/{{.PEAK_RATE}}/' -e 's/PEAK_PLACEHOLDER/{{.PEAK}}/' infra/k8s/k6-job.yaml | kubectl -n compra-facil apply -f -

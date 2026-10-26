@@ -12,7 +12,7 @@ namespace CompraFacil.Orders.IntegrationTests;
 /// <summary>O orders fechando a SAGA: resultado do inventory/payments → estado do pedido + evento.</summary>
 public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
 {
-    private readonly HttpClient _http = fx.Factory.CreateClient();
+    private readonly HttpClient _http = fx.ClientAs(); // um cliente: o dono dos pedidos do teste
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -23,8 +23,6 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         {
             Content = JsonContent.Create(new
             {
-                customer_id = Guid.NewGuid(),
-                customer_email = "ana@exemplo.com",
                 items = new[] { new { product_id = product, quantity = 2 } },
             }),
         };

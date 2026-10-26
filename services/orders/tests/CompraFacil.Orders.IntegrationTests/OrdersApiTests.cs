@@ -13,16 +13,19 @@ namespace CompraFacil.Orders.IntegrationTests;
 /// <summary>API de pedidos de ponta a ponta: HTTP → caso de uso → gRPC (catalog falso) → Postgres + outbox.</summary>
 public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
 {
-    private readonly HttpClient _http = fx.Factory.CreateClient();
+    private readonly HttpClient _http = fx.Factory.CreateClient(); // sem token: cada chamada leva o do cliente
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static object Body(Guid customerId, params object[] items) =>
-        new { customer_id = customerId, customer_email = "ana@exemplo.com", items };
+    /// <summary>Corpo do pedido (só itens) e o cliente cujo token vai junto.</summary>
+    private sealed record PlaceBody(Guid Customer, object Json);
 
-    private async Task<HttpResponseMessage> PlaceAsync(object body, string? key = null, string? requestId = null)
+    private static PlaceBody Body(Guid customerId, params object[] items) => new(customerId, new { items });
+
+    private async Task<HttpResponseMessage> PlaceAsync(PlaceBody body, string? key = null, string? requestId = null, string? token = null)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders") { Content = JsonContent.Create(body) };
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders") { Content = JsonContent.Create(body.Json) };
+        request.Headers.Authorization = new("Bearer", token ?? fx.Identity.CustomerToken(body.Customer));
         if (key != "<sem>")
         {
             request.Headers.Add("Idempotency-Key", key ?? Guid.NewGuid().ToString());
@@ -150,23 +153,21 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         var calls = fx.Catalog.Calls;
         var repeated = Guid.NewGuid();
 
-        using var response = await PlaceAsync(new
+        using var response = await PlaceAsync(new PlaceBody(Guid.NewGuid(), new
         {
-            customer_id = Guid.NewGuid(),
-            customer_email = "nao-e-email",
             items = new object[]
             {
                 new { product_id = repeated, quantity = 0 },
                 new { product_id = repeated, quantity = 1, expected_unit_price_cents = 0 },
             },
-        });
+        }));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         var problem = await response.Content.ReadAsStringAsync(Ct);
         ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/ValidationProblem", problem);
         var fields = JsonDocument.Parse(problem).RootElement.GetProperty("errors").EnumerateArray()
             .Select(e => e.GetProperty("field").GetString()).ToHashSet();
-        Assert.Superset(new HashSet<string?> { "customer_email", "items", "items[0].quantity", "items[1].expected_unit_price_cents" }, fields);
+        Assert.Superset(new HashSet<string?> { "items", "items[0].quantity", "items[1].expected_unit_price_cents" }, fields);
         Assert.Equal(calls, fx.Catalog.Calls);
     }
 
@@ -216,12 +217,13 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     public async Task Get_ReturnsTheOrder_Or404()
     {
         var product = fx.Catalog.Add(new CatalogProduct("SKU-GET", "Produto", 1000));
-        using var placed = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = product, quantity = 3 }));
+        var owner = Guid.NewGuid();
+        using var placed = await PlaceAsync(Body(owner, new { product_id = product, quantity = 3 }));
         var placedJson = await JsonOf(placed);
         var id = placedJson.GetProperty("id").GetGuid();
 
-        using var found = await _http.GetAsync(new Uri($"/v1/orders/{id}", UriKind.Relative), Ct);
-        using var missing = await _http.GetAsync(new Uri($"/v1/orders/{Guid.NewGuid()}", UriKind.Relative), Ct);
+        using var found = await GetAsync($"/v1/orders/{id}", fx.Identity.CustomerToken(owner));
+        using var missing = await GetAsync($"/v1/orders/{Guid.NewGuid()}", fx.Identity.CustomerToken(owner));
 
         Assert.Equal(HttpStatusCode.OK, found.StatusCode);
         var json = await found.Content.ReadAsStringAsync(Ct);
@@ -249,14 +251,15 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
             Assert.Equal(HttpStatusCode.Accepted, other.StatusCode); // de outro cliente: não aparece
         }
 
-        using var page1 = await _http.GetAsync(new Uri($"/v1/orders?customer_id={customer}&limit=2", UriKind.Relative), Ct);
+        var token = fx.Identity.CustomerToken(customer);
+        using var page1 = await GetAsync("/v1/me/orders?limit=2", token);
         var json1 = await page1.Content.ReadAsStringAsync(Ct);
-        ContractAssert.AssertSchema("orders.v1.yaml", "/paths/~1v1~1orders/get/responses/200/content/application~1json/schema", json1);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/paths/~1v1~1me~1orders/get/responses/200/content/application~1json/schema", json1);
         var body1 = JsonDocument.Parse(json1).RootElement;
         Assert.True(body1.GetProperty("page").GetProperty("has_more").GetBoolean());
         var cursor = body1.GetProperty("page").GetProperty("next_cursor").GetString();
 
-        using var page2 = await _http.GetAsync(new Uri($"/v1/orders?customer_id={customer}&limit=2&cursor={cursor}", UriKind.Relative), Ct);
+        using var page2 = await GetAsync($"/v1/me/orders?limit=2&cursor={cursor}", token);
         var body2 = await JsonOf(page2);
         Assert.False(body2.GetProperty("page").GetProperty("has_more").GetBoolean());
 
@@ -264,8 +267,8 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
             .Select(o => o.GetProperty("id").GetGuid()).ToList();
         Assert.Equal(Enumerable.Reverse(created), listed);
 
-        using var pending = await _http.GetAsync(new Uri($"/v1/orders?customer_id={customer}&status=pending", UriKind.Relative), Ct);
-        using var confirmed = await _http.GetAsync(new Uri($"/v1/orders?customer_id={customer}&status=confirmed", UriKind.Relative), Ct);
+        using var pending = await GetAsync("/v1/me/orders?status=pending", token);
+        using var confirmed = await GetAsync("/v1/me/orders?status=confirmed", token);
         Assert.Equal(3, (await JsonOf(pending)).GetProperty("data").GetArrayLength());
         Assert.Equal(0, (await JsonOf(confirmed)).GetProperty("data").GetArrayLength());
     }
@@ -273,13 +276,87 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     [Theory]
     [InlineData("limit=101", "limit")]
     [InlineData("cursor=lixo", "cursor")]
-    [InlineData("", "customer_id")]
     public async Task List_InvalidQuery_Is422(string query, string field)
     {
-        var customer = query.Length == 0 ? "" : $"customer_id={Guid.NewGuid()}&";
-        using var response = await _http.GetAsync(new Uri($"/v1/orders?{customer}{query}", UriKind.Relative), Ct);
+        using var response = await GetAsync($"/v1/me/orders?{query}", fx.Identity.CustomerToken());
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Contains($"\"field\":\"{field}\"", await response.Content.ReadAsStringAsync(Ct), StringComparison.Ordinal);
+    }
+
+    // ---------- quem pode o quê (o cliente vem do token) ----------
+
+    private async Task<HttpResponseMessage> GetAsync(string path, string? token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        if (token is not null)
+        {
+            request.Headers.Authorization = new("Bearer", token);
+        }
+        return await _http.SendAsync(request, Ct);
+    }
+
+    [Fact]
+    public async Task Place_TakesTheCustomerAndEmailFromTheToken_IgnoringTheBody()
+    {
+        var product = fx.Catalog.Add(new CatalogProduct("SKU-TOKEN", "Produto", 1000));
+        var customer = Guid.NewGuid();
+        var someoneElse = Guid.NewGuid();
+
+        // cliente antigo ainda mandando customer_id/customer_email: valem os do token
+        using var response = await PlaceAsync(
+            new PlaceBody(customer, new { customer_id = someoneElse, customer_email = "outro@exemplo.com", items = new[] { new { product_id = product, quantity = 1 } } }),
+            token: fx.Identity.CustomerToken(customer, "bia@exemplo.com"));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var order = await JsonOf(response);
+        var id = order.GetProperty("id").GetGuid();
+        Assert.Equal(customer, order.GetProperty("customer_id").GetGuid());
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var saved = await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().Orders.SingleAsync(o => o.Id == id, Ct);
+            Assert.Equal("bia@exemplo.com", saved.CustomerEmail); // destino dos e-mails da SAGA
+        }
+        Assert.Equal(0, await OrdersOfAsync(someoneElse));
+    }
+
+    [Fact]
+    public async Task Place_WithoutToken_Is401_AndAsOperator_Is403()
+    {
+        var body = Body(Guid.NewGuid(), new { product_id = Guid.NewGuid(), quantity = 1 });
+
+        using var anonymous = new HttpRequestMessage(HttpMethod.Post, "/v1/orders") { Content = JsonContent.Create(body.Json) };
+        anonymous.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        using var noToken = await _http.SendAsync(anonymous, Ct);
+        using var asOperator = await PlaceAsync(body, token: fx.Identity.AdminToken());
+
+        Assert.Equal(HttpStatusCode.Unauthorized, noToken.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, asOperator.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_OtherCustomersOrder_Is404_ButTheOperatorSeesIt()
+    {
+        var product = fx.Catalog.Add(new CatalogProduct("SKU-DONO", "Produto", 1000));
+        using var placed = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = product, quantity = 1 }));
+        var id = (await JsonOf(placed)).GetProperty("id").GetGuid();
+
+        using var stranger = await GetAsync($"/v1/orders/{id}", fx.Identity.CustomerToken());
+        using var operatorView = await GetAsync($"/v1/orders/{id}", fx.Identity.AdminToken());
+        using var anonymous = await GetAsync($"/v1/orders/{id}", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, stranger.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, operatorView.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+    }
+
+    [Fact]
+    public async Task MyOrders_WithoutToken_Is401_AndAsOperator_Is403()
+    {
+        using var anonymous = await GetAsync("/v1/me/orders", null);
+        using var asOperator = await GetAsync("/v1/me/orders", fx.Identity.AdminToken());
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, asOperator.StatusCode);
     }
 }
