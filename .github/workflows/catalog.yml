@@ -76,6 +76,10 @@ jobs:
           go-version-file: services/catalog/go.mod
           cache-dependency-path: services/catalog/go.sum
       - name: go test (Postgres e Redpanda reais via testcontainers-go)
+        # sem o Ryuk (o container que limpa os outros no fim): o runner é descartado depois do job, e os
+        # pacotes rodando em paralelo disputavam o mesmo Ryuk e estouravam o prazo de espera dele
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
         run: go test -race -count=1 ./...
 
   # "can-i-deploy": a imagem só sai depois dos testes, que verificam o contrato do orders
