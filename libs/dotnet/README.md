@@ -29,10 +29,13 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
 - **Postgres** (`AddPostgres<TContext>`): EF Core + Npgsql com nomes em `snake_case`, check no `/ready`
   e migrations aplicadas na subida (`Database:MigrateOnStart`, padrão `true`). Registra um `TimeProvider`
   truncado em microssegundos (precisão do `timestamptz`): a resposta de uma escrita bate com a leitura.
-- **Rotas admin** (`AddAdminAuth(audience)` + `[Authorize(Policy = AdminAuth.Policy)]`): o mesmo JWT do
-  catalog (HS256, `iss` compra-facil, `roles` com `admin`, `sub` e `exp`), com a audiência = serviço.
-  Token local: `task token -- -aud inventory`. Segredo de dev barrado fora de Development, salvo
-  `Auth__AllowDevSecret=true` (só no compose).
+- **Rotas protegidas** (`AddJwtAuth()` + `[Authorize(Policy = JwtAuth.AdminPolicy)]` ou `CustomerPolicy`):
+  tokens do identity (RS256, `iss` compra-facil-identity, `aud` compra-facil, `sub`, `roles` e `exp`),
+  validados pelo JWKS em `Auth:Authority` (descoberta em `/.well-known/openid-configuration`). As chaves
+  ficam em cache: renovadas de hora em hora e quando chega um `kid` desconhecido. HTTP só com
+  `Auth__RequireHttpsMetadata=false` fora de Development (rede interna do compose e do k3d). Token local
+  de operador: `task token`. Nos testes, `TestIdentity` (BuildingBlocks.Testing) assina os tokens e o
+  JWKS dele vai em `Auth:Jwks`, sem HTTP.
 - **OpenTelemetry**: traces (HTTP de entrada e saída, Npgsql, Kafka) e métricas (ASP.NET, runtime,
   Npgsql). Exporta por OTLP quando `OTEL_EXPORTER_OTLP_ENDPOINT` está definido.
 

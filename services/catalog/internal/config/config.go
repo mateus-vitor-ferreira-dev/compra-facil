@@ -7,6 +7,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -56,20 +57,17 @@ type DBConfig struct {
 	MigrateOnStart  bool          `mapstructure:"migrate_on_start"`
 }
 
-// AuthConfig descreve os JWT aceitos nas rotas /v1/admin/*.
+// AuthConfig descreve os JWT aceitos nas rotas /v1/admin/*: os do identity, validados pelo JWKS dele.
 type AuthConfig struct {
-	JWTSecret string        `mapstructure:"jwt_secret"`
+	Authority string        `mapstructure:"authority"`
 	Issuer    string        `mapstructure:"issuer"`
 	Audience  string        `mapstructure:"audience"`
 	Leeway    time.Duration `mapstructure:"leeway"`
 }
 
 func (a AuthConfig) Options() auth.Options {
-	return auth.Options{Secret: a.JWTSecret, Issuer: a.Issuer, Audience: a.Audience, Leeway: a.Leeway}
+	return auth.Options{Authority: a.Authority, Issuer: a.Issuer, Audience: a.Audience, Leeway: a.Leeway}
 }
-
-// DevJWTSecret é o segredo do ambiente local; fora dele o serviço não sobe com este valor.
-const DevJWTSecret = "dev-only-compra-facil-jwt-secret-troque-em-producao" //nolint:gosec // segredo público de dev, barrado fora do local
 
 // CacheConfig liga o cache-aside (Redis) das leituras públicas. Redis fora não derruba o serviço.
 type CacheConfig struct {
@@ -151,9 +149,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("db.conn_max_lifetime", "30m")
 	v.SetDefault("db.slow_query", "200ms")
 	v.SetDefault("db.migrate_on_start", true)
-	v.SetDefault("auth.jwt_secret", DevJWTSecret)
-	v.SetDefault("auth.issuer", "compra-facil")
-	v.SetDefault("auth.audience", "catalog")
+	v.SetDefault("auth.authority", "http://localhost:8006")
+	v.SetDefault("auth.issuer", "compra-facil-identity")
+	v.SetDefault("auth.audience", "compra-facil")
 	v.SetDefault("auth.leeway", "30s")
 	v.SetDefault("cache.enabled", true)
 	v.SetDefault("cache.product_ttl", "5m")
@@ -180,11 +178,11 @@ func (c Config) validate() error {
 	if c.DB.DSN == "" {
 		return errors.New("db.dsn é obrigatório")
 	}
-	if len(c.Auth.JWTSecret) < auth.MinSecretLen {
-		return errors.New("auth.jwt_secret deve ter pelo menos 32 caracteres")
+	if u, err := url.Parse(c.Auth.Authority); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("auth.authority deve ser a URL do identity (ex.: http://identity:8006): %q", c.Auth.Authority)
 	}
-	if c.Auth.JWTSecret == DevJWTSecret && c.App.Env != "local" && c.App.Env != "compose" {
-		return fmt.Errorf("auth.jwt_secret de desenvolvimento não pode ser usado em app.env=%s", c.App.Env)
+	if c.Auth.Issuer == "" || c.Auth.Audience == "" {
+		return errors.New("auth.issuer e auth.audience são obrigatórios")
 	}
 	if c.Cache.Enabled {
 		if c.Cache.Redis.Addr == "" {

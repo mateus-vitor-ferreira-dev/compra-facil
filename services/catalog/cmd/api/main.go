@@ -125,7 +125,7 @@ func run() error {
 	categorySvc := service.NewCategoryService(categories)
 	campaignSvc := service.NewCampaignService(campaigns, time.Now)
 
-	verifier, err := auth.NewVerifier(cfg.Auth.Options())
+	verifier, err := auth.NewVerifier(ctx, cfg.Auth.Options(), log)
 	if err != nil {
 		return fmt.Errorf("auth: %w", err)
 	}

@@ -7,16 +7,16 @@
 //   3. pagamento recusado: cliente com cartão recusado no gateway fake (compose) → cancelled
 //      (payment_failed), cobrança failed (card_declined) e a reserva devolvida ao estoque.
 //
-// Rodar: task e2e (gera os tokens de admin e chama o k6). No CI: .github/workflows/e2e.yml.
-// Variáveis: GATEWAY_URL (http://gateway), MAILPIT_URL (http://mailpit:8025), CATALOG_TOKEN e
-// INVENTORY_TOKEN (JWT de admin com a audiência de cada serviço: task token -- -aud <serviço>).
+// Rodar: task e2e. No CI: .github/workflows/e2e.yml. O admin entra pelo identity, como o painel faria.
+// Variáveis: GATEWAY_URL (http://gateway), MAILPIT_URL (http://mailpit:8025), ADMIN_EMAIL e
+// ADMIN_PASSWORD (o operador inicial do compose).
 import http from 'k6/http';
 import { check, fail, group, sleep } from 'k6';
 
 const GATEWAY = __ENV.GATEWAY_URL || 'http://gateway';
 const MAILPIT = __ENV.MAILPIT_URL || 'http://mailpit:8025';
-const CATALOG_TOKEN = __ENV.CATALOG_TOKEN;
-const INVENTORY_TOKEN = __ENV.INVENTORY_TOKEN;
+const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@comprafacil.local';
+const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || 'admin-compra-facil';
 
 // configurado como cartão recusado no compose (Payments__Fake__DeclinedCustomers__0)
 const DECLINED_CUSTOMER = '0e2e0000-0000-4000-8000-00000000dec1';
@@ -53,16 +53,24 @@ function eventually(what, fn, timeoutS = SAGA_TIMEOUT_S) {
   fail(`tempo esgotado esperando: ${what}`);
 }
 
+// login do operador no identity: um token só vale para todas as APIs (aud compra-facil)
+function adminToken() {
+  const res = http.post(`${GATEWAY}/identity/v1/sessions`, json({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
+    { headers: { 'Content-Type': 'application/json' }, tags: { name: 'login' } });
+  if (res.status !== 200) fail(`login do admin: ${res.status} ${res.body}`);
+  return res.json('access_token');
+}
+
 function stockOf(productId) {
   const res = http.get(`${GATEWAY}/inventory/v1/stock/${productId}`, { tags: { name: 'stock' } });
   return res.status === 200 ? res.json() : null;
 }
 
-function createProduct(categoryId, label) {
+function createProduct(token, categoryId, label) {
   const sku = `E2E-${label}-${Math.floor(Math.random() * 1e8)}`.toUpperCase().slice(0, 32);
   const res = http.post(`${GATEWAY}/catalog/v1/admin/products`, json({
     sku, name: `Produto e2e ${label}`, category_id: categoryId, price_cents: 1990, status: 'active',
-  }), { headers: auth(CATALOG_TOKEN), tags: { name: 'admin-product' } });
+  }), { headers: auth(token), tags: { name: 'admin-product' } });
   if (res.status !== 201) fail(`criar produto ${label}: ${res.status} ${res.body}`);
   const id = res.json('id');
   // o inventory cria o saldo ao consumir o ProductCreated
@@ -71,15 +79,15 @@ function createProduct(categoryId, label) {
 }
 
 export function setup() {
-  if (!CATALOG_TOKEN || !INVENTORY_TOKEN) fail('CATALOG_TOKEN e INVENTORY_TOKEN são obrigatórios (task e2e gera os dois)');
+  const token = adminToken();
   const cats = http.get(`${GATEWAY}/catalog/v1/categories`);
   if (cats.status !== 200 || cats.json('data').length === 0) fail('sem categorias no catálogo: rode o seed antes');
   const categoryId = cats.json('data')[0].id;
 
   const products = {
-    happy: createProduct(categoryId, 'ok'),
-    noStock: createProduct(categoryId, 'sem-estoque'),
-    declined: createProduct(categoryId, 'recusado'),
+    happy: createProduct(token, categoryId, 'ok'),
+    noStock: createProduct(token, categoryId, 'sem-estoque'),
+    declined: createProduct(token, categoryId, 'recusado'),
   };
 
   // zera o estoque do produto do cenário 2
@@ -87,7 +95,7 @@ export function setup() {
   if (level.on_hand > 0) {
     const adj = http.post(`${GATEWAY}/inventory/v1/admin/stock/${products.noStock}/adjustments`,
       json({ delta: -level.on_hand, reason: 'inventory_count', note: 'e2e: sem estoque' }),
-      { headers: { ...auth(INVENTORY_TOKEN), 'Idempotency-Key': uuid() } });
+      { headers: { ...auth(token), 'Idempotency-Key': uuid() } });
     if (adj.status !== 200) fail(`zerar estoque: ${adj.status} ${adj.body}`);
   }
   return products;

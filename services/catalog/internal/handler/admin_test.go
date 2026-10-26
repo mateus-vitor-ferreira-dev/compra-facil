@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth/authtest"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/domain"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/service"
 )
@@ -106,7 +108,8 @@ func (f *fakeCampaignAdmin) SetProducts(_ context.Context, id uuid.UUID, ids []u
 
 // ---------- montagem ----------
 
-var testAuth = auth.Options{Secret: "segredo-de-teste-com-mais-de-32-caracteres", Issuer: "compra-facil", Audience: "catalog"}
+// testIdentity faz o papel do identity: as rotas admin validam os tokens dele pelo JWKS
+var testIdentity = authtest.MustNew()
 
 type adminFakes struct {
 	products   *fakeProductAdmin
@@ -116,8 +119,7 @@ type adminFakes struct {
 
 func newAdminAPI(t *testing.T) (http.Handler, adminFakes) {
 	t.Helper()
-	v, err := auth.NewVerifier(testAuth)
-	require.NoError(t, err)
+	v := testIdentity.Verifier(t)
 	f := adminFakes{&fakeProductAdmin{}, &fakeCategoryAdmin{}, &fakeCampaignAdmin{}}
 	admin := NewAdminHandler(f.products, f.categories, f.campaigns, RequireRole(v, auth.RoleAdmin, discardLogger()), discardLogger())
 	return NewRouter(discardLogger(), NewHealth(), admin), f
@@ -125,9 +127,7 @@ func newAdminAPI(t *testing.T) (http.Handler, adminFakes) {
 
 func token(t *testing.T, roles ...string) string {
 	t.Helper()
-	tok, err := auth.Issue(testAuth, "ana", roles, time.Hour, time.Now())
-	require.NoError(t, err)
-	return tok
+	return testIdentity.Token(t, roles)
 }
 
 func adminHeaders(t *testing.T, extra ...string) map[string]string {
@@ -178,10 +178,11 @@ func TestAdmin_Auth(t *testing.T) {
 	api, f := newAdminAPI(t)
 	f.products.page = domain.Page[domain.Product]{Items: []domain.Product{}}
 
-	otherIssuer := testAuth
-	otherIssuer.Issuer = "terceiro"
-	foreign, err := auth.Issue(otherIssuer, "ana", []string{auth.RoleAdmin}, time.Hour, time.Now())
-	require.NoError(t, err)
+	foreign := testIdentity.Token(t, []string{auth.RoleAdmin}, func(c *auth.Claims) { c.Issuer = "terceiro" })
+	expired := testIdentity.Token(t, []string{auth.RoleAdmin}, func(c *auth.Claims) {
+		c.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-time.Minute))
+	})
+	forged := authtest.New(t).Token(t, []string{auth.RoleAdmin}) // outra chave, mesmo formato
 
 	tests := []struct {
 		name       string
@@ -192,7 +193,9 @@ func TestAdmin_Auth(t *testing.T) {
 		{"esquema errado", "Basic YWRtaW46YWRtaW4=", http.StatusUnauthorized},
 		{"token inválido", "Bearer nao.e.jwt", http.StatusUnauthorized},
 		{"token de outro emissor", "Bearer " + foreign, http.StatusUnauthorized},
-		{"sem a role admin", "Bearer " + token(t, "viewer"), http.StatusForbidden},
+		{"token vencido", "Bearer " + expired, http.StatusUnauthorized},
+		{"assinado por outra chave", "Bearer " + forged, http.StatusUnauthorized},
+		{"cliente (sem a role admin)", "Bearer " + token(t, auth.RoleCustomer), http.StatusForbidden},
 		{"admin", "Bearer " + token(t, auth.RoleAdmin), http.StatusOK},
 		{"esquema sem diferenciar maiúsculas", "bearer " + token(t, auth.RoleAdmin), http.StatusOK},
 	}

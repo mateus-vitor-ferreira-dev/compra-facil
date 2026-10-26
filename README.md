@@ -228,7 +228,7 @@ task up / down / reset        # ambiente local (reset apaga os volumes)
 task test                     # go test + dotnet test em todos os serviços
 task lint                     # golangci-lint, dotnet format, buf, Spectral, AsyncAPI
 task seed                     # popula o catálogo
-task token -- -aud orders     # JWT de operador para as rotas /v1/admin/*
+task token                    # access token do operador (login no identity) para as rotas /v1/admin/*
 task load                     # k6: campanha promocional (métricas no Grafana)
 task experiment               # escala independente: 1 × N réplicas do catálogo, gera o relatório
 task chaos:catalog            # k6 criando pedidos com o catálogo derrubado no meio

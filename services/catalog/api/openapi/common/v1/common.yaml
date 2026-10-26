@@ -230,4 +230,4 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT emitido para operadores; a role `admin` libera os endpoints `/v1/admin/*`.
+      description: Access token do identity (JWT RS256, `aud` compra-facil); a role `admin` libera os endpoints `/v1/admin/*`. Ver identity.v1.yaml.

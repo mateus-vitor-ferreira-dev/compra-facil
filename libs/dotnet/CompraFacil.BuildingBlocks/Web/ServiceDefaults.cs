@@ -55,7 +55,7 @@ public static class ServiceDefaults
         builder.Services.AddExceptionHandler<ApplicationExceptionHandler>();
 
         builder.Services.AddHealthChecks();
-        // sem esquema: nada é exigido; o serviço com rotas admin chama AddAdminAuth
+        // sem esquema: nada é exigido; o serviço com rotas protegidas chama AddJwtAuth
         builder.Services.AddAuthentication();
         builder.Services.AddAuthorization();
         builder.AddObservability(service.Name);

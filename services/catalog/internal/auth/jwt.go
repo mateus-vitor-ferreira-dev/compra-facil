@@ -1,92 +1,114 @@
-// Package auth valida e emite os JWT dos operadores (HS256 com segredo compartilhado).
+// Package auth valida os JWT emitidos pelo serviço identity (RS256), com as chaves públicas do JWKS dele.
 //
-// Não há serviço de identidade no projeto: o segredo fica na configuração e o comando
-// cmd/token emite tokens para uso local e nos testes de carga.
+// O catálogo nunca emite token nem tem segredo: busca o JWKS do identity, guarda em memória, renova de
+// hora em hora e na hora em que chega um token com kid desconhecido (chave nova da rotação).
 package auth
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
+	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/time/rate"
 )
 
-const RoleAdmin = "admin"
-
-// MinSecretLen evita segredos fracos: HS256 pede pelo menos 256 bits.
-const MinSecretLen = 32
+const (
+	RoleAdmin    = "admin"
+	RoleCustomer = "customer"
+)
 
 var ErrInvalidToken = errors.New("token inválido")
 
-// Claims são os campos do token que o catálogo usa.
+// Claims são os campos do token que o catálogo usa (contracts/openapi/identity.v1.yaml).
 type Claims struct {
 	Roles []string `json:"roles"`
+	Email string   `json:"email"`
 	jwt.RegisteredClaims
 }
 
 func (c Claims) HasRole(role string) bool { return slices.Contains(c.Roles, role) }
 
 type Options struct {
-	Secret   string
-	Issuer   string
-	Audience string
+	// Authority é o endereço do identity (ex.: http://identity:8006); o JWKS fica em /.well-known/jwks.json.
+	Authority string
+	Issuer    string
+	Audience  string
 	// Leeway tolera diferença de relógio entre quem emite e quem valida.
 	Leeway time.Duration
 }
 
-type Verifier struct {
-	opts   Options
-	parser *jwt.Parser
+// JWKSURL é onde o identity publica as chaves públicas.
+func (o Options) JWKSURL() string {
+	return strings.TrimRight(o.Authority, "/") + "/.well-known/jwks.json"
 }
 
-func NewVerifier(opts Options) (*Verifier, error) {
-	if len(opts.Secret) < MinSecretLen {
-		return nil, fmt.Errorf("segredo do JWT deve ter pelo menos %d caracteres", MinSecretLen)
+type Verifier struct {
+	parser *jwt.Parser
+	keys   keyfunc.Keyfunc
+}
+
+// NewVerifier busca o JWKS do identity em segundo plano: o catálogo sobe mesmo com o identity fora
+// (a vitrine não depende dele), e as rotas admin respondem 401 até as chaves chegarem.
+func NewVerifier(ctx context.Context, opts Options, log *slog.Logger) (*Verifier, error) {
+	if opts.Authority == "" {
+		return nil, errors.New("auth.authority (endereço do identity) não configurado")
 	}
+	keys, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{opts.JWKSURL()}, keyfunc.Override{
+		// a próxima chave aparece no JWKS um dia antes de assinar: 1 h de cache sobra
+		RefreshInterval: time.Hour,
+		// kid desconhecido (chave criada fora da janela) refaz a busca, no máximo a cada 30 s, e a
+		// requisição não espera a vez mais que 2 s
+		RefreshUnknownKID: rate.NewLimiter(rate.Every(30*time.Second), 1),
+		RateLimitWaitMax:  2 * time.Second,
+		HTTPTimeout:       5 * time.Second,
+		RefreshErrorHandlerFunc: func(u string) func(context.Context, error) {
+			return func(ctx context.Context, err error) {
+				log.WarnContext(ctx, "falha ao buscar o JWKS do identity", "url", u, "err", err)
+			}
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("JWKS de %s: %w", opts.JWKSURL(), err)
+	}
+	return newVerifier(opts, keys), nil
+}
+
+// NewStaticVerifier valida com um JWKS fixo, sem HTTP (testes).
+func NewStaticVerifier(opts Options, jwks json.RawMessage) (*Verifier, error) {
+	keys, err := keyfunc.NewJWKSetJSON(jwks)
+	if err != nil {
+		return nil, fmt.Errorf("JWKS: %w", err)
+	}
+	return newVerifier(opts, keys), nil
+}
+
+func newVerifier(opts Options, keys keyfunc.Keyfunc) *Verifier {
 	parser := jwt.NewParser(
-		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), // barra alg=none e troca de algoritmo
+		jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}), // barra alg=none e HS256 com a chave pública
 		jwt.WithIssuer(opts.Issuer),
 		jwt.WithAudience(opts.Audience),
 		jwt.WithExpirationRequired(),
 		jwt.WithLeeway(opts.Leeway),
 	)
-	return &Verifier{opts: opts, parser: parser}, nil
+	return &Verifier{parser: parser, keys: keys}
 }
 
 // Verify confere assinatura, emissor, audiência e validade. O motivo da recusa fica no erro
 // (para o log); o cliente recebe só "token inválido".
 func (v *Verifier) Verify(raw string) (Claims, error) {
 	var claims Claims
-	_, err := v.parser.ParseWithClaims(raw, &claims, func(*jwt.Token) (any, error) {
-		return []byte(v.opts.Secret), nil
-	})
-	if err != nil {
+	if _, err := v.parser.ParseWithClaims(raw, &claims, v.keys.Keyfunc); err != nil {
 		return Claims{}, fmt.Errorf("%w: %w", ErrInvalidToken, err)
 	}
 	if claims.Subject == "" {
 		return Claims{}, fmt.Errorf("%w: sem sub", ErrInvalidToken)
 	}
 	return claims, nil
-}
-
-// Issue emite um token para subject com as roles dadas, válido por ttl.
-func Issue(opts Options, subject string, roles []string, ttl time.Duration, now time.Time) (string, error) {
-	claims := Claims{
-		Roles: roles,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   subject,
-			Issuer:    opts.Issuer,
-			Audience:  jwt.ClaimStrings{opts.Audience},
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
-		},
-	}
-	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(opts.Secret))
-	if err != nil {
-		return "", fmt.Errorf("assinando token: %w", err)
-	}
-	return signed, nil
 }

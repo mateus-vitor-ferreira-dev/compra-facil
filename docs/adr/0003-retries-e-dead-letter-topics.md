@@ -69,7 +69,7 @@ esses.
 
 ## Reprocessamento
 
-Cada serviço .NET expõe, com o JWT de admin (`task token -- -aud <serviço>`):
+Cada serviço .NET expõe, com o token de operador do identity (`task token`):
 
 - `GET /v1/admin/dead-letters?limit=50`: o que está pendente, com origem, tentativas e último erro;
 - `POST /v1/admin/dead-letters/replay`: devolve as pendentes para `<serviço>.retry-1`.

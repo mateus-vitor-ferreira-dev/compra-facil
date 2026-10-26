@@ -61,7 +61,12 @@ procedimento manual de deploy, que costuma não acontecer.
 
 ## Consequências
 
-- Um serviço novo valida tokens com três parâmetros: endereço do JWKS, `iss` e `aud` (#144).
+- Um serviço novo valida tokens com três parâmetros: endereço do identity, `iss` e `aud` (#144: `AddJwtAuth`
+  nos serviços .NET, `keyfunc` no catalog). O JWT HS256 de dev e o `cmd/token` saíram; o operador entra pelo
+  identity, e os testes assinam com uma chave própria (`TestIdentity`, `authtest`).
+- Um token com `kid` desconhecido é recusado na primeira vez pelos serviços .NET (o JwtBearer busca o JWKS
+  de novo em segundo plano) e aceito na hora pelo catalog (o keyfunc busca antes de responder). Pelo desenho
+  da rotação, isso só acontece na primeira chave do identity, quando ainda não há token em circulação.
 - Logout não invalida o access token já emitido; ele vale até vencer (15 min). Para revogação imediata seria
   preciso uma lista de bloqueio consultada a cada requisição, que é o acoplamento que o JWT evita.
 - O BFF do front (#148) guarda o refresh token em cookie `HttpOnly` e faz **um refresh por vez**: dois em
