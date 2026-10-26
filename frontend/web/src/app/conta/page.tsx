@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Minha conta", robots: { index: false
 export default async function Account() {
   const account = await currentAccount();
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
+    <main id="conteudo" className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-2xl font-semibold">Minha conta</h1>
       {account ? (
         <p className="mt-4" data-testid="account-email">
