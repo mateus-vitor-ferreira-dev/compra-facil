@@ -37,15 +37,32 @@ public sealed record SigningKeyLifetime(string KeyId, DateTimeOffset ActivatesAt
 /// <summary>
 /// Rotação das chaves de assinatura, sem relógio nem banco (testável). Em dia, cada chave assina por
 /// <c>RotateEvery</c>, a sucessora é publicada <c>PublishAhead</c> antes e a antiga sai do JWKS quando
-/// os tokens dela vencem. Se o serviço ficou fora na janela de troca, a chave vence sem sucessora e uma
-/// nova passa a valer na hora (os serviços a buscam no JWKS ao ver um <c>kid</c> desconhecido). Se só
-/// perdeu a janela, a atual é esticada (<see cref="ExtendUntil"/>) e a sucessora ainda sai publicada antes.
+/// os tokens dela vencem. Se o serviço perdeu a janela de troca, a atual é esticada (<see cref="ExtendUntil"/>);
+/// se ficou fora tanto que ela venceu, a mais recente volta a assinar (<see cref="Resume"/>). Nos dois
+/// casos a sucessora sai publicada antes de assinar: chave sem aviso, só na primeira subida.
 /// </summary>
 public static class SigningKeySchedule
 {
     /// <summary>A chave que assina agora: a mais recente já ativa. Nula se nenhuma vale.</summary>
     public static SigningKeyLifetime? Active(IEnumerable<SigningKeyLifetime> keys, DateTimeOffset now) =>
         keys.Where(k => k.SignsAt(now)).MaxBy(k => k.ActivatesAt);
+
+    /// <summary>
+    /// Depois de o serviço ficar fora além da folga, nenhuma chave assina mais. Em vez de criar uma que
+    /// assine já (que os serviços ainda não conhecem), a mais recente volta a assinar por mais
+    /// <c>PublishAhead</c>, tempo de a sucessora ser publicada antes de assumir. Nulo se alguma chave
+    /// ainda assina ou se não há chave nenhuma (primeira subida: não há token para validar ainda).
+    /// </summary>
+    public static SigningKeyLifetime? Resume(IReadOnlyCollection<SigningKeyLifetime> keys, DateTimeOffset now, KeyRotationPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        if (Active(keys, now) is not null || keys.MaxBy(k => k.ActivatesAt) is not { } latest || latest.ActivatesAt > now)
+        {
+            return null;
+        }
+        var retiresAt = now + policy.PublishAhead;
+        return latest with { RetiresAt = retiresAt, ExpiresAt = retiresAt + policy.TokenLifetime };
+    }
 
     /// <summary>Quando a próxima chave deve começar a assinar, se for hora de criá-la; senão, nulo.</summary>
     public static DateTimeOffset? NextActivation(IReadOnlyCollection<SigningKeyLifetime> keys, DateTimeOffset now, KeyRotationPolicy policy)
@@ -54,7 +71,7 @@ public static class SigningKeySchedule
         var active = Active(keys, now);
         if (active is null)
         {
-            return now; // primeira subida, ou a chave venceu sem sucessora
+            return now; // primeira subida (ou, sem o Resume antes, a chave venceu sem sucessora)
         }
         if (keys.Any(k => k.ActivatesAt > now))
         {

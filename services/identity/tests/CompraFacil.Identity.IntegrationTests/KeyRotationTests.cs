@@ -78,6 +78,35 @@ public sealed class LateRotationTests(IdentityFixture fx) : IClassFixture<Identi
     }
 }
 
+/// <summary>O identity ficou fora 40 dias: a chave venceu, e mesmo assim nenhuma chave sem aviso assina.</summary>
+public sealed class LongOutageTests(IdentityFixture fx) : IClassFixture<IdentityFixture>
+{
+    private readonly IdentityClient _api = new(fx.Factory.CreateClient());
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private async Task<List<string>> KidsAsync()
+    {
+        using var jwks = await _api.Http.GetAsync(new Uri("/.well-known/jwks.json", UriKind.Relative), Ct);
+        return [.. new JsonWebKeySet(await jwks.Content.ReadAsStringAsync(Ct)).Keys.Select(k => k.Kid)];
+    }
+
+    [Fact]
+    public async Task AfterTheOutage_TheLatestKeySignsAgain_UntilTheAnnouncedSuccessorStarts()
+    {
+        var first = new JsonWebToken((await _api.NewSessionAsync()).Access).Kid;
+
+        fx.Clock.Advance(TimeSpan.FromDays(40));
+        // o primeiro token depois da volta é da chave que os serviços já têm em cache
+        Assert.Equal(first, new JsonWebToken((await _api.NewSessionAsync()).Access).Kid);
+        var next = Assert.Single(await KidsAsync(), k => k != first);
+
+        fx.Clock.Advance(TimeSpan.FromDays(1));
+        Assert.Equal(next, new JsonWebToken((await _api.NewSessionAsync()).Access).Kid);
+        Assert.Contains(first, await KidsAsync()); // até os tokens dela vencerem
+    }
+}
+
 /// <summary>Validade dos tokens: access de 15 min, refresh de 30 dias.</summary>
 public sealed class ExpirationTests(IdentityFixture fx) : IClassFixture<IdentityFixture>
 {

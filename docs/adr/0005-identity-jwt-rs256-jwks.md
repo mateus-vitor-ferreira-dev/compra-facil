@@ -28,7 +28,9 @@ Um serviço **identity** (.NET, no template dos outros) emite os tokens. Os dema
 - **Rotação de chave pelo relógio**: cada chave assina por 30 dias. A sucessora entra no JWKS **um dia antes**
   de assinar, então quem guarda o JWKS em cache já a conhece quando o primeiro token dela chega; a antiga fica
   publicada até o último token dela vencer. Se o serviço ficou fora na janela de troca, a chave atual é
-  esticada até a sucessora começar, que ainda sai publicada um dia antes. A regra é uma função pura (`SigningKeySchedule`), com testes de
+  esticada até a sucessora começar, que ainda sai publicada um dia antes. Se ficou fora tanto que a chave
+  venceu, a mais recente volta a assinar por um dia (os serviços já a têm em cache) enquanto a sucessora é
+  publicada. Chave que assina sem ter sido anunciada, só na primeira subida, quando não há token ainda. A regra é uma função pura (`SigningKeySchedule`), com testes de
   unidade e um teste de integração que avança o relógio um mês.
 - **As chaves ficam no banco do identity**, com a privada cifrada pelo Data Protection do ASP.NET. O anel de
   chaves do Data Protection fica no mesmo banco, para que todas as réplicas decifrem. A criação da próxima

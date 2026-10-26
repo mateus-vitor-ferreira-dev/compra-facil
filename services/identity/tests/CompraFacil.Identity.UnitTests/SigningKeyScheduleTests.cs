@@ -76,13 +76,29 @@ public sealed class SigningKeyScheduleTests
     }
 
     [Fact]
-    public void ExpiredWithoutSuccessor_CreatesOneActiveNow()
+    public void ExpiredWithoutSuccessor_ResumesTheLatest_AndTheSuccessorIsAnnouncedFirst()
     {
         var a = Key("a", s_t0);
-        var now = s_t0.AddDays(40);
+        var now = s_t0.AddDays(40); // fora do ar muito além da folga: a já venceu
 
         Assert.Null(SigningKeySchedule.Active([a], now));
-        Assert.Equal(now, SigningKeySchedule.NextActivation([a], now, s_policy));
+        var resumed = SigningKeySchedule.Resume([a], now, s_policy);
+        Assert.NotNull(resumed);
+        Assert.Equal("a", SigningKeySchedule.Active([resumed], now)?.KeyId);
+
+        // a sucessora assume exatamente quando a volta acaba, PublishAhead depois de publicada
+        var next = SigningKeySchedule.NextActivation([resumed], now, s_policy);
+        Assert.Equal(now + s_policy.PublishAhead, next);
+        Assert.Equal(resumed.RetiresAt, next);
+    }
+
+    [Fact]
+    public void Resume_NothingToDo_WithAnActiveKeyOrNoKeys()
+    {
+        var a = Key("a", s_t0);
+
+        Assert.Null(SigningKeySchedule.Resume([a], s_t0.AddDays(1), s_policy));
+        Assert.Null(SigningKeySchedule.Resume([], s_t0, s_policy));
     }
 
     [Theory]
