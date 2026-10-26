@@ -4,6 +4,13 @@ obj/
 *.user
 .vs/
 TestResults/
+# Node / front (também no frontend/web/.gitignore; aqui vale em qualquer branch)
+node_modules/
+.next/
+.lighthouseci/
+playwright-report/
+test-results/
+*.tsbuildinfo
 # Go
 backend/services/catalog/bin/
 *.test
