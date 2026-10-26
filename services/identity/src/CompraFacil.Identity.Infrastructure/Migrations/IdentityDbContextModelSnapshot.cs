@@ -22,6 +22,89 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CompraFacil.BuildingBlocks.Messaging.InboxMessage", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("event_type");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("topic");
+
+                    b.HasKey("EventId")
+                        .HasName("pk_inbox");
+
+                    b.ToTable("inbox", (string)null);
+                });
+
+            modelBuilder.Entity("CompraFacil.BuildingBlocks.Messaging.OutboxMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("Headers")
+                        .IsRequired()
+                        .HasColumnType("json")
+                        .HasColumnName("headers");
+
+                    b.Property<string>("MessageKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message_key");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("json")
+                        .HasColumnName("payload");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("topic");
+
+                    b.HasKey("Id")
+                        .HasName("pk_outbox");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_outbox_event_id");
+
+                    b.ToTable("outbox", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Identity.Domain.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")

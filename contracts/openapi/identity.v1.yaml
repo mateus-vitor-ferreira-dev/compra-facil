@@ -6,7 +6,9 @@ info:
   description: |
     API do serviço **identity** (ASP.NET Core Identity).
 
-    - **Cadastro** (`registerAccount`) cria uma conta de cliente (papel `customer`).
+    - **Cadastro** (`registerAccount`) cria uma conta de cliente (papel `customer`) e manda o e-mail de
+      confirmação (pelo notifications). Com a confirmação exigida (`Identity:EmailConfirmation:Required`),
+      o login só funciona depois de `confirmEmail`.
     - **Login** (`createSession`) devolve um **access token** (JWT RS256, 15 min) e um **refresh token**
       (opaco, 30 dias). Cinco senhas erradas seguidas bloqueiam a conta por 15 minutos (`423`).
     - **Refresh** (`refreshSession`) troca o refresh token por um par novo; o antigo deixa de valer.
@@ -71,6 +73,69 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
+  /v1/accounts/confirm-email:
+    post:
+      tags: [accounts]
+      operationId: confirmEmail
+      summary: Confirma o e-mail pelo link
+      description: |
+        O link do e-mail leva para a página do front com `conta` e `token` na query; o front os manda aqui.
+        Conta já confirmada: `204` também (o link pode ser aberto duas vezes). Conta inexistente, token
+        errado ou vencido (1 dia): o mesmo `422`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, token]
+              properties:
+                account_id:
+                  type: string
+                  format: uuid
+                token:
+                  type: string
+                  maxLength: 2048
+      responses:
+        "204":
+          description: E-mail confirmado.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/accounts/confirm-email/resend:
+    post:
+      tags: [accounts]
+      operationId: resendEmailConfirmation
+      summary: Manda outro link de confirmação
+      description: |
+        Sempre `202`, exista a conta ou não, já confirmada ou não: a resposta não revela quem tem conta.
+        O link anterior continua valendo até vencer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  $ref: "#/components/schemas/Email"
+      responses:
+        "202":
+          description: Se a conta existe e não está confirmada, o e-mail sai em instantes.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/me:
     get:
       tags: [accounts]
@@ -115,6 +180,12 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          description: Senha certa, mas o e-mail ainda não foi confirmado (só com a confirmação exigida).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
         "422":
           $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "423":
@@ -271,7 +342,7 @@ components:
 
     Account:
       type: object
-      required: [id, email, name, roles, created_at]
+      required: [id, email, name, email_confirmed, roles, created_at]
       properties:
         id:
           type: string
@@ -281,6 +352,8 @@ components:
           $ref: "#/components/schemas/Email"
         name:
           type: string
+        email_confirmed:
+          type: boolean
         roles:
           type: array
           items:

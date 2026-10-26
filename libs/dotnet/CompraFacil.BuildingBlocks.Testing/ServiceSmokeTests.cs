@@ -34,8 +34,11 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
     /// <summary>Arquivo do contrato em contracts/openapi; nulo se o serviço não tem API pública.</summary>
     protected abstract string? ContractFile { get; }
 
-    /// <summary>Usa a mensageria (outbox, inbox e DLT); falso para serviço que não publica nem consome eventos.</summary>
+    /// <summary>Usa a mensageria (tabelas de outbox e inbox); falso para serviço que não publica nem consome eventos.</summary>
     protected virtual bool UsesMessaging => true;
+
+    /// <summary>Consome eventos, e por isso tem DLT e as rotas /v1/admin/dead-letters; falso para quem só publica.</summary>
+    protected virtual bool ConsumesEvents => UsesMessaging;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -103,7 +106,7 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
         using var deadLetters = await _http.GetAsync(new Uri("/openapi/common/v1/dead-letters.yaml", UriKind.Relative), Ct);
         Assert.Equal(HttpStatusCode.OK, contract.StatusCode);
         Assert.Equal(HttpStatusCode.OK, common.StatusCode);
-        Assert.Equal(UsesMessaging ? HttpStatusCode.OK : HttpStatusCode.NotFound, deadLetters.StatusCode);
+        Assert.Equal(ConsumesEvents ? HttpStatusCode.OK : HttpStatusCode.NotFound, deadLetters.StatusCode);
         var yaml = await contract.Content.ReadAsStringAsync(Ct);
         Assert.StartsWith("openapi: 3.1", yaml, StringComparison.Ordinal);
     }
@@ -117,7 +120,7 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
 
         using var response = await _http.SendAsync(request, Ct);
 
-        Assert.Equal(UsesMessaging ? HttpStatusCode.Unauthorized : HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(ConsumesEvents ? HttpStatusCode.Unauthorized : HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 

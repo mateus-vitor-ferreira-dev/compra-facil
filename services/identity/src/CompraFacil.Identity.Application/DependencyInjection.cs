@@ -13,6 +13,9 @@ public static class DependencyInjection
     {
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
         services.AddScoped<RegisterAccount>();
+        services.AddScoped<EmailConfirmationRequests>();
+        services.AddScoped<ConfirmEmail>();
+        services.AddScoped<ResendConfirmation>();
         services.AddScoped<Sessions>();
         services.AddScoped<AccountQueries>();
         services.AddScoped<AccessTokenIssuer>();

@@ -14,7 +14,7 @@ namespace CompraFacil.Identity.IntegrationTests;
 /// O identity com um Postgres real e um relógio controlado: os testes avançam o tempo para ver token
 /// vencer e chave rotacionar. Um por classe de teste (o tempo de uma classe não vaza para outra).
 /// </summary>
-public sealed class IdentityFixture : IAsyncLifetime
+public class IdentityFixture : IAsyncLifetime
 {
     public const string AdminEmail = "admin@comprafacil.test";
     public const string AdminPassword = "senha-do-operador";
@@ -26,6 +26,9 @@ public sealed class IdentityFixture : IAsyncLifetime
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
+    /// <summary>Login só com e-mail confirmado (Identity:EmailConfirmation:Required).</summary>
+    protected virtual bool RequireConfirmedEmail => false;
+
     public async ValueTask InitializeAsync()
     {
         await _postgres.InitializeAsync();
@@ -33,6 +36,8 @@ public sealed class IdentityFixture : IAsyncLifetime
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Identity:Admin:Email", AdminEmail)
             .UseSetting("Identity:Admin:Password", AdminPassword)
+            .UseSetting("Kafka:Enabled", "false") // os eventos são conferidos no outbox
+            .UseSetting("Identity:EmailConfirmation:Required", RequireConfirmedEmail ? "true" : "false")
             .ConfigureTestServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(Clock))));
         using var _ = Factory.CreateClient(); // sobe: migrations, primeira chave e admin
     }
@@ -41,6 +46,7 @@ public sealed class IdentityFixture : IAsyncLifetime
     {
         await Factory.DisposeAsync();
         await _postgres.DisposeAsync();
+        GC.SuppressFinalize(this);
     }
 }
 

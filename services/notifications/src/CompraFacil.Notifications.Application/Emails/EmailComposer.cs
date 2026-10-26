@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Encodings.Web;
 using System.Text.RegularExpressions;
 using System.Text.Unicode;
+using CompraFacil.BuildingBlocks.Messaging;
 using Fluid;
 
 namespace CompraFacil.Notifications.Application.Emails;
@@ -17,6 +18,7 @@ public static partial class EmailComposer
     private static readonly HtmlEncoder s_html = HtmlEncoder.Create(UnicodeRanges.All);
     private static readonly IFluidTemplate s_confirmed = Load("order-confirmed");
     private static readonly IFluidTemplate s_cancelled = Load("order-cancelled");
+    private static readonly IFluidTemplate s_confirmEmail = Load("confirm-email");
 
     public static async Task<ComposedEmail> ConfirmedAsync(OrderConfirmedData order)
     {
@@ -45,6 +47,33 @@ public static partial class EmailComposer
         var html = await s_cancelled.RenderAsync(Context(new { order_number = number, reason, advice }), s_html);
         return new ComposedEmail($"Pedido {number} cancelado", html, ToText(html));
     }
+
+    public static async Task<ComposedEmail> ConfirmEmailAsync(EmailConfirmationRequestedData request, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        // só links http(s): o template não pode virar um javascript: vindo de um evento adulterado
+        if (request.ConfirmationUrl.Scheme is not ("http" or "https"))
+        {
+            throw new PoisonMessageException($"confirmation_url com esquema {request.ConfirmationUrl.Scheme}");
+        }
+        var html = await s_confirmEmail.RenderAsync(Context(new
+        {
+            name = FirstName(request.Name),
+            url = request.ConfirmationUrl.AbsoluteUri,
+            valid_for = ValidFor(request.ExpiresAt - now),
+        }), s_html);
+        return new ComposedEmail("Confirme o seu e-mail", html, ToText(html) + "\n" + request.ConfirmationUrl.AbsoluteUri);
+    }
+
+    /// <summary>"24 horas", "2 dias": a validade que o identity deu ao link.</summary>
+    internal static string ValidFor(TimeSpan left) => left.TotalHours switch
+    {
+        < 1.5 => "1 hora",
+        < 48 => $"{Math.Round(left.TotalHours):0} horas",
+        _ => $"{Math.Round(left.TotalDays):0} dias",
+    };
+
+    internal static string FirstName(string name) => name.Trim().Split(' ', 2)[0] is { Length: > 0 } first ? first : "olá";
 
     /// <summary>Motivo em linguagem de cliente (sem detalhes internos como fraude).</summary>
     internal static (string Reason, string Advice) Explain(string reason, string? paymentFailure) => (reason, paymentFailure) switch

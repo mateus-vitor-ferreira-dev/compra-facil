@@ -52,7 +52,7 @@ components:
         producer:
           type: string
           description: Serviço dono do evento.
-          enum: [catalog, orders, inventory, payments]
+          enum: [catalog, orders, inventory, payments, identity]
         correlation_id:
           type: string
           maxLength: 128
@@ -91,6 +91,13 @@ components:
           type: string
           format: uuid
           description: "`order_id`."
+    AccountKey:
+      kafka:
+        bindingVersion: 0.5.0
+        key:
+          type: string
+          format: uuid
+          description: "`account_id`."
     ProductKey:
       kafka:
         bindingVersion: 0.5.0

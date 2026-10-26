@@ -127,6 +127,21 @@ public sealed class EmailFlowTests(EmailFixture fx) : IClassFixture<EmailFixture
     }
 
     [Fact]
+    public async Task EmailConfirmation_ArrivesWithTheLink()
+    {
+        var to = $"cris-{Guid.NewGuid():N}@exemplo.com";
+        var url = new Uri($"http://localhost:3000/conta/confirmar-email?conta={Guid.NewGuid()}&token=tok");
+
+        await HandleAsync<EmailConfirmationRequestedData, OnEmailConfirmationRequested>(
+            new EmailConfirmationRequestedData(Guid.NewGuid(), to, "Cris", url, DateTimeOffset.UtcNow.AddDays(1)), Guid.NewGuid());
+        await DispatchAsync();
+
+        var message = await MessageAsync(Assert.Single(await InboxAsync(to)));
+        Assert.Equal("Confirme o seu e-mail", message.GetProperty("Subject").GetString());
+        Assert.Contains(url.AbsoluteUri, message.GetProperty("Text").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SameEvent_SendsOneEmail()
     {
         var to = $"duplo-{Guid.NewGuid():N}@exemplo.com";

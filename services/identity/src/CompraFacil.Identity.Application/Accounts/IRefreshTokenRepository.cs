@@ -24,7 +24,10 @@ public interface IRefreshTokenRepository
     Task SaveChangesAsync(CancellationToken ct);
 }
 
-/// <summary>Uma transação para o que o UserManager grava em mais de um SaveChanges (conta + papel).</summary>
+/// <summary>
+/// Uma transação para o que o UserManager grava em mais de um SaveChanges (conta + papel), e para o
+/// que ficou pendente no contexto (o outbox): grava tudo antes do commit.
+/// </summary>
 public interface IAccountTransaction
 {
     Task<T> RunAsync<T>(Func<Task<T>> work, CancellationToken ct);

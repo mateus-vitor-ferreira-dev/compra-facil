@@ -52,6 +52,7 @@ internal sealed class AccountTransaction(IdentityDbContext db) : IAccountTransac
         try
         {
             var result = await work();
+            await db.SaveChangesAsync(ct); // o que ficou pendente (o outbox) entra na mesma transação
             await tx.CommitAsync(ct);
             return result;
         }

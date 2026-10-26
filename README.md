@@ -59,7 +59,7 @@ O parecer da atividade, com a escolha entre as propostas e os critérios para av
 |---|---|
 | **p95 de 686 ms → 5 ms** no pico de 1.000 req/s, escalando **só o catálogo** de 1 para 3 réplicas (+0,27 núcleo de CPU) | [`docs/resultados-carga.md`](docs/resultados-carga.md) |
 | **0 falhas** em 1.202 pedidos com o catálogo **derrubado no meio** do teste de carga | [`task chaos:catalog`](load-tests/k6/orders-catalog-down.js) |
-| **~340 testes** automatizados: 221 em .NET (integração com Postgres, Redpanda e gRPC reais) e 120 em Go | `task test` |
+| **~390 testes** automatizados: 259 em .NET (integração com Postgres, Redpanda e gRPC reais) e 130 em Go | `task test` |
 | **6 serviços**, **6 pipelines** independentes e contratos versionados em gRPC, REST e eventos | [`.github/workflows`](.github/workflows) |
 | Um pedido vira **um trace só**: 57 spans passando por 6 componentes | Grafana → Tempo |
 
@@ -198,7 +198,9 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 - **Erros:** sempre em `application/problem+json`, com `request_id` e `trace_id`. A vitrine tem rate limit por IP (`429` com `Retry-After`).
 - **Conta:** `POST /identity/v1/accounts` cadastra; `POST /identity/v1/sessions` devolve o access token (JWT, 15 min)
   e o refresh token (30 dias, troca a cada uso em `/identity/v1/sessions/refresh`). O access token vai em
-  `Authorization: Bearer`. No ambiente local, o operador é `admin@comprafacil.local` / `admin-compra-facil`.
+  `Authorization: Bearer`. O cadastro manda um e-mail com o link de confirmação (a página do front repassa a conta e o
+  token a `POST /identity/v1/accounts/confirm-email`). No ambiente local, o operador é
+  `admin@comprafacil.local` / `admin-compra-facil`.
 - **Compra:** `POST /orders/v1/orders` com o token de cliente e o header `Idempotency-Key`; o corpo só traz os itens
   (o cliente e o e-mail dos avisos vêm do token). Responde `202` com o pedido `pending`. Depois, consulte
   `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`), ou acompanhe ao vivo

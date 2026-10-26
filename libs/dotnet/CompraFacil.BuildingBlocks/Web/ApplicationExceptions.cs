@@ -20,6 +20,10 @@ public abstract class ApplicationProblemException(int status, string title, stri
 public sealed class UnauthorizedException(string detail)
     : ApplicationProblemException(StatusCodes.Status401Unauthorized, "Não autenticado", detail);
 
+/// <summary>403: autenticado, mas sem permissão para a operação (ex.: e-mail ainda não confirmado).</summary>
+public sealed class ForbiddenException(string title, string detail)
+    : ApplicationProblemException(StatusCodes.Status403Forbidden, title, detail);
+
 /// <summary>404: recurso inexistente.</summary>
 public sealed class NotFoundException(string detail)
     : ApplicationProblemException(StatusCodes.Status404NotFound, "Recurso não encontrado", detail);

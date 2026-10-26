@@ -53,11 +53,23 @@ public sealed class Sessions(
         }
 
         var result = await signIn.CheckPasswordSignInAsync(user, command.Password, lockoutOnFailure: true);
+        if (result.IsNotAllowed)
+        {
+            // o Identity barra a conta não confirmada antes de conferir a senha e o bloqueio: sem isto,
+            // a senha errada responderia "não confirmado" (revela a conta e não conta a tentativa)
+            await EnsureNotLockedAsync(user);
+            if (!await users.CheckPasswordAsync(user, command.Password))
+            {
+                await users.AccessFailedAsync(user);
+                await EnsureNotLockedAsync(user); // a quinta já responde 423, como no login normal
+                throw new UnauthorizedException(InvalidCredentials);
+            }
+            throw new ForbiddenException("E-mail não confirmado",
+                "confirme o e-mail pelo link que enviamos; para receber outro, use o reenvio");
+        }
         if (result.IsLockedOut)
         {
-            var end = await users.GetLockoutEndDateAsync(user);
-            var retryAfter = end is { } e && e > clock.GetUtcNow() ? e - clock.GetUtcNow() : TimeSpan.FromMinutes(1);
-            throw new AccountLockedException(retryAfter);
+            await EnsureNotLockedAsync(user);
         }
         if (!result.Succeeded)
         {
@@ -123,6 +135,17 @@ public sealed class Sessions(
                 return true;
             }, ct);
         }
+    }
+
+    private async Task EnsureNotLockedAsync(User user)
+    {
+        if (!await users.IsLockedOutAsync(user))
+        {
+            return;
+        }
+        var end = await users.GetLockoutEndDateAsync(user);
+        var retryAfter = end is { } e && e > clock.GetUtcNow() ? e - clock.GetUtcNow() : TimeSpan.FromMinutes(1);
+        throw new AccountLockedException(retryAfter);
     }
 
     private static byte[]? Hash(string refreshToken) =>
