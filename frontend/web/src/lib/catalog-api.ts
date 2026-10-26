@@ -1,6 +1,7 @@
 import "server-only";
 import { api } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema/catalog";
+import type { Product } from "@/lib/catalog";
 
 export type Category = components["schemas"]["Category"];
 export type Campaign = components["schemas"]["Campaign"];
@@ -14,7 +15,7 @@ export type Result<T> = { ok: true; data: T } | { ok: false; error: CatalogError
 const PRODUCTS_TTL = 60;
 const CATEGORIES_TTL = 300;
 
-async function call<T>(run: () => Promise<{ data?: T; response: Response }>): Promise<Result<T>> {
+export async function call<T>(run: () => Promise<{ data?: T; response: Response }>): Promise<Result<T>> {
   try {
     const { data, response } = await run();
     if (data !== undefined) return { ok: true, data };
@@ -43,6 +44,15 @@ export function getActiveCampaigns(): Promise<Result<Campaign[]>> {
       .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:campaigns"] })
       .GET("/v1/campaigns");
     return { data: r.data?.data, response: r.response };
+  });
+}
+
+export function getProduct(id: string): Promise<Result<Product>> {
+  return call(async () => {
+    const r = await api
+      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products", `catalog:product:${id}`] })
+      .GET("/v1/products/{product_id}", { params: { path: { product_id: id } } });
+    return { data: r.data, response: r.response };
   });
 }
 
