@@ -4,7 +4,8 @@ info:
   version: 1.0.0
   description: |
     O serviço **notifications** (time de Processamento de compras, ASP.NET Core) só consome eventos:
-    envia o e-mail de pedido confirmado ou cancelado (Mailpit em dev). Não publica nada.
+    envia o e-mail de pedido confirmado ou cancelado e o de confirmação de e-mail da conta (Mailpit em
+    dev). Não publica nada.
 
     O e-mail de um mesmo `event_id` sai no máximo uma vez.
 defaultContentType: application/json
@@ -18,6 +19,8 @@ servers:
 channels:
   orderEvents:
     $ref: "./orders.v1.yaml#/channels/orderEvents"
+  accountEvents:
+    $ref: "./identity.v1.yaml#/channels/accountEvents"
 
 operations:
   onOrderOutcome:
@@ -28,6 +31,20 @@ operations:
     messages:
       - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications
+
+  onEmailConfirmationRequested:
+    action: receive
+    channel:
+      $ref: "#/channels/accountEvents"
+    summary: Manda o e-mail com o link de confirmação.
+    messages:
+      - $ref: "#/channels/accountEvents/messages/EmailConfirmationRequested"
     bindings:
       kafka:
         bindingVersion: 0.5.0

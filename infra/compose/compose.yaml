@@ -302,14 +302,13 @@ services:
         PORT: 8006
         APP_VERSION: ${VERSION:-dev}
     image: compra-facil/identity:${VERSION:-dev}
-    # sem Kafka: o identity não publica nem consome eventos
-    depends_on:
-      postgres:
-        condition: service_healthy
-      postgres-databases:
-        condition: service_completed_successfully
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      # eventos de conta pelo outbox (identity.account.v1)
+      Kafka__BootstrapServers: redpanda:9092
+      # link do e-mail de confirmação: a página do front (F8). Sem exigir a confirmação no ambiente local
+      Identity__EmailConfirmation__UrlTemplate: ${FRONT_URL:-http://localhost:3000}/conta/confirmar-email?conta={account_id}&token={token}
+      Identity__EmailConfirmation__Required: "false"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
       # operador inicial, só no ambiente local: entra no painel e nas rotas /v1/admin/*

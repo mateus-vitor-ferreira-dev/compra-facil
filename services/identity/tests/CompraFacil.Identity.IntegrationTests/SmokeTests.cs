@@ -7,5 +7,5 @@ public sealed class SmokeTests(PostgresFixture postgres) : ServiceSmokeTests<Pro
 {
     protected override string? ContractFile => "identity.v1.yaml";
 
-    protected override bool UsesMessaging => false; // ainda não publica eventos
+    protected override bool ConsumesEvents => false; // só publica (outbox), sem DLT
 }

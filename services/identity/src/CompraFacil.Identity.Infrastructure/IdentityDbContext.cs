@@ -1,3 +1,4 @@
+using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.Identity.Domain;
 using CompraFacil.Identity.Infrastructure.Keys;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -8,8 +9,8 @@ namespace CompraFacil.Identity.Infrastructure;
 
 /// <summary>
 /// Banco do identity (database-per-service): as tabelas do ASP.NET Core Identity com nomes curtos,
-/// refresh tokens, chaves de assinatura e o anel de chaves do Data Protection. Sem outbox: o identity
-/// ainda não publica eventos.
+/// refresh tokens, chaves de assinatura, o anel de chaves do Data Protection e o outbox dos eventos de
+/// conta.
 /// </summary>
 public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> options)
     : IdentityDbContext<User, Role, Guid>(options), IDataProtectionKeyContext
@@ -21,6 +22,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.AddMessagingTables(); // outbox e inbox (BuildingBlocks)
         builder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
     }
 }

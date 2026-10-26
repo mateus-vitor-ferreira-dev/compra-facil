@@ -6,6 +6,9 @@ public static class NotificationEvents
     public const string OrdersTopic = "orders.order.v1";
     public const string OrderConfirmed = nameof(OrderConfirmed);
     public const string OrderCancelled = nameof(OrderCancelled);
+
+    public const string AccountsTopic = "identity.account.v1";
+    public const string EmailConfirmationRequested = nameof(EmailConfirmationRequested);
 }
 
 public sealed record Money(long AmountCents, string Currency);
@@ -20,3 +23,6 @@ public sealed record OrderConfirmedData(Guid OrderId, string CustomerEmail, IRea
 /// <param name="Reason">out_of_stock | payment_failed.</param>
 /// <param name="PaymentFailureReason">card_declined, insufficient_funds, ... (só em payment_failed).</param>
 public sealed record OrderCancelledData(Guid OrderId, string CustomerEmail, string Reason, string? PaymentFailureReason);
+
+/// <summary>data do EmailConfirmationRequested (contracts/asyncapi/identity.v1.yaml).</summary>
+public sealed record EmailConfirmationRequestedData(Guid AccountId, string Email, string Name, Uri ConfirmationUrl, DateTimeOffset ExpiresAt);

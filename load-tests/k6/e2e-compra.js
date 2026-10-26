@@ -127,8 +127,10 @@ function reservationOf(orderId) {
   return res.status === 200 ? res.json() : null;
 }
 
-function emailsTo(address) {
-  const res = http.get(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${address}`)}`, { tags: { name: 'mailpit' } });
+// e-mails para o endereço com o assunto dado (o cliente recebe o de confirmação da conta e o do pedido)
+function emailsTo(address, subject) {
+  const query = `to:${address} subject:"${subject}"`;
+  const res = http.get(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(query)}`, { tags: { name: 'mailpit' } });
   return res.status === 200 ? res.json('messages_count') : 0;
 }
 
@@ -144,7 +146,10 @@ export default function (products) {
       return r && r.status === 'committed' ? r : null;
     }), { 'reserva committed': (r) => r.status === 'committed' });
     // o e-mail do aviso é o do token, não veio no corpo do pedido
-    check(eventually('e-mail de confirmação no Mailpit', () => emailsTo(customer.email)), { 'e-mail enviado': (n) => n >= 1 });
+    check(eventually('e-mail do pedido no Mailpit', () => emailsTo(customer.email, 'confirmado')), { 'e-mail enviado': (n) => n >= 1 });
+    // o cadastro publicou o pedido de confirmação de e-mail (outbox do identity) e o notifications o mandou
+    check(eventually('e-mail de confirmação da conta', () => emailsTo(customer.email, 'Confirme o seu e-mail')),
+      { 'e-mail de confirmação da conta': (n) => n === 1 });
 
     const mine = http.get(`${GATEWAY}/orders/v1/me/orders`, { headers: auth(customer.token), tags: { name: 'my-orders' } });
     check(mine, { 'pedido em Meus pedidos': (r) => r.status === 200 && r.json('data').some((o) => o.id === orderId) });

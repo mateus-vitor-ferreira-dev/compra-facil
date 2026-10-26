@@ -30,7 +30,8 @@ public sealed class Notification
     }
 
     public Guid Id { get; private set; }
-    public Guid OrderId { get; private set; }
+    /// <summary>O que motivou o e-mail: o pedido ou a conta (o <see cref="Kind"/> diz qual).</summary>
+    public Guid ReferenceId { get; private set; }
     public string Kind { get; private set; } = "";
     public string To { get; private set; } = "";
     public string Subject { get; private set; } = "";
@@ -43,10 +44,10 @@ public sealed class Notification
     public DateTimeOffset? SentAt { get; private set; }
 
     public static Notification Create(
-        Guid eventId, Guid orderId, string kind, string to, string subject, string htmlBody, string textBody, DateTimeOffset now) => new()
+        Guid eventId, Guid referenceId, string kind, string to, string subject, string htmlBody, string textBody, DateTimeOffset now) => new()
         {
             Id = eventId,
-            OrderId = orderId,
+            ReferenceId = referenceId,
             Kind = kind,
             To = to,
             Subject = subject,

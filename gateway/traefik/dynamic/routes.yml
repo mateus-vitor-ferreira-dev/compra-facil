@@ -34,9 +34,9 @@ http:
       entryPoints: [web]
       service: media
       middlewares: [security-headers, strip-service-prefix]
-    # login, refresh, logout e cadastro: as rotas que aceitam senha ou token, com rate limit
+    # login, refresh, logout, cadastro e confirmação de e-mail: as rotas que aceitam senha ou token, com rate limit
     identity-credentials:
-      rule: PathPrefix(`/identity/v1/sessions`) || Path(`/identity/v1/accounts`)
+      rule: PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)
       entryPoints: [web]
       service: identity
       middlewares: [cors, security-headers, identity-problem-429, identity-rate-limit, strip-service-prefix]

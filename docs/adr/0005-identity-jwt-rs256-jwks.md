@@ -71,8 +71,9 @@ procedimento manual de deploy, que costuma não acontecer.
   preciso uma lista de bloqueio consultada a cada requisição, que é o acoplamento que o JWT evita.
 - O BFF do front (#148) guarda o refresh token em cookie `HttpOnly` e faz **um refresh por vez**: dois em
   paralelo com o mesmo token contam como reuso e derrubam a sessão.
-- Confirmação de e-mail fica para depois: o Identity já gera o token, mas o envio pede um evento para o
-  notifications, e o identity ainda não publica eventos.
+- Confirmação de e-mail (#168): o identity publica `AccountRegistered` e `EmailConfirmationRequested` pelo
+  outbox, na mesma transação do cadastro, e o notifications manda o link. Exigir a confirmação para entrar é
+  configuração (`Identity:EmailConfirmation:Required`), desligada no ambiente local.
 - A validade de cada chave no JWKS é fixada quando ela é criada: aumentar a validade do access token em
   produção só vale por completo para as chaves criadas depois.
 - O anel do Data Protection no mesmo banco das chaves protege contra vazamento de backup parcial, não do banco

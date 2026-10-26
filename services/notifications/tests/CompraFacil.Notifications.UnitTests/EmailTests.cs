@@ -36,6 +36,40 @@ public sealed class EmailTests
         Assert.DoesNotContain("<td>", email.TextBody, StringComparison.Ordinal);
     }
 
+    private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
+
+    private static EmailConfirmationRequestedData Confirmation(string url, string name = "Ana <b>Souza</b>", double hours = 24) =>
+        new(Guid.NewGuid(), "ana@exemplo.com", name, new Uri(url), s_now.AddHours(hours));
+
+    [Fact]
+    public async Task ConfirmEmail_HasTheLink_TheFirstName_AndTheValidity()
+    {
+        var url = "http://localhost:3000/conta/confirmar-email?conta=0199&token=abc_-123";
+
+        var email = await EmailComposer.ConfirmEmailAsync(Confirmation(url), s_now);
+
+        Assert.Equal("Confirme o seu e-mail", email.Subject);
+        Assert.Contains("href=\"http://localhost:3000/conta/confirmar-email?conta=0199&amp;token=abc_-123\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("Ana", email.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("<b>", email.HtmlBody, StringComparison.Ordinal); // nome escapado (e só o primeiro)
+        Assert.Contains("24 horas", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains(url, email.TextBody, StringComparison.Ordinal); // o texto puro também leva o link
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/html,oi")]
+    public async Task ConfirmEmail_OnlyHttpLinks(string url) =>
+        await Assert.ThrowsAsync<CompraFacil.BuildingBlocks.Messaging.PoisonMessageException>(() =>
+            EmailComposer.ConfirmEmailAsync(Confirmation(url), s_now));
+
+    [Theory]
+    [InlineData(0.9, "1 hora")]
+    [InlineData(24, "24 horas")]
+    [InlineData(72, "3 dias")]
+    public void ValidFor_ReadsLikeAPerson(double hours, string expected) =>
+        Assert.Equal(expected, EmailComposer.ValidFor(TimeSpan.FromHours(hours)));
+
     [Fact]
     public void Notification_RetriesThenGivesUp()
     {

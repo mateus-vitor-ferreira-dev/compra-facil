@@ -1,3 +1,4 @@
+using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Identity.Domain;
 using FluentValidation;
@@ -21,10 +22,15 @@ public sealed class RegisterValidator : AbstractValidator<RegisterCommand>
     }
 }
 
-/// <summary>Cadastro de cliente: cria a conta com o papel <c>customer</c>, numa transação.</summary>
+/// <summary>
+/// Cadastro de cliente: cria a conta com o papel <c>customer</c> e publica AccountRegistered e o pedido
+/// de confirmação de e-mail, tudo numa transação (outbox): ou a conta e os eventos, ou nada.
+/// </summary>
 public sealed class RegisterAccount(
     IValidator<RegisterCommand> validator,
     UserManager<User> users,
+    IOutbox outbox,
+    EmailConfirmationRequests confirmations,
     IAccountTransaction transaction,
     TimeProvider clock)
 {
@@ -38,6 +44,9 @@ public sealed class RegisterAccount(
         {
             Check(await users.CreateAsync(user, command.Password));
             Check(await users.AddToRoleAsync(user, Roles.Customer));
+            outbox.Add(AccountEvents.Topic, user.Id.ToString(), AccountEvents.AccountRegistered,
+                new AccountRegisteredData(user.Id, user.Email!, user.Name, user.CreatedAt));
+            await confirmations.EnqueueAsync(user);
             return user;
         }, ct);
         return AccountView.From(user, [Roles.Customer]);

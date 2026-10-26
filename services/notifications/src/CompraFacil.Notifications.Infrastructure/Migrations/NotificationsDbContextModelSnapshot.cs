@@ -135,9 +135,9 @@ namespace CompraFacil.Notifications.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("last_error");
 
-                    b.Property<Guid>("OrderId")
+                    b.Property<Guid>("ReferenceId")
                         .HasColumnType("uuid")
-                        .HasColumnName("order_id");
+                        .HasColumnName("reference_id");
 
                     b.Property<DateTimeOffset?>("SentAt")
                         .HasColumnType("timestamp with time zone")
@@ -169,8 +169,8 @@ namespace CompraFacil.Notifications.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_notifications");
 
-                    b.HasIndex("OrderId")
-                        .HasDatabaseName("ix_notifications_order_id");
+                    b.HasIndex("ReferenceId")
+                        .HasDatabaseName("ix_notifications_reference_id");
 
                     b.HasIndex("Status", "CreatedAt")
                         .HasDatabaseName("ix_notifications_status_created_at");

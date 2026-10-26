@@ -18,7 +18,7 @@ internal sealed class NotificationConfiguration : IEntityTypeConfiguration<Notif
         builder.Property(n => n.LastError).HasMaxLength(500);
         // fila do despachante: pendentes mais antigas primeiro
         builder.HasIndex(n => new { n.Status, n.CreatedAt });
-        builder.HasIndex(n => n.OrderId);
+        builder.HasIndex(n => n.ReferenceId);
     }
 }
 

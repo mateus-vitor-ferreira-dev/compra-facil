@@ -36,6 +36,7 @@ public sealed partial class AdminSeeder(
         if (user is null)
         {
             user = User.Create(o.Email, o.Name, clock.GetUtcNow());
+            user.EmailConfirmed = true; // o e-mail veio da configuração: o operador entra mesmo com a confirmação exigida
             Check(await users.CreateAsync(user, o.Password));
             LogCreated(logger, o.Email);
         }
