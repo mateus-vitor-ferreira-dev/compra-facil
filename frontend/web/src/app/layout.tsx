@@ -3,12 +3,15 @@ import { Archivo } from "next/font/google";
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/toast";
 import { brand } from "@/lib/brand";
+import { env } from "@/lib/env";
 import "./globals.css";
 
 // uma família só: largura normal na interface, estreita e pesada nos preços (eixo wdth)
 const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
 
 export const metadata: Metadata = {
+  // canonical e Open Graph relativos viram absolutos a partir daqui
+  metadataBase: new URL(env.SITE_URL),
   title: { default: brand.name, template: `%s | ${brand.name}` },
   description: brand.description,
 };

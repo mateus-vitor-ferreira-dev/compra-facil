@@ -7,12 +7,24 @@ import type { paths as inventory } from "./schema/inventory";
 import type { paths as orders } from "./schema/orders";
 import type { paths as payments } from "./schema/payments";
 
+/** Como chamar: com o token do cliente logado e/ou com cache de dados do Next (revalidate, tags). */
+export type CallOptions = { token?: string; revalidate?: number | false; tags?: string[] };
+
 /**
  * Clientes tipados das APIs (tipos gerados de contracts/openapi), sempre pelo gateway:
- * `${API_URL}/<serviço>/v1/...`. Com `token`, mandam o access token do cliente logado.
+ * `${API_URL}/<serviço>/v1/...`. Com `revalidate`, a resposta fica no cache de dados do Next por esse
+ * tempo (a mesma URL não volta à API); com `token`, vai o access token do cliente logado.
  */
-function client<Paths extends object>(service: string, token?: string) {
-  const api = createClient<Paths>({ baseUrl: `${env.API_URL.replace(/\/$/, "")}/${service}` });
+function client<Paths extends object>(service: string, options: CallOptions = {}) {
+  const { token, revalidate, tags } = options;
+  const cached = revalidate !== undefined || tags !== undefined;
+  const api = createClient<Paths>({
+    baseUrl: `${env.API_URL.replace(/\/$/, "")}/${service}`,
+    // o openapi-fetch chama fetch(request): o cache do Next vem no segundo argumento
+    fetch: cached
+      ? (request: Request) => fetch(request, { next: { revalidate, tags } } as RequestInit)
+      : undefined,
+  });
   if (token) {
     const auth: Middleware = {
       onRequest({ request }) {
@@ -26,11 +38,11 @@ function client<Paths extends object>(service: string, token?: string) {
 }
 
 export const api = {
-  catalog: (token?: string) => client<catalog>("catalog", token),
-  identity: (token?: string) => client<identity>("identity", token),
-  inventory: (token?: string) => client<inventory>("inventory", token),
-  orders: (token?: string) => client<orders>("orders", token),
-  payments: (token?: string) => client<payments>("payments", token),
+  catalog: (options?: CallOptions) => client<catalog>("catalog", options),
+  identity: (options?: CallOptions) => client<identity>("identity", options),
+  inventory: (options?: CallOptions) => client<inventory>("inventory", options),
+  orders: (options?: CallOptions) => client<orders>("orders", options),
+  payments: (options?: CallOptions) => client<payments>("payments", options),
 };
 
 export type { components as CatalogSchemas } from "./schema/catalog";

@@ -1,5 +1,9 @@
 import type { MetadataRoute } from "next";
+import { env } from "@/lib/env";
 
 export default function robots(): MetadataRoute.Robots {
-  return { rules: { userAgent: "*", allow: "/", disallow: ["/conta", "/api/"] } };
+  return {
+    rules: { userAgent: "*", allow: "/", disallow: ["/conta", "/carrinho", "/api/", "/design"] },
+    sitemap: `${env.SITE_URL.replace(/\/$/, "")}/sitemap.xml`,
+  };
 }

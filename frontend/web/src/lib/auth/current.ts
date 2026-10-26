@@ -14,6 +14,6 @@ export async function accessToken(): Promise<string | undefined> {
 export async function currentAccount(): Promise<Account | null> {
   const token = await accessToken();
   if (!token) return null;
-  const { data } = await api.identity(token).GET("/v1/me", { cache: "no-store" });
+  const { data } = await api.identity({ token }).GET("/v1/me", { cache: "no-store" });
   return data ?? null;
 }
