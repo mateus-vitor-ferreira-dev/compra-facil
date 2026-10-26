@@ -72,6 +72,9 @@ const products = seed.map(([name, slug, price, effective], i) => {
   };
 });
 
+// o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
+const stock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
+
 /** GET /v1/products com os filtros que a vitrine usa; o cursor é o índice do próximo item. */
 function listProducts(url) {
   const q = url.searchParams.get("q")?.toLowerCase();
@@ -125,6 +128,11 @@ async function json(req) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  const detail = url.pathname.match(/^\/catalog\/v1\/products\/([0-9a-f-]{36})$/);
+  if (req.method === "GET" && detail) {
+    const product = products.find((p) => p.id === detail[1]);
+    return product ? send(res, 200, product) : problem(res, 404, "Recurso não encontrado");
+  }
   switch (`${req.method} ${url.pathname}`) {
     case "GET /catalog/v1/products":
       // a busca "limite" faz o papel do rate limit do gateway
@@ -133,6 +141,21 @@ createServer(async (req, res) => {
         return problem(res, 429, "Muitas requisições");
       }
       return send(res, 200, listProducts(url));
+    case "GET /inventory/v1/stock": {
+      const ids = (url.searchParams.get("product_ids") ?? "").split(",").filter(Boolean);
+      return send(res, 200, {
+        data: ids.map((id) => {
+          const available = stock(id);
+          return {
+            product_id: id,
+            on_hand: available,
+            reserved: 0,
+            available,
+            updated_at: "2026-10-01T10:00:00Z",
+          };
+        }),
+      });
+    }
     case "GET /catalog/v1/categories":
       return send(res, 200, { data: categories });
     case "GET /catalog/v1/campaigns":

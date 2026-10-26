@@ -14,7 +14,7 @@ const iconLink =
  * O cabeçalho da loja. No celular: logo e atalhos em cima, a busca inteira embaixo e as categorias num
  * menu que abre sem JavaScript (details). No desktop: tudo numa linha e as categorias à mostra.
  */
-export function SiteHeader({ categories }: { categories: Tree }) {
+export function SiteHeader({ categories, cartCount }: { categories: Tree; cartCount: number }) {
   return (
     <header className="bg-paper border-line border-b">
       <div className="mx-auto grid max-w-6xl grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 md:grid-cols-[auto_1fr_auto]">
@@ -34,10 +34,20 @@ export function SiteHeader({ categories }: { categories: Tree }) {
             <User aria-hidden="true" className="size-5" />
             <span className="sr-only sm:not-sr-only">Conta</span>
           </Link>
-          {/* o carrinho chega com a #151: até lá, sem prefetch de uma página que não existe */}
-          <Link href="/carrinho" prefetch={false} className={iconLink}>
+          <Link href="/carrinho" className={`${iconLink} relative`}>
             <ShoppingCart aria-hidden="true" className="size-5" />
             <span className="sr-only sm:not-sr-only">Carrinho</span>
+            {cartCount > 0 && (
+              <span
+                aria-hidden="true"
+                className="bg-tag text-tag-ink font-condensed absolute top-0.5 left-6 min-w-5 rounded-full px-1 text-center text-xs leading-5 font-bold sm:static sm:-ml-1"
+              >
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            )}
+            <span className="sr-only">
+              {cartCount === 0 ? "vazio" : `com ${cartCount} ${cartCount === 1 ? "item" : "itens"}`}
+            </span>
           </Link>
         </nav>
       </div>
