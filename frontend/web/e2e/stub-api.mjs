@@ -8,24 +8,89 @@ const accessTokens = new Map(); // access token -> email
 const stats = { refresh: 0, revoke: 0 };
 let seq = 0;
 
-const products = [
-  ['Smart TV 55" QLED', 329990, 263992],
-  ["Fone Bluetooth com cancelamento de ruído", 49990, 49990],
-  ["Notebook Core i7 16GB SSD 512GB", 549990, 494991],
-].map(([name, price, effective], i) => ({
-  id: `0199f6a0-0000-7000-8000-00000000000${i}`,
-  sku: `SKU-${i}`,
-  name,
-  description: "",
-  category: { id: "0199f6a0-0000-7000-8000-0000000000aa", slug: "tv", name: "TVs" },
-  image_url: null,
-  image: null,
-  price: { amount_cents: price, currency: "BRL" },
-  effective_price: { amount_cents: effective, currency: "BRL" },
-  campaign: null,
-  created_at: "2026-10-01T10:00:00Z",
-  updated_at: "2026-10-01T10:00:00Z",
-}));
+const categories = [
+  { id: "0199f6a0-0000-7000-8000-0000000000a0", slug: "eletronicos", name: "Eletrônicos", parent_id: null },
+  {
+    id: "0199f6a0-0000-7000-8000-0000000000aa",
+    slug: "tv",
+    name: "Televisores",
+    parent_id: "0199f6a0-0000-7000-8000-0000000000a0",
+  },
+  {
+    id: "0199f6a0-0000-7000-8000-0000000000ab",
+    slug: "fones",
+    name: "Fones de ouvido",
+    parent_id: "0199f6a0-0000-7000-8000-0000000000a0",
+  },
+  { id: "0199f6a0-0000-7000-8000-0000000000b0", slug: "informatica", name: "Informática", parent_id: null },
+  {
+    id: "0199f6a0-0000-7000-8000-0000000000bb",
+    slug: "notebooks",
+    name: "Notebooks",
+    parent_id: "0199f6a0-0000-7000-8000-0000000000b0",
+  },
+];
+const bySlug = Object.fromEntries(categories.map((c) => [c.slug, c]));
+
+// a campanha termina sempre daqui a 3 dias: a contagem regressiva nunca chega a zero no teste
+const endsAt = new Date(Date.now() + 3 * 86400_000).toISOString();
+const campaign = {
+  id: "0199f6a0-0000-7000-8000-0000000000c1",
+  name: "Black Friday",
+  discount_percent: 20,
+  ends_at: endsAt,
+};
+const campaigns = [
+  { ...campaign, slug: "black-friday", starts_at: "2026-10-01T00:00:00Z", product_count: 2 },
+];
+
+const seed = [
+  ['Smart TV 55" QLED', "tv", 329990, 263992],
+  ["Fone Bluetooth com cancelamento de ruído", "fones", 49990, 49990],
+  ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992],
+];
+// 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"
+for (let i = 1; i <= 30; i++)
+  seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100]);
+
+const products = seed.map(([name, slug, price, effective], i) => {
+  const { id, name: categoryName } = bySlug[slug];
+  const category = { id, slug, name: categoryName };
+  return {
+    id: `0199f6a0-0000-7000-8000-${String(i).padStart(12, "0")}`,
+    sku: `SKU-${i}`,
+    name,
+    description: "",
+    category,
+    image_url: null,
+    image: null,
+    price: { amount_cents: price, currency: "BRL" },
+    effective_price: { amount_cents: effective, currency: "BRL" },
+    campaign: effective < price ? campaign : null,
+    created_at: "2026-10-01T10:00:00Z",
+    updated_at: "2026-10-01T10:00:00Z",
+  };
+});
+
+/** GET /v1/products com os filtros que a vitrine usa; o cursor é o índice do próximo item. */
+function listProducts(url) {
+  const q = url.searchParams.get("q")?.toLowerCase();
+  const slug = url.searchParams.get("category");
+  const family = slug
+    ? categories.filter((c) => c.slug === slug || c.parent_id === bySlug[slug]?.id).map((c) => c.slug)
+    : null;
+  const matches = products.filter(
+    (p) =>
+      (!q || p.name.toLowerCase().includes(q)) &&
+      (!family || family.includes(p.category.slug)) &&
+      (url.searchParams.get("on_sale") !== "true" || p.campaign),
+  );
+  const start = Number(url.searchParams.get("cursor") ?? 0);
+  const limit = Number(url.searchParams.get("limit") ?? 20);
+  const data = matches.slice(start, start + limit);
+  const more = start + limit < matches.length;
+  return { data, page: { next_cursor: more ? String(start + limit) : null, has_more: more } };
+}
 
 function tokens(email) {
   seq++;
@@ -62,7 +127,16 @@ createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   switch (`${req.method} ${url.pathname}`) {
     case "GET /catalog/v1/products":
-      return send(res, 200, { data: products, page: { next_cursor: null, has_more: false } });
+      // a busca "limite" faz o papel do rate limit do gateway
+      if (url.searchParams.get("q") === "limite") {
+        res.setHeader("Retry-After", "42");
+        return problem(res, 429, "Muitas requisições");
+      }
+      return send(res, 200, listProducts(url));
+    case "GET /catalog/v1/categories":
+      return send(res, 200, { data: categories });
+    case "GET /catalog/v1/campaigns":
+      return send(res, 200, { data: campaigns });
     case "POST /identity/v1/sessions": {
       const { email, password } = await json(req);
       return password === "senha-boa-123"

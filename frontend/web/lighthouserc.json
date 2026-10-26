@@ -3,7 +3,11 @@
     "collect": {
       "startServerCommand": "node scripts/serve-with-stub.mjs",
       "startServerReadyPattern": "Ready in",
-      "url": ["http://localhost:3000/"],
+      "url": [
+        "http://localhost:3000/",
+        "http://localhost:3000/ofertas",
+        "http://localhost:3000/categoria/eletronicos"
+      ],
       "numberOfRuns": 3
     },
     "assert": {

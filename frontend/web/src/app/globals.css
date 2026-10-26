@@ -22,6 +22,8 @@
   --on-danger: #ffffff; /* texto sobre o vermelho */
   --focus: #1b1f3b;
   --photo: #eceef3; /* fundo das fotos e dos placeholders */
+  --hero: #1b1f3b; /* o encarte da campanha: escuro nos dois temas */
+  --on-hero: #f6f7f9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -36,6 +38,7 @@
     --on-danger: #12142a;
     --focus: #ffd23f;
     --photo: #262a4c;
+    --hero: #262b5e;
   }
 }
 
@@ -50,6 +53,7 @@
   --on-danger: #12142a;
   --focus: #ffd23f;
   --photo: #262a4c;
+  --hero: #262b5e;
 }
 
 @theme inline {
@@ -67,6 +71,8 @@
   --color-on-danger: var(--on-danger);
   --color-focus: var(--focus);
   --color-photo: var(--photo);
+  --color-hero: var(--hero);
+  --color-on-hero: var(--on-hero);
 
   /* nomes do shadcn/ui, para os componentes que vierem dele */
   --color-background: var(--paper);

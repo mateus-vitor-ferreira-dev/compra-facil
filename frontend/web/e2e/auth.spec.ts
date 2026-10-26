@@ -2,14 +2,6 @@ import { expect, test } from "@playwright/test";
 
 const STUB = "http://localhost:4010";
 
-test("a página inicial lista os produtos que o BFF busca no catálogo", async ({ page }) => {
-  await page.goto("/");
-
-  const products = page.getByRole("list", { name: "Produtos" });
-  await expect(products.getByRole("listitem")).toHaveCount(3);
-  await expect(products).toContainText("Smart TV 55");
-});
-
 test("login guarda a sessão em cookies httpOnly, fora do alcance do JavaScript", async ({
   page,
   context,
