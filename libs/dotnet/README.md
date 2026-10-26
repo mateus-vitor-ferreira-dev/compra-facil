@@ -1,6 +1,6 @@
 # Serviços .NET: template e BuildingBlocks
 
-Os quatro serviços do time de compras (`orders`, `inventory`, `payments`, `notifications`) têm a mesma
+Os serviços .NET (`orders`, `inventory`, `payments`, `notifications` e `identity`) têm a mesma
 forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em cada serviço.
 
 | Projeto | O que é |
@@ -15,8 +15,9 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
 - **Erros em ProblemDetails** (RFC 9457) no formato do contrato: `type: about:blank`, título em
   português, `instance`, `request_id` e `trace_id` (W3C, para achar o trace no Grafana). Vale para
   exceções (500), rota inexistente (404), JSON malformado (400) e validação.
-- **Erros de aplicação**: `NotFoundException` (404), `ConflictException` (409) e
-  `DependencyUnavailableException` (503 com `Retry-After`) viram ProblemDetails sem código no controller.
+- **Erros de aplicação**: `NotFoundException` (404), `ConflictException` (409), `UnauthorizedException`
+  (401) e `DependencyUnavailableException` (503) viram ProblemDetails sem código no controller. Qualquer
+  `ApplicationProblemException` com `RetryAfter` leva o header `Retry-After`.
 - **Validação**: o caso de uso lança a `ValidationException` do FluentValidation e a resposta vira o
   `422` do contrato, com `errors: [{ field: "items[0].quantity", message }]` no caminho do JSON.
 - **X-Request-ID**: reaproveitado (ou gerado), devolvido na resposta, no ProblemDetails e no escopo de
