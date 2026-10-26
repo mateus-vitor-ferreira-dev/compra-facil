@@ -8,14 +8,15 @@
         "http://localhost:3000/ofertas",
         "http://localhost:3000/categoria/eletronicos",
         "http://localhost:3000/produto/0199f6a0-0000-7000-8000-000000000000",
-        "http://localhost:3000/carrinho"
+        "http://localhost:3000/carrinho",
+        "http://localhost:3000/entrar"
       ],
       "numberOfRuns": 3
     },
     "assert": {
       "assertMatrix": [
         {
-          "matchingUrlPattern": "^(?!.*/carrinho).*$",
+          "matchingUrlPattern": "^(?!.*/(carrinho|entrar)).*$",
           "assertions": {
             "categories:performance": [
               "error",
@@ -44,7 +45,7 @@
           }
         },
         {
-          "matchingUrlPattern": ".*/carrinho$",
+          "matchingUrlPattern": ".*/(carrinho|entrar)$",
           "assertions": {
             "categories:performance": [
               "error",

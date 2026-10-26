@@ -61,7 +61,7 @@ test("logout revoga a sessão e apaga os cookies", async ({ page, context }) => 
   expect(logout.status()).toBe(204);
   expect((await context.cookies()).filter((c) => c.name.startsWith("cf_"))).toHaveLength(0);
   await page.goto("/conta");
-  await expect(page.getByText("Você não está logado.")).toBeVisible();
+  await expect(page).toHaveURL(/\/entrar\?voltar=%2Fconta$/);
 });
 
 test("POST de outro site é recusado", async ({ page }) => {

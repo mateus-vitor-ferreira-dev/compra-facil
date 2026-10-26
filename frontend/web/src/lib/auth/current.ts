@@ -1,6 +1,8 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { api, type IdentitySchemas } from "@/lib/api/client";
+import { loginHref } from "./return-to";
 import { ACCESS_COOKIE } from "./session";
 
 export type Account = IdentitySchemas["schemas"]["Account"];
@@ -16,4 +18,12 @@ export async function currentAccount(): Promise<Account | null> {
   if (!token) return null;
   const { data } = await api.identity({ token }).GET("/v1/me", { cache: "no-store" });
   return data ?? null;
+}
+
+/** Para as páginas da conta: sem sessão, manda para o login e traz de volta para `path` depois. */
+export async function requireAccount(path: string): Promise<{ account: Account; token: string }> {
+  const token = await accessToken();
+  const account = token ? await currentAccount() : null;
+  if (!token || !account) redirect(loginHref(path));
+  return { account, token };
 }

@@ -14,7 +14,15 @@ const iconLink =
  * O cabeçalho da loja. No celular: logo e atalhos em cima, a busca inteira embaixo e as categorias num
  * menu que abre sem JavaScript (details). No desktop: tudo numa linha e as categorias à mostra.
  */
-export function SiteHeader({ categories, cartCount }: { categories: Tree; cartCount: number }) {
+export function SiteHeader({
+  categories,
+  cartCount,
+  signedIn,
+}: {
+  categories: Tree;
+  cartCount: number;
+  signedIn: boolean;
+}) {
   return (
     <header className="bg-paper border-line border-b">
       <div className="mx-auto grid max-w-6xl grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 md:grid-cols-[auto_1fr_auto]">
@@ -30,9 +38,9 @@ export function SiteHeader({ categories, cartCount }: { categories: Tree; cartCo
           <Link href="/ofertas" className={`${iconLink} hidden sm:inline-flex`}>
             Ofertas
           </Link>
-          <Link href="/conta" className={iconLink}>
+          <Link href={signedIn ? "/conta" : "/entrar"} className={iconLink}>
             <User aria-hidden="true" className="size-5" />
-            <span className="sr-only sm:not-sr-only">Conta</span>
+            <span className="sr-only sm:not-sr-only">{signedIn ? "Minha conta" : "Entrar"}</span>
           </Link>
           <Link href="/carrinho" className={`${iconLink} relative`}>
             <ShoppingCart aria-hidden="true" className="size-5" />
