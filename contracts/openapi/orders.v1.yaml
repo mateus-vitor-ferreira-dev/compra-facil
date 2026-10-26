@@ -12,7 +12,8 @@ info:
     `pending` → `confirmed` (estoque reservado e pagamento aprovado) **ou** `cancelled`
     (`cancellation_reason`: `out_of_stock` ou `payment_failed`).
 
-    Acompanhe por `GET /v1/orders/{order_id}` (polling) ou pelo e-mail do `notifications`.
+    Acompanhe ao vivo por `GET /v1/orders/{order_id}/events` (Server-Sent Events), por
+    `GET /v1/orders/{order_id}` (polling) ou pelo e-mail do `notifications`.
     Itens e preços são validados no catálogo via gRPC na criação; o preço fica congelado no pedido.
 
     **Quem compra vem do token**: o access token do identity (`Authorization: Bearer`, papel `customer`)
@@ -169,6 +170,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/orders/{order_id}/events:
+    get:
+      tags: [orders]
+      operationId: streamOrderEvents
+      summary: O pedido ao vivo (Server-Sent Events)
+      description: |
+        Stream `text/event-stream` com o estado atual do pedido e cada mudança da SAGA, até o estado final
+        (`confirmed` ou `cancelled`), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
+
+        - Cada evento é `event: order`, com `id` (muda a cada transição) e `data` com o `Order` em JSON.
+        - Linhas `: keep-alive` a cada 15 s, sem dado: mantêm a conexão aberta no gateway e em proxies.
+        - O stream fecha depois de 5 min; reconecte mandando o último `id` em `Last-Event-ID` (o
+          `EventSource` do navegador faz isso sozinho, com o `retry: 3000` que o stream informa). Com
+          `Last-Event-ID` igual ao estado atual, ele não é reenviado.
+        - Pedido já no estado final e `Last-Event-ID` igual a ele: `204`, que faz o `EventSource` parar.
+
+        No navegador, o `EventSource` não manda `Authorization`: o front assina pelo BFF, que repassa o
+        stream com o token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: O `id` do último evento recebido (reconexão).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stream de eventos `order` (o `data` de cada um segue o schema `Order`).
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                confirmado:
+                  value: |
+                    retry: 3000
+
+                    id: 639283847000000000
+                    event: order
+                    data: {"id":"0199f6a0-...","status":"pending",...}
+
+                    id: 639283847120000000
+                    event: order
+                    data: {"id":"0199f6a0-...","status":"confirmed",...}
+        "204":
+          description: O pedido já está no estado final que o cliente recebeu; não há mais o que enviar.
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":

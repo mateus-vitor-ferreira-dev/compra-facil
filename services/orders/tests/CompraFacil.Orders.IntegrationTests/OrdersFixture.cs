@@ -78,12 +78,15 @@ public sealed class FakeCatalog : CatalogService.CatalogServiceBase
 }
 
 /// <summary>Postgres real + catalog falso (gRPC de verdade, HTTP/2) + o orders em memória.</summary>
-public sealed class OrdersFixture : IAsyncLifetime
+public class OrdersFixture : IAsyncLifetime
 {
     private readonly PostgresFixture _postgres = new();
     private WebApplication _catalogHost = null!;
 
     public FakeCatalog Catalog { get; } = new();
+
+    /// <summary>Releitura do pedido nos streams SSE; longa, só o aviso (OrderChangeFeed) traz a mudança.</summary>
+    protected virtual string LivePollInterval => "00:00:00.200";
 
     /// <summary>O identity dos testes: o pedido valida os tokens dele pelo JWKS (Auth:Jwks).</summary>
     public TestIdentity Identity { get; } = new();
@@ -108,7 +111,11 @@ public sealed class OrdersFixture : IAsyncLifetime
             .UseSetting("Catalog:GrpcAddress", catalogAddress)
             .UseSetting("Catalog:BreakDuration", "00:00:00.500") // o circuito fecha rápido entre testes
             .UseSetting("Kafka:Enabled", "false") // aqui o evento é conferido no outbox
-            .UseSetting("Auth:Jwks", Identity.Jwks));
+            .UseSetting("Auth:Jwks", Identity.Jwks)
+            // acompanhamento ao vivo em ritmo de teste
+            .UseSetting("Orders:Live:PollInterval", LivePollInterval)
+            .UseSetting("Orders:Live:HeartbeatInterval", "00:00:00.300")
+            .UseSetting("Orders:Live:MaxDuration", "00:00:03"));
         using var _ = Factory.CreateClient(); // sobe e migra
     }
 
@@ -118,6 +125,7 @@ public sealed class OrdersFixture : IAsyncLifetime
         await _catalogHost.DisposeAsync();
         await _postgres.DisposeAsync();
         Identity.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>Cliente HTTP com o token de um cliente da loja (um novo, se não vier o id).</summary>
