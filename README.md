@@ -200,7 +200,8 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
   `Authorization: Bearer`. No ambiente local, o operador é `admin@comprafacil.local` / `admin-compra-facil`.
 - **Compra:** `POST /orders/v1/orders` com o token de cliente e o header `Idempotency-Key`; o corpo só traz os itens
   (o cliente e o e-mail dos avisos vêm do token). Responde `202` com o pedido `pending`. Depois, consulte
-  `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`). "Meus pedidos":
+  `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`), ou acompanhe ao vivo
+  em `GET /orders/v1/orders/{id}/events` (Server-Sent Events: o estado atual, cada mudança e o fim). "Meus pedidos":
   `GET /orders/v1/me/orders`. Cada cliente vê só os próprios pedidos (de outro, `404`); o operador vê qualquer um.
 
 > **Migração do contrato de pedidos (#145).** Até a v1.0.0 o pedido trazia `customer_id` e `customer_email` no

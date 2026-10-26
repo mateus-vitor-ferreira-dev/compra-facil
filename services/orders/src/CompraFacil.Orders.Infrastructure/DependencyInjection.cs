@@ -4,7 +4,9 @@ using CompraFacil.Contracts.Catalog.V1;
 using CompraFacil.Orders.Application.Catalog;
 using CompraFacil.Orders.Application.Orders;
 using CompraFacil.Orders.Infrastructure.Catalog;
+using CompraFacil.Orders.Infrastructure.Live;
 using CompraFacil.Orders.Infrastructure.Persistence;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -40,6 +42,13 @@ public static class DependencyInjection
             .Handle<CampaignSnapshotData, CampaignChanged>(CatalogEvents.CampaignsTopic, "CampaignCreated")
             .Handle<CampaignSnapshotData, CampaignChanged>(CatalogEvents.CampaignsTopic, "CampaignUpdated")
             .Handle<CampaignDeletedData, CampaignDeleted>(CatalogEvents.CampaignsTopic, "CampaignDeleted"));
+
+        // GET /v1/orders/{id}/events: cada réplica ouve o próprio tópico e avisa os streams abertos nela
+        builder.Services.Configure<OrderLiveOptions>(builder.Configuration.GetSection(OrderLiveOptions.Section));
+        if (builder.Configuration.GetValue("Kafka:Enabled", defaultValue: true))
+        {
+            builder.Services.AddHostedService<OrderChangeListener>();
+        }
         return builder;
     }
 }
