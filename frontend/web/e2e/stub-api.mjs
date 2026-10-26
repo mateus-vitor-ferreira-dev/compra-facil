@@ -7,6 +7,34 @@ const sessions = new Map(); // refresh token -> { email, used }
 const accessTokens = new Map(); // access token -> email
 const stats = { refresh: 0, revoke: 0 };
 let seq = 0;
+const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
+
+// pedidos da Ana: um confirmado e um cancelado por falta de estoque
+const orderOf = (id, status, reason, qty, unit) => ({
+  id,
+  customer_id: "0199f6a0-0000-7000-8000-000000000a1a",
+  status,
+  cancellation_reason: reason,
+  items: [
+    {
+      product_id: "0199f6a0-0000-7000-8000-000000000000",
+      sku: "SKU-0",
+      name: 'Smart TV 55" QLED',
+      quantity: qty,
+      unit_price: { amount_cents: unit, currency: "BRL" },
+      line_total: { amount_cents: unit * qty, currency: "BRL" },
+      campaign_id: null,
+    },
+  ],
+  total: { amount_cents: unit * qty, currency: "BRL" },
+  payment_id: null,
+  created_at: "2026-10-20T15:00:00Z",
+  updated_at: "2026-10-20T15:01:00Z",
+});
+const orders = [
+  orderOf("4f2a9c1b-0000-7000-8000-000000000001", "confirmed", null, 1, 263992),
+  orderOf("7c3e5d2a-0000-7000-8000-000000000002", "cancelled", "out_of_stock", 2, 263992),
+];
 
 const categories = [
   { id: "0199f6a0-0000-7000-8000-0000000000a0", slug: "eletronicos", name: "Eletrônicos", parent_id: null },
@@ -128,6 +156,13 @@ async function json(req) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})$/);
+  if (req.method === "GET" && order) {
+    const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
+    if (!email) return problem(res, 401, "Não autenticado");
+    const found = email === "ana@exemplo.com" && orders.find((o) => o.id === order[1]);
+    return found ? send(res, 200, found) : problem(res, 404, "Recurso não encontrado");
+  }
   const detail = url.pathname.match(/^\/catalog\/v1\/products\/([0-9a-f-]{36})$/);
   if (req.method === "GET" && detail) {
     const product = products.find((p) => p.id === detail[1]);
@@ -160,11 +195,46 @@ createServer(async (req, res) => {
       return send(res, 200, { data: categories });
     case "GET /catalog/v1/campaigns":
       return send(res, 200, { data: campaigns });
+    case "POST /identity/v1/accounts": {
+      const { email, password, name } = await json(req);
+      if (accounts.has(email) || email === "ana@exemplo.com") return problem(res, 409, "Conflito");
+      accounts.set(email, { password, name });
+      return send(res, 201, {
+        id: crypto.randomUUID(),
+        email,
+        name,
+        email_confirmed: false,
+        roles: ["customer"],
+        created_at: new Date().toISOString(),
+      });
+    }
+    case "POST /identity/v1/accounts/confirm-email/resend":
+      res.writeHead(202).end();
+      return;
+    case "POST /identity/v1/accounts/confirm-email": {
+      const { token } = await json(req);
+      if (token !== "token-bom") return problem(res, 422, "Dados inválidos");
+      res.writeHead(204).end();
+      return;
+    }
+    case "GET /orders/v1/me/orders": {
+      const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
+      if (!email) return problem(res, 401, "Não autenticado");
+      return send(res, 200, {
+        data: email === "ana@exemplo.com" ? orders : [],
+        page: { next_cursor: null, has_more: false },
+      });
+    }
     case "POST /identity/v1/sessions": {
       const { email, password } = await json(req);
-      return password === "senha-boa-123"
-        ? send(res, 200, tokens(email))
-        : problem(res, 401, "Não autenticado");
+      const account = accounts.get(email);
+      if (account ? account.password === password : password === "senha-boa-123") {
+        // "confirmar@..." tem a confirmação de e-mail exigida: senha certa, mas 403
+        return email.startsWith("confirmar@")
+          ? problem(res, 403, "E-mail não confirmado")
+          : send(res, 200, tokens(email));
+      }
+      return problem(res, 401, "Não autenticado");
     }
     case "POST /identity/v1/sessions/refresh": {
       stats.refresh++;
