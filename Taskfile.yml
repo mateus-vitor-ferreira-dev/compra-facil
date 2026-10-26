@@ -178,6 +178,24 @@ tasks:
         curl -sSf -X POST http://localhost:${GATEWAY_PORT:-80}/identity/v1/sessions -H 'Content-Type: application/json'
         -d '{"email":"{{.ADMIN_EMAIL}}","password":"{{.ADMIN_PASSWORD}}"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/'
 
+  # ---------- front (frontend/web) ----------
+  web:dev:
+    desc: "Front em http://localhost:3000, falando com a API do ambiente local (task up antes)"
+    dir: frontend/web
+    cmds:
+      - npm run dev
+
+  web:check:
+    desc: "Front: tipos dos contratos, lint, testes, build e testes de navegador (como o CI)"
+    dir: frontend/web
+    cmds:
+      - npm run api:check
+      - npm run lint
+      - npm run typecheck
+      - npm test
+      - npm run build
+      - npm run e2e
+
   # ---------- observabilidade (Grafana em http://127.0.0.1:3001) ----------
   grafana:
     desc: Abre o Grafana no dashboard Início
