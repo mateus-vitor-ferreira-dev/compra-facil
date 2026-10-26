@@ -6,7 +6,8 @@ namespace CompraFacil.Orders.Api.Controllers;
 // Corpos HTTP do contrato (contracts/openapi/orders.v1.yaml). Campos opcionais aqui para a
 // ausência virar 422 do validador (com o nome do campo), e não um 400 genérico de binding.
 
-public sealed record PlaceOrderRequest(Guid? CustomerId, string? CustomerEmail, IReadOnlyList<PlaceOrderItemRequest>? Items);
+// o cliente e o e-mail vêm do token; customer_id/customer_email de clientes antigos são ignorados
+public sealed record PlaceOrderRequest(IReadOnlyList<PlaceOrderItemRequest>? Items);
 
 public sealed record PlaceOrderItemRequest(Guid? ProductId, int? Quantity, long? ExpectedUnitPriceCents);
 

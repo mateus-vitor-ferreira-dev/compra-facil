@@ -11,13 +11,15 @@
 // Pré-requisitos: `task up` e `task seed`. Rodar: `task load` (ou `task load -- -e PEAK_RATE=800`).
 // As métricas do k6 vão para o Prometheus (remote write) e aparecem no dashboard Campanha.
 //
-// Variáveis: CATALOG_URL, ORDERS_URL, BASE_RATE (req/s fora do pico, 50), PEAK_RATE (req/s no pico,
+// Variáveis: CATALOG_URL, ORDERS_URL, IDENTITY_URL (os clientes que compram), BASE_RATE (req/s fora do pico, 50), PEAK_RATE (req/s no pico,
 // 400), PEAK (duração do pico, 2m).
 import http from 'k6/http';
 import { check, fail } from 'k6';
+import { newCustomers } from './identity.js';
 
 const CATALOG_URL = __ENV.CATALOG_URL || 'http://catalog:8001';
 const ORDERS_URL = __ENV.ORDERS_URL || 'http://orders:8002';
+const IDENTITY_URL = __ENV.IDENTITY_URL || 'http://identity:8006';
 const BASE_RATE = parseInt(__ENV.BASE_RATE || '50', 10);
 const PEAK_RATE = parseInt(__ENV.PEAK_RATE || '400', 10);
 const PEAK = __ENV.PEAK || '2m';
@@ -90,6 +92,7 @@ export function setup() {
     categories: cats.json().data.map((c) => c.slug),
     hot: collect('&on_sale=true', 3),
     all: collect('', 20),
+    customers: newCustomers(IDENTITY_URL, 'campanha', 20),
   };
   if (data.hot.length === 0 || data.categories.length === 0) {
     fail('catálogo vazio ou sem campanha ativa: rode `task seed` antes');
@@ -131,11 +134,9 @@ function uuid() {
 // compra de um produto da campanha: o orders valida e precifica no catalog (gRPC) e inicia a SAGA
 export function buy(data) {
   const res = http.post(`${ORDERS_URL}/v1/orders`, JSON.stringify({
-    customer_id: uuid(),
-    customer_email: 'campanha@exemplo.com',
     items: [{ product_id: pick(data.hot), quantity: 1 }],
   }), {
-    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid() },
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid(), Authorization: `Bearer ${pick(data.customers)}` },
     tags: { name: 'order' },
     responseCallback: orderAccepted,
   });

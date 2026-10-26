@@ -6,13 +6,15 @@
 // queda aparece no Grafana: compra_facil_orders_catalog_fallback_total e o circuito do Polly.
 //
 // Pré-requisitos: `task up` e `task seed` (a cópia local nasce dos eventos do seed).
-// Variáveis: CATALOG_URL e ORDERS_URL (na rede do compose), RATE (pedidos/s, 20), DURATION (60s).
+// Variáveis: CATALOG_URL, ORDERS_URL e IDENTITY_URL (na rede do compose), RATE (pedidos/s, 20), DURATION (60s).
 import http from 'k6/http';
 import { check, fail } from 'k6';
 import { Counter } from 'k6/metrics';
+import { newCustomers } from './identity.js';
 
 const CATALOG_URL = __ENV.CATALOG_URL || 'http://catalog:8001';
 const ORDERS_URL = __ENV.ORDERS_URL || 'http://orders:8002';
+const IDENTITY_URL = __ENV.IDENTITY_URL || 'http://identity:8006';
 const RATE = parseInt(__ENV.RATE || '20', 10);
 const DURATION = __ENV.DURATION || '60s';
 
@@ -51,7 +53,7 @@ export function setup() {
   if (ids.length === 0) {
     fail('catálogo vazio; rode task seed');
   }
-  return { ids };
+  return { ids, tokens: newCustomers(IDENTITY_URL, 'caos', 10) };
 }
 
 function uuid() {
@@ -63,11 +65,10 @@ function uuid() {
 
 export default function (data) {
   const product = data.ids[Math.floor(Math.random() * data.ids.length)];
+  const token = data.tokens[Math.floor(Math.random() * data.tokens.length)];
   const res = http.post(`${ORDERS_URL}/v1/orders`, JSON.stringify({
-    customer_id: uuid(),
-    customer_email: 'caos@exemplo.com',
     items: [{ product_id: product, quantity: 1 }],
-  }), { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid() } });
+  }), { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid(), Authorization: `Bearer ${token}` } });
 
   if (res.status === 503) {
     unavailable.add(1);

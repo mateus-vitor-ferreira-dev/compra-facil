@@ -88,15 +88,19 @@ Pronto:
 | 📨 E-mails enviados | http://localhost:8025 (Mailpit) |
 | 🧵 Tópicos do Kafka | http://localhost:8080 (Redpanda Console) |
 
-Faça uma compra e acompanhe a SAGA:
+Crie uma conta, faça uma compra e acompanhe a SAGA:
 
 ```bash
+curl -s -X POST http://localhost/identity/v1/accounts -H "Content-Type: application/json" \
+  -d '{"email":"ana@exemplo.com","password":"senha-da-ana","name":"Ana"}'
+TOKEN=$(curl -s -X POST http://localhost/identity/v1/sessions -H "Content-Type: application/json" \
+  -d '{"email":"ana@exemplo.com","password":"senha-da-ana"}' | jq -r .access_token)
 PRODUTO=$(curl -s "http://localhost/catalog/v1/products?on_sale=true&limit=1" | jq -r '.data[0].id')
-curl -s -X POST http://localhost/orders/v1/orders \
+curl -s -X POST http://localhost/orders/v1/orders -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -H "Idempotency-Key: $(uuidgen)" \
-  -d "{\"customer_id\":\"$(uuidgen)\",\"customer_email\":\"ana@exemplo.com\",\"items\":[{\"product_id\":\"$PRODUTO\",\"quantity\":1}]}"
-# 202 com o pedido "pending"; em poucos segundos, GET /orders/v1/orders/{id} mostra "confirmed"
-# e o e-mail de confirmação aparece no Mailpit
+  -d "{\"items\":[{\"product_id\":\"$PRODUTO\",\"quantity\":1}]}"
+# 202 com o pedido "pending"; em poucos segundos, GET /orders/v1/me/orders mostra "confirmed"
+# e o e-mail de confirmação (para o e-mail da conta) aparece no Mailpit
 ```
 
 ## 🏗 Arquitetura
@@ -194,8 +198,15 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 - **Conta:** `POST /identity/v1/accounts` cadastra; `POST /identity/v1/sessions` devolve o access token (JWT, 15 min)
   e o refresh token (30 dias, troca a cada uso em `/identity/v1/sessions/refresh`). O access token vai em
   `Authorization: Bearer`. No ambiente local, o operador é `admin@comprafacil.local` / `admin-compra-facil`.
-- **Compra:** `POST /orders/v1/orders` (com header `Idempotency-Key`) responde `202` com o pedido `pending`.
-  Depois, consulte `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`).
+- **Compra:** `POST /orders/v1/orders` com o token de cliente e o header `Idempotency-Key`; o corpo só traz os itens
+  (o cliente e o e-mail dos avisos vêm do token). Responde `202` com o pedido `pending`. Depois, consulte
+  `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`). "Meus pedidos":
+  `GET /orders/v1/me/orders`. Cada cliente vê só os próprios pedidos (de outro, `404`); o operador vê qualquer um.
+
+> **Migração do contrato de pedidos (#145).** Até a v1.0.0 o pedido trazia `customer_id` e `customer_email` no
+> corpo e a listagem era `GET /v1/orders?customer_id=`. Agora o cliente vem do token: os dois campos saíram (se
+> vierem, são ignorados), a listagem virou `GET /v1/me/orders` e todas as rotas de pedido exigem token. A mudança
+> ficou na `v1`, sem `v2`, porque ainda não havia cliente externo do contrato; o front (F8) já nasce nela.
 
 ## 🔍 Como investigar um pedido
 

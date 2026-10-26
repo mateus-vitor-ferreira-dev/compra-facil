@@ -363,8 +363,6 @@ services:
       # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
       Auth__Authority: http://identity:8006
       Auth__RequireHttpsMetadata: "false"
-      # cliente com cartão recusado no gateway fake: cenário de pagamento recusado do e2e (task e2e)
-      Payments__Fake__DeclinedCustomers__0: 0e2e0000-0000-4000-8000-00000000dec1
 
   notifications:
     <<: *dotnet-service

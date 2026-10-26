@@ -84,6 +84,9 @@ public sealed class OrdersFixture : IAsyncLifetime
     private WebApplication _catalogHost = null!;
 
     public FakeCatalog Catalog { get; } = new();
+
+    /// <summary>O identity dos testes: o pedido valida os tokens dele pelo JWKS (Auth:Jwks).</summary>
+    public TestIdentity Identity { get; } = new();
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
@@ -104,7 +107,8 @@ public sealed class OrdersFixture : IAsyncLifetime
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Catalog:GrpcAddress", catalogAddress)
             .UseSetting("Catalog:BreakDuration", "00:00:00.500") // o circuito fecha rápido entre testes
-            .UseSetting("Kafka:Enabled", "false")); // aqui o evento é conferido no outbox
+            .UseSetting("Kafka:Enabled", "false") // aqui o evento é conferido no outbox
+            .UseSetting("Auth:Jwks", Identity.Jwks));
         using var _ = Factory.CreateClient(); // sobe e migra
     }
 
@@ -113,5 +117,14 @@ public sealed class OrdersFixture : IAsyncLifetime
         await Factory.DisposeAsync();
         await _catalogHost.DisposeAsync();
         await _postgres.DisposeAsync();
+        Identity.Dispose();
+    }
+
+    /// <summary>Cliente HTTP com o token de um cliente da loja (um novo, se não vier o id).</summary>
+    public HttpClient ClientAs(Guid? customerId = null, string email = "ana@exemplo.com")
+    {
+        var http = Factory.CreateClient();
+        http.DefaultRequestHeaders.Authorization = new("Bearer", Identity.CustomerToken(customerId, email));
+        return http;
     }
 }
