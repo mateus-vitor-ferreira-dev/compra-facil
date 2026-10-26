@@ -1,0 +1,17 @@
+# Fotos dos produtos (#147), atrás do gateway em /media (o gateway tira o prefixo).
+# Em produção, o mesmo conteúdo vai para o Object Storage com a CDN da Cloudflare na frente (F9).
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	root * /srv
+	# só os arquivos: sem listagem de diretório
+	file_server
+	# o nome leva o hash do conteúdo (tv-1.3fa9c2d1-640.webp): foto nova = URL nova, então o cache é
+	# permanente, sem revalidação
+	header /produtos/* Cache-Control "public, max-age=31536000, immutable"
+	header X-Content-Type-Options nosniff
+	respond /health 200
+}

@@ -229,3 +229,34 @@ func TestProductRepository_InvalidCursor(t *testing.T) {
 	_, err := NewProductRepository(testDB).List(ctx, domain.ProductFilter{Now: now, Cursor: "%%%"})
 	assert.ErrorIs(t, err, domain.ErrInvalidCursor)
 }
+
+func TestProductRepository_ImageVariants_KeptForTheSameURL_DroppedForANewOne(t *testing.T) {
+	resetDB(t)
+	repo := NewProductRepository(testDB)
+	cat := mustCategory(t, "tv", nil)
+	url := "http://localhost/media/produtos/tv-1.d226c7dd-683.webp"
+	image := &domain.ProductImage{Width: 683, Height: 683, Variants: []domain.ImageVariant{
+		{Width: 320, URL: "http://localhost/media/produtos/tv-1.d226c7dd-320.webp"}, {Width: 683, URL: url},
+	}}
+	p := mustProduct(t, "TV-55", cat.ID, func(p *domain.Product) { p.ImageURL, p.Image = &url, image })
+
+	got, err := repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, image, got.Image)
+
+	// o admin muda outro campo e reenvia a mesma URL (o PUT não traz as variantes): elas ficam
+	got.Name, got.Image = "Outro nome", nil
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	kept, err := repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, image, kept.Image)
+
+	// URL nova: as variantes eram da foto anterior
+	other := "https://cdn.example.com/outra.jpg"
+	kept.ImageURL = &other
+	require.NoError(t, repo.Update(ctx, &kept, kept.Version))
+	changed, err := repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, other, *changed.ImageURL)
+	assert.Nil(t, changed.Image)
+}

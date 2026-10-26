@@ -29,6 +29,11 @@ http:
       entryPoints: [web]
       service: identity
       middlewares: [cors, security-headers, strip-service-prefix]
+    media:
+      rule: PathPrefix(`/media`)
+      entryPoints: [web]
+      service: media
+      middlewares: [security-headers, strip-service-prefix]
     # login, refresh, logout e cadastro: as rotas que aceitam senha ou token, com rate limit
     identity-credentials:
       rule: PathPrefix(`/identity/v1/sessions`) || Path(`/identity/v1/accounts`)
@@ -53,6 +58,10 @@ http:
       loadBalancer:
         servers: [{ url: "http://payments:8004" }]
         healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    media:
+      loadBalancer:
+        servers: [{ url: "http://media:8080" }]
+        healthCheck: { path: /health, interval: 5s, timeout: 2s }
     identity:
       loadBalancer:
         servers: [{ url: "http://identity:8006" }]

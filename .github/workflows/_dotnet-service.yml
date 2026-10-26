@@ -40,6 +40,9 @@ jobs:
       - name: Build (avisos como erro)
         run: dotnet build services/${{ inputs.service }}/*.slnx --no-restore -c Release
       - name: Testes (Postgres, Redpanda e Mailpit reais via Testcontainers)
+        # sem o Ryuk: o runner é descartado depois do job (o mesmo do catalog.yml)
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
         run: dotnet test --solution "$(ls services/${{ inputs.service }}/*.slnx)" --no-build -c Release
 
   image:

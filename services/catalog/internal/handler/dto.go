@@ -35,11 +35,32 @@ type productDTO struct {
 	Description    string          `json:"description"`
 	Category       categoryRefDTO  `json:"category"`
 	ImageURL       *string         `json:"image_url"`
+	Image          *imageDTO       `json:"image"`
 	Price          moneyDTO        `json:"price"`
 	EffectivePrice moneyDTO        `json:"effective_price"`
 	Campaign       *campaignRefDTO `json:"campaign"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
+}
+
+// imageDTO é a ProductImage do contrato: a foto e as larguras para o srcset. Sem variantes conhecidas
+// (URL definida pelo admin), só a url, sem dimensões e com variants vazio.
+type imageDTO struct {
+	URL      string                `json:"url"`
+	Width    *int                  `json:"width"`
+	Height   *int                  `json:"height"`
+	Variants []domain.ImageVariant `json:"variants"`
+}
+
+func toImageDTO(p domain.Product) *imageDTO {
+	if p.ImageURL == nil {
+		return nil
+	}
+	dto := &imageDTO{URL: *p.ImageURL, Variants: []domain.ImageVariant{}}
+	if img := p.Image; img != nil {
+		dto.Width, dto.Height, dto.Variants = &img.Width, &img.Height, img.Variants
+	}
+	return dto
 }
 
 // adminProductDTO é o AdminProduct do contrato: Product + campos de gestão.
@@ -93,6 +114,7 @@ func toProductDTO(p domain.Product) productDTO {
 		Description:    p.Description,
 		Category:       categoryRefDTO{ID: p.Category.ID, Slug: p.Category.Slug, Name: p.Category.Name},
 		ImageURL:       p.ImageURL,
+		Image:          toImageDTO(p),
 		Price:          moneyDTO{AmountCents: p.PriceCents, Currency: p.Currency},
 		EffectivePrice: moneyDTO{AmountCents: p.EffectivePriceCents(), Currency: p.Currency},
 		CreatedAt:      p.CreatedAt.UTC(),

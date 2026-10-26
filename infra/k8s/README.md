@@ -53,3 +53,6 @@ notifications ficaram com uma réplica o tempo todo.
   nada. A observabilidade completa continua no compose.
 - **Segredos de desenvolvimento** (senhas e o JWT de dev) ficam nos values, porque o cluster é local. Em
   produção viriam de Secrets, e as dependências de serviços gerenciados ou operators.
+
+> As fotos dos produtos (`/media`, #147) não sobem no k3d: o objetivo do cluster local é o HPA do catálogo.
+> Em produção elas vão para o Object Storage com a CDN na frente (F9).
