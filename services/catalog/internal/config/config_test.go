@@ -24,8 +24,9 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, ":9001", cfg.GRPC.Addr())
 	assert.True(t, cfg.GRPC.Reflection)
 	assert.Equal(t, 30*time.Minute, cfg.DB.ConnMaxLifetime)
-	assert.Equal(t, DevJWTSecret, cfg.Auth.JWTSecret)
-	assert.Equal(t, "catalog", cfg.Auth.Audience)
+	assert.Equal(t, "http://localhost:8006", cfg.Auth.Authority)
+	assert.Equal(t, "compra-facil-identity", cfg.Auth.Issuer)
+	assert.Equal(t, "compra-facil", cfg.Auth.Audience)
 	assert.True(t, cfg.Cache.Enabled)
 	assert.Equal(t, 5*time.Minute, cfg.Cache.ProductTTL)
 	assert.Equal(t, "localhost:6379", cfg.Cache.Redis.Addr)
@@ -62,8 +63,8 @@ func TestLoad_Invalid(t *testing.T) {
 		"porta fora do intervalo":       {"CATALOG_HTTP_PORT": "70000"},
 		"nível de log":                  {"CATALOG_LOG_LEVEL": "verbose"},
 		"grpc na porta do http":         {"CATALOG_GRPC_PORT": "8001"},
-		"segredo jwt curto":             {"CATALOG_AUTH_JWT_SECRET": "curto"},
-		"segredo de dev fora do local":  {"CATALOG_APP_ENV": "production"},
+		"authority sem esquema":         {"CATALOG_AUTH_AUTHORITY": "identity:8006"},
+		"authority com outro esquema":   {"CATALOG_AUTH_AUTHORITY": "ftp://identity"},
 		"timeout do redis zerado":       {"CATALOG_CACHE_REDIS_TIMEOUT": "0s"},
 		"ttl do cache zerado":           {"CATALOG_CACHE_LIST_TTL": "0s"},
 		"lote de eventos zerado":        {"CATALOG_EVENTS_BATCH_SIZE": "0"},

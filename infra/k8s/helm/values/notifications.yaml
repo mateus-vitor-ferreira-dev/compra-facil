@@ -3,7 +3,9 @@ port: 8005
 env:
   ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=compra-facil
   Kafka__BootstrapServers: redpanda:9092
-  Auth__AllowDevSecret: "true" # cluster local, não produção
+  # tokens do identity (rede interna do cluster, sem TLS)
+  Auth__Authority: http://identity:8006
+  Auth__RequireHttpsMetadata: "false"
   Smtp__Host: mailpit
   Smtp__Port: "1025"
 resources:

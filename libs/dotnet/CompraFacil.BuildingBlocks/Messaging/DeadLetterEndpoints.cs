@@ -18,11 +18,11 @@ public static class DeadLetterEndpoints
 
     /// <summary>
     /// GET /v1/admin/dead-letters (pendentes) e POST /v1/admin/dead-letters/replay (reprocessa),
-    /// com o JWT de admin (precisa do AddAdminAuth). Contrato em contracts/openapi/common/v1/dead-letters.yaml.
+    /// com o JWT de admin do identity (precisa do AddJwtAuth). Contrato em contracts/openapi/common/v1/dead-letters.yaml.
     /// </summary>
     public static IEndpointRouteBuilder MapDeadLetters(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/v1/admin/dead-letters").RequireAuthorization(AdminAuth.Policy).WithTags("admin");
+        var group = app.MapGroup("/v1/admin/dead-letters").RequireAuthorization(JwtAuth.AdminPolicy).WithTags("admin");
 
         group.MapGet("", async Task<Results<Ok<DeadLetterList>, ProblemHttpResult>> (DeadLetterStore dlt, int? limit, CancellationToken ct) =>
         {

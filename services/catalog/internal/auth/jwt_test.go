@@ -1,73 +1,124 @@
-package auth
+package auth_test
 
 import (
+	"context"
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/services/catalog/internal/auth/authtest"
 )
 
-var testOpts = Options{Secret: "segredo-de-teste-com-mais-de-32-caracteres", Issuer: "compra-facil", Audience: "catalog"}
-
 func TestVerify(t *testing.T) {
-	v, err := NewVerifier(testOpts)
-	require.NoError(t, err)
-	now := time.Now()
+	identity := authtest.New(t)
+	v := identity.Verifier(t)
 
-	t.Run("token válido", func(t *testing.T) {
-		tok, err := Issue(testOpts, "ana", []string{RoleAdmin}, time.Hour, now)
-		require.NoError(t, err)
-
-		claims, err := v.Verify(tok)
+	t.Run("token do identity", func(t *testing.T) {
+		claims, err := v.Verify(identity.Token(t, []string{auth.RoleAdmin}))
 
 		require.NoError(t, err)
-		assert.Equal(t, "ana", claims.Subject)
-		assert.True(t, claims.HasRole(RoleAdmin))
-		assert.False(t, claims.HasRole("outra"))
+		assert.Equal(t, "0199f6a0-0000-7000-8000-000000000a1a", claims.Subject)
+		assert.Equal(t, "ana@exemplo.com", claims.Email)
+		assert.True(t, claims.HasRole(auth.RoleAdmin))
+		assert.False(t, claims.HasRole(auth.RoleCustomer))
 	})
 
-	other := testOpts
-	other.Secret = "outro-segredo-tambem-com-mais-de-32-chars"
-	wrongIss := testOpts
-	wrongIss.Issuer = "terceiro"
-	wrongAud := testOpts
-	wrongAud.Audience = "orders"
-
+	other := authtest.New(t) // outra chave com o mesmo formato: um identity falso
 	recusados := map[string]func() string{
 		"expirado": func() string {
-			tok, _ := Issue(testOpts, "ana", []string{RoleAdmin}, time.Minute, now.Add(-time.Hour))
-			return tok
+			return identity.Token(t, nil, func(c *auth.Claims) {
+				c.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-time.Minute))
+			})
 		},
-		"assinado com outro segredo": func() string { tok, _ := Issue(other, "ana", nil, time.Hour, now); return tok },
-		"outro emissor":              func() string { tok, _ := Issue(wrongIss, "ana", nil, time.Hour, now); return tok },
-		"outra audiência":            func() string { tok, _ := Issue(wrongAud, "ana", nil, time.Hour, now); return tok },
-		"sem sub":                    func() string { tok, _ := Issue(testOpts, "", nil, time.Hour, now); return tok },
-		"lixo":                       func() string { return "nao.e.jwt" },
-		"alg none": func() string {
-			tok, _ := jwt.NewWithClaims(jwt.SigningMethodNone, Claims{RegisteredClaims: jwt.RegisteredClaims{
-				Subject: "ana", Issuer: testOpts.Issuer, Audience: jwt.ClaimStrings{testOpts.Audience},
-				ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
-			}}).SignedString(jwt.UnsafeAllowNoneSignatureType)
-			return tok
+		"assinado por outra chave": func() string { return other.Token(t, []string{auth.RoleAdmin}) },
+		"outro emissor": func() string {
+			return identity.Token(t, nil, func(c *auth.Claims) { c.Issuer = "terceiro" })
 		},
-		"sem exp": func() string {
-			tok, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{RegisteredClaims: jwt.RegisteredClaims{
-				Subject: "ana", Issuer: testOpts.Issuer, Audience: jwt.ClaimStrings{testOpts.Audience},
-			}}).SignedString([]byte(testOpts.Secret))
-			return tok
+		"outra audiência": func() string {
+			return identity.Token(t, nil, func(c *auth.Claims) { c.Audience = jwt.ClaimStrings{"outra-loja"} })
+		},
+		"sem sub":  func() string { return identity.Token(t, nil, func(c *auth.Claims) { c.Subject = "" }) },
+		"sem exp":  func() string { return identity.Token(t, nil, func(c *auth.Claims) { c.ExpiresAt = nil }) },
+		"lixo":     func() string { return "nao.e.jwt" },
+		"alg none": func() string { return unsigned(t, jwt.SigningMethodNone, jwt.UnsafeAllowNoneSignatureType) },
+		// o antigo JWT de dev (HS256 com segredo compartilhado) não vale mais
+		"HS256": func() string {
+			return unsigned(t, jwt.SigningMethodHS256, []byte("dev-only-compra-facil-jwt-secret-troque-em-producao"))
 		},
 	}
 	for name, token := range recusados {
 		t.Run(name, func(t *testing.T) {
 			_, err := v.Verify(token())
-			assert.ErrorIs(t, err, ErrInvalidToken)
+			assert.ErrorIs(t, err, auth.ErrInvalidToken)
 		})
 	}
 }
 
-func TestNewVerifier_SegredoCurto(t *testing.T) {
-	_, err := NewVerifier(Options{Secret: "curto"})
+func unsigned(t *testing.T, method jwt.SigningMethod, key any) string {
+	t.Helper()
+	tok, err := jwt.NewWithClaims(method, auth.Claims{Roles: []string{auth.RoleAdmin}, RegisteredClaims: jwt.RegisteredClaims{
+		Subject: "ana", Issuer: authtest.Options.Issuer, Audience: jwt.ClaimStrings{authtest.Options.Audience},
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}}).SignedString(key)
+	require.NoError(t, err)
+	return tok
+}
+
+// O caminho de produção: o JWKS por HTTP, e a chave nova da rotação aceita sem reiniciar.
+func TestNewVerifier_BuscaOJwks_EAprendeAChaveNova(t *testing.T) {
+	first, next := authtest.New(t), authtest.New(t)
+	var current atomic.Pointer[authtest.Identity]
+	current.Store(first)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/.well-known/jwks.json" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(current.Load().JWKS(t))
+	}))
+	t.Cleanup(srv.Close)
+	opts := authtest.Options
+	opts.Authority = srv.URL + "/"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	v, err := auth.NewVerifier(ctx, opts, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		_, err := v.Verify(first.Token(t, []string{auth.RoleAdmin}))
+		return err == nil
+	}, 5*time.Second, 50*time.Millisecond)
+
+	// o identity rotacionou: o kid desconhecido faz o verifier buscar o JWKS de novo
+	current.Store(next)
+	_, err = v.Verify(next.Token(t, []string{auth.RoleAdmin}))
+	require.NoError(t, err)
+}
+
+func TestNewVerifier_SemAuthority(t *testing.T) {
+	_, err := auth.NewVerifier(context.Background(), auth.Options{}, slog.Default())
 	assert.Error(t, err)
+}
+
+// garante que o JWKS de teste tem o formato do contrato do identity (o mesmo que o keyfunc lê)
+func TestAuthtest_JwksComOsCamposDoContrato(t *testing.T) {
+	var jwks struct {
+		Keys []map[string]string `json:"keys"`
+	}
+	require.NoError(t, json.Unmarshal(authtest.New(t).JWKS(t), &jwks))
+	require.Len(t, jwks.Keys, 1)
+	for _, field := range []string{"kty", "use", "alg", "kid", "n", "e"} {
+		assert.NotEmpty(t, jwks.Keys[0][field], field)
+	}
 }

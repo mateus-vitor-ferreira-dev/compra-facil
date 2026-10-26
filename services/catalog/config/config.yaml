@@ -27,11 +27,11 @@ db:
   migrate_on_start: true
 
 auth:
-  # JWT HS256 dos operadores (role admin libera /v1/admin/*). Gere um token local com `task token`.
-  # O segredo de dev só é aceito com app.env local/compose; fora disso use CATALOG_AUTH_JWT_SECRET.
-  jwt_secret: dev-only-compra-facil-jwt-secret-troque-em-producao
-  issuer: compra-facil
-  audience: catalog
+  # JWT RS256 emitidos pelo identity (role admin libera /v1/admin/*), validados pelo JWKS em
+  # <authority>/.well-known/jwks.json. Token local de operador: `task token`.
+  authority: http://localhost:8006
+  issuer: compra-facil-identity
+  audience: compra-facil
   leeway: 30s
 
 cache:

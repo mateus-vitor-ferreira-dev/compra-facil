@@ -43,7 +43,7 @@ public sealed class StockController(StockQueries queries, AdjustStock adjustStoc
 
     /// <summary>adjustStock: soma delta ao estoque físico (role admin).</summary>
     [HttpPost("v1/admin/stock/{product_id:guid}/adjustments")]
-    [Authorize(Policy = AdminAuth.Policy)]
+    [Authorize(Policy = JwtAuth.AdminPolicy)]
     public async Task<IActionResult> Adjust(
         [FromRoute(Name = "product_id")] Guid productId,
         [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,

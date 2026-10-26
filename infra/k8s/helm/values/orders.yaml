@@ -3,7 +3,9 @@ port: 8002
 env:
   ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=compra-facil
   Kafka__BootstrapServers: redpanda:9092
-  Auth__AllowDevSecret: "true" # cluster local, não produção
+  # tokens do identity (rede interna do cluster, sem TLS)
+  Auth__Authority: http://identity:8006
+  Auth__RequireHttpsMetadata: "false"
   Catalog__GrpcAddress: http://catalog:9001
 resources:
   requests: { cpu: 100m, memory: 128Mi }

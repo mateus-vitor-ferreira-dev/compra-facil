@@ -12,7 +12,7 @@ if (Healthcheck.Requested(args))
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults(new ServiceInfo("orders", ContractFile: "orders.v1.yaml"));
-builder.AddAdminAuth(audience: "orders"); // /v1/admin/*: o mesmo JWT do catalog (task token -- -aud orders)
+builder.AddJwtAuth(); // /v1/admin/*: token de operador do identity, validado pelo JWKS (Auth:Authority)
 builder.Services.AddApplication();
 builder.AddInfrastructure();
 

@@ -21,7 +21,7 @@ public sealed class StockApiTests(InventoryFixture fx) : IClassFixture<Inventory
             Content = JsonContent.Create(body),
         };
         request.Headers.Add("Idempotency-Key", key ?? Guid.NewGuid().ToString());
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token ?? InventoryFixture.AdminToken());
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token ?? fx.AdminToken());
         return await _http.SendAsync(request, Ct);
     }
 
@@ -147,7 +147,7 @@ public sealed class StockApiTests(InventoryFixture fx) : IClassFixture<Inventory
         anonymous.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
 
         using var noToken = await _http.SendAsync(anonymous, Ct);
-        using var viewer = await AdjustAsync(product, new { delta = 1, reason = "restock" }, token: InventoryFixture.AdminToken(["viewer"]));
+        using var viewer = await AdjustAsync(product, new { delta = 1, reason = "restock" }, token: fx.AdminToken(["customer"]));
 
         Assert.Equal(HttpStatusCode.Unauthorized, noToken.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, viewer.StatusCode);

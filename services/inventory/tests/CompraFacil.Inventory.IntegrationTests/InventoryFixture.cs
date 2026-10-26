@@ -1,15 +1,11 @@
-using System.Text;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Testing;
-using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Inventory.Application.Stock;
 using CompraFacil.Inventory.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 
 namespace CompraFacil.Inventory.IntegrationTests;
 
@@ -17,6 +13,9 @@ namespace CompraFacil.Inventory.IntegrationTests;
 public sealed class InventoryFixture : IAsyncLifetime
 {
     private readonly PostgresFixture _postgres = new();
+
+    /// <summary>O identity dos testes: as rotas admin validam os tokens dele pelo JWKS (Auth:Jwks).</summary>
+    public TestIdentity Identity { get; } = new();
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
@@ -26,7 +25,8 @@ public sealed class InventoryFixture : IAsyncLifetime
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Kafka:Enabled", "false")
-            .UseSetting("Inventory:InitialOnHandForNewProducts", "7"));
+            .UseSetting("Inventory:InitialOnHandForNewProducts", "7")
+            .UseSetting("Auth:Jwks", Identity.Jwks));
         using var _ = Factory.CreateClient();
     }
 
@@ -34,6 +34,7 @@ public sealed class InventoryFixture : IAsyncLifetime
     {
         await Factory.DisposeAsync();
         await _postgres.DisposeAsync();
+        Identity.Dispose();
     }
 
     private static readonly DateTimeOffset s_now = DateTimeOffset.UtcNow;
@@ -73,14 +74,6 @@ public sealed class InventoryFixture : IAsyncLifetime
         InDbAsync(db => db.Set<OutboxMessage>().Where(m => m.MessageKey == orderId.ToString()).OrderBy(m => m.Id)
             .ToListAsync(TestContext.Current.CancellationToken));
 
-    /// <summary>JWT de operador como o `task token -- -aud inventory` emite.</summary>
-    public static string AdminToken(string[]? roles = null) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
-    {
-        Issuer = "compra-facil",
-        Audience = "inventory",
-        Claims = new Dictionary<string, object> { ["roles"] = roles ?? ["admin"], ["sub"] = "operador-teste" },
-        Expires = DateTime.UtcNow.AddHours(1),
-        SigningCredentials = new SigningCredentials(
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AdminAuth.DevJwtSecret)), SecurityAlgorithms.HmacSha256),
-    });
+    /// <summary>Token de operador do identity (de teste); outros papéis para testar o 403.</summary>
+    public string AdminToken(string[]? roles = null) => Identity.Token(roles ?? ["admin"]);
 }

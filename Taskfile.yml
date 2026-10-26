@@ -168,11 +168,15 @@ tasks:
       - go run ./cmd/seed {{.CLI_ARGS}}
 
   token:
-    desc: "Emite um JWT de operador para as rotas admin (ex.: task token -- -sub ana -ttl 1h; outro serviço: -aud inventory)"
-    dir: services/catalog
+    desc: "Access token do operador local, pelo login no identity (ex.: curl -H \"Authorization: Bearer $(task token)\" ...)"
     silent: true
+    vars:
+      ADMIN_EMAIL: '{{.ADMIN_EMAIL | default "admin@comprafacil.local"}}'
+      ADMIN_PASSWORD: '{{.ADMIN_PASSWORD | default "admin-compra-facil"}}'
     cmds:
-      - go run ./cmd/token {{.CLI_ARGS}}
+      - >-
+        curl -sSf -X POST http://localhost:${GATEWAY_PORT:-80}/identity/v1/sessions -H 'Content-Type: application/json'
+        -d '{"email":"{{.ADMIN_EMAIL}}","password":"{{.ADMIN_PASSWORD}}"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/'
 
   # ---------- observabilidade (Grafana em http://127.0.0.1:3001) ----------
   grafana:
@@ -214,7 +218,7 @@ tasks:
       # porta de cada serviço na rede do compose (o notifications não passa pelo gateway)
       PORT: '{{get (dict "orders" "8002" "inventory" "8003" "payments" "8004" "notifications" "8005") .SERVICE}}'
       TOKEN:
-        sh: cd services/catalog && go run ./cmd/token -aud {{.SERVICE}} -ttl 5m
+        sh: task token
     preconditions:
       - sh: '[ -n "{{.PORT}}" ]'
         msg: "serviço desconhecido: '{{.SERVICE}}' (orders, inventory, payments ou notifications)"
@@ -289,15 +293,8 @@ tasks:
 
   e2e:
     desc: "Teste ponta a ponta da compra pelo gateway: confirmada, sem estoque e pagamento recusado (ambiente no ar + seed)"
-    vars:
-      CATALOG_TOKEN:
-        sh: cd services/catalog && go run ./cmd/token -ttl 10m
-      INVENTORY_TOKEN:
-        sh: cd services/catalog && go run ./cmd/token -aud inventory -ttl 10m
     cmds:
-      - >-
-        docker compose run --rm -e CATALOG_TOKEN={{.CATALOG_TOKEN}} -e INVENTORY_TOKEN={{.INVENTORY_TOKEN}}
-        k6 run --quiet /scripts/e2e-compra.js
+      - docker compose run --rm k6 run --quiet /scripts/e2e-compra.js
 
   load:
     desc: "k6: campanha promocional, 90% leitura e 10% compras, com rampa até o pico; métricas no Prometheus (ex.: task load -- -e PEAK_RATE=800)"
