@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import { api } from "@/lib/api/client";
-import { Price } from "@/components/price";
+import { PriceTag } from "@/components/commerce/price-tag";
 
 /**
  * Página provisória da fundação (#148): prova o caminho front → BFF → gateway → catalog com o cliente
@@ -11,7 +11,7 @@ export default async function Home() {
   const { data, error } = await api.catalog().GET("/v1/products", { params: { query: { limit: 8 } } });
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-12">
+    <main id="conteudo" className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">CompraFácil</h1>
       <p className="text-muted-foreground mt-2">
         Fundação do front: produtos vindos do catálogo pelo gateway.
@@ -25,7 +25,7 @@ export default async function Home() {
           {data.data.map((p) => (
             <li key={p.id} className="flex justify-between gap-4 py-3">
               <span>{p.name}</span>
-              <Price price={p.price} effective={p.effective_price} />
+              <PriceTag price={p.price} effective={p.effective_price} />
             </li>
           ))}
         </ul>
