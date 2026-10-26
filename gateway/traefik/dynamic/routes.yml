@@ -24,6 +24,17 @@ http:
       entryPoints: [web]
       service: payments
       middlewares: [cors, security-headers, strip-service-prefix]
+    identity:
+      rule: PathPrefix(`/identity`)
+      entryPoints: [web]
+      service: identity
+      middlewares: [cors, security-headers, strip-service-prefix]
+    # login, refresh, logout e cadastro: as rotas que aceitam senha ou token, com rate limit
+    identity-credentials:
+      rule: PathPrefix(`/identity/v1/sessions`) || Path(`/identity/v1/accounts`)
+      entryPoints: [web]
+      service: identity
+      middlewares: [cors, security-headers, identity-problem-429, identity-rate-limit, strip-service-prefix]
 
   services:
     catalog:
@@ -41,4 +52,8 @@ http:
     payments:
       loadBalancer:
         servers: [{ url: "http://payments:8004" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    identity:
+      loadBalancer:
+        servers: [{ url: "http://identity:8006" }]
         healthCheck: { path: /ready, interval: 5s, timeout: 2s }

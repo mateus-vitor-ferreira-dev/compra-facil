@@ -8,13 +8,13 @@ Precisa de Docker, [k3d](https://k3d.io) 5.9+, [kubectl](https://kubernetes.io/d
 [Helm](https://helm.sh) no PATH.
 
 ```bash
-task k8s:up             # cluster, imagens, dependências e os 5 serviços (≈ 3 min na primeira vez)
+task k8s:up             # cluster, imagens, dependências e os 6 serviços (≈ 3 min na primeira vez)
 task k8s:seed           # 10 mil produtos, categorias e campanhas
 task k8s:load -- 600 2m # k6 a 600 req/s no pico por 2 min, dentro do cluster; mostra o que o HPA fez
 task k8s:down           # apaga o cluster
 ```
 
-A API fica em **http://localhost:8088** (`/catalog`, `/orders`, `/inventory`, `/payments`), pelo Traefik
+A API fica em **http://localhost:8088** (`/catalog`, `/orders`, `/inventory`, `/payments`, `/identity`), pelo Traefik
 que vem com o k3s.
 
 ## O que tem aqui

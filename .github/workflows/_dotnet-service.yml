@@ -1,5 +1,5 @@
 # Pipeline de um serviço .NET (reutilizável): formatação, build e testes em todo PR; imagem no GHCR
-# em push para develop/main. Chamado por orders.yml, inventory.yml, payments.yml e notifications.yml.
+# em push para develop/main. Chamado por orders.yml, inventory.yml, payments.yml, notifications.yml e identity.yml.
 name: dotnet-service
 
 on:

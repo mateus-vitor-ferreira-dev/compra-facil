@@ -4,7 +4,7 @@ http:
   middlewares:
     strip-service-prefix:
       stripPrefixRegex:
-        regex: ["^/(catalog|orders|inventory|payments)"]
+        regex: ["^/(catalog|orders|inventory|payments|identity)"]
 
     cors:
       headers:
@@ -42,4 +42,19 @@ http:
       errors:
         status: ["429"]
         service: catalog
+        query: /problems/{status}
+
+    # login e cadastro: por IP, média de 5 req/s com rajada de 20. Contra tentativa de senha em massa
+    # (o bloqueio por conta do identity não pega quem tenta uma senha em cada conta)
+    identity-rate-limit:
+      rateLimit:
+        average: 5
+        period: 1s
+        burst: 20
+
+    # o mesmo do catalog: o corpo do 429 em ProblemDetails vem do próprio identity
+    identity-problem-429:
+      errors:
+        status: ["429"]
+        service: identity
         query: /problems/{status}

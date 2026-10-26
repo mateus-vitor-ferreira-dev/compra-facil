@@ -34,6 +34,9 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
     /// <summary>Arquivo do contrato em contracts/openapi; nulo se o serviço não tem API pública.</summary>
     protected abstract string? ContractFile { get; }
 
+    /// <summary>Usa a mensageria (outbox, inbox e DLT); falso para serviço que não publica nem consome eventos.</summary>
+    protected virtual bool UsesMessaging => true;
+
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public ValueTask InitializeAsync()
@@ -81,7 +84,7 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
                 tables.Add(reader.GetString(0));
             }
         }
-        Assert.Equal(["inbox", "outbox"], tables);
+        Assert.Equal(UsesMessaging ? ["inbox", "outbox"] : [], tables);
     }
 
     [Fact]
@@ -100,7 +103,7 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
         using var deadLetters = await _http.GetAsync(new Uri("/openapi/common/v1/dead-letters.yaml", UriKind.Relative), Ct);
         Assert.Equal(HttpStatusCode.OK, contract.StatusCode);
         Assert.Equal(HttpStatusCode.OK, common.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, deadLetters.StatusCode);
+        Assert.Equal(UsesMessaging ? HttpStatusCode.OK : HttpStatusCode.NotFound, deadLetters.StatusCode);
         var yaml = await contract.Content.ReadAsStringAsync(Ct);
         Assert.StartsWith("openapi: 3.1", yaml, StringComparison.Ordinal);
     }
@@ -114,7 +117,7 @@ public abstract class ServiceSmokeTests<TProgram> : IClassFixture<PostgresFixtur
 
         using var response = await _http.SendAsync(request, Ct);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(UsesMessaging ? HttpStatusCode.Unauthorized : HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
