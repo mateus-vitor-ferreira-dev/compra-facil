@@ -190,6 +190,18 @@ services:
       - tempo
       - loki
 
+  # ---------- fotos dos produtos (#147): /media no gateway ----------
+  media:
+    image: caddy:2.11.6-alpine
+    volumes:
+      - ../media/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../media/produtos:/srv/produtos:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # ---------- gateway: única entrada externa ----------
   gateway:
     image: traefik:v3.7.16
@@ -219,6 +231,8 @@ services:
       payments:
         condition: service_started
       identity:
+        condition: service_started
+      media:
         condition: service_started
 
   # só roda sob demanda (task load:catalog-cache): k6 dentro da rede, direto no catalog (sem o rate
@@ -271,6 +285,8 @@ services:
     profiles: [tools]
     environment:
       CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+      # base das fotos como o navegador as vê (gateway /media)
+      CATALOG_SEED_MEDIA_URL: ${MEDIA_URL:-http://localhost/media}
     depends_on:
       postgres:
         condition: service_healthy

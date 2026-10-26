@@ -85,6 +85,7 @@ Pronto:
 | 🛍️ Vitrine | http://localhost/catalog/v1/products?on_sale=true |
 | 📘 APIs (Swagger) | http://localhost/catalog/docs · [/orders/docs](http://localhost/orders/docs) · [/inventory/docs](http://localhost/inventory/docs) · [/payments/docs](http://localhost/payments/docs) · [/identity/docs](http://localhost/identity/docs) |
 | 📊 Grafana (sem login) | http://127.0.0.1:3001, pasta **CompraFácil** |
+| 🖼️ Fotos dos produtos | http://localhost/media/produtos/tv-1.webp ([créditos](infra/media/CREDITOS.md)) |
 | 📨 E-mails enviados | http://localhost:8025 (Mailpit) |
 | 🧵 Tópicos do Kafka | http://localhost:8080 (Redpanda Console) |
 

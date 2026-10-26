@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/rand/v2"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -28,7 +31,9 @@ func subsForTest() []seededSub {
 func TestGenerateProducts_DeterministicAndValid(t *testing.T) {
 	now := time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC)
 	subs := subsForTest()
-	gen := func() []seedProduct { return generateProducts(rand.New(rand.NewPCG(42, 7)), subs, 500, now) }
+	gen := func() []seedProduct {
+		return generateProducts(rand.New(rand.NewPCG(42, 7)), subs, 500, now, "http://localhost/media/")
+	}
 
 	a, b := gen(), gen()
 	require.Len(t, a, 500)
@@ -42,6 +47,25 @@ func TestGenerateProducts_DeterministicAndValid(t *testing.T) {
 		assert.Equal(t, int64(90), p.price%100, "preço termina em ,90")
 		assert.Contains(t, []string{"active", "inactive", "draft"}, p.status)
 		assert.Equal(t, uuid.Version(4), p.id.Version())
+		assert.Regexp(t, `^http://localhost/media/produtos/[a-z-]+-[1-4]\.webp$`, p.imageURL, "foto da subcategoria, sem barra dupla")
+		assert.Equal(t, p.imageURL, *p.domain().ImageURL, "o evento leva a mesma foto")
+	}
+}
+
+// toda foto que o seed pode sortear existe em infra/media/produtos (gerada pelo scripts/media)
+func TestPhotos_ExistForEverySubcategory(t *testing.T) {
+	dir := filepath.Join("..", "..", "..", "..", "infra", "media", "produtos")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Skip("infra/media fora do contexto (ex.: build da imagem)")
+	}
+	for _, root := range catalogTree {
+		for _, sub := range root.children {
+			for n := 1; n <= photosPerSubcategory; n++ {
+				name := fmt.Sprintf("%s-%d.webp", sub.slug, n)
+				_, err := os.Stat(filepath.Join(dir, name))
+				assert.NoError(t, err, "falta %s: rode scripts/media/product_images.py build", name)
+			}
+		}
 	}
 }
 
@@ -52,7 +76,7 @@ func TestRoundPrice(t *testing.T) {
 
 func TestSeedEvents_OnePerProductAndCampaign(t *testing.T) {
 	now := time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC)
-	products := generateProducts(rand.New(rand.NewPCG(42, 7)), subsForTest(), 20, now)
+	products := generateProducts(rand.New(rand.NewPCG(42, 7)), subsForTest(), 20, now, "http://localhost/media")
 	campaign := seededCampaign{
 		Campaign:   domain.Campaign{ID: uuid.New(), Slug: "bf", Name: "BF", DiscountPercent: 30, StartsAt: now, EndsAt: now.Add(time.Hour), Version: 1},
 		productIDs: []uuid.UUID{products[0].id, products[1].id},

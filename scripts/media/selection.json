@@ -1,0 +1,15 @@
+{
+  "tv": ["a0b64f74", "1e6a0bed", "a81aa6f8", "ffb77723"],
+  "fones": ["5542c15d", "c82d556e", "707c62d3", "e327e08c"],
+  "caixas-de-som": ["9d96c150", "32808186", "af7c92d7", "f15052a9"],
+  "notebooks": ["1095229c", "1fdb9216", "b9004455", "6f2d4ea0"],
+  "monitores": ["42f30356", "005f7212", "80ca15c3", "183a1219"],
+  "perifericos": ["38a8ac36", "663d89cd", "4aa61f76", "50f6dbc8"],
+  "geladeiras": ["baaa049e", "6f62cbd6", "49f72c0a", "c79865f6"],
+  "fogoes": ["5a7fe4e2", "946dc8b4", "b5766a92", "629a73ac"],
+  "lavadoras": ["9c509309", "0f0b94c3", "90ea5810", "b80eea7d"],
+  "sofas": ["58e02750", "34299287", "67a7354a", "86a8a91e"],
+  "colchoes": ["97821cc5", "33a9db53", "002abe42", "6742c9cc"],
+  "bicicletas": ["020f62c1", "df5b78ef", "81dd43e2", "ccb1fd1a"],
+  "fitness": ["e1a5acaf", "0f7cfb32", "ea3f0b9b", "3b57c483"]
+}

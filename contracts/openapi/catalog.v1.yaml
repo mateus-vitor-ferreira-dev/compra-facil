@@ -582,6 +582,10 @@ components:
         image_url:
           type: [string, "null"]
           format: uri
+          description: |
+            Foto do produto. As do seed são WebP quadradas de 800x800, servidas pelo gateway em `/media`
+            (em produção, pela CDN) com cache de 7 dias. A definida pelo admin pode ter outro tamanho:
+            no front, use proporção 1:1 com `object-fit: cover`.
         price:
           description: Preço de tabela.
           $ref: "./common/v1/common.yaml#/components/schemas/Money"

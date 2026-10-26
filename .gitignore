@@ -19,3 +19,6 @@ coverage.out
 k6-results/
 contracts/openapi/dist/
 __pycache__/
+
+# candidatas baixadas por scripts/media/product_images.py fetch
+.cache/
