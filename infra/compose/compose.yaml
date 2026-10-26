@@ -2,7 +2,7 @@
 # Redpanda (Kafka) + Console, Mailpit e os serviços da aplicação.
 name: compra-facil
 
-# Base dos serviços .NET: mesmo Dockerfile (services/dotnet.Dockerfile), contexto na raiz do repo
+# Base dos serviços .NET: mesmo Dockerfile (backend/services/dotnet.Dockerfile), contexto na raiz do repo
 x-dotnet-service: &dotnet-service
   depends_on:
     postgres:
@@ -214,8 +214,8 @@ services:
       # dashboard só na máquina local
       - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8090}:8080"
     volumes:
-      - ../../gateway/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ../../gateway/traefik/dynamic:/etc/traefik/dynamic:ro
+      - ../gateway/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../gateway/traefik/dynamic:/etc/traefik/dynamic:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 5s
@@ -251,7 +251,7 @@ services:
   # ---------- serviços (sem porta no host: entram pelo gateway) ----------
   catalog:
     build:
-      context: ../../services/catalog
+      context: ../../backend/services/catalog
       target: api
       args:
         VERSION: ${VERSION:-dev}
@@ -279,7 +279,7 @@ services:
   # só roda sob demanda: docker compose run --rm catalog-seed [-reset] [-products N]
   catalog-seed:
     build:
-      context: ../../services/catalog
+      context: ../../backend/services/catalog
       target: seed
     image: compra-facil/catalog-seed:${VERSION:-dev}
     profiles: [tools]
@@ -295,7 +295,7 @@ services:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: identity
         PROJECT: CompraFacil.Identity.Api
@@ -319,7 +319,7 @@ services:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: orders
         PROJECT: CompraFacil.Orders.Api
@@ -341,7 +341,7 @@ services:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: inventory
         PROJECT: CompraFacil.Inventory.Api
@@ -363,7 +363,7 @@ services:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: payments
         PROJECT: CompraFacil.Payments.Api
@@ -383,7 +383,7 @@ services:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: notifications
         PROJECT: CompraFacil.Notifications.Api

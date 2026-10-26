@@ -41,7 +41,7 @@ API = "https://api.openverse.org/v1/images/"
 SOURCES = "stocksnap,rawpixel"
 USER_AGENT = "compra-facil-seed/1.0 (https://github.com/mateus-vitor-ferreira-dev/compra-facil)"
 
-# subcategoria do seed (services/catalog/cmd/seed/catalog_data.go) -> busca em inglês
+# subcategoria do seed (backend/services/catalog/cmd/seed/catalog_data.go) -> busca em inglês
 QUERIES = {
     "tv": "television",
     "fones": "headphones",

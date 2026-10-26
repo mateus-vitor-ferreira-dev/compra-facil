@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Os consumidores .NET (`EventConsumer` em `libs/dotnet/CompraFacil.BuildingBlocks`) já eram
+Os consumidores .NET (`EventConsumer` em `backend/libs/dotnet/CompraFacil.BuildingBlocks`) já eram
 idempotentes: o inbox guarda o `event_id` na mesma transação do efeito, então a reentrega não repete
 nada. Faltava decidir o que fazer com uma mensagem cujo handler **falha**. Até aqui havia dois casos:
 

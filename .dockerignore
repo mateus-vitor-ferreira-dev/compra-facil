@@ -1,10 +1,12 @@
-# Contexto dos builds na raiz (services/dotnet.Dockerfile). O catalog usa services/catalog como
-# contexto e tem o próprio .dockerignore.
+# Contexto dos builds na raiz (backend/services/dotnet.Dockerfile). O catalog usa backend/backend/services/catalog
+frontend/
+# como contexto e tem o próprio .dockerignore.
 .git
 **/bin
 **/obj
 **/TestResults
-services/catalog
+backend/services/catalog
+frontend/
 load-tests/
 docs/
 infra/

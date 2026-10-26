@@ -14,7 +14,7 @@ na criação do pedido ([`catalog/v1/catalog.proto`](catalog/v1/catalog.proto)).
 ```bash
 task lint:proto                    # buf lint (STANDARD) + buf format
 task proto:breaking                # buf breaking (FILE) contra main; BASE=develop para comparar com a develop
-task proto:generate                # gera Go em services/catalog/gen (versionado)
+task proto:generate                # gera Go em backend/services/catalog/gen (versionado)
 ```
 
 O lado C# (orders) não usa `buf generate`: o `Grpc.Tools` compila o `.proto` no build do .NET, com o

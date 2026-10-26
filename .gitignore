@@ -5,7 +5,7 @@ obj/
 .vs/
 TestResults/
 # Go
-services/catalog/bin/
+backend/services/catalog/bin/
 *.test
 coverage.out
 # geral

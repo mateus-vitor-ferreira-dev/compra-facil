@@ -8,14 +8,14 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - services/**
-      - libs/**
+      - backend/services/**
+      - backend/libs/**
       - contracts/**
-      - gateway/**
+      - infra/gateway/**
       - infra/compose/**
       - compose.yaml
-      - Directory.Build.props
-      - Directory.Packages.props
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
       - load-tests/k6/e2e-compra.js
       - .github/workflows/e2e.yml
   workflow_dispatch:
