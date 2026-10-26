@@ -129,6 +129,13 @@ internal sealed partial class DbSigningKeyRing(
         // relê sob o lock: outra réplica pode ter acabado de criar a chave
         var keys = await PublishedAsync(db, ct);
         var now = clock.GetUtcNow();
+        if (SigningKeySchedule.Resume([.. keys.Select(k => k.Lifetime)], now, policy) is { } resumed)
+        {
+            var latest = keys.Single(k => k.KeyId == resumed.KeyId);
+            db.SigningKeys.Attach(latest);
+            latest.Extend(resumed);
+            LogKeyResumed(logger, latest.KeyId, latest.RetiresAt);
+        }
         if (SigningKeySchedule.NextActivation([.. keys.Select(k => k.Lifetime)], now, policy) is { } activatesAt)
         {
             if (SigningKeySchedule.Active(keys.Select(k => k.Lifetime), now) is { } active
@@ -144,9 +151,11 @@ internal sealed partial class DbSigningKeyRing(
             keys.Add(key);
             LogKeyCreated(logger, key.KeyId, key.ActivatesAt, key.ExpiresAt);
         }
+        // grava antes de limpar: a chave esticada tinha vencido e não pode sair junto
+        await db.SaveChangesAsync(ct);
         // as que já saíram do JWKS não servem para nada
         await db.SigningKeys.Where(k => k.ExpiresAt <= now).ExecuteDeleteAsync(ct);
-        await db.SaveChangesAsync(ct);
+        keys.RemoveAll(k => k.ExpiresAt <= now);
         await tx.CommitAsync(ct);
         return keys;
     }
@@ -175,6 +184,9 @@ internal sealed partial class DbSigningKeyRing(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "falha ao recarregar as chaves de assinatura; segue com as da última carga")]
     private static partial void LogBackgroundReloadFailed(ILogger logger, Exception e);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "identity ficou fora além da folga: a chave {KeyId} volta a assinar até {RetiresAt}, quando a próxima (já publicada) assume")]
+    private static partial void LogKeyResumed(ILogger logger, string keyId, DateTimeOffset retiresAt);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "rotação atrasada: a chave {KeyId} assina até {RetiresAt}, quando a próxima começa")]
     private static partial void LogKeyExtended(ILogger logger, string keyId, DateTimeOffset retiresAt);
