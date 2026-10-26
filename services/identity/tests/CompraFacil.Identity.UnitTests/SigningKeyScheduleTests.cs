@@ -55,7 +55,24 @@ public sealed class SigningKeyScheduleTests
         // subiu meio dia depois da data de troca: a ainda assina (folga), b vem um dia depois de agora
         var now = s_t0.AddDays(30.5);
         Assert.Equal("a", SigningKeySchedule.Active([a], now)!.KeyId);
-        Assert.Equal(now.AddDays(1), SigningKeySchedule.NextActivation([a], now, s_policy));
+        var next = SigningKeySchedule.NextActivation([a], now, s_policy);
+        Assert.Equal(now.AddDays(1), next);
+
+        // a parava de assinar no dia 31, antes de b começar: é esticada até b, e não há intervalo sem chave
+        var extended = SigningKeySchedule.ExtendUntil(a, next!.Value, s_policy);
+        Assert.NotNull(extended);
+        Assert.Equal(next, extended.RetiresAt);
+        Assert.Equal(next + s_policy.TokenLifetime, extended.ExpiresAt);
+        Assert.True(extended.SignsAt(next.Value.AddTicks(-1)));
+    }
+
+    [Fact]
+    public void OnTimeRotation_NeedsNoExtension()
+    {
+        var a = Key("a", s_t0);
+        var next = SigningKeySchedule.NextActivation([a], s_t0.AddDays(29.5), s_policy)!.Value;
+
+        Assert.Null(SigningKeySchedule.ExtendUntil(a, next, s_policy));
     }
 
     [Fact]

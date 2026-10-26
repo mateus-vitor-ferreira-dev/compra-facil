@@ -32,4 +32,12 @@ public sealed class SigningKey
     }
 
     public SigningKeyLifetime Lifetime => new(KeyId, ActivatesAt, RetiresAt, ExpiresAt);
+
+    /// <summary>Estica a vida da chave (rotação atrasada, ver <see cref="SigningKeySchedule.ExtendUntil"/>).</summary>
+    public void Extend(SigningKeyLifetime lifetime)
+    {
+        ArgumentNullException.ThrowIfNull(lifetime);
+        RetiresAt = lifetime.RetiresAt;
+        ExpiresAt = lifetime.ExpiresAt;
+    }
 }

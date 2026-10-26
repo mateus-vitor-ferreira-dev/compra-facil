@@ -98,8 +98,10 @@ paths:
       operationId: createSession
       summary: Login com e-mail e senha
       description: |
-        E-mail inexistente e senha errada dão o mesmo `401`, no mesmo tempo de resposta. Na quinta senha
-        errada seguida, a conta fica bloqueada por 15 minutos (`423`, com `Retry-After`).
+        E-mail inexistente e senha errada dão o mesmo `401` (e o hash de senha roda nos dois casos). Na
+        quinta senha errada seguida, a conta fica bloqueada para login por 15 minutos (`423`, com
+        `Retry-After`); sessões já abertas continuam valendo. Como o cadastro (`409`), o `423` revela que
+        a conta existe: o rate limit do gateway é o que limita quem tenta descobrir.
       requestBody:
         required: true
         content:
@@ -136,7 +138,8 @@ paths:
       summary: Troca o refresh token por um par novo
       description: |
         O refresh token enviado deixa de valer; guarde o novo. Token inválido, expirado, revogado ou já
-        trocado dá `401` (e, se já tinha sido trocado, a sessão inteira cai).
+        trocado dá `401`. Um token já trocado, apresentado de novo (inclusive dois refresh simultâneos com
+        o mesmo token), derruba a sessão inteira.
       requestBody:
         required: true
         content:

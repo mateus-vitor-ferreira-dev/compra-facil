@@ -27,14 +27,19 @@ Um serviço **identity** (.NET, no template dos outros) emite os tokens. Os dema
   `/.well-known/jwks.json` (e descoberta por `/.well-known/openid-configuration`).
 - **Rotação de chave pelo relógio**: cada chave assina por 30 dias. A sucessora entra no JWKS **um dia antes**
   de assinar, então quem guarda o JWKS em cache já a conhece quando o primeiro token dela chega; a antiga fica
-  publicada até o último token dela vencer. A regra é uma função pura (`SigningKeySchedule`), com testes de
+  publicada até o último token dela vencer. Se o serviço ficou fora na janela de troca, a chave atual é
+  esticada até a sucessora começar, que ainda sai publicada um dia antes. A regra é uma função pura (`SigningKeySchedule`), com testes de
   unidade e um teste de integração que avança o relógio um mês.
 - **As chaves ficam no banco do identity**, com a privada cifrada pelo Data Protection do ASP.NET. O anel de
   chaves do Data Protection fica no mesmo banco, para que todas as réplicas decifrem. A criação da próxima
   chave acontece sob um advisory lock do Postgres, para duas réplicas não criarem duas chaves.
 - **Refresh token opaco e rotativo** (30 dias): cada uso troca o token por um novo da mesma família, e o banco
   guarda só o SHA-256. Um token já trocado, apresentado de novo, **derruba a família inteira**, porque só quem
-  o copiou o teria. Dois refresh simultâneos com o mesmo token: o `xmin` deixa só um passar.
+  o copiou o teria. Refresh e logout da mesma sessão passam por um advisory lock da família: dois refresh
+  simultâneos com o mesmo token viram reuso (o segundo espera o primeiro e encontra o token já trocado), e um
+  logout no meio de um refresh também derruba o token que esse refresh acabou de criar.
+- **O bloqueio por senha não derruba sessões abertas**: senão, cinco tentativas com o e-mail de alguém
+  bastariam para desconectá-lo a cada 15 minutos.
 - **Contra tentativa de senha em massa**: o bloqueio é por conta, e o gateway limita login e cadastro por IP
   (5 req/s, rajada de 20), com o 429 em ProblemDetails servido pelo próprio identity.
 
@@ -61,5 +66,7 @@ procedimento manual de deploy, que costuma não acontecer.
   paralelo com o mesmo token contam como reuso e derrubam a sessão.
 - Confirmação de e-mail fica para depois: o Identity já gera o token, mas o envio pede um evento para o
   notifications, e o identity ainda não publica eventos.
+- A validade de cada chave no JWKS é fixada quando ela é criada: aumentar a validade do access token em
+  produção só vale por completo para as chaves criadas depois.
 - O anel do Data Protection no mesmo banco das chaves protege contra vazamento de backup parcial, não do banco
   inteiro. Em produção (F9), o anel deve ser protegido por uma chave fora do banco (certificado ou KMS).

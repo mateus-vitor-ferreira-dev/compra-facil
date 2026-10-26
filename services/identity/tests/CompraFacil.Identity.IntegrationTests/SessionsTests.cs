@@ -113,18 +113,46 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
     }
 
     [Fact]
-    public async Task Refresh_TwoAtTheSameTime_OnlyOneWins()
+    public async Task Refresh_TwoAtTheSameTime_CountsAsReuse_AndEndsTheSession()
     {
         var (_, refresh) = await _api.NewSessionAsync();
 
         var responses = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => _api.RefreshAsync(refresh)));
-
-        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
-        Assert.All(responses.Where(r => r.StatusCode != HttpStatusCode.OK), r => Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode));
-        foreach (var r in responses)
+        try
         {
-            r.Dispose();
+            // um passa (chegou primeiro), os outros encontram o token já trocado e derrubam a sessão
+            var winner = Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
+            Assert.All(responses.Where(r => r != winner), r => Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode));
+            var (_, next) = IdentityClient.Tokens(await IdentityClient.JsonOf(winner));
+            using var afterwards = await _api.RefreshAsync(next);
+            Assert.Equal(HttpStatusCode.Unauthorized, afterwards.StatusCode);
         }
+        finally
+        {
+            foreach (var r in responses)
+            {
+                r.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Lockout_BlocksLogin_ButKeepsOpenSessions()
+    {
+        var email = NewEmail();
+        var (_, refresh) = await _api.NewSessionAsync(email);
+        for (var i = 0; i < 5; i++)
+        {
+            using var wrong = await _api.LoginAsync(email, "senha-errada-1");
+        }
+        using (var login = await _api.LoginAsync(email))
+        {
+            Assert.Equal(HttpStatusCode.Locked, login.StatusCode);
+        }
+
+        using var response = await _api.RefreshAsync(refresh);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Theory]

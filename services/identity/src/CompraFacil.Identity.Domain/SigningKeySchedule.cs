@@ -38,7 +38,8 @@ public sealed record SigningKeyLifetime(string KeyId, DateTimeOffset ActivatesAt
 /// Rotação das chaves de assinatura, sem relógio nem banco (testável). Em dia, cada chave assina por
 /// <c>RotateEvery</c>, a sucessora é publicada <c>PublishAhead</c> antes e a antiga sai do JWKS quando
 /// os tokens dela vencem. Se o serviço ficou fora na janela de troca, a chave vence sem sucessora e uma
-/// nova passa a valer na hora (os serviços a buscam no JWKS ao ver um <c>kid</c> desconhecido).
+/// nova passa a valer na hora (os serviços a buscam no JWKS ao ver um <c>kid</c> desconhecido). Se só
+/// perdeu a janela, a atual é esticada (<see cref="ExtendUntil"/>) e a sucessora ainda sai publicada antes.
 /// </summary>
 public static class SigningKeySchedule
 {
@@ -66,6 +67,20 @@ public static class SigningKeySchedule
         }
         var earliest = now + policy.PublishAhead;
         return due > earliest ? due : earliest;
+    }
+
+    /// <summary>
+    /// A chave que assina agora, esticada até a sucessora começar: se a rotação atrasou (o serviço passou da
+    /// janela de troca), a sucessora só assina <c>PublishAhead</c> depois de publicada, e a atual não pode
+    /// parar antes disso. Nulo se a atual já cobre o intervalo.
+    /// </summary>
+    public static SigningKeyLifetime? ExtendUntil(SigningKeyLifetime active, DateTimeOffset successorActivatesAt, KeyRotationPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(active);
+        ArgumentNullException.ThrowIfNull(policy);
+        return active.RetiresAt >= successorActivatesAt
+            ? null
+            : active with { RetiresAt = successorActivatesAt, ExpiresAt = successorActivatesAt + policy.TokenLifetime };
     }
 
     /// <summary>A vida de uma chave nova que começa a assinar em <paramref name="activatesAt"/>.</summary>

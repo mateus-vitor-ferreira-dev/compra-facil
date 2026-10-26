@@ -1,7 +1,9 @@
 using CompraFacil.BuildingBlocks.Data;
+using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Identity.Application.Accounts;
 using CompraFacil.Identity.Domain;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace CompraFacil.Identity.Infrastructure.Persistence;
 
@@ -11,6 +13,15 @@ internal sealed class RefreshTokenRepository(IdentityDbContext db) : IRefreshTok
 
     public Task<RefreshToken?> FindByHashAsync(byte[] tokenHash, CancellationToken ct) =>
         db.RefreshTokens.SingleOrDefaultAsync(t => t.TokenHash == tokenHash, ct);
+
+    public async Task<Guid?> FamilyOfAsync(byte[] tokenHash, CancellationToken ct) =>
+        await db.RefreshTokens.AsNoTracking().Where(t => t.TokenHash == tokenHash).Select(t => (Guid?)t.FamilyId).SingleOrDefaultAsync(ct);
+
+    // a forma de dois inteiros não colide com a de um bigint (a da rotação de chaves)
+    public Task LockFamilyAsync(Guid familyId, CancellationToken ct) =>
+        db.Database.ExecuteSqlAsync($"SELECT pg_advisory_xact_lock({FamilyLockClass}, hashtext({familyId.ToString()}))", ct);
+
+    private const int FamilyLockClass = 1;
 
     public Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, RevocationReason reason, CancellationToken ct) =>
         db.RefreshTokens
@@ -38,8 +49,16 @@ internal sealed class AccountTransaction(IdentityDbContext db) : IAccountTransac
     {
         ArgumentNullException.ThrowIfNull(work);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var result = await work();
-        await tx.CommitAsync(ct);
-        return result;
+        try
+        {
+            var result = await work();
+            await tx.CommitAsync(ct);
+            return result;
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "EmailIndex" or "UserNameIndex" })
+        {
+            // dois cadastros com o mesmo e-mail ao mesmo tempo: os dois passam na checagem do Identity, o índice barra o segundo
+            throw new ConflictException("E-mail já cadastrado", "já existe uma conta com este e-mail");
+        }
     }
 }

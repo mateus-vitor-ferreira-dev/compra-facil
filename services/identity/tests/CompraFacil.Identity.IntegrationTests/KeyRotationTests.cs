@@ -49,6 +49,35 @@ public sealed class KeyRotationTests(IdentityFixture fx) : IClassFixture<Identit
     }
 }
 
+/// <summary>O serviço ficou fora durante toda a janela de troca: a chave atual é esticada, sem intervalo sem chave.</summary>
+public sealed class LateRotationTests(IdentityFixture fx) : IClassFixture<IdentityFixture>
+{
+    private readonly IdentityClient _api = new(fx.Factory.CreateClient());
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task MissedWindow_CurrentKeyKeepsSigning_UntilTheAnnouncedSuccessorStarts()
+    {
+        var first = new JsonWebToken((await _api.NewSessionAsync()).Access).Kid;
+
+        // primeira requisição só no dia 30,5: passou da janela de troca (dias 29 a 30)
+        fx.Clock.Advance(TimeSpan.FromDays(30.5));
+        Assert.Equal(first, new JsonWebToken((await _api.NewSessionAsync()).Access).Kid);
+        using var jwks = await _api.Http.GetAsync(new Uri("/.well-known/jwks.json", UriKind.Relative), Ct);
+        var kids = new JsonWebKeySet(await jwks.Content.ReadAsStringAsync(Ct)).Keys.Select(k => k.Kid).ToList();
+        var next = Assert.Single(kids, k => k != first);
+
+        // dia 31,25: sem a extensão, a primeira já teria parado (dia 31) e uma chave não anunciada assinaria
+        fx.Clock.Advance(TimeSpan.FromDays(0.75));
+        Assert.Equal(first, new JsonWebToken((await _api.NewSessionAsync()).Access).Kid);
+
+        // dia 31,5: a sucessora anunciada um dia antes assume
+        fx.Clock.Advance(TimeSpan.FromDays(0.25));
+        Assert.Equal(next, new JsonWebToken((await _api.NewSessionAsync()).Access).Kid);
+    }
+}
+
 /// <summary>Validade dos tokens: access de 15 min, refresh de 30 dias.</summary>
 public sealed class ExpirationTests(IdentityFixture fx) : IClassFixture<IdentityFixture>
 {

@@ -8,6 +8,15 @@ public interface IRefreshTokenRepository
 
     Task<RefreshToken?> FindByHashAsync(byte[] tokenHash, CancellationToken ct);
 
+    /// <summary>A família (sessão) do token, sem carregá-lo; nula se o token não existe.</summary>
+    Task<Guid?> FamilyOfAsync(byte[] tokenHash, CancellationToken ct);
+
+    /// <summary>
+    /// Trava a família até o fim da transação (advisory lock do Postgres): refresh, logout e detecção de
+    /// reuso da mesma sessão acontecem um de cada vez, e uma revogação enxerga o token que o refresh criou.
+    /// </summary>
+    Task LockFamilyAsync(Guid familyId, CancellationToken ct);
+
     /// <summary>Revoga, direto no banco, todos os tokens ainda válidos da família (uma sessão).</summary>
     Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, RevocationReason reason, CancellationToken ct);
 

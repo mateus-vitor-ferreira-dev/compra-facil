@@ -65,7 +65,25 @@ internal sealed partial class DbSigningKeyRing(
             return [];
         }
         var now = clock.GetUtcNow();
+        if (now - loaded.At >= CacheFor)
+        {
+            // réplica que só recebe GET /v1/me não passa pelo CurrentAsync: recarrega por fora, sem
+            // segurar a requisição (a chave nova de outra réplica entra em até uma requisição)
+            _ = Task.Run(RefreshInBackgroundAsync);
+        }
         return [.. loaded.Keys.Where(k => k.Lifetime.PublishedAt(now)).Select(k => k.Private)];
+    }
+
+    private async Task RefreshInBackgroundAsync()
+    {
+        try
+        {
+            await ReloadAsync(CancellationToken.None);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            LogBackgroundReloadFailed(logger, e);
+        }
     }
 
     public void Dispose() => _loading.Dispose();
@@ -113,6 +131,14 @@ internal sealed partial class DbSigningKeyRing(
         var now = clock.GetUtcNow();
         if (SigningKeySchedule.NextActivation([.. keys.Select(k => k.Lifetime)], now, policy) is { } activatesAt)
         {
+            if (SigningKeySchedule.Active(keys.Select(k => k.Lifetime), now) is { } active
+                && SigningKeySchedule.ExtendUntil(active, activatesAt, policy) is { } extended)
+            {
+                var current = keys.Single(k => k.KeyId == active.KeyId);
+                db.SigningKeys.Attach(current);
+                current.Extend(extended);
+                LogKeyExtended(logger, current.KeyId, current.RetiresAt);
+            }
             var key = Create(activatesAt, policy, now);
             db.SigningKeys.Add(key);
             keys.Add(key);
@@ -146,6 +172,12 @@ internal sealed partial class DbSigningKeyRing(
 
     private static RsaSecurityKey PublicOf(RsaSecurityKey key) =>
         new(key.Rsa.ExportParameters(includePrivateParameters: false)) { KeyId = key.KeyId };
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "falha ao recarregar as chaves de assinatura; segue com as da última carga")]
+    private static partial void LogBackgroundReloadFailed(ILogger logger, Exception e);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "rotação atrasada: a chave {KeyId} assina até {RetiresAt}, quando a próxima começa")]
+    private static partial void LogKeyExtended(ILogger logger, string keyId, DateTimeOffset retiresAt);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "chave de assinatura {KeyId} criada: assina a partir de {ActivatesAt}, sai do JWKS em {ExpiresAt}")]
     private static partial void LogKeyCreated(ILogger logger, string keyId, DateTimeOffset activatesAt, DateTimeOffset expiresAt);

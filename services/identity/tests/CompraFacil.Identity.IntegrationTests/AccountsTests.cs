@@ -38,6 +38,27 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         Assert.Equal("application/problem+json", again.Content.Headers.ContentType?.MediaType);
     }
 
+    [Fact]
+    public async Task Register_SameEmailAtTheSameTime_OneCreated_OthersAre409()
+    {
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => _api.RegisterAsync(email)));
+        try
+        {
+            Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Created);
+            Assert.All(responses.Where(r => r.StatusCode != HttpStatusCode.Created),
+                r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+        }
+        finally
+        {
+            foreach (var r in responses)
+            {
+                r.Dispose();
+            }
+        }
+    }
+
     [Theory]
     [InlineData("ana@exemplo.com", "curta", "password")]          // menos de 8
     [InlineData("ana@exemplo.com", "aaaabbbb", "password")]       // só 2 caracteres diferentes
