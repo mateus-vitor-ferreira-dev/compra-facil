@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Contas e tokens: cadastro, login, refresh, JWT RS256 e JWKS. -->
+  <ItemGroup>
+    <!-- ferramentas do EF (dotnet ef migrations) usam a Api como projeto de startup -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Identity.Application/CompraFacil.Identity.Application.csproj" />
+    <ProjectReference Include="../CompraFacil.Identity.Infrastructure/CompraFacil.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- o contrato (fonte da verdade) vai junto do binário e é servido em /openapi e /docs -->
+    <Content Include="$(RepoRoot)contracts/openapi/identity.v1.yaml" Link="openapi/identity.v1.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(RepoRoot)contracts/openapi/common/v1/common.yaml" Link="openapi/common/v1/common.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

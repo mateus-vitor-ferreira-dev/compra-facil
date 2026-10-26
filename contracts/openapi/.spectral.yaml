@@ -60,3 +60,11 @@ overrides:
     rules:
       oas3-api-servers: off
       oas3-unused-component: off
+
+  # as rotas de descoberta têm caminho fixo pelos padrões (RFC 8615, OpenID Connect), fora do /v1
+  - files:
+      - "identity.v1.yaml#/paths/~1.well-known~1jwks.json"
+      - "identity.v1.yaml#/paths/~1.well-known~1openid-configuration"
+    rules:
+      compra-facil-paths-kebab-case: off
+      compra-facil-properties-snake-case: off
