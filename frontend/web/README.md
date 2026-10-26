@@ -14,14 +14,14 @@ npm run dev                  # http://localhost:3000
 
 ## Como está montado
 
-| | |
-|---|---|
-| **Tipos da API** | `src/lib/api/schema/*.ts`, gerados de `contracts/openapi/*.v1.yaml` (openapi-typescript). Mudou um contrato: `npm run api:types`. O CI falha se estiverem desatualizados (`npm run api:check`). |
-| **Cliente** | `src/lib/api/client.ts`: um cliente tipado (openapi-fetch) por serviço, só no servidor (`server-only`). |
-| **Sessão** | `src/lib/auth/session.ts`: access token (15 min) e refresh token (30 dias) em cookies `httpOnly`, `SameSite=Lax`, `Secure` em produção. Nunca no `localStorage`. |
-| **Login, cadastro, logout** | `src/app/api/auth/*`: route handlers que chamam o identity e gravam ou apagam os cookies. Só aceitam `application/json` do próprio site (CSRF). |
-| **Refresh** | `src/proxy.ts`: sem access token e com refresh token, renova antes da página. Um refresh por vez para cada token nesta instância, porque o identity derruba a sessão se o mesmo refresh token for usado duas vezes. |
-| **UI** | Tailwind 4 e shadcn/ui (`components.json`). A identidade visual vem no design system (#149). |
+|                             |                                                                                                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tipos da API**            | `src/lib/api/schema/*.ts`, gerados de `contracts/openapi/*.v1.yaml` (openapi-typescript). Mudou um contrato: `npm run api:types`. O CI falha se estiverem desatualizados (`npm run api:check`).                     |
+| **Cliente**                 | `src/lib/api/client.ts`: um cliente tipado (openapi-fetch) por serviço, só no servidor (`server-only`).                                                                                                             |
+| **Sessão**                  | `src/lib/auth/session.ts`: access token (15 min) e refresh token (30 dias) em cookies `httpOnly`, `SameSite=Lax`, `Secure` em produção. Nunca no `localStorage`.                                                    |
+| **Login, cadastro, logout** | `src/app/api/auth/*`: route handlers que chamam o identity e gravam ou apagam os cookies. Só aceitam `application/json` do próprio site (CSRF).                                                                     |
+| **Refresh**                 | `src/proxy.ts`: sem access token e com refresh token, renova antes da página. Um refresh por vez para cada token nesta instância, porque o identity derruba a sessão se o mesmo refresh token for usado duas vezes. |
+| **UI**                      | Tailwind 4 e shadcn/ui (`components.json`). A identidade visual vem no design system (#149).                                                                                                                        |
 
 ## Testes
 
