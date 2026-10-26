@@ -26,6 +26,11 @@ jobs:
     name: formatação e testes
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # o dotnet acha o backend/global.json (SDK e o runner de testes, Microsoft.Testing.Platform)
+    # procurando a partir do diretório atual: os comandos rodam de dentro do backend/
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-dotnet@v6.0.0
@@ -34,16 +39,16 @@ jobs:
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - name: Restore (lock files; CI=true trava as versões)
-        run: dotnet restore backend/services/${{ inputs.service }}/*.slnx
+        run: dotnet restore services/${{ inputs.service }}/*.slnx
       - name: Formatação
-        run: dotnet format backend/services/${{ inputs.service }}/*.slnx --verify-no-changes --no-restore
+        run: dotnet format services/${{ inputs.service }}/*.slnx --verify-no-changes --no-restore
       - name: Build (avisos como erro)
-        run: dotnet build backend/services/${{ inputs.service }}/*.slnx --no-restore -c Release
+        run: dotnet build services/${{ inputs.service }}/*.slnx --no-restore -c Release
       - name: Testes (Postgres, Redpanda e Mailpit reais via Testcontainers)
         # sem o Ryuk: o runner é descartado depois do job (o mesmo do catalog.yml)
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
-        run: dotnet test --solution "$(ls backend/services/${{ inputs.service }}/*.slnx)" --no-build -c Release
+        run: dotnet test --solution "$(ls services/${{ inputs.service }}/*.slnx)" --no-build -c Release
 
   image:
     name: imagem no GHCR
