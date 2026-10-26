@@ -31,6 +31,19 @@ const (
 
 const DefaultCurrency = "BRL"
 
+// ProductImage descreve a foto do produto para o front montar o srcset: a foto em si é quadrada
+// (Width x Height) e cada variante é a mesma foto numa largura menor.
+type ProductImage struct {
+	Width    int            `json:"width"`
+	Height   int            `json:"height"`
+	Variants []ImageVariant `json:"variants"`
+}
+
+type ImageVariant struct {
+	Width int    `json:"width"`
+	URL   string `json:"url"`
+}
+
 type Product struct {
 	ID          uuid.UUID
 	SKU         string
@@ -39,10 +52,12 @@ type Product struct {
 	CategoryID  uuid.UUID
 	Category    CategoryRef
 	ImageURL    *string
-	PriceCents  int64
-	Currency    string
-	Status      ProductStatus
-	Version     int
+	// Image são as dimensões e as variantes da foto de ImageURL; nulo se só a URL é conhecida.
+	Image      *ProductImage
+	PriceCents int64
+	Currency   string
+	Status     ProductStatus
+	Version    int
 	// ActiveCampaign é a campanha vigente de maior desconto, se houver (preenchida na leitura).
 	ActiveCampaign *CampaignRef
 	CreatedAt      time.Time

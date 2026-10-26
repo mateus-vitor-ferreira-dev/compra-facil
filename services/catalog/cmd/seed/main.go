@@ -13,12 +13,12 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"math/rand/v2"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,10 +36,6 @@ type options struct {
 	reset    bool
 	mediaURL string
 }
-
-// photosPerSubcategory é quantas fotos cada subcategoria tem em infra/media/produtos
-// (<slug>-1.webp ... <slug>-N.webp, geradas por scripts/media/product_images.py).
-const photosPerSubcategory = 4
 
 func main() {
 	var opts options
@@ -114,7 +110,7 @@ func seed(ctx context.Context, conn *pgx.Conn, opts options, now time.Time) (sta
 
 	products := generateProducts(rng, subs, opts.products, now, opts.mediaURL)
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"products"},
-		[]string{"id", "sku", "name", "description", "category_id", "image_url", "price_cents", "currency", "status", "created_at", "updated_at"},
+		[]string{"id", "sku", "name", "description", "category_id", "image_url", "image", "price_cents", "currency", "status", "created_at", "updated_at"},
 		pgx.CopyFromSlice(len(products), func(i int) ([]any, error) { return products[i].row(), nil }),
 	); err != nil {
 		return st, fmt.Errorf("copiando produtos: %w", err)
@@ -203,6 +199,7 @@ type seedProduct struct {
 	categoryID uuid.UUID
 	rootSlug   string
 	imageURL   string
+	image      *domain.ProductImage
 	price      int64
 	status     string
 	createdAt  time.Time
@@ -211,22 +208,22 @@ type seedProduct struct {
 // domain é o produto como o repositório o devolveria logo após o Create (versão 1).
 func (p seedProduct) domain() domain.Product {
 	return domain.Product{
-		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, CategoryID: p.categoryID, ImageURL: &p.imageURL,
+		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, CategoryID: p.categoryID, ImageURL: &p.imageURL, Image: p.image,
 		PriceCents: p.price, Currency: "BRL",
 		Status: domain.ProductStatus(p.status), Version: 1, CreatedAt: p.createdAt, UpdatedAt: p.createdAt,
 	}
 }
 
 func (p seedProduct) row() []any {
-	return []any{p.id, p.sku, p.name, p.desc, p.categoryID, p.imageURL, p.price, "BRL", p.status, p.createdAt, p.createdAt}
-}
-
-// photoURL é uma das fotos da subcategoria (WebP 800x800), sorteada pelo gerador.
-func photoURL(rng *rand.Rand, mediaURL, subSlug string) string {
-	return fmt.Sprintf("%s/produtos/%s-%d.webp", strings.TrimRight(mediaURL, "/"), subSlug, rng.IntN(photosPerSubcategory)+1)
+	image, _ := json.Marshal(p.image) // tipos simples: não falha
+	return []any{p.id, p.sku, p.name, p.desc, p.categoryID, p.imageURL, image, p.price, "BRL", p.status, p.createdAt, p.createdAt}
 }
 
 func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, mediaURL string) []seedProduct {
+	photos, err := loadPhotos()
+	if err != nil {
+		panic(err) // embutido no binário: só falha se o arquivo versionado estiver quebrado
+	}
 	out := make([]seedProduct, n)
 	for i := range out {
 		sub := subs[i%len(subs)] // distribuição uniforme entre subcategorias
@@ -243,6 +240,7 @@ func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, me
 		}
 
 		sku := fmt.Sprintf("%s-%06d", sub.skuPrefix, i+1)
+		imageURL, image := photoFor(rng, photos, mediaURL, sub.slug)
 		out[i] = seedProduct{
 			id:         newUUID(rng),
 			sku:        sku,
@@ -250,7 +248,8 @@ func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, me
 			desc:       fmt.Sprintf("%s %s %s. Garantia de 12 meses e entrega para todo o Brasil.", noun, brand, attr),
 			categoryID: sub.id,
 			rootSlug:   sub.rootSlug,
-			imageURL:   photoURL(rng, mediaURL, sub.slug),
+			imageURL:   imageURL,
+			image:      image,
 			price:      roundPrice(sub.minPrice + rng.Int64N(sub.maxPrice-sub.minPrice+1)),
 			status:     status,
 			createdAt:  now.Add(-time.Duration(rng.Int64N(int64(365 * 24 * time.Hour)))),

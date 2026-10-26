@@ -7,9 +7,13 @@ Dois passos, para a escolha das fotos ser revisada por uma pessoa e o resultado 
   # revisar .cache/media/<sub>/prancha.jpg e anotar os ids escolhidos em scripts/media/selection.json
   python3 scripts/media/product_images.py build   # gera infra/media/produtos/*.webp e os créditos
 
-Cada foto sai em WebP 800x800 (recorte central): o front (next/image) conhece as dimensões de antemão.
+Cada foto vira um quadrado (recorte central) com variantes WebP por largura (VARIANT_WIDTHS), nunca
+maiores que a original: o front escolhe pelo srcset a que serve para a tela. O nome leva o hash do
+conteúdo (tv-1.3fa9c2d1-640.webp), então a CDN guarda cada arquivo para sempre (immutable). O
+manifesto (infra/media/manifest.json) diz as variantes de cada foto; o seed o copia (go generate).
 Precisa de Pillow (pip install pillow).
 """
+import hashlib
 import json
 import sys
 import time
@@ -25,8 +29,12 @@ CACHE = ROOT / ".cache" / "media"
 SELECTION = Path(__file__).with_name("selection.json")
 OUT = ROOT / "infra" / "media" / "produtos"
 CREDITS = ROOT / "infra" / "media" / "CREDITOS.md"
+MANIFEST = ROOT / "infra" / "media" / "manifest.json"
 
-SIZE = 800
+# larguras do srcset: card da vitrine (1x/2x) até a página do produto em tela retina
+VARIANT_WIDTHS = (320, 480, 640, 960, 1200)
+MIN_SIZE = 600  # foto menor que isso não entra: ficaria borrada na página do produto
+SIZE = 800  # das pranchas de escolha
 CANDIDATES = 12
 API = "https://api.openverse.org/v1/images/"
 # fontes de fotografia CC0/domínio público; a Wikimedia traz muito logo e diagrama
@@ -71,9 +79,16 @@ def search(query):
     return []
 
 
-def square(path):
-    image = ImageOps.exif_transpose(Image.open(path)).convert("RGB")
-    return ImageOps.fit(image, (SIZE, SIZE), Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+# a URL do Openverse é a maior versão sem marca d'água: as maiores do rawpixel (image_1300) têm marca
+# e as do StockSnap param em 960 px de largura
+def original(path):
+    return ImageOps.exif_transpose(Image.open(path)).convert("RGB")
+
+
+def square(path, size=SIZE):
+    image = original(path)
+    return ImageOps.fit(image, (size, size), Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+
 
 
 def fetch_one(sub, query):
@@ -112,6 +127,15 @@ def fetch():
         list(pool.map(lambda item: fetch_one(*item), QUERIES.items()))
 
 
+def find(short):
+    """A candidata pelo id curto, em qualquer pasta do cache."""
+    for meta_file in CACHE.glob("*/meta.json"):
+        for r in json.loads(meta_file.read_text()):
+            if r["id"].startswith(short):
+                return r, meta_file.parent / f"{r['id']}.img"
+    raise SystemExit(f"{short}: não está no cache; rode o fetch")
+
+
 def build():
     selection = json.loads(SELECTION.read_text())
     OUT.mkdir(parents=True, exist_ok=True)
@@ -120,28 +144,44 @@ def build():
     lines = [
         "# Créditos das fotos de produto",
         "",
-        "Fotos em domínio público ou CC0, encontradas pelo [Openverse](https://openverse.org) e convertidas para",
-        f"WebP {SIZE}x{SIZE} (recorte central) por `scripts/media/product_images.py`. Não é exigida atribuição; os",
-        "créditos ficam aqui por transparência. As marcas citadas nos nomes dos produtos do seed são só massa",
-        "de teste: as fotos não mostram esses produtos nem têm relação com essas marcas.",
+        "Fotos em domínio público ou CC0, encontradas pelo [Openverse](https://openverse.org) e convertidas em",
+        "variantes WebP quadradas (recorte central) por `scripts/media/product_images.py`. Não é exigida",
+        "atribuição; os créditos ficam aqui por transparência. As marcas citadas nos nomes dos produtos do seed",
+        "são só massa de teste: as fotos não mostram esses produtos nem têm relação com essas marcas.",
         "",
-        "| Arquivo | Título | Autor | Licença | Origem |",
-        "|---|---|---|---|---|",
+        "| Foto | Maior variante | Título | Autor | Licença | Origem |",
+        "|---|---|---|---|---|---|",
     ]
+    manifest = {}
     for sub, ids in selection.items():
-        meta = {r["id"]: r for r in json.loads((CACHE / sub / "meta.json").read_text())}
         for n, short in enumerate(ids, start=1):
-            r = next(v for k, v in meta.items() if k.startswith(short))
-            name = f"{sub}-{n}.webp"
-            square(CACHE / sub / f"{r['id']}.img").save(OUT / name, "WEBP", quality=80, method=6)
+            r, path = find(short)
+            side = min(original(path).size)
+            if side < MIN_SIZE:
+                raise SystemExit(f"{sub} {short}: original com {side}px, menos que {MIN_SIZE}; escolha outra")
+            top = min(side, max(VARIANT_WIDTHS))
+            # largura padrão colada na da original (640 de uma de 683) não vale o arquivo a mais
+            widths = sorted({w for w in VARIANT_WIDTHS if w <= top * 0.85} | {top})
+            base = square(path, top)
+            digest = hashlib.sha256(base.tobytes()).hexdigest()[:8]
+            name = f"{sub}-{n}"
+            variants = []
+            for w in widths:
+                file = f"{name}.{digest}-{w}.webp"
+                (base if w == top else base.resize((w, w), Image.Resampling.LANCZOS)).save(
+                    OUT / file, "WEBP", quality=80, method=6)
+                variants.append({"width": w, "file": file})
+            manifest[name] = {"width": top, "height": top, "variants": variants}
             license_ = f"{r['license'].upper()} {r.get('license_version') or ''}".strip()
             title = (r.get("title") or "").replace("|", "/")
             creator = (r.get("creator") or "—").replace("|", "/")
-            lines.append(f"| `{name}` | {title} | {creator} | {license_} | [{r['source']}]({r['foreign_landing_url']}) |")
+            lines.append(f"| `{name}` | {top}px | {title} | {creator} | {license_} | [{r['source']}]({r['foreign_landing_url']}) |")
     CREDITS.write_text("\n".join(lines) + "\n")
-    total = sum(len(v) for v in selection.values())
-    size = sum(p.stat().st_size for p in OUT.glob("*.webp")) / 1024
-    print(f"{total} fotos em {OUT.relative_to(ROOT)} ({size:.0f} KiB) e créditos em {CREDITS.relative_to(ROOT)}")
+    MANIFEST.write_text(json.dumps(manifest, indent=1) + "\n")
+    files = list(OUT.glob("*.webp"))
+    size = sum(p.stat().st_size for p in files) / 1024
+    print(f"{len(manifest)} fotos, {len(files)} variantes em {OUT.relative_to(ROOT)} ({size:.0f} KiB); "
+          f"manifesto em {MANIFEST.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

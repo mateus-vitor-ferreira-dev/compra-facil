@@ -1,0 +1,966 @@
+{
+ "tv-1": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-1.d226c7dd-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-1.d226c7dd-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "tv-1.d226c7dd-683.webp"
+   }
+  ]
+ },
+ "tv-2": {
+  "width": 898,
+  "height": 898,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-2.97211e0b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-2.97211e0b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tv-2.97211e0b-640.webp"
+   },
+   {
+    "width": 898,
+    "file": "tv-2.97211e0b-898.webp"
+   }
+  ]
+ },
+ "tv-3": {
+  "width": 768,
+  "height": 768,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-3.87568abb-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-3.87568abb-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tv-3.87568abb-640.webp"
+   },
+   {
+    "width": 768,
+    "file": "tv-3.87568abb-768.webp"
+   }
+  ]
+ },
+ "tv-4": {
+  "width": 720,
+  "height": 720,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-4.2b1936bf-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-4.2b1936bf-480.webp"
+   },
+   {
+    "width": 720,
+    "file": "tv-4.2b1936bf-720.webp"
+   }
+  ]
+ },
+ "fones-1": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-1.f750dcc5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-1.f750dcc5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-1.f750dcc5-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fones-1.f750dcc5-960.webp"
+   }
+  ]
+ },
+ "fones-2": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-2.bb0cfe15-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-2.bb0cfe15-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-2.bb0cfe15-640.webp"
+   }
+  ]
+ },
+ "fones-3": {
+  "width": 641,
+  "height": 641,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-3.719fbeb6-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-3.719fbeb6-480.webp"
+   },
+   {
+    "width": 641,
+    "file": "fones-3.719fbeb6-641.webp"
+   }
+  ]
+ },
+ "fones-4": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-4.0c862987-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-4.0c862987-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-4.0c862987-640.webp"
+   }
+  ]
+ },
+ "caixas-de-som-1": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-1.2785ade9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-1.2785ade9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-1.2785ade9-640.webp"
+   }
+  ]
+ },
+ "caixas-de-som-2": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-2.05938435-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-2.05938435-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-2.05938435-640.webp"
+   }
+  ]
+ },
+ "caixas-de-som-3": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-3.62c73fb3-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-3.62c73fb3-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-3.62c73fb3-640.webp"
+   }
+  ]
+ },
+ "caixas-de-som-4": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-4.2af3f5e9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-4.2af3f5e9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-4.2af3f5e9-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "caixas-de-som-4.2af3f5e9-960.webp"
+   }
+  ]
+ },
+ "notebooks-1": {
+  "width": 648,
+  "height": 648,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-1.a005fc2c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-1.a005fc2c-480.webp"
+   },
+   {
+    "width": 648,
+    "file": "notebooks-1.a005fc2c-648.webp"
+   }
+  ]
+ },
+ "notebooks-2": {
+  "width": 638,
+  "height": 638,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-2.4efd80da-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-2.4efd80da-480.webp"
+   },
+   {
+    "width": 638,
+    "file": "notebooks-2.4efd80da-638.webp"
+   }
+  ]
+ },
+ "notebooks-3": {
+  "width": 638,
+  "height": 638,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-3.fefa02d4-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-3.fefa02d4-480.webp"
+   },
+   {
+    "width": 638,
+    "file": "notebooks-3.fefa02d4-638.webp"
+   }
+  ]
+ },
+ "notebooks-4": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-4.88ceae88-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-4.88ceae88-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-4.88ceae88-640.webp"
+   }
+  ]
+ },
+ "monitores-1": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "monitores-1.33f535a3-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "monitores-1.33f535a3-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "monitores-1.33f535a3-640.webp"
+   }
+  ]
+ },
+ "monitores-2": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "monitores-2.a40a906b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "monitores-2.a40a906b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "monitores-2.a40a906b-640.webp"
+   }
+  ]
+ },
+ "monitores-3": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "monitores-3.c89e7874-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "monitores-3.c89e7874-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "monitores-3.c89e7874-640.webp"
+   }
+  ]
+ },
+ "monitores-4": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "monitores-4.ed1265da-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "monitores-4.ed1265da-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "monitores-4.ed1265da-640.webp"
+   }
+  ]
+ },
+ "perifericos-1": {
+  "width": 667,
+  "height": 667,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-1.6e755c9e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-1.6e755c9e-480.webp"
+   },
+   {
+    "width": 667,
+    "file": "perifericos-1.6e755c9e-667.webp"
+   }
+  ]
+ },
+ "perifericos-2": {
+  "width": 720,
+  "height": 720,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-2.af4139d4-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-2.af4139d4-480.webp"
+   },
+   {
+    "width": 720,
+    "file": "perifericos-2.af4139d4-720.webp"
+   }
+  ]
+ },
+ "perifericos-3": {
+  "width": 638,
+  "height": 638,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-3.b8cd18cd-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-3.b8cd18cd-480.webp"
+   },
+   {
+    "width": 638,
+    "file": "perifericos-3.b8cd18cd-638.webp"
+   }
+  ]
+ },
+ "perifericos-4": {
+  "width": 720,
+  "height": 720,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-4.f6cf9c82-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-4.f6cf9c82-480.webp"
+   },
+   {
+    "width": 720,
+    "file": "perifericos-4.f6cf9c82-720.webp"
+   }
+  ]
+ },
+ "geladeiras-1": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-1.cadf56cc-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-1.cadf56cc-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "geladeiras-1.cadf56cc-683.webp"
+   }
+  ]
+ },
+ "geladeiras-2": {
+  "width": 678,
+  "height": 678,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-2.da69c072-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-2.da69c072-480.webp"
+   },
+   {
+    "width": 678,
+    "file": "geladeiras-2.da69c072-678.webp"
+   }
+  ]
+ },
+ "geladeiras-3": {
+  "width": 679,
+  "height": 679,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-3.2cb04917-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-3.2cb04917-480.webp"
+   },
+   {
+    "width": 679,
+    "file": "geladeiras-3.2cb04917-679.webp"
+   }
+  ]
+ },
+ "geladeiras-4": {
+  "width": 641,
+  "height": 641,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-4.91936c4d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-4.91936c4d-480.webp"
+   },
+   {
+    "width": 641,
+    "file": "geladeiras-4.91936c4d-641.webp"
+   }
+  ]
+ },
+ "fogoes-1": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-1.2378459a-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-1.2378459a-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-1.2378459a-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fogoes-1.2378459a-960.webp"
+   }
+  ]
+ },
+ "fogoes-2": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-2.abdb3757-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-2.abdb3757-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-2.abdb3757-640.webp"
+   }
+  ]
+ },
+ "fogoes-3": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-3.0eb9f7da-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-3.0eb9f7da-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "fogoes-3.0eb9f7da-683.webp"
+   }
+  ]
+ },
+ "fogoes-4": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-4.e7bf78e7-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-4.e7bf78e7-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "fogoes-4.e7bf78e7-683.webp"
+   }
+  ]
+ },
+ "lavadoras-1": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-1.82d887bc-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-1.82d887bc-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "lavadoras-1.82d887bc-683.webp"
+   }
+  ]
+ },
+ "lavadoras-2": {
+  "width": 706,
+  "height": 706,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-2.83fdbaff-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-2.83fdbaff-480.webp"
+   },
+   {
+    "width": 706,
+    "file": "lavadoras-2.83fdbaff-706.webp"
+   }
+  ]
+ },
+ "lavadoras-3": {
+  "width": 730,
+  "height": 730,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-3.ab7b6815-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-3.ab7b6815-480.webp"
+   },
+   {
+    "width": 730,
+    "file": "lavadoras-3.ab7b6815-730.webp"
+   }
+  ]
+ },
+ "lavadoras-4": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-4.99ee385b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-4.99ee385b-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "lavadoras-4.99ee385b-683.webp"
+   }
+  ]
+ },
+ "sofas-1": {
+  "width": 1000,
+  "height": 1000,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-1.c0404685-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-1.c0404685-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-1.c0404685-640.webp"
+   },
+   {
+    "width": 1000,
+    "file": "sofas-1.c0404685-1000.webp"
+   }
+  ]
+ },
+ "sofas-2": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-2.e7cccbb8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-2.e7cccbb8-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "sofas-2.e7cccbb8-683.webp"
+   }
+  ]
+ },
+ "sofas-3": {
+  "width": 825,
+  "height": 825,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-3.93de3488-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-3.93de3488-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-3.93de3488-640.webp"
+   },
+   {
+    "width": 825,
+    "file": "sofas-3.93de3488-825.webp"
+   }
+  ]
+ },
+ "sofas-4": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-4.39f73301-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-4.39f73301-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "sofas-4.39f73301-683.webp"
+   }
+  ]
+ },
+ "colchoes-1": {
+  "width": 636,
+  "height": 636,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-1.c9b2faa5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-1.c9b2faa5-480.webp"
+   },
+   {
+    "width": 636,
+    "file": "colchoes-1.c9b2faa5-636.webp"
+   }
+  ]
+ },
+ "colchoes-2": {
+  "width": 636,
+  "height": 636,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-2.ee52115e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-2.ee52115e-480.webp"
+   },
+   {
+    "width": 636,
+    "file": "colchoes-2.ee52115e-636.webp"
+   }
+  ]
+ },
+ "colchoes-3": {
+  "width": 634,
+  "height": 634,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-3.b964de1e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-3.b964de1e-480.webp"
+   },
+   {
+    "width": 634,
+    "file": "colchoes-3.b964de1e-634.webp"
+   }
+  ]
+ },
+ "colchoes-4": {
+  "width": 672,
+  "height": 672,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-4.57dfef3c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-4.57dfef3c-480.webp"
+   },
+   {
+    "width": 672,
+    "file": "colchoes-4.57dfef3c-672.webp"
+   }
+  ]
+ },
+ "bicicletas-1": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-1.6566c90c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-1.6566c90c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-1.6566c90c-640.webp"
+   }
+  ]
+ },
+ "bicicletas-2": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-2.648c5bf4-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-2.648c5bf4-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-2.648c5bf4-640.webp"
+   }
+  ]
+ },
+ "bicicletas-3": {
+  "width": 640,
+  "height": 640,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-3.4253d950-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-3.4253d950-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-3.4253d950-640.webp"
+   }
+  ]
+ },
+ "bicicletas-4": {
+  "width": 657,
+  "height": 657,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-4.eb0a6755-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-4.eb0a6755-480.webp"
+   },
+   {
+    "width": 657,
+    "file": "bicicletas-4.eb0a6755-657.webp"
+   }
+  ]
+ },
+ "fitness-1": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-1.a8dc57c7-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-1.a8dc57c7-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "fitness-1.a8dc57c7-683.webp"
+   }
+  ]
+ },
+ "fitness-2": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-2.bcd5101c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-2.bcd5101c-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "fitness-2.bcd5101c-683.webp"
+   }
+  ]
+ },
+ "fitness-3": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-3.154cbc02-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-3.154cbc02-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "fitness-3.154cbc02-683.webp"
+   }
+  ]
+ },
+ "fitness-4": {
+  "width": 683,
+  "height": 683,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-4.9e02aec5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-4.9e02aec5-480.webp"
+   },
+   {
+    "width": 683,
+    "file": "fitness-4.9e02aec5-683.webp"
+   }
+  ]
+ }
+}

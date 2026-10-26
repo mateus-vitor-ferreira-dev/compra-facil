@@ -263,3 +263,42 @@ func TestContractValidatorCatchesDrift(t *testing.T) {
 	assert.False(t, ok)
 	assert.NotEmpty(t, errs)
 }
+
+func TestGetProduct_Image(t *testing.T) {
+	get := func(t *testing.T, p domain.Product) map[string]any {
+		t.Helper()
+		w := serve(t, newAPI(&fakeProducts{product: p}, fakeCategories{}, fakeCampaigns{}), "/v1/products/"+p.ID.String())
+		require.Equal(t, http.StatusOK, w.Code)
+		return decode(t, w)
+	}
+
+	t.Run("com variantes: o srcset do front", func(t *testing.T) {
+		p := sampleProduct(false)
+		big := "http://localhost/media/produtos/tv-1.d226c7dd-683.webp"
+		p.ImageURL = &big
+		p.Image = &domain.ProductImage{Width: 683, Height: 683, Variants: []domain.ImageVariant{
+			{Width: 320, URL: "http://localhost/media/produtos/tv-1.d226c7dd-320.webp"},
+			{Width: 683, URL: big},
+		}}
+
+		img := get(t, p)["image"].(map[string]any)
+
+		assert.Equal(t, big, img["url"])
+		assert.InDelta(t, 683, img["width"], 0)
+		variants := img["variants"].([]any)
+		require.Len(t, variants, 2)
+		assert.InDelta(t, 320, variants[0].(map[string]any)["width"], 0)
+	})
+	t.Run("só a URL (definida pelo admin): sem dimensões nem variantes", func(t *testing.T) {
+		img := get(t, sampleProduct(false))["image"].(map[string]any)
+
+		assert.Equal(t, "https://cdn.example.com/tv.jpg", img["url"])
+		assert.Nil(t, img["width"])
+		assert.Empty(t, img["variants"])
+	})
+	t.Run("sem foto", func(t *testing.T) {
+		p := sampleProduct(false)
+		p.ImageURL = nil
+		assert.Nil(t, get(t, p)["image"])
+	})
+}

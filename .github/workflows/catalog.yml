@@ -16,6 +16,7 @@ on:
       - contracts/asyncapi/common/**
       # o seed sorteia as fotos de infra/media/produtos (o teste confere que todas existem)
       - infra/media/produtos/**
+      - infra/media/manifest.json
       - contracts/consumer/orders-catalog.json # contrato que o orders espera (ADR 0004)
       - .github/workflows/catalog.yml
   pull_request:
@@ -30,6 +31,7 @@ on:
       - contracts/asyncapi/common/**
       # o seed sorteia as fotos de infra/media/produtos (o teste confere que todas existem)
       - infra/media/produtos/**
+      - infra/media/manifest.json
       - contracts/consumer/orders-catalog.json # contrato que o orders espera (ADR 0004)
       - .github/workflows/catalog.yml
 

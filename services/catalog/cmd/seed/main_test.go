@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -47,26 +48,52 @@ func TestGenerateProducts_DeterministicAndValid(t *testing.T) {
 		assert.Equal(t, int64(90), p.price%100, "preço termina em ,90")
 		assert.Contains(t, []string{"active", "inactive", "draft"}, p.status)
 		assert.Equal(t, uuid.Version(4), p.id.Version())
-		assert.Regexp(t, `^http://localhost/media/produtos/[a-z-]+-[1-4]\.webp$`, p.imageURL, "foto da subcategoria, sem barra dupla")
+		assert.Regexp(t, `^http://localhost/media/produtos/[a-z-]+-[1-4]\.[0-9a-f]{8}-[0-9]+\.webp$`, p.imageURL, "foto da subcategoria, sem barra dupla")
+		require.NotNil(t, p.image)
+		require.NotEmpty(t, p.image.Variants)
+		assert.Equal(t, p.imageURL, p.image.Variants[len(p.image.Variants)-1].URL, "image_url é a maior variante")
+		assert.Equal(t, p.image.Width, p.image.Variants[len(p.image.Variants)-1].Width)
 		assert.Equal(t, p.imageURL, *p.domain().ImageURL, "o evento leva a mesma foto")
 	}
 }
 
-// toda foto que o seed pode sortear existe em infra/media/produtos (gerada pelo scripts/media)
+// toda foto que o seed pode sortear está no manifesto, com as variantes em infra/media/produtos
 func TestPhotos_ExistForEverySubcategory(t *testing.T) {
-	dir := filepath.Join("..", "..", "..", "..", "infra", "media", "produtos")
+	dir := filepath.Join("..", "..", "..", "..", "infra", "media")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		t.Skip("infra/media fora do contexto (ex.: build da imagem)")
 	}
+	photos, err := loadPhotos()
+	require.NoError(t, err)
 	for _, root := range catalogTree {
 		for _, sub := range root.children {
 			for n := 1; n <= photosPerSubcategory; n++ {
-				name := fmt.Sprintf("%s-%d.webp", sub.slug, n)
-				_, err := os.Stat(filepath.Join(dir, name))
-				assert.NoError(t, err, "falta %s: rode scripts/media/product_images.py build", name)
+				name := fmt.Sprintf("%s-%d", sub.slug, n)
+				p, ok := photos[name]
+				if !assert.True(t, ok, "falta %s no manifesto: rode scripts/media/product_images.py build", name) {
+					continue
+				}
+				assert.Equal(t, p.Width, p.Height, "%s: quadrada", name)
+				assert.GreaterOrEqual(t, p.Width, 600, "%s: pequena demais para a página do produto", name)
+				for i, v := range p.Variants {
+					assert.FileExists(t, filepath.Join(dir, "produtos", v.File))
+					if i > 0 {
+						assert.Greater(t, v.Width, p.Variants[i-1].Width, "%s: variantes em ordem crescente", name)
+					}
+				}
 			}
 		}
 	}
+}
+
+func TestPhotosManifestInSync(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "infra", "media", "manifest.json"))
+	if os.IsNotExist(err) {
+		t.Skip("infra/media fora do contexto (ex.: build da imagem)")
+	}
+	require.NoError(t, err)
+	// cópia byte a byte, como a do contrato (não só JSON equivalente)
+	assert.True(t, bytes.Equal(source, photosJSON), "photos.json desatualizado: rode go generate ./cmd/seed")
 }
 
 func TestRoundPrice(t *testing.T) {

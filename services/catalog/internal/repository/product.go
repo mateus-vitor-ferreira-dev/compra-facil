@@ -30,7 +30,7 @@ const (
 	// limiar do operador <% (padrão do pg_trgm: 0.6). 0.5 aceita 1 letra faltando em palavras de ~8 letras
 	searchSimilarityThreshold = "0.5"
 
-	productColumns = `p.id, p.sku, p.name, p.description, p.category_id, p.image_url, p.price_cents,
+	productColumns = `p.id, p.sku, p.name, p.description, p.category_id, p.image_url, p.image, p.price_cents,
 		p.currency, p.status, p.version, p.created_at, p.updated_at,
 		cat.slug AS category_slug, cat.name AS category_name,
 		ac.id AS campaign_id, ac.name AS campaign_name,
@@ -82,6 +82,9 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expec
 				"description": rec.Description,
 				"category_id": rec.CategoryID,
 				"image_url":   rec.ImageURL,
+				// as variantes eram da foto anterior: URL nova (definida pelo admin) fica sem elas. No
+				// SET, image_url ainda é o valor de antes do UPDATE
+				"image":       gorm.Expr("CASE WHEN image_url IS NOT DISTINCT FROM ? THEN image END", rec.ImageURL),
 				"price_cents": rec.PriceCents,
 				"currency":    rec.Currency,
 				"status":      rec.Status,
