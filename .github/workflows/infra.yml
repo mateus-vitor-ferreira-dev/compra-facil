@@ -77,7 +77,6 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TOFU_STATE_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v7.0.1
-        if: env.CONFIGURED == 'true'
       - uses: opentofu/setup-opentofu@v2.0.2
         if: env.CONFIGURED == 'true'
         with:
@@ -136,7 +135,6 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.TOFU_STATE_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v7.0.1
-        if: env.CONFIGURED == 'true'
       - uses: opentofu/setup-opentofu@v2.0.2
         if: env.CONFIGURED == 'true'
         with:
