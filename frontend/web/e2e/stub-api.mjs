@@ -5,7 +5,8 @@ import { createServer } from "node:http";
 const port = Number(process.env.STUB_PORT ?? 4010);
 const sessions = new Map(); // refresh token -> { email, used }
 const accessTokens = new Map(); // access token -> email
-const stats = { refresh: 0, revoke: 0, ordersPlaced: 0 };
+// ordersByKey: pedidos criados por Idempotency-Key (o teste do envio duplo olha só a dele)
+const stats = { refresh: 0, revoke: 0, ordersPlaced: 0, ordersByKey: {} };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
 
@@ -111,6 +112,7 @@ const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
 // o painel: situação e versão de cada produto (a versão é o ETag)
 for (const p of products) Object.assign(p, { status: "active", version: 1 });
 const adminKeys = new Set(); // Idempotency-Key dos ajustes de estoque
+const adminCampaigns = []; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
 
@@ -214,6 +216,63 @@ async function admin(req, res, url) {
     products.push(p);
     res.setHeader("ETag", '"1"');
     return send(res, 201, p);
+  }
+  // ---- campanhas: um produto fica em uma campanha por período ----
+  const campaignPath = url.pathname.match(/^\/catalog\/v1\/admin\/campaigns\/([0-9a-f-]{36})(\/products)?$/);
+  const overlaps = (a, b) =>
+    Date.parse(a.starts_at) < Date.parse(b.ends_at) && Date.parse(b.starts_at) < Date.parse(a.ends_at);
+  const withCount = (c) => ({ ...c, product_count: c.products.length, products: undefined });
+  if (url.pathname === "/catalog/v1/admin/campaigns") {
+    if (req.method === "GET") {
+      return send(res, 200, {
+        data: adminCampaigns.map(withCount),
+        page: { next_cursor: null, has_more: false },
+      });
+    }
+    const body = await json(req);
+    if (adminCampaigns.some((c) => c.slug === body.slug)) return problem(res, 409, "Conflito");
+    const c = { id: crypto.randomUUID(), ...body, products: [] };
+    adminCampaigns.push(c);
+    return send(res, 201, withCount(c));
+  }
+  if (campaignPath) {
+    const c = adminCampaigns.find((x) => x.id === campaignPath[1]);
+    if (!c) return problem(res, 404, "Recurso não encontrado");
+    if (campaignPath[2]) {
+      if (req.method === "GET")
+        return send(res, 200, {
+          data: c.products.map((id) => products.find((p) => p.id === id)).filter(Boolean),
+        });
+      const { product_ids } = await json(req);
+      const busy = adminCampaigns.some(
+        (o) => o.id !== c.id && overlaps(o, c) && o.products.some((id) => product_ids.includes(id)),
+      );
+      if (busy) {
+        return send(
+          res,
+          409,
+          {
+            type: "about:blank",
+            title: "Conflito",
+            status: 409,
+            detail: "produtos já estão em outra campanha no período",
+            trace_id: "4bf92f3577b34da6a3ce929d0e0e4736",
+          },
+          "application/problem+json",
+        );
+      }
+      c.products = product_ids;
+      return res.writeHead(204).end();
+    }
+    if (req.method === "GET") return send(res, 200, withCount(c));
+    if (req.method === "PUT") {
+      Object.assign(c, await json(req));
+      return send(res, 200, withCount(c));
+    }
+    if (req.method === "DELETE") {
+      adminCampaigns.splice(adminCampaigns.indexOf(c), 1);
+      return res.writeHead(204).end();
+    }
   }
   if (req.method === "POST" && url.pathname === "/catalog/v1/admin/categories") {
     const body = await json(req);
@@ -367,6 +426,7 @@ async function placeOrder(req, res, email) {
   placed.set(id, { order, owner: email, reserveAt: now + 800, endAt: now + 1600, outcome });
   byKey.set(`${email}:${key}`, id);
   stats.ordersPlaced++;
+  stats.ordersByKey[key] = (stats.ordersByKey[key] ?? 0) + 1;
   return send(res, 202, order);
 }
 
