@@ -24,6 +24,44 @@ public sealed class RefreshTokenTests
     }
 
     [Fact]
+    public void RotatedWithin_OnlyRightAfterTheRotation()
+    {
+        var interval = TimeSpan.FromSeconds(10);
+        var first = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        Assert.False(first.RotatedWithin(s_now, interval)); // ainda não foi trocado
+
+        first.Rotate([2], s_now, s_lifetime);
+
+        Assert.True(first.RotatedWithin(s_now.AddSeconds(10), interval));
+        Assert.False(first.RotatedWithin(s_now.AddSeconds(11), interval));
+        Assert.False(first.RotatedWithin(s_now, TimeSpan.Zero)); // intervalo desligado
+    }
+
+    [Fact]
+    public void RotatedWithin_IsFalseForLogoutOrReuse()
+    {
+        var token = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        token.Revoke(s_now, RevocationReason.Logout);
+
+        Assert.False(token.RotatedWithin(s_now, TimeSpan.FromSeconds(10)));
+    }
+
+    [Fact]
+    public void Sibling_IsSameFamily_AndOnlyInsideTheInterval()
+    {
+        var interval = TimeSpan.FromSeconds(10);
+        var first = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        first.Rotate([2], s_now, s_lifetime);
+
+        var sibling = first.Sibling([3], s_now.AddSeconds(2), s_lifetime, interval);
+
+        Assert.Equal((first.FamilyId, first.UserId), (sibling.FamilyId, sibling.UserId));
+        Assert.True(sibling.IsActive(s_now.AddSeconds(2)));
+        Assert.True(first.WasRotated); // o original continua trocado
+        Assert.Throws<InvalidOperationException>(() => first.Sibling([4], s_now.AddSeconds(11), s_lifetime, interval));
+    }
+
+    [Fact]
     public void Expired_IsInactive_AndCannotRotate()
     {
         var token = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
