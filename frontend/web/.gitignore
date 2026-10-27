@@ -6,3 +6,8 @@ playwright-report
 test-results
 .lighthouseci
 .env*.local
+
+# build e estado local do Cloudflare Workers (OpenNext, wrangler); .dev.vars tem segredos locais
+.open-next/
+.wrangler/
+.dev.vars*

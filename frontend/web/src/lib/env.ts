@@ -14,7 +14,7 @@ const schema = z.object({
   // segredo compartilhado com o gateway: com ele, o rate limit é pelo IP do comprador (#176)
   BFF_GATEWAY_KEY: z.string().min(16).optional(),
   // o cabeçalho em que a plataforma entrega o IP do cliente, sobrescrevendo o que vier de fora
-  // (x-real-ip na Vercel). Sem ele, o BFF não repassa IP nenhum: um cabeçalho que o próprio cliente
+  // (cf-connecting-ip na Cloudflare). Sem ele, o BFF não repassa IP nenhum: um cabeçalho que o próprio cliente
   // pode mandar deixaria cada requisição escolher o próprio limite
   CLIENT_IP_HEADER: z.string().min(1).optional(),
   // login com o Google (#180): o cliente OAuth do Google Cloud. Sem os dois, o botão não aparece

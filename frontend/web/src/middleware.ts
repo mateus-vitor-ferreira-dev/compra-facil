@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth/session";
 
 // o layout do painel não sabe o caminho da página: sem sessão, quem manda ao login (e de volta para
-// o lugar certo, com a busca) é o proxy
+// o lugar certo, com a busca) é o middleware
 const needsSession = (path: string) => path === "/admin" || path.startsWith("/admin/");
 
 function toLogin(request: NextRequest): NextResponse {
@@ -23,7 +23,7 @@ function toLogin(request: NextRequest): NextResponse {
  * entrega os cookies novos ao navegador e à própria requisição, para os Server Components já lerem o
  * token novo. Refresh recusado (sessão derrubada ou vencida): apaga os cookies e segue sem sessão.
  */
-export async function proxy(request: NextRequest): Promise<NextResponse> {
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
   if (request.cookies.has(ACCESS_COOKIE)) return NextResponse.next();
   if (!refresh) return needsSession(request.nextUrl.pathname) ? toLogin(request) : NextResponse.next();

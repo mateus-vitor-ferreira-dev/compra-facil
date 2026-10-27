@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // A loja no Cloudflare Workers, pelo OpenNext (ADR 0006). O CI publica com `npm run deploy`; a conta
+  // vem de CLOUDFLARE_ACCOUNT_ID, e o domínio da loja é um Custom Domain do Worker (README).
+  "name": "compra-facil-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  // Valores do servidor que não são segredo. Os segredos (BFF_GATEWAY_KEY, GOOGLE_CLIENT_SECRET) vão
+  // com `wrangler secret put`.
+  "vars": {
+    "API_URL": "https://api.comprafacil.example",
+    "SITE_URL": "https://comprafacil.example",
+    // o IP de quem compra, que a Cloudflare põe em toda requisição e não deixa o cliente forjar: o BFF
+    // o repassa ao gateway para o rate limit ser por comprador (#176)
+    "CLIENT_IP_HEADER": "cf-connecting-ip",
+  },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "compra-facil-web",
+    },
+  ],
+  "observability": {
+    "enabled": true,
+  },
+}

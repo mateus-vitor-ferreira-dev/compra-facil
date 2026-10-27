@@ -1,6 +1,21 @@
 import "server-only";
-import { isIP } from "node:net";
 import { env } from "@/lib/env";
+
+const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+
+/**
+ * IPv4 ou IPv6, sem `node:net`: roda também no middleware, que no Cloudflare Workers é Edge. O IPv6
+ * passa pelo parser de URL, que recusa o que não for um endereço válido.
+ */
+export function isIp(value: string): boolean {
+  if (IPV4.test(value)) return true;
+  if (!value.includes(":") || /[^0-9a-f:.]/i.test(value)) return false;
+  try {
+    return new URL(`http://[${value}]/`).hostname.length > 2;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * O que o BFF manda ao gateway para o rate limit valer por comprador, e não para a loja inteira somada
@@ -13,6 +28,6 @@ export function gatewayHeaders(incoming: Headers): Record<string, string> {
   if (!env.BFF_GATEWAY_KEY || !env.CLIENT_IP_HEADER) return {};
   // x-forwarded-for da plataforma: "cliente, proxy1, ..."; o primeiro é o cliente
   const ip = incoming.get(env.CLIENT_IP_HEADER)?.split(",")[0]?.trim();
-  if (!ip || isIP(ip) === 0) return {};
+  if (!ip || !isIp(ip)) return {};
   return { "X-Bff-Key": env.BFF_GATEWAY_KEY, "X-Client-IP": ip };
 }
