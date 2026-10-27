@@ -1,0 +1,86 @@
+# Publica a API no Coolify (ADR 0006) depois que as imagens da main saem. O auto-deploy do Coolify fica
+# desligado: ele subiria a main sem esperar os testes. Cada serviço tem o próprio pipeline (e só roda
+# quando muda), então este dispara ao fim de qualquer um deles: a publicação leva a :main de todas as
+# imagens naquele instante, cada uma com a tag fixa deste deploy. Um merge que mexe em dois serviços
+# publica duas vezes, uma ao fim de cada pipeline; a segunda leva os dois.
+#
+# Enquanto a variável COOLIFY_APP_UUID não existir no repositório, nada roda.
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [catalog, identity, orders, inventory, payments, notifications, backup]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# um deploy por vez; o que chega enquanto outro roda espera (e leva as imagens mais novas)
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API no Coolify
+    if: >-
+      vars.COOLIFY_APP_UUID != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: producao
+      url: ${{ vars.URL_API }}
+    permissions:
+      contents: read
+      packages: write # a tag deploy-<id> nas imagens
+    env:
+      COOLIFY_URL: ${{ vars.COOLIFY_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
+      URL_API: ${{ vars.URL_API }}
+      DEPLOY_TAG: deploy-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: deploy/coolify
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fixa a versão e publica
+        env:
+          IMAGES: >-
+            ghcr.io/${{ github.repository_owner }}/compra-facil-catalog
+            ghcr.io/${{ github.repository_owner }}/compra-facil-identity
+            ghcr.io/${{ github.repository_owner }}/compra-facil-orders
+            ghcr.io/${{ github.repository_owner }}/compra-facil-inventory
+            ghcr.io/${{ github.repository_owner }}/compra-facil-payments
+            ghcr.io/${{ github.repository_owner }}/compra-facil-notifications
+            ghcr.io/${{ github.repository_owner }}/compra-facil-pg-backup
+        run: deploy/coolify/deploy.sh
+
+      # de fora, pelo domínio: o caminho do comprador (DNS, certificado, proxy do Coolify, gateway).
+      # Os retries cobrem o gateway, que só manda para um serviço depois que o healthcheck dele passa
+      - name: Responde de fora
+        run: |
+          check() { # check <caminho> <status esperado>
+            for i in $(seq 12); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL_API$1" || true)
+              [ "$code" = "$2" ] && { echo "ok  $1 ($code)"; return 0; }
+              sleep 5
+            done
+            echo "::error title=Não responde de fora::$URL_API$1 deu $code, esperado $2"
+            return 1
+          }
+          fail=0
+          for s in catalog identity orders inventory payments; do check "/$s/health" 200 || fail=1; done
+          # o notifications só expõe a operação: 401 sem token é ele de pé (fora, seria 503)
+          check /notifications/v1/admin/dead-letters 401 || fail=1
+          check /catalog/v1/categories 200 || fail=1
+          exit $fail

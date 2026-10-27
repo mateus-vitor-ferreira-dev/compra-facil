@@ -100,6 +100,36 @@ docker run --rm --network <rede da stack> \
 
 Depois disso, os deploys são do CI.
 
+## Deploy pelo CI
+
+O [`deploy.yml`](../.github/workflows/deploy.yml) roda ao fim de cada pipeline de imagem na `main`
+(os seis serviços e o backup) e chama o [`coolify/deploy.sh`](coolify/deploy.sh):
+
+1. a `:main` de cada imagem ganha a tag fixa deste deploy, `deploy-<id da execução>`;
+2. o `IMAGE_TAG` da stack no Coolify passa a ser essa tag;
+3. o deploy é pedido pela API, e o job espera o desfecho (`finished`, ou o log do erro);
+4. de fora, pelo domínio, cada serviço responde.
+
+No GitHub, em **Settings → Secrets and variables → Actions**:
+
+| Tipo | Nome | Valor |
+|---|---|---|
+| Secret | `COOLIFY_TOKEN` | token da API do Coolify (**Keys & Tokens → API tokens**, com permissão de deploy e de escrita) |
+| Variable | `COOLIFY_URL` | `https://coolify.digitalcodexa.com` |
+| Variable | `COOLIFY_APP_UUID` | o uuid do recurso, que aparece na URL dele no painel |
+| Variable | `URL_API` | `https://api.<domínio>`, sem barra no fim |
+
+Enquanto `COOLIFY_APP_UUID` não existir, o workflow não roda. Para publicar sem merge (depois de mudar
+uma variável no painel, por exemplo): **Actions → deploy → Run workflow**.
+
+O deploy de um compose recria os contêineres que mudaram: a API fica alguns segundos fora durante a troca
+(o Coolify só faz rolling update de aplicação de um contêiner). O BFF da loja trata a API fora como
+qualquer falha de rede.
+
+**Voltar uma versão:** no painel, troque o `IMAGE_TAG` para a tag de um deploy anterior (o resumo de
+cada execução do workflow diz qual subiu, e as tags `deploy-*` ficam no GHCR) e faça o deploy pelo
+painel. O próximo merge na `main` publica de novo a partir da `:main`.
+
 ## Backup e restauração
 
 O `pg-backup` roda às 6h UTC (3h em Brasília). Cada dia fica em `postgres/<AAAA-MM-DD>/` no bucket, com
