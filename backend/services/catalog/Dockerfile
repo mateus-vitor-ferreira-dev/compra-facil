@@ -1,9 +1,12 @@
 # syntax=docker/dockerfile:1
 # Imagem do catalog: build estático em Go, runtime distroless sem shell, usuário não-root.
+# Multi-arquitetura (amd64 e arm64) por compilação cruzada: o Go roda na arquitetura de quem builda.
 # Contexto do build: services/catalog (docker build -t catalog services/catalog)
 # O seed tem imagem própria (--target seed) para não pesar na imagem da api.
 
-FROM golang:1.26.10-alpine3.24 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine3.24 AS build
+ARG TARGETOS=linux
+ARG TARGETARCH
 WORKDIR /src
 
 # dependências primeiro: a camada só é refeita quando go.mod/go.sum mudam
@@ -14,8 +17,9 @@ COPY . .
 ARG VERSION=dev
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/api ./cmd/api && \
-    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
+    export CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH && \
+    go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/api ./cmd/api && \
+    go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
 
 FROM gcr.io/distroless/static-debian13:nonroot AS runtime
 WORKDIR /app

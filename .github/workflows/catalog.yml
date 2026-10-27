@@ -105,7 +105,9 @@ jobs:
         uses: docker/metadata-action@v6.2.0
         with:
           images: ghcr.io/${{ github.repository_owner }}/compra-facil-catalog
+          # o commit inteiro é a tag imutável que o GitOps usa; a curta é para gente
           tags: |
+            type=sha,format=long
             type=sha,format=short
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
@@ -113,9 +115,55 @@ jobs:
         with:
           context: backend/services/catalog
           target: api
+          # a VM da Oracle é ARM; compilação cruzada no Dockerfile, sem QEMU
+          platforms: linux/amd64,linux/arm64
           build-args: VERSION=${{ github.sha }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=catalog
           cache-to: type=gha,scope=catalog,mode=max
+      # o seed (carga do catálogo) também vai para o registro: é o Job de seed do cluster (F9)
+      - id: seed-meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/compra-facil-catalog-seed
+          tags: |
+            type=sha,format=long
+            type=sha,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v7.4.0
+        with:
+          context: backend/services/catalog
+          target: seed
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.seed-meta.outputs.tags }}
+          labels: ${{ steps.seed-meta.outputs.labels }}
+          cache-from: type=gha,scope=catalog
+
+  arm64:
+    name: imagem roda em ARM
+    needs: image
+    # runner ARM nativo: a imagem publicada roda como na VM da Oracle, sem emulação
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # sem o serviço no ar, o healthcheck responde "healthcheck: ..." e sai com 1: o binário rodou.
+      # Imagem da arquitetura errada daria "exec format error"
+      - name: O healthcheck da imagem executa em arm64
+        run: |
+          image=ghcr.io/${{ github.repository_owner }}/compra-facil-catalog:sha-${{ github.sha }}
+          docker pull --platform linux/arm64 "$image"
+          out=$(docker run --rm --platform linux/arm64 "$image" healthcheck 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q '^healthcheck:'
