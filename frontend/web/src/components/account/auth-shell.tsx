@@ -26,9 +26,9 @@ export async function AuthShell({
         {count > 0 && (
           <p className="border-ink bg-surface rounded-md border-l-4 px-4 py-3 text-sm">
             {count === 1
-              ? "O produto do seu carrinho continua"
-              : `Os ${count} produtos do seu carrinho continuam`}{" "}
-            guardados: depois de entrar, é só seguir para o pagamento.
+              ? "O produto do seu carrinho continua guardado"
+              : `Os ${count} produtos do seu carrinho continuam guardados`}
+            : depois de entrar, é só seguir para o pagamento.
           </p>
         )}
         {children}
