@@ -8,6 +8,7 @@ export const ADMIN_SECTIONS = [
   { href: "/admin/produtos", label: "Produtos" },
   { href: "/admin/categorias", label: "Categorias" },
   { href: "/admin/campanhas", label: "Campanhas" },
+  { href: "/admin/falhas", label: "Mensagens com falha" },
 ] as const;
 
 /** As seções do painel; a atual fica marcada (aria-current), por baixo da barra. */

@@ -224,3 +224,39 @@ function refreshCampaigns() {
   refreshStorefront();
   updateTag("catalog:campaigns");
 }
+
+// ---------- mensagens com falha (dead letter topic) ----------
+
+export type DeadLetter = InventorySchemas["schemas"]["DeadLetter"];
+
+/** Os serviços que consomem eventos, cada um com a própria dead letter topic (ADR 0003). */
+export const DLT_SERVICES = [
+  { key: "orders", label: "Pedidos", consumes: "estoque reservado e resultado do pagamento" },
+  { key: "inventory", label: "Estoque", consumes: "pedidos feitos, confirmados e cancelados" },
+  { key: "payments", label: "Pagamentos", consumes: "pedidos feitos e estoque reservado" },
+  {
+    key: "notifications",
+    label: "Avisos por e-mail",
+    consumes: "pedidos confirmados e cancelados, contas novas",
+  },
+] as const;
+export type DltService = (typeof DLT_SERVICES)[number]["key"];
+
+// os quatro expõem as mesmas rotas (BuildingBlocks: MapDeadLetters); o tipo é o do inventory
+function dltClient(token: string, service: DltService) {
+  return api[service]({ token }) as unknown as ReturnType<typeof api.inventory>;
+}
+
+export function deadLetters(token: string, service: DltService) {
+  return run(() =>
+    dltClient(token, service).GET("/v1/admin/dead-letters", {
+      params: { query: { limit: 100 } },
+      cache: "no-store",
+    }),
+  );
+}
+
+/** Devolve as pendentes ao primeiro tópico de retry do serviço; falhando de novo, voltam para a DLT. */
+export function replayDeadLetters(token: string, service: DltService) {
+  return run(() => dltClient(token, service).POST("/v1/admin/dead-letters/replay", {}));
+}
