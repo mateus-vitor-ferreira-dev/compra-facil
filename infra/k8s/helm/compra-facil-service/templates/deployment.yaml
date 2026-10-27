@@ -13,6 +13,16 @@ spec:
     metadata:
       labels: {{- include "svc.labels" . | nindent 8 }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # as imagens já rodam sem root (chiseled/distroless): o pod garante e não deixa escalar
+      securityContext:
+        runAsNonRoot: true
+        {{- with .Values.runAsUser }}
+        runAsUser: {{ . }}
+        {{- end }}
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: {{ include "svc.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -22,11 +32,24 @@ spec:
             {{- if .Values.grpcPort }}
             - { name: grpc, containerPort: {{ .Values.grpcPort }} }
             {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: {{ .Values.readOnlyRootFilesystem }}
+            capabilities: { drop: [ALL] }
           env:
             {{- range $name, $value := .Values.env }}
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
+            {{- /* valores sensíveis (senhas, chaves) vêm de Secrets, nunca dos values */}}
+            {{- range $name, $ref := .Values.secretEnv }}
+            - name: {{ $name }}
+              valueFrom:
+                secretKeyRef: { name: {{ $ref.secret | quote }}, key: {{ $ref.key | quote }} }
+            {{- end }}
+          # o disco da imagem é só leitura: /tmp (os sockets de diagnóstico do .NET) fica num emptyDir
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
           resources: {{- toYaml .Values.resources | nindent 12 }}
           readinessProbe:
             httpGet: { path: {{ .Values.probes.readiness }}, port: http }
@@ -36,3 +59,6 @@ spec:
             httpGet: { path: {{ .Values.probes.liveness }}, port: http }
             initialDelaySeconds: 10
             periodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: {}

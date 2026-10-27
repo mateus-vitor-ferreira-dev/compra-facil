@@ -1,0 +1,18 @@
+# O Traefik que vem com o k3s: HTTP vira HTTPS. O DNS da API fica sem o proxy da Cloudflare ("DNS
+# only"): o IP que chega é o do comprador, que é o que o rate limit precisa (sem confiar em X-Forwarded-For).
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        # chart do Traefik 40 (o do k3s 1.36): o redirecionamento fica em http.redirections
+        http:
+          redirections:
+            entryPoint:
+              to: websecure
+              scheme: https
+              permanent: true

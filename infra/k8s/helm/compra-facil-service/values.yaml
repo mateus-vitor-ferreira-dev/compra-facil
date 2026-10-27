@@ -12,6 +12,18 @@ grpcPort: null
 
 env: {}
 
+# variáveis de Secrets: NOME: { secret: <nome do Secret>, key: <chave> }
+secretEnv: {}
+
+# segredo de pull do registro (imagens privadas no GHCR)
+imagePullSecrets: []
+
+# o .NET e o Go não escrevem no disco da imagem; desligar só se um serviço precisar de /tmp
+readOnlyRootFilesystem: true
+
+# usuário numérico, para imagens que não o declaram (as do projeto já rodam como não-root)
+runAsUser: null
+
 resources:
   requests: { cpu: 100m, memory: 128Mi }
   limits: { cpu: 500m, memory: 384Mi }
@@ -32,3 +44,19 @@ autoscaling:
 ingress:
   enabled: true
   prefix: /catalog
+
+# produção (F9): rotas do Traefik (IngressRoute) no domínio da API, com HTTPS e os middlewares do
+# gateway. Liga no lugar do ingress acima.
+route:
+  enabled: false
+  host: api.example.com
+  # Secret do certificado (o cert-manager o cria a partir do Certificate da plataforma)
+  tlsSecret: api-tls
+  # middlewares de todas as rotas do serviço (namespace/nome), além de tirar o prefixo
+  middlewares: []
+  # caminhos com middlewares próprios (ex.: o rate limit do login), com prioridade sobre o prefixo
+  extra: []
+  #  - prefix: /identity/v1/sessions
+  #    middlewares: [compra-facil/identity-rate-limit]
+  #    # a mesma rota com o segredo do BFF: o limite passa a ser por X-Client-IP (#176)
+  #    bffMiddlewares: [compra-facil/identity-rate-limit-bff]

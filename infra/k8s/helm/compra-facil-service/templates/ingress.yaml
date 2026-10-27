@@ -1,4 +1,4 @@
-{{- if .Values.ingress.enabled }}
+{{- if and .Values.ingress.enabled (not .Values.route.enabled) }}
 # Traefik (ingress padrão do k3s): /<prefixo>/... chega ao serviço sem o prefixo, como no compose.
 # O Traefik balanceia por requisição entre as réplicas (o kube-proxy, por conexão).
 apiVersion: traefik.io/v1alpha1

@@ -1,0 +1,55 @@
+# Manifestos do Kubernetes (infra/k8s): o chart dos serviços com os values de cada um, o GitOps de
+# produção (kustomize) e as Applications do Argo CD, validados contra os esquemas do Kubernetes e dos
+# CRDs (Traefik, cert-manager, Argo CD, Sealed Secrets) com o kubeconform.
+name: k8s
+
+on:
+  pull_request:
+    paths:
+      - infra/k8s/**
+      - .github/workflows/k8s.yml
+  push:
+    branches: [main, develop]
+    paths:
+      - infra/k8s/**
+      - .github/workflows/k8s.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: chart, kustomize e esquemas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infra/k8s
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: azure/setup-helm@v5.0.1
+        with:
+          version: v4.3.1
+      - name: kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin kubeconform
+      - name: helm lint (cada serviço)
+        run: for v in helm/values/*.yaml; do helm lint helm/compra-facil-service -f "$v"; done
+      - name: Renderiza
+        run: |
+          {
+            for v in helm/values/*.yaml; do
+              helm template "$(basename "$v" .yaml)" helm/compra-facil-service -f "$v"
+              echo ---
+            done
+            for d in producao/platform/*/; do kubectl kustomize "$d"; echo ---; done
+            for f in producao/apps/*.yaml producao/bootstrap/root.yaml; do cat "$f"; echo ---; done
+          } > /tmp/render.yaml
+      - name: Esquemas (Kubernetes e CRDs)
+        run: |
+          # o CRD do Sealed Secrets vem do release oficial: o tipo CustomResourceDefinition fica de fora
+          kubeconform -strict -summary -skip CustomResourceDefinition \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            /tmp/render.yaml

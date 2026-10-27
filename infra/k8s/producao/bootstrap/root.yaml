@@ -1,0 +1,18 @@
+# A raiz do GitOps (app of apps): cada arquivo de apps/ é uma Application. Um merge na main muda o que
+# está aqui, e o Argo CD aplica sozinho (#161).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: compra-facil
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mateus-vitor-ferreira-dev/compra-facil.git
+    targetRevision: main
+    path: infra/k8s/producao/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
