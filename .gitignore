@@ -4,8 +4,15 @@ obj/
 *.user
 .vs/
 TestResults/
+# Node / front (também no frontend/web/.gitignore; aqui vale em qualquer branch)
+node_modules/
+.next/
+.lighthouseci/
+playwright-report/
+test-results/
+*.tsbuildinfo
 # Go
-services/catalog/bin/
+backend/services/catalog/bin/
 *.test
 coverage.out
 # geral
@@ -19,3 +26,6 @@ coverage.out
 k6-results/
 contracts/openapi/dist/
 __pycache__/
+
+# candidatas baixadas por scripts/media/product_images.py fetch
+.cache/

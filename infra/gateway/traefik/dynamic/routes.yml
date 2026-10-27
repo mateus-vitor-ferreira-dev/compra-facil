@@ -1,0 +1,68 @@
+# Rotas do gateway: /<serviço>/... -> serviço, sem o prefixo. Ex.: /orders/v1/orders -> orders:8002/v1/orders.
+# O Swagger de cada serviço usa URL relativa, então /orders/docs também funciona por aqui.
+http:
+  routers:
+    catalog:
+      rule: PathPrefix(`/catalog`)
+      entryPoints: [web]
+      service: catalog
+      # vitrine: recebe o pico das campanhas, por isso o rate limit
+      # catalog-problem-429 antes do rate limit: o errors só enxerga respostas de quem vem depois dele
+      middlewares: [cors, security-headers, catalog-problem-429, catalog-rate-limit, strip-service-prefix]
+    orders:
+      rule: PathPrefix(`/orders`)
+      entryPoints: [web]
+      service: orders
+      middlewares: [cors, security-headers, strip-service-prefix]
+    inventory:
+      rule: PathPrefix(`/inventory`)
+      entryPoints: [web]
+      service: inventory
+      middlewares: [cors, security-headers, strip-service-prefix]
+    payments:
+      rule: PathPrefix(`/payments`)
+      entryPoints: [web]
+      service: payments
+      middlewares: [cors, security-headers, strip-service-prefix]
+    identity:
+      rule: PathPrefix(`/identity`)
+      entryPoints: [web]
+      service: identity
+      middlewares: [cors, security-headers, strip-service-prefix]
+    media:
+      rule: PathPrefix(`/media`)
+      entryPoints: [web]
+      service: media
+      middlewares: [security-headers, strip-service-prefix]
+    # login, refresh, logout, cadastro e confirmação de e-mail: as rotas que aceitam senha ou token, com rate limit
+    identity-credentials:
+      rule: PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)
+      entryPoints: [web]
+      service: identity
+      middlewares: [cors, security-headers, identity-problem-429, identity-rate-limit, strip-service-prefix]
+
+  services:
+    catalog:
+      loadBalancer:
+        servers: [{ url: "http://catalog:8001" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    orders:
+      loadBalancer:
+        servers: [{ url: "http://orders:8002" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    inventory:
+      loadBalancer:
+        servers: [{ url: "http://inventory:8003" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    payments:
+      loadBalancer:
+        servers: [{ url: "http://payments:8004" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    media:
+      loadBalancer:
+        servers: [{ url: "http://media:8080" }]
+        healthCheck: { path: /health, interval: 5s, timeout: 2s }
+    identity:
+      loadBalancer:
+        servers: [{ url: "http://identity:8006" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }

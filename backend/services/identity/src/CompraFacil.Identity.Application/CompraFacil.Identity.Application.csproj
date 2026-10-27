@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Casos de uso do identity: cadastro, sessões (login, refresh, logout) e emissão do JWT. -->
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Identity.Domain/CompraFacil.Identity.Domain.csproj" />
+    <!-- exceções que viram ProblemDetails, ASP.NET Core (UserManager/SignInManager) e IdentityModel -->
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

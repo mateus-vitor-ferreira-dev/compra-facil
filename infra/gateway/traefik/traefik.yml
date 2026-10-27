@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://www.schemastore.org/traefik-v3.json
+# Configuração estática do gateway (Traefik v3). Rotas e middlewares: dynamic/*.yml (recarregados ao salvar).
+entryPoints:
+  web:
+    address: ":80"
+    # o gateway é a borda: X-Forwarded-* recebidos de fora não são confiáveis
+    forwardedHeaders:
+      insecure: false
+    http:
+      # X_Auth_User / X.Auth.User não passam como se fossem X-Auth-User (spoofing de header)
+      aliasHeadersStrategy: delete
+      # caminho com %2F, %5C, %00... é recusado: gateway e backend não podem enxergar caminhos diferentes
+      encodedCharacters:
+        allowEncodedSlash: false
+        allowEncodedBackSlash: false
+        allowEncodedNullCharacter: false
+        allowEncodedSemicolon: false
+        allowEncodedPercent: false
+        allowEncodedQuestionMark: false
+        allowEncodedHash: false
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# Dashboard (somente leitura) na porta interna 8080, publicada só em 127.0.0.1 pelo compose.
+api:
+  dashboard: true
+  insecure: true
+
+# GET /ping no entrypoint "traefik": HEALTHCHECK do container
+ping: {}
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      names:
+        X-Request-Id: keep
+        User-Agent: keep
+
+# Traces e métricas por OTLP para o Collector: o gateway é a raiz do trace de cada requisição
+tracing:
+  serviceName: gateway
+  otlp:
+    grpc:
+      endpoint: otel-collector:4317
+      insecure: true
+
+metrics:
+  otlp:
+    serviceName: gateway
+    grpc:
+      endpoint: otel-collector:4317
+      insecure: true

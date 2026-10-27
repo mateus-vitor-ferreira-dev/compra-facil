@@ -8,14 +8,14 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - services/**
-      - libs/**
+      - backend/services/**
+      - backend/libs/**
       - contracts/**
-      - gateway/**
+      - infra/gateway/**
       - infra/compose/**
       - compose.yaml
-      - Directory.Build.props
-      - Directory.Packages.props
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
       - load-tests/k6/e2e-compra.js
       - .github/workflows/e2e.yml
   workflow_dispatch:
@@ -34,11 +34,6 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-go@v7.0.0 # só para emitir os JWT de admin (services/catalog/cmd/token)
-        with:
-          go-version-file: services/catalog/go.mod
-          cache-dependency-path: services/catalog/go.sum
-
       # o build das 6 imagens enche o disco do runner (e aí o Redpanda e o pull do k6 falham). Apagar os
       # SDKs que o job não usa leva ~4 min, então roda em segundo plano, junto com o build. (O
       # "docker builder prune" travou no runner, por isso não é usado.)
@@ -58,12 +53,9 @@ jobs:
       - name: Popula o catálogo
         run: docker compose run --rm catalog-seed
 
+      # o admin entra pelo identity (operador inicial do compose)
       - name: Compra ponta a ponta (k6)
-        run: |
-          CATALOG_TOKEN=$(cd services/catalog && go run ./cmd/token -ttl 15m)
-          INVENTORY_TOKEN=$(cd services/catalog && go run ./cmd/token -aud inventory -ttl 15m)
-          docker compose run --rm -e CATALOG_TOKEN="$CATALOG_TOKEN" -e INVENTORY_TOKEN="$INVENTORY_TOKEN" \
-            k6 run --quiet /scripts/e2e-compra.js
+        run: docker compose run --rm k6 run --quiet /scripts/e2e-compra.js
 
       - name: Estado e logs (em caso de falha)
         if: failure()

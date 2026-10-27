@@ -10,12 +10,16 @@ info:
     O resultado chega de forma assíncrona:
 
     `pending` → `confirmed` (estoque reservado e pagamento aprovado) **ou** `cancelled`
-    (`cancellation_reason`: `out_of_stock` ou `payment_failed`).
+    (`cancellation_reason`: `out_of_stock` ou `payment_failed`). Enquanto `pending`, o
+    `stock_reserved_at` diz a etapa: nulo, reservando o estoque; preenchido, cobrando o pagamento.
 
-    Acompanhe por `GET /v1/orders/{order_id}` (polling) ou pelo e-mail do `notifications`.
+    Acompanhe ao vivo por `GET /v1/orders/{order_id}/events` (Server-Sent Events), por
+    `GET /v1/orders/{order_id}` (polling) ou pelo e-mail do `notifications`.
     Itens e preços são validados no catálogo via gRPC na criação; o preço fica congelado no pedido.
 
-    Identidade do cliente: enquanto não há serviço de autenticação, o `customer_id` vai no corpo/query.
+    **Quem compra vem do token**: o access token do identity (`Authorization: Bearer`, papel `customer`)
+    dá o cliente (`sub`) e o e-mail dos avisos (`email`). Cada cliente vê só os próprios pedidos
+    (`/v1/me/orders`); o operador (`admin`) consulta qualquer pedido pelo id.
 servers:
   - url: http://localhost:8002
     description: Serviço direto (dev)
@@ -41,6 +45,10 @@ paths:
         Com o catálogo fora ou lento (prazo, novas tentativas e circuit breaker), a validação e o
         preço saem da cópia local do catálogo que o orders mantém pelos eventos, com as mesmas
         regras (campanha vigente de maior desconto).
+
+        O cliente e o e-mail dos avisos são os do token (claims `sub` e `email`), não do corpo.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
         - $ref: "./common/v1/common.yaml#/components/parameters/IdempotencyKey"
@@ -64,6 +72,14 @@ paths:
                 $ref: "#/components/schemas/Order"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          description: O token não é de cliente (papel `customer`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
         "409":
           description: |
             Itens recusados pelo catálogo (produto inexistente/inativo ou preço alterado desde a
@@ -87,21 +103,19 @@ paths:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/me/orders:
     get:
       tags: [orders]
-      operationId: listOrders
-      summary: Lista os pedidos de um cliente
+      operationId: listMyOrders
+      summary: Os pedidos do cliente do token ("Meus pedidos")
       description: Do mais recente para o mais antigo.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
         - $ref: "./common/v1/common.yaml#/components/parameters/Cursor"
         - $ref: "./common/v1/common.yaml#/components/parameters/Limit"
-        - name: customer_id
-          in: query
-          required: true
-          schema:
-            type: string
-            format: uuid
         - name: status
           in: query
           schema:
@@ -123,6 +137,10 @@ paths:
                     $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
         "422":
           $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
@@ -133,6 +151,11 @@ paths:
       tags: [orders]
       operationId: getOrder
       summary: Detalhe e situação de um pedido
+      description: |
+        Do dono do pedido (o cliente do token) ou do operador (`admin`). Pedido de outro cliente dá
+        `404`, como se não existisse: o id não revela que o pedido existe.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
         - name: order_id
@@ -148,6 +171,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/orders/{order_id}/events:
+    get:
+      tags: [orders]
+      operationId: streamOrderEvents
+      summary: O pedido ao vivo (Server-Sent Events)
+      description: |
+        Stream `text/event-stream` com o estado atual do pedido e cada mudança da SAGA, até o estado final
+        (`confirmed` ou `cancelled`), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
+
+        - Cada evento é `event: order`, com `id` (muda a cada transição) e `data` com o `Order` em JSON.
+        - Linhas `: keep-alive` a cada 15 s, sem dado: mantêm a conexão aberta no gateway e em proxies.
+        - O stream fecha depois de 5 min; reconecte mandando o último `id` em `Last-Event-ID` (o
+          `EventSource` do navegador faz isso sozinho, com o `retry: 3000` que o stream informa). Com
+          `Last-Event-ID` igual ao estado atual, ele não é reenviado.
+        - Pedido já no estado final e `Last-Event-ID` igual a ele: `204`, que faz o `EventSource` parar.
+
+        No navegador, o `EventSource` não manda `Authorization`: o front assina pelo BFF, que repassa o
+        stream com o token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: O `id` do último evento recebido (reconexão).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stream de eventos `order` (o `data` de cada um segue o schema `Order`).
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                confirmado:
+                  value: |
+                    retry: 3000
+
+                    id: 639283847000000000
+                    event: order
+                    data: {"id":"0199f6a0-...","status":"pending",...}
+
+                    id: 639283847120000000
+                    event: order
+                    data: {"id":"0199f6a0-...","status":"confirmed",...}
+        "204":
+          description: O pedido já está no estado final que o cliente recebeu; não há mais o que enviar.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
         "404":
           $ref: "./common/v1/common.yaml#/components/responses/NotFound"
         "500":
@@ -223,16 +314,9 @@ components:
 
     PlaceOrderRequest:
       type: object
-      required: [customer_id, customer_email, items]
+      required: [items]
       additionalProperties: false
       properties:
-        customer_id:
-          type: string
-          format: uuid
-        customer_email:
-          type: string
-          format: email
-          description: Destino dos e-mails de confirmação/cancelamento.
         items:
           type: array
           minItems: 1
@@ -287,6 +371,12 @@ components:
           type: [string, "null"]
           format: uuid
           description: Preenchido quando o payments processa a cobrança.
+        stock_reserved_at:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            Quando o inventory reservou o estoque. Com o pedido `pending`, nulo é a etapa da reserva e
+            preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
         created_at:
           type: string
           format: date-time

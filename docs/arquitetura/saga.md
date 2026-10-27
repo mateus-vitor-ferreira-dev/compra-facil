@@ -17,6 +17,12 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
+Dentro de `pending`, o `stock_reserved_at` marca a etapa: nulo enquanto o inventory reserva, preenchido
+quando o `StockReserved` chega e o payments está cobrando. Não é uma transição da SAGA (o orders não
+publica nada por ela); serve para o cliente ver a compra andar em `GET /v1/orders/{id}/events`. Um
+`PaymentApproved` ou `PaymentFailed` que chegue antes do `StockReserved` (outro tópico) já preenche a
+etapa, e o `StockReserved` atrasado é ignorado.
+
 Estados finais não mudam: um evento que chega atrasado para um pedido já `confirmed` ou `cancelled` é
 registrado e ignorado. Duas réplicas aplicando resultados conflitantes ao mesmo tempo não passam juntas
 (concorrência otimista pelo `xmin`): só uma transição vale e só um evento sai.
@@ -40,6 +46,7 @@ sequenceDiagram
     O-)P: OrderPlaced (guarda o valor)
     I->>I: reserva tudo ou nada
     I-)P: StockReserved
+    I-)O: StockReserved (etapa: cobrando)
     P->>P: cobra (Idempotency-Key = order_id)
     P-)O: PaymentApproved
     O->>O: pending → confirmed

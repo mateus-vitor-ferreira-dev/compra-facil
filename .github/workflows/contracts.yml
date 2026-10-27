@@ -7,13 +7,13 @@ on:
     branches: [main, develop]
     paths:
       - contracts/**
-      - services/catalog/gen/**
+      - backend/services/catalog/gen/**
       - Taskfile.yml
       - .github/workflows/contracts.yml
   pull_request:
     paths:
       - contracts/**
-      - services/catalog/gen/**
+      - backend/services/catalog/gen/**
       - Taskfile.yml
       - .github/workflows/contracts.yml
 
@@ -55,16 +55,16 @@ jobs:
           fi
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version-file: services/catalog/go.mod
+          go-version-file: backend/services/catalog/go.mod
           cache: false
       - name: Código Go gerado está em dia
         run: |
-          # mesmas versões que geraram o services/catalog/gen versionado
+          # mesmas versões que geraram o backend/services/catalog/gen versionado
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
           buf generate
-          git diff --exit-code -- ../../services/catalog/gen || {
-            echo "::error::services/catalog/gen desatualizado: rode 'task proto:generate' e versione o resultado"
+          git diff --exit-code -- ../../backend/services/catalog/gen || {
+            echo "::error::backend/services/catalog/gen desatualizado: rode 'task proto:generate' e versione o resultado"
             exit 1
           }
 

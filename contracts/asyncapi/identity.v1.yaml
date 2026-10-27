@@ -1,0 +1,126 @@
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — Identity Events
+  version: 1.0.0
+  description: |
+    Eventos do serviço **identity** (contas e tokens, ASP.NET Core). Só publica.
+
+    Saem pelo outbox, na mesma transação da escrita que os motiva: o cadastro grava a conta, o papel
+    e os dois eventos juntos, ou nada (não existe conta sem `AccountRegistered`, nem evento de conta
+    que não foi gravada).
+defaultContentType: application/json
+
+servers:
+  dev:
+    $ref: "./common/v1/common.yaml#/components/servers/dev"
+  dev-internal:
+    $ref: "./common/v1/common.yaml#/components/servers/dev-internal"
+
+channels:
+  accountEvents:
+    address: identity.account.v1
+    title: Contas
+    description: Ciclo de vida das contas. Chave = `account_id`.
+    messages:
+      AccountRegistered:
+        $ref: "#/components/messages/AccountRegistered"
+      EmailConfirmationRequested:
+        $ref: "#/components/messages/EmailConfirmationRequested"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: identity.account.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+
+operations:
+  publishAccountEvents:
+    action: send
+    channel:
+      $ref: "#/channels/accountEvents"
+    summary: Publica os eventos de conta (outbox).
+    messages:
+      - $ref: "#/channels/accountEvents/messages/AccountRegistered"
+      - $ref: "#/channels/accountEvents/messages/EmailConfirmationRequested"
+
+components:
+  messages:
+    AccountRegistered:
+      name: AccountRegistered
+      title: Conta criada
+      summary: Um cliente se cadastrou (papel `customer`).
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/AccountKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: AccountRegistered
+              event_version:
+                const: 1
+              producer:
+                const: identity
+              data:
+                type: object
+                required: [account_id, email, name, registered_at]
+                properties:
+                  account_id:
+                    type: string
+                    format: uuid
+                    description: O mesmo `sub` dos tokens da conta.
+                  email:
+                    type: string
+                    format: email
+                  name:
+                    type: string
+                  registered_at:
+                    type: string
+                    format: date-time
+
+    EmailConfirmationRequested:
+      name: EmailConfirmationRequested
+      title: Confirmação de e-mail pedida
+      summary: No cadastro e em cada reenvio. O notifications manda o e-mail com o link.
+      description: |
+        O `confirmation_url` é a página do front que confirma, com a conta e o token na query; o token só
+        confirma este e-mail desta conta e vence em `expires_at`. Um reenvio gera outro link; o anterior
+        continua valendo até vencer.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/AccountKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: EmailConfirmationRequested
+              event_version:
+                const: 1
+              producer:
+                const: identity
+              data:
+                type: object
+                required: [account_id, email, name, confirmation_url, expires_at]
+                properties:
+                  account_id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                    format: email
+                  name:
+                    type: string
+                  confirmation_url:
+                    type: string
+                    format: uri
+                  expires_at:
+                    type: string
+                    format: date-time

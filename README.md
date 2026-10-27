@@ -12,6 +12,8 @@ Catálogo em **Go**, compras em **.NET**, SAGA coreografada sobre **Kafka**, obs
 [![inventory](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/inventory.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/inventory.yml)
 [![payments](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml)
 [![notifications](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml)
+[![identity](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml)
+[![web](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml)
 [![contracts](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml)
 
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
@@ -58,8 +60,8 @@ O parecer da atividade, com a escolha entre as propostas e os critérios para av
 |---|---|
 | **p95 de 686 ms → 5 ms** no pico de 1.000 req/s, escalando **só o catálogo** de 1 para 3 réplicas (+0,27 núcleo de CPU) | [`docs/resultados-carga.md`](docs/resultados-carga.md) |
 | **0 falhas** em 1.202 pedidos com o catálogo **derrubado no meio** do teste de carga | [`task chaos:catalog`](load-tests/k6/orders-catalog-down.js) |
-| **~290 testes** automatizados: 168 em .NET (integração com Postgres, Redpanda e gRPC reais) e 120 em Go | `task test` |
-| **5 serviços**, **5 pipelines** independentes e contratos versionados em gRPC, REST e eventos | [`.github/workflows`](.github/workflows) |
+| **~390 testes** automatizados: 259 em .NET (integração com Postgres, Redpanda e gRPC reais) e 130 em Go | `task test` |
+| **6 serviços**, **6 pipelines** independentes e contratos versionados em gRPC, REST e eventos | [`.github/workflows`](.github/workflows) |
 | Um pedido vira **um trace só**: 57 spans passando por 6 componentes | Grafana → Tempo |
 
 <p align="center">
@@ -73,7 +75,7 @@ Só precisa de Docker (com Compose v2):
 
 ```bash
 git clone https://github.com/mateus-vitor-ferreira-dev/compra-facil.git && cd compra-facil
-docker compose up -d --build --wait      # 5 serviços + Postgres, Redis, Kafka, gateway e Grafana
+docker compose up -d --build --wait      # 6 serviços + Postgres, Redis, Kafka, gateway e Grafana
 docker compose run --rm catalog-seed     # 10 mil produtos, categorias e campanhas
 ```
 
@@ -82,20 +84,25 @@ Pronto:
 | | |
 |---|---|
 | 🛍️ Vitrine | http://localhost/catalog/v1/products?on_sale=true |
-| 📘 APIs (Swagger) | http://localhost/catalog/docs · [/orders/docs](http://localhost/orders/docs) · [/inventory/docs](http://localhost/inventory/docs) · [/payments/docs](http://localhost/payments/docs) |
+| 📘 APIs (Swagger) | http://localhost/catalog/docs · [/orders/docs](http://localhost/orders/docs) · [/inventory/docs](http://localhost/inventory/docs) · [/payments/docs](http://localhost/payments/docs) · [/identity/docs](http://localhost/identity/docs) |
 | 📊 Grafana (sem login) | http://127.0.0.1:3001, pasta **CompraFácil** |
+| 🖼️ Fotos dos produtos | http://localhost/media/produtos/tv-1.webp ([créditos](infra/media/CREDITOS.md)) |
 | 📨 E-mails enviados | http://localhost:8025 (Mailpit) |
 | 🧵 Tópicos do Kafka | http://localhost:8080 (Redpanda Console) |
 
-Faça uma compra e acompanhe a SAGA:
+Crie uma conta, faça uma compra e acompanhe a SAGA:
 
 ```bash
+curl -s -X POST http://localhost/identity/v1/accounts -H "Content-Type: application/json" \
+  -d '{"email":"ana@exemplo.com","password":"senha-da-ana","name":"Ana"}'
+TOKEN=$(curl -s -X POST http://localhost/identity/v1/sessions -H "Content-Type: application/json" \
+  -d '{"email":"ana@exemplo.com","password":"senha-da-ana"}' | jq -r .access_token)
 PRODUTO=$(curl -s "http://localhost/catalog/v1/products?on_sale=true&limit=1" | jq -r '.data[0].id')
-curl -s -X POST http://localhost/orders/v1/orders \
+curl -s -X POST http://localhost/orders/v1/orders -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" -H "Idempotency-Key: $(uuidgen)" \
-  -d "{\"customer_id\":\"$(uuidgen)\",\"customer_email\":\"ana@exemplo.com\",\"items\":[{\"product_id\":\"$PRODUTO\",\"quantity\":1}]}"
-# 202 com o pedido "pending"; em poucos segundos, GET /orders/v1/orders/{id} mostra "confirmed"
-# e o e-mail de confirmação aparece no Mailpit
+  -d "{\"items\":[{\"product_id\":\"$PRODUTO\",\"quantity\":1}]}"
+# 202 com o pedido "pending"; em poucos segundos, GET /orders/v1/me/orders mostra "confirmed"
+# e o e-mail de confirmação (para o e-mail da conta) aparece no Mailpit
 ```
 
 ## 🏗 Arquitetura
@@ -107,6 +114,7 @@ flowchart LR
     gateway --> orders["<b>orders</b><br/><small>.NET</small>"]
     gateway --> inventory["<b>inventory</b><br/><small>.NET</small>"]
     gateway --> payments["<b>payments</b><br/><small>.NET</small>"]
+    gateway --> identity["<b>identity</b><br/><small>.NET · JWT RS256</small>"]
     catalog --- redis[("Redis")]
     orders -- "gRPC<br/>(Polly + fallback)" --> catalog
     catalog --> kafka{{"Kafka<br/><small>SAGA + eventos do catálogo</small>"}}
@@ -118,7 +126,7 @@ flowchart LR
     classDef net fill:#512BD4,stroke:#3a1f99,color:#fff
     classDef infra fill:#334155,stroke:#1e293b,color:#fff
     class catalog go
-    class orders,inventory,payments,notifications net
+    class orders,inventory,payments,notifications,identity net
     class gateway,kafka,redis,mail infra
 ```
 
@@ -150,10 +158,11 @@ estados, sequências e garantias da SAGA: [`docs/arquitetura/saga.md`](docs/arqu
 |---|---|---|
 | Catálogo e campanhas | `catalog` | Go 1.26 · Gin · GORM · golang-migrate · Redis · franz-go |
 | Processamento de compras | `orders`, `inventory`, `payments`, `notifications` | C# · ASP.NET Core 10 · EF Core · Confluent.Kafka · Polly · MailKit |
+| Contas | `identity` | C# · ASP.NET Core Identity · JWT RS256 com rotação de chave · JWKS |
 | Plataforma | gateway, mensageria, observabilidade | Traefik 3 · Redpanda · OpenTelemetry Collector · Tempo · Loki · Prometheus · Grafana · k6 |
 
 Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · template comum dos serviços
-.NET: [`libs/dotnet/README.md`](libs/dotnet/README.md)
+.NET: [`backend/libs/dotnet/README.md`](backend/libs/dotnet/README.md)
 
 ## 📈 Resultados
 
@@ -179,6 +188,7 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 | [0002](docs/adr/0002-eventos-de-campanha.md) | Campanhas publicam o próprio estado; o preço efetivo é calculado na leitura |
 | [0003](docs/adr/0003-retries-e-dead-letter-topics.md) | Retries em tópicos próprios e dead letter topic por serviço |
 | [0004](docs/adr/0004-contrato-consumer-driven-sem-pact.md) | Contrato consumer-driven orders → catalog sem Pact (o PactNet não suporta gRPC) |
+| [0005](docs/adr/0005-identity-jwt-rs256-jwks.md) | Serviço identity: JWT RS256 com rotação de chave publicada no JWKS, refresh token rotativo |
 
 ## 🔌 Para quem consome as APIs
 
@@ -187,8 +197,21 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 - **CORS:** liberado para `CORS_ALLOWED_ORIGINS` (padrão `http://localhost:5173` e `http://localhost:3000`). O front
   pode ler os headers `Location`, `ETag`, `X-Request-ID`, `X-Trace-Id`, `Retry-After` e `X-Cache`.
 - **Erros:** sempre em `application/problem+json`, com `request_id` e `trace_id`. A vitrine tem rate limit por IP (`429` com `Retry-After`).
-- **Compra:** `POST /orders/v1/orders` (com header `Idempotency-Key`) responde `202` com o pedido `pending`.
-  Depois, consulte `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`).
+- **Conta:** `POST /identity/v1/accounts` cadastra; `POST /identity/v1/sessions` devolve o access token (JWT, 15 min)
+  e o refresh token (30 dias, troca a cada uso em `/identity/v1/sessions/refresh`). O access token vai em
+  `Authorization: Bearer`. O cadastro manda um e-mail com o link de confirmação (a página do front repassa a conta e o
+  token a `POST /identity/v1/accounts/confirm-email`). No ambiente local, o operador é
+  `admin@comprafacil.local` / `admin-compra-facil`.
+- **Compra:** `POST /orders/v1/orders` com o token de cliente e o header `Idempotency-Key`; o corpo só traz os itens
+  (o cliente e o e-mail dos avisos vêm do token). Responde `202` com o pedido `pending`. Depois, consulte
+  `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`), ou acompanhe ao vivo
+  em `GET /orders/v1/orders/{id}/events` (Server-Sent Events: o estado atual, cada mudança e o fim). "Meus pedidos":
+  `GET /orders/v1/me/orders`. Cada cliente vê só os próprios pedidos (de outro, `404`); o operador vê qualquer um.
+
+> **Migração do contrato de pedidos (#145).** Até a v1.0.0 o pedido trazia `customer_id` e `customer_email` no
+> corpo e a listagem era `GET /v1/orders?customer_id=`. Agora o cliente vem do token: os dois campos saíram (se
+> vierem, são ignorados), a listagem virou `GET /v1/me/orders` e todas as rotas de pedido exigem token. A mudança
+> ficou na `v1`, sem `v2`, porque ainda não havia cliente externo do contrato; o front (F8) já nasce nela.
 
 ## 🔍 Como investigar um pedido
 
@@ -221,7 +244,7 @@ task up / down / reset        # ambiente local (reset apaga os volumes)
 task test                     # go test + dotnet test em todos os serviços
 task lint                     # golangci-lint, dotnet format, buf, Spectral, AsyncAPI
 task seed                     # popula o catálogo
-task token -- -aud orders     # JWT de operador para as rotas /v1/admin/*
+task token                    # access token do operador (login no identity) para as rotas /v1/admin/*
 task load                     # k6: campanha promocional (métricas no Grafana)
 task experiment               # escala independente: 1 × N réplicas do catálogo, gera o relatório
 task chaos:catalog            # k6 criando pedidos com o catálogo derrubado no meio
@@ -229,6 +252,7 @@ task dlt -- payments          # mensagens na dead letter topic; task dlt:replay 
 task grafana                  # abre o Grafana no dashboard Início
 task trace -- <trace_id>      # abre o trace de uma resposta (header X-Trace-Id)
 task e2e                      # compra ponta a ponta pelo gateway (confirmada, sem estoque, pagamento recusado)
+task web:dev                  # o front (Next.js) em http://localhost:3000, com o ambiente no ar
 task k8s:up && task k8s:seed  # o mesmo sistema num cluster k3d (Helm), com HPA no catálogo
 task k8s:load -- 600 2m       # k6 dentro do cluster: o catálogo escala sozinho de 1 para 4 réplicas
 ```
@@ -237,7 +261,7 @@ task k8s:load -- 600 2m       # k6 dentro do cluster: o catálogo escala sozinho
 <summary><b>Portas e acessos do ambiente local</b></summary>
 
 Os serviços da aplicação **só entram pelo gateway** (`http://localhost/<serviço>`). Para depurar um serviço
-direto (portas 8001–8005 e gRPC 9001), use `task up:debug`.
+direto (portas 8001–8006 e gRPC 9001), use `task up:debug`.
 
 | Componente | Acesso pelo host | Uso |
 |---|---|---|
@@ -250,8 +274,8 @@ direto (portas 8001–8005 e gRPC 9001), use `task up:debug`.
 | Prometheus | http://127.0.0.1:9090 | |
 | OTLP | `127.0.0.1:4317` (gRPC), `:4318` (HTTP) | para serviços rodando fora do compose |
 
-Para trocar alguma porta: `cp .env.example .env`. Os bancos são criados só na primeira subida do volume;
-para recriá-los, use `task reset`.
+Para trocar alguma porta: `cp .env.example .env`. A cada subida, o `postgres-databases` cria o banco de um
+serviço novo que ainda não exista; para recriar tudo do zero, use `task reset`.
 
 </details>
 
@@ -274,19 +298,21 @@ para recriá-los, use `task reset`.
 
 ```
 compra-facil/
-├── contracts/            # fonte da verdade entre os times
+├── backend/              # o que roda no servidor
+│   ├── services/
+│   │   ├── catalog/      #   Go: cmd/, internal/{domain,handler,service,repository,grpcserver,cache,events}
+│   │   ├── orders/       #   .NET: src/{Api,Application,Domain,Infrastructure}, tests/{Unit,Integration}
+│   │   └── inventory/ payments/ notifications/ identity/
+│   ├── libs/dotnet/      #   BuildingBlocks: outbox, Kafka, inbox, retry/DLT, JWT, OTel, ProblemDetails
+│   └── Directory.*.props, global.json   # build .NET comum aos serviços
+├── frontend/web/         # a loja e o BFF (Next.js): tokens em cookie httpOnly, tipos gerados dos contratos
+├── contracts/            # fonte da verdade entre os times, e dos tipos do front
 │   ├── proto/            #   gRPC (Buf: lint + breaking change)
 │   ├── openapi/          #   REST de cada serviço (Spectral)
 │   └── asyncapi/         #   eventos Kafka (AsyncAPI 3)
-├── services/
-│   ├── catalog/          # Go: cmd/, internal/{domain,handler,service,repository,grpcserver,cache,events,telemetry}
-│   ├── orders/           # .NET: src/{Api,Application,Domain,Infrastructure}, tests/{Unit,Integration}
-│   └── inventory/ payments/ notifications/
-├── libs/dotnet/          # BuildingBlocks: outbox, Kafka, inbox, retry/DLT, OTel, ProblemDetails
-├── gateway/traefik/      # rotas, CORS, rate limit
-├── infra/                # compose, OTel Collector, Tempo, Loki, Prometheus, Grafana (dashboards como código)
-├── load-tests/           # k6 (campanha, cache, caos) e o experimento de escala
-├── scripts/              # métricas de entrega
+├── infra/                # compose, gateway (Traefik), k8s (Helm), fotos (/media), OTel, Grafana
+├── load-tests/           # k6 (campanha, cache, caos, e2e) e o experimento de escala
+├── scripts/              # métricas de entrega, Grafana, fotos dos produtos
 ├── docs/                 # parecer, arquitetura (C4, SAGA), ADRs, resultados
 └── .github/workflows/    # um pipeline por serviço + contratos
 ```

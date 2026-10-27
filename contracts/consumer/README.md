@@ -5,12 +5,12 @@ O consumidor escreve o que espera do provedor; o provedor verifica no pipeline d
 
 | Contrato | Consumidor (escreve) | Provedor (verifica) |
 |---|---|---|
-| [`orders-catalog.json`](orders-catalog.json) — `ValidateItems` | `services/orders/tests/.../CatalogContractTests.cs` | `services/catalog/test/contract_orders_test.go` |
+| [`orders-catalog.json`](orders-catalog.json) — `ValidateItems` | `backend/services/orders/tests/.../CatalogContractTests.cs` | `backend/services/catalog/test/contract_orders_test.go` |
 
 **Não edite o JSON à mão.** Ele é gerado das interações declaradas no teste do orders:
 
 ```bash
-cd services/orders && UPDATE_CONTRACTS=1 dotnet test   # regrava o arquivo
+cd backend/services/orders && UPDATE_CONTRACTS=1 dotnet test   # regrava o arquivo
 ```
 
 O teste do orders também roda o código real dele (DI, Polly, cliente gRPC) contra um catalog falso que

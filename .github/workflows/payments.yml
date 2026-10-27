@@ -1,33 +1,33 @@
 # Pipeline do payments (time de compras). Só roda quando algo que afeta o payments muda: o próprio serviço,
-# a lib comum (libs/dotnet), os contratos ou o build .NET. Mudança só no catalog não dispara este.
+# a lib comum (backend/libs/dotnet), os contratos ou o build .NET. Mudança só no catalog não dispara este.
 name: payments
 
 on:
   push:
     branches: [main, develop]
     paths:
-      - services/payments/**
-      - libs/dotnet/**
+      - backend/services/payments/**
+      - backend/libs/dotnet/**
       - contracts/**
-      - services/dotnet.Dockerfile
-      - Directory.Build.props
-      - Directory.Packages.props
-      - global.json
+      - backend/services/dotnet.Dockerfile
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
       - .editorconfig
-      - dotnet-tools.json
+      - backend/dotnet-tools.json
       - .github/workflows/payments.yml
       - .github/workflows/_dotnet-service.yml
   pull_request:
     paths:
-      - services/payments/**
-      - libs/dotnet/**
+      - backend/services/payments/**
+      - backend/libs/dotnet/**
       - contracts/**
-      - services/dotnet.Dockerfile
-      - Directory.Build.props
-      - Directory.Packages.props
-      - global.json
+      - backend/services/dotnet.Dockerfile
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
       - .editorconfig
-      - dotnet-tools.json
+      - backend/dotnet-tools.json
       - .github/workflows/payments.yml
       - .github/workflows/_dotnet-service.yml
 

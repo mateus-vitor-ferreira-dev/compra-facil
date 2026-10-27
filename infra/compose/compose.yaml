@@ -2,11 +2,13 @@
 # Redpanda (Kafka) + Console, Mailpit e os serviços da aplicação.
 name: compra-facil
 
-# Base dos serviços .NET: mesmo Dockerfile (services/dotnet.Dockerfile), contexto na raiz do repo
+# Base dos serviços .NET: mesmo Dockerfile (backend/services/dotnet.Dockerfile), contexto na raiz do repo
 x-dotnet-service: &dotnet-service
   depends_on:
     postgres:
       condition: service_healthy
+    postgres-databases:
+      condition: service_completed_successfully
     # Kafka é opcional: sem ele as escritas seguem e os eventos esperam no outbox
     redpanda:
       condition: service_started
@@ -18,7 +20,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      SERVICE_DATABASES: catalog,orders,inventory,payments,notifications
+      SERVICE_DATABASES: &service-databases catalog,orders,inventory,payments,notifications,identity
       SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
     ports:
       - "${POSTGRES_PORT:-55432}:5432"
@@ -30,6 +32,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # o init do Postgres só roda com o volume vazio: este cria o banco de um serviço novo num volume que
+  # já existia (o mesmo script, idempotente) e sai
+  postgres-databases:
+    image: postgres:17.11-alpine
+    entrypoint: ["bash", "/init-databases.sh"]
+    environment:
+      PGHOST: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      SERVICE_DATABASES: *service-databases
+      SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
+    volumes:
+      - ./postgres/init-databases.sh:/init-databases.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:8.8.3-alpine
@@ -171,6 +190,18 @@ services:
       - tempo
       - loki
 
+  # ---------- fotos dos produtos (#147): /media no gateway ----------
+  media:
+    image: caddy:2.11.6-alpine
+    volumes:
+      - ../media/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../media/produtos:/srv/produtos:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # ---------- gateway: única entrada externa ----------
   gateway:
     image: traefik:v3.7.16
@@ -183,8 +214,8 @@ services:
       # dashboard só na máquina local
       - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8090}:8080"
     volumes:
-      - ../../gateway/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ../../gateway/traefik/dynamic:/etc/traefik/dynamic:ro
+      - ../gateway/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../gateway/traefik/dynamic:/etc/traefik/dynamic:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 5s
@@ -198,6 +229,10 @@ services:
       inventory:
         condition: service_started
       payments:
+        condition: service_started
+      identity:
+        condition: service_started
+      media:
         condition: service_started
 
   # só roda sob demanda (task load:catalog-cache): k6 dentro da rede, direto no catalog (sem o rate
@@ -216,7 +251,7 @@ services:
   # ---------- serviços (sem porta no host: entram pelo gateway) ----------
   catalog:
     build:
-      context: ../../services/catalog
+      context: ../../backend/services/catalog
       target: api
       args:
         VERSION: ${VERSION:-dev}
@@ -226,6 +261,8 @@ services:
       CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
       CATALOG_CACHE_REDIS_ADDR: redis:6379
       CATALOG_EVENTS_BROKERS: redpanda:9092
+      # rotas /v1/admin/*: tokens do identity, validados pelo JWKS dele
+      CATALOG_AUTH_AUTHORITY: http://identity:8006
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
@@ -242,21 +279,47 @@ services:
   # só roda sob demanda: docker compose run --rm catalog-seed [-reset] [-products N]
   catalog-seed:
     build:
-      context: ../../services/catalog
+      context: ../../backend/services/catalog
       target: seed
     image: compra-facil/catalog-seed:${VERSION:-dev}
     profiles: [tools]
     environment:
       CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+      # base das fotos como o navegador as vê (gateway /media)
+      CATALOG_SEED_MEDIA_URL: ${MEDIA_URL:-http://localhost/media}
     depends_on:
       postgres:
         condition: service_healthy
+
+  identity:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: backend/services/dotnet.Dockerfile
+      args:
+        SERVICE: identity
+        PROJECT: CompraFacil.Identity.Api
+        PORT: 8006
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/identity:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      # eventos de conta pelo outbox (identity.account.v1)
+      Kafka__BootstrapServers: redpanda:9092
+      # link do e-mail de confirmação: a página do front (F8). Sem exigir a confirmação no ambiente local
+      Identity__EmailConfirmation__UrlTemplate: ${FRONT_URL:-http://localhost:3000}/conta/confirmar-email?conta={account_id}&token={token}
+      Identity__EmailConfirmation__Required: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # operador inicial, só no ambiente local: entra no painel e nas rotas /v1/admin/*
+      Identity__Admin__Email: ${ADMIN_EMAIL:-admin@comprafacil.local}
+      Identity__Admin__Password: ${ADMIN_PASSWORD:-admin-compra-facil}
 
   orders:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: orders
         PROJECT: CompraFacil.Orders.Api
@@ -268,8 +331,9 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
-      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud orders
-      Auth__AllowDevSecret: "true"
+      # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
+      Auth__Authority: http://identity:8006
+      Auth__RequireHttpsMetadata: "false"
       # valida itens e preços no catalog (gRPC, com Polly); catalog fora = preço pela cópia local (#81)
       Catalog__GrpcAddress: http://catalog:9001
 
@@ -277,7 +341,7 @@ services:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: inventory
         PROJECT: CompraFacil.Inventory.Api
@@ -291,14 +355,15 @@ services:
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
       # só no ambiente local: os 10 mil produtos do seed nascem com estoque para a SAGA andar
       Inventory__InitialOnHandForNewProducts: 100
-      # JWT de dev (o mesmo do catalog): task token -- -aud inventory
-      Auth__AllowDevSecret: "true"
+      # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
+      Auth__Authority: http://identity:8006
+      Auth__RequireHttpsMetadata: "false"
 
   payments:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: payments
         PROJECT: CompraFacil.Payments.Api
@@ -310,16 +375,15 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
-      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud payments
-      Auth__AllowDevSecret: "true"
-      # cliente com cartão recusado no gateway fake: cenário de pagamento recusado do e2e (task e2e)
-      Payments__Fake__DeclinedCustomers__0: 0e2e0000-0000-4000-8000-00000000dec1
+      # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
+      Auth__Authority: http://identity:8006
+      Auth__RequireHttpsMetadata: "false"
 
   notifications:
     <<: *dotnet-service
     build:
       context: ../..
-      dockerfile: services/dotnet.Dockerfile
+      dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: notifications
         PROJECT: CompraFacil.Notifications.Api
@@ -331,8 +395,9 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
-      # JWT de dev (o mesmo do catalog) nas rotas /v1/admin/*: task token -- -aud notifications
-      Auth__AllowDevSecret: "true"
+      # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
+      Auth__Authority: http://identity:8006
+      Auth__RequireHttpsMetadata: "false"
       # e-mails vão para o Mailpit (UI em http://localhost:8025)
       Smtp__Host: mailpit
       Smtp__Port: 1025

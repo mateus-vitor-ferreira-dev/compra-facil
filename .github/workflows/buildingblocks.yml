@@ -5,20 +5,20 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - libs/dotnet/**
+      - backend/libs/dotnet/**
       - contracts/**
-      - Directory.Build.props
-      - Directory.Packages.props
-      - global.json
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
       - .editorconfig
       - .github/workflows/buildingblocks.yml
   pull_request:
     paths:
-      - libs/dotnet/**
+      - backend/libs/dotnet/**
       - contracts/**
-      - Directory.Build.props
-      - Directory.Packages.props
-      - global.json
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
       - .editorconfig
       - .github/workflows/buildingblocks.yml
 
@@ -34,15 +34,23 @@ jobs:
     name: formatação e testes
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # o dotnet acha o backend/global.json (SDK e o runner de testes, Microsoft.Testing.Platform)
+    # procurando a partir do diretório atual: os comandos rodam de dentro do backend/
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-dotnet@v6.0.0
         with:
-          global-json-file: global.json
+          global-json-file: backend/global.json
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - run: dotnet restore libs/dotnet/CompraFacil.BuildingBlocks.slnx
       - run: dotnet format libs/dotnet/CompraFacil.BuildingBlocks.slnx --verify-no-changes --no-restore
       - run: dotnet build libs/dotnet/CompraFacil.BuildingBlocks.slnx --no-restore -c Release
       - name: Testes (Postgres e Redpanda reais via Testcontainers)
+        # sem o Ryuk: o runner é descartado depois do job (o mesmo do catalog.yml)
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
         run: dotnet test --solution libs/dotnet/CompraFacil.BuildingBlocks.slnx --no-build -c Release

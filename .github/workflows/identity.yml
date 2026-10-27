@@ -1,0 +1,47 @@
+# Pipeline do identity (contas e tokens). Só roda quando algo que afeta o identity muda: o próprio serviço,
+# a lib comum (backend/libs/dotnet), os contratos ou o build .NET. Mudança só no catalog não dispara este.
+name: identity
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - backend/services/identity/**
+      - backend/libs/dotnet/**
+      - contracts/**
+      - backend/services/dotnet.Dockerfile
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
+      - .editorconfig
+      - backend/dotnet-tools.json
+      - .github/workflows/identity.yml
+      - .github/workflows/_dotnet-service.yml
+  pull_request:
+    paths:
+      - backend/services/identity/**
+      - backend/libs/dotnet/**
+      - contracts/**
+      - backend/services/dotnet.Dockerfile
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
+      - .editorconfig
+      - backend/dotnet-tools.json
+      - .github/workflows/identity.yml
+      - .github/workflows/_dotnet-service.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  identity:
+    uses: ./.github/workflows/_dotnet-service.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      service: identity
+      project: CompraFacil.Identity.Api
+      port: "8006"

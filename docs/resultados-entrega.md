@@ -10,7 +10,7 @@ do histórico do GitHub Actions.
   (`.github/workflows/<serviço>.yml`).
 - **Lead time:** do primeiro commit do PR até a imagem publicada.
 - **Deploy sozinho:** o merge publicou só esse serviço. É a medida direta de "um time entrega sem
-  coordenar com o outro". Mudanças na biblioteca comum .NET (`libs/dotnet`) publicam os quatro serviços
+  coordenar com o outro". Mudanças na biblioteca comum .NET (`backend/libs/dotnet`) publicam os quatro serviços
   .NET juntos, e isso aparece aqui.
 - **Período:** de 2026-10-22 16:07 a 2026-10-22 17:57 UTC, com 21 deploys. O
   histórico é curto (o CI por serviço existe desde o PR #122): com menos de uma semana de dados, "por
@@ -42,8 +42,8 @@ do histórico do GitHub Actions.
 
 O pipeline de cada serviço dispara pelos caminhos que o afetam. Três tipos de mudança publicam mais de um:
 
-- **Código comum dos serviços .NET** (`libs/dotnet`, `Directory.Build.props`, `Directory.Packages.props`,
-  `services/dotnet.Dockerfile`): os quatro serviços de compras são republicados juntos. É o preço da biblioteca
+- **Código comum dos serviços .NET** (`backend/libs/dotnet`, `backend/Directory.Build.props`, `backend/Directory.Packages.props`,
+  `backend/services/dotnet.Dockerfile`): os quatro serviços de compras são republicados juntos. É o preço da biblioteca
   compartilhada (outbox, Kafka, OpenTelemetry). Uma versão publicada como pacote, que cada serviço atualiza
   quando quiser, trocaria esse acoplamento de deploy por um de versão.
 - **Contratos:** quem publica ou consome um contrato é republicado quando ele muda. Até o #91, o pipeline do

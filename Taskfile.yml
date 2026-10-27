@@ -5,9 +5,10 @@ version: "3"
 vars:
   # Módulos Go e solutions .NET existentes no repositório
   GO_MODULES:
-    sh: find services libs -name go.mod -not -path '*/node_modules/*' -exec dirname {} \; 2>/dev/null | sort
+    sh: find backend/services backend/libs -name go.mod -not -path '*/node_modules/*' -exec dirname {} \; 2>/dev/null | sort
+  # relativas a backend/: o dotnet acha o backend/global.json (SDK e runner de testes) a partir do diretório atual
   DOTNET_SOLUTIONS:
-    sh: find services libs \( -name '*.slnx' -o -name '*.sln' \) 2>/dev/null | sort
+    sh: cd backend && find services libs \( -name '*.slnx' -o -name '*.sln' \) 2>/dev/null | sort
   SPECTRAL: npx -y @stoplight/spectral-cli@6.17.0
   REDOCLY: npx -y @redocly/cli@2.67.1
   ASYNCAPI: npx -y @asyncapi/cli@6.2.1
@@ -25,7 +26,7 @@ tasks:
       - docker compose up -d --build --wait
 
   up:debug:
-    desc: Como o up, mas publicando as portas dos serviços no host (8001-8005, gRPC 9001) para depuração
+    desc: Como o up, mas publicando as portas dos serviços no host (8001-8006, gRPC 9001) para depuração
     cmds:
       - docker compose -f compose.yaml -f infra/compose/compose.debug.yaml up -d --build --wait
 
@@ -66,6 +67,7 @@ tasks:
 
   test:dotnet:
     desc: dotnet test em cada solution .NET
+    dir: backend
     cmds:
       - for: { var: DOTNET_SOLUTIONS }
         cmd: echo "==> dotnet test {{.ITEM}}" && dotnet test --solution {{.ITEM}}
@@ -89,6 +91,7 @@ tasks:
 
   lint:dotnet:
     desc: dotnet format --verify-no-changes em cada solution
+    dir: backend
     cmds:
       - for: { var: DOTNET_SOLUTIONS }
         cmd: echo "==> dotnet format {{.ITEM}}" && dotnet format {{.ITEM}} --verify-no-changes
@@ -160,19 +163,41 @@ tasks:
   # ---------- dados ----------
   seed:
     desc: Popula o banco do catálogo com produtos de exemplo
-    dir: services/catalog
+    dir: backend/services/catalog
     preconditions:
       - sh: test -d cmd/seed
-        msg: "seed ainda não existe (tarefa #71: services/catalog/cmd/seed)"
+        msg: "seed ainda não existe (tarefa #71: backend/services/catalog/cmd/seed)"
     cmds:
       - go run ./cmd/seed {{.CLI_ARGS}}
 
   token:
-    desc: "Emite um JWT de operador para as rotas admin (ex.: task token -- -sub ana -ttl 1h; outro serviço: -aud inventory)"
-    dir: services/catalog
+    desc: "Access token do operador local, pelo login no identity (ex.: curl -H \"Authorization: Bearer $(task token)\" ...)"
     silent: true
+    vars:
+      ADMIN_EMAIL: '{{.ADMIN_EMAIL | default "admin@comprafacil.local"}}'
+      ADMIN_PASSWORD: '{{.ADMIN_PASSWORD | default "admin-compra-facil"}}'
     cmds:
-      - go run ./cmd/token {{.CLI_ARGS}}
+      - >-
+        curl -sSf -X POST http://localhost:${GATEWAY_PORT:-80}/identity/v1/sessions -H 'Content-Type: application/json'
+        -d '{"email":"{{.ADMIN_EMAIL}}","password":"{{.ADMIN_PASSWORD}}"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/'
+
+  # ---------- front (frontend/web) ----------
+  web:dev:
+    desc: "Front em http://localhost:3000, falando com a API do ambiente local (task up antes)"
+    dir: frontend/web
+    cmds:
+      - npm run dev
+
+  web:check:
+    desc: "Front: tipos dos contratos, lint, testes, build e testes de navegador (como o CI)"
+    dir: frontend/web
+    cmds:
+      - npm run api:check
+      - npm run lint
+      - npm run typecheck
+      - npm test
+      - npm run build
+      - npm run e2e
 
   # ---------- observabilidade (Grafana em http://127.0.0.1:3001) ----------
   grafana:
@@ -214,7 +239,7 @@ tasks:
       # porta de cada serviço na rede do compose (o notifications não passa pelo gateway)
       PORT: '{{get (dict "orders" "8002" "inventory" "8003" "payments" "8004" "notifications" "8005") .SERVICE}}'
       TOKEN:
-        sh: cd services/catalog && go run ./cmd/token -aud {{.SERVICE}} -ttl 5m
+        sh: task token
     preconditions:
       - sh: '[ -n "{{.PORT}}" ]'
         msg: "serviço desconhecido: '{{.SERVICE}}' (orders, inventory, payments ou notifications)"
@@ -226,10 +251,10 @@ tasks:
 
   # ---------- Kubernetes local (k3d + Helm; precisa de k3d, kubectl e helm no PATH) ----------
   k8s:up:
-    desc: "Cluster k3d com os 5 serviços (chart Helm), Traefik como ingress em http://localhost:8088 e HPA no catalog"
+    desc: "Cluster k3d com os 6 serviços (chart Helm), Traefik como ingress em http://localhost:8088 e HPA no catalog"
     vars:
-      SERVICES: catalog orders inventory payments notifications
-      IMAGES: catalog catalog-seed orders inventory payments notifications
+      SERVICES: catalog orders inventory payments notifications identity
+      IMAGES: catalog catalog-seed orders inventory payments notifications identity
     cmds:
       - k3d cluster list compra-facil >/dev/null 2>&1 || k3d cluster create compra-facil --agents 1 -p "8088:80@loadbalancer" --wait
       - docker compose build {{.IMAGES}}
@@ -261,7 +286,7 @@ tasks:
       PEAK: '{{index (splitList " " (printf "%s 400 2m" .CLI_ARGS | trim)) 1}}'
     cmds:
       - >-
-        kubectl -n compra-facil create configmap k6-scripts --from-file=load-tests/k6/campanha.js
+        kubectl -n compra-facil create configmap k6-scripts --from-file=load-tests/k6/campanha.js --from-file=load-tests/k6/identity.js
         --dry-run=client -o yaml | kubectl apply -f -
       - kubectl -n compra-facil delete job k6-campanha --ignore-not-found --cascade=foreground --wait
       - sed -e 's/PEAK_RATE_PLACEHOLDER/{{.PEAK_RATE}}/' -e 's/PEAK_PLACEHOLDER/{{.PEAK}}/' infra/k8s/k6-job.yaml | kubectl -n compra-facil apply -f -
@@ -289,15 +314,8 @@ tasks:
 
   e2e:
     desc: "Teste ponta a ponta da compra pelo gateway: confirmada, sem estoque e pagamento recusado (ambiente no ar + seed)"
-    vars:
-      CATALOG_TOKEN:
-        sh: cd services/catalog && go run ./cmd/token -ttl 10m
-      INVENTORY_TOKEN:
-        sh: cd services/catalog && go run ./cmd/token -aud inventory -ttl 10m
     cmds:
-      - >-
-        docker compose run --rm -e CATALOG_TOKEN={{.CATALOG_TOKEN}} -e INVENTORY_TOKEN={{.INVENTORY_TOKEN}}
-        k6 run --quiet /scripts/e2e-compra.js
+      - docker compose run --rm k6 run --quiet /scripts/e2e-compra.js
 
   load:
     desc: "k6: campanha promocional, 90% leitura e 10% compras, com rampa até o pico; métricas no Prometheus (ex.: task load -- -e PEAK_RATE=800)"

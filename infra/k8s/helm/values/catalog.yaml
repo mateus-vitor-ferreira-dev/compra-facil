@@ -3,7 +3,8 @@ image: { repository: compra-facil/catalog }
 port: 8001
 grpcPort: 9001
 env:
-  CATALOG_APP_ENV: compose # aceita o segredo JWT de dev; cluster local, não produção
+  CATALOG_APP_ENV: compose # cluster local, não produção
+  CATALOG_AUTH_AUTHORITY: http://identity:8006
   CATALOG_DB_DSN: postgres://catalog:compra-facil@postgres:5432/catalog?sslmode=disable
   CATALOG_CACHE_REDIS_ADDR: redis:6379
   CATALOG_EVENTS_BROKERS: redpanda:9092

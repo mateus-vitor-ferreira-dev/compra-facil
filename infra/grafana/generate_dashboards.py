@@ -77,7 +77,8 @@ service_var = {
     "query": {"query": "label_values(http_server_request_duration_seconds_count, service_name)", "refId": "service"},
     "includeAll": True, "multi": True, "current": {"text": "All", "value": "$__all"}, "refresh": 2,
 }
-SEL = 'service_name=~"$service"'
+# streams SSE (GET /v1/orders/{id}/events) ficam abertos minutos: fora da latência e da taxa de requisições
+SEL = 'service_name=~"$service", http_route!~".*/events"'
 red = dashboard(
     "compra-facil-red", "CompraFácil — Serviços (RED)",
     "Taxa, erros e duração (RED) de cada serviço, pela instrumentação OpenTelemetry.",

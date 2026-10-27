@@ -1,0 +1,464 @@
+openapi: 3.1.0
+info:
+  title: CompraFácil — Identity API
+  version: 1.0.0
+  summary: Contas, login e os tokens que as outras APIs aceitam.
+  description: |
+    API do serviço **identity** (ASP.NET Core Identity).
+
+    - **Cadastro** (`registerAccount`) cria uma conta de cliente (papel `customer`) e manda o e-mail de
+      confirmação (pelo notifications). Com a confirmação exigida (`Identity:EmailConfirmation:Required`),
+      o login só funciona depois de `confirmEmail`.
+    - **Login** (`createSession`) devolve um **access token** (JWT RS256, 15 min) e um **refresh token**
+      (opaco, 30 dias). Cinco senhas erradas seguidas bloqueiam a conta por 15 minutos (`423`).
+    - **Refresh** (`refreshSession`) troca o refresh token por um par novo; o antigo deixa de valer.
+      Apresentar de novo um refresh token já trocado derruba a sessão inteira (sinal de token copiado).
+    - **Logout** (`revokeSession`) derruba a sessão do refresh token.
+
+    O access token vai em `Authorization: Bearer <token>` nas outras APIs, que o validam sozinhas com as
+    chaves públicas de `/.well-known/jwks.json` (cache de 5 min). Claims: `sub` (id da conta), `email`,
+    `name`, `roles` (`customer`, `admin`), `iss` = `compra-facil-identity`, `aud` = `compra-facil`, `exp`.
+
+    A chave de assinatura muda a cada 30 dias; a próxima aparece no JWKS um dia antes de assinar, e a
+    anterior fica até o último token dela vencer. O `kid` do header do JWT diz qual chave usar.
+
+    No navegador, o refresh token não deve ficar acessível ao JavaScript: o BFF do front o guarda em
+    cookie `HttpOnly` e faz um refresh por vez (dois refresh simultâneos com o mesmo token derrubam a sessão).
+servers:
+  - url: http://localhost:8006
+    description: Serviço direto (dev)
+  - url: http://localhost/identity
+    description: Via gateway Traefik
+tags:
+  - name: accounts
+    description: Cadastro e dados da conta.
+  - name: sessions
+    description: Login, refresh e logout.
+  - name: keys
+    description: Chaves públicas para validar os tokens.
+
+paths:
+  /v1/accounts:
+    post:
+      tags: [accounts]
+      operationId: registerAccount
+      summary: Cadastra um cliente
+      description: |
+        Cria a conta com o papel `customer`. Não faz login: em seguida, chame `createSession`.
+        Senha: de 8 a 128 caracteres, com pelo menos 4 diferentes. Sem regras de composição (NIST SP 800-63B).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Conta criada.
+          headers:
+            Location:
+              $ref: "./common/v1/common.yaml#/components/headers/Location"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/accounts/confirm-email:
+    post:
+      tags: [accounts]
+      operationId: confirmEmail
+      summary: Confirma o e-mail pelo link
+      description: |
+        O link do e-mail leva para a página do front com `conta` e `token` na query; o front os manda aqui.
+        Conta já confirmada: `204` também (o link pode ser aberto duas vezes). Conta inexistente, token
+        errado ou vencido (1 dia): o mesmo `422`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, token]
+              properties:
+                account_id:
+                  type: string
+                  format: uuid
+                token:
+                  type: string
+                  maxLength: 2048
+      responses:
+        "204":
+          description: E-mail confirmado.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/accounts/confirm-email/resend:
+    post:
+      tags: [accounts]
+      operationId: resendEmailConfirmation
+      summary: Manda outro link de confirmação
+      description: |
+        Sempre `202`, exista a conta ou não, já confirmada ou não: a resposta não revela quem tem conta.
+        O link anterior continua valendo até vencer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  $ref: "#/components/schemas/Email"
+      responses:
+        "202":
+          description: Se a conta existe e não está confirmada, o e-mail sai em instantes.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/me:
+    get:
+      tags: [accounts]
+      operationId: getMe
+      summary: A conta dona do access token
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Conta.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions:
+    post:
+      tags: [sessions]
+      operationId: createSession
+      summary: Login com e-mail e senha
+      description: |
+        E-mail inexistente e senha errada dão o mesmo `401` (e o hash de senha roda nos dois casos). Na
+        quinta senha errada seguida, a conta fica bloqueada para login por 15 minutos (`423`, com
+        `Retry-After`); sessões já abertas continuam valendo. Como o cadastro (`409`), o `423` revela que
+        a conta existe: o rate limit do gateway é o que limita quem tenta descobrir.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          description: Senha certa, mas o e-mail ainda não foi confirmado (só com a confirmação exigida).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "423":
+          description: Conta bloqueada temporariamente por senhas erradas.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/refresh:
+    post:
+      tags: [sessions]
+      operationId: refreshSession
+      summary: Troca o refresh token por um par novo
+      description: |
+        O refresh token enviado deixa de valer; guarde o novo. Token inválido, expirado, revogado ou já
+        trocado dá `401`. Um token já trocado, apresentado de novo (inclusive dois refresh simultâneos com
+        o mesmo token), derruba a sessão inteira.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/revoke:
+    post:
+      tags: [sessions]
+      operationId: revokeSession
+      summary: Logout
+      description: |
+        Revoga o refresh token e todos os trocados a partir do mesmo login. Idempotente: token
+        desconhecido ou já revogado também dá `204`. O access token já emitido vale até expirar (15 min).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "204":
+          description: Sessão encerrada.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /.well-known/jwks.json:
+    get:
+      tags: [keys]
+      operationId: getJwks
+      summary: Chaves públicas de assinatura (JWKS, RFC 7517)
+      description: A anterior (até os tokens dela vencerem), a atual e a próxima (um dia antes de assinar).
+      responses:
+        "200":
+          description: Chaves.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Jwks"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /.well-known/openid-configuration:
+    get:
+      tags: [keys]
+      operationId: getOpenIdConfiguration
+      summary: Descoberta do emissor (subconjunto do OpenID Connect Discovery)
+      description: Só o que a validação de JWT usa. Bibliotecas como o JwtBearer do .NET acham o JWKS por aqui.
+      responses:
+        "200":
+          description: Emissor e endereço do JWKS.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/CacheControl"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenIdConfiguration"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+components:
+  schemas:
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+      examples: ["ana@exemplo.com"]
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          examples: ["Ana Souza"]
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        password:
+          type: string
+          maxLength: 128
+          writeOnly: true
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          maxLength: 128
+
+    Role:
+      type: string
+      description: "`customer`: compra · `admin`: rotas `/v1/admin/*` e painel administrativo."
+      enum: [customer, admin]
+
+    Account:
+      type: object
+      required: [id, email, name, email_confirmed, roles, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: O mesmo valor do claim `sub` do access token.
+        email:
+          $ref: "#/components/schemas/Email"
+        name:
+          type: string
+        email_confirmed:
+          type: boolean
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role"
+        created_at:
+          type: string
+          format: date-time
+
+    Tokens:
+      type: object
+      description: Resposta no formato do OAuth 2.0 (RFC 6749, seção 5.1).
+      required: [access_token, token_type, expires_in, refresh_token, refresh_expires_in]
+      properties:
+        access_token:
+          type: string
+          description: "JWT RS256; vai em `Authorization: Bearer` nas outras APIs."
+        token_type:
+          type: string
+          const: Bearer
+        expires_in:
+          type: integer
+          description: Segundos até o access token vencer.
+          examples: [900]
+        refresh_token:
+          type: string
+          description: Opaco. Use uma vez em `refreshSession`; a resposta traz o próximo.
+        refresh_expires_in:
+          type: integer
+          description: Segundos até o refresh token vencer, se não for usado antes.
+          examples: [2592000]
+
+    Jwk:
+      type: object
+      required: [kty, use, alg, kid, n, e]
+      properties:
+        kty:
+          type: string
+          const: RSA
+        use:
+          type: string
+          const: sig
+        alg:
+          type: string
+          const: RS256
+        kid:
+          type: string
+          description: Igual ao `kid` do header dos tokens assinados com esta chave.
+        n:
+          type: string
+          description: Módulo, em base64url.
+        e:
+          type: string
+          description: Expoente, em base64url.
+
+    Jwks:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Jwk"
+
+    OpenIdConfiguration:
+      type: object
+      required: [issuer, jwks_uri, id_token_signing_alg_values_supported]
+      properties:
+        issuer:
+          type: string
+          examples: ["compra-facil-identity"]
+        jwks_uri:
+          type: string
+          format: uri
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+            enum: [RS256]
+
+  headers:
+    RetryAfter:
+      description: Segundos até poder tentar de novo.
+      schema:
+        type: integer
+    CacheControl:
+      description: As chaves podem ficar em cache por 5 minutos.
+      schema:
+        type: string
+        examples: ["public, max-age=300"]
+
+  responses:
+    Tokens:
+      description: Access token e refresh token.
+      headers:
+        Cache-Control:
+          description: "`no-store`: resposta com credencial não vai para cache."
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Tokens"
+
+  securitySchemes:
+    bearerAuth:
+      $ref: "./common/v1/common.yaml#/components/securitySchemes/bearerAuth"
