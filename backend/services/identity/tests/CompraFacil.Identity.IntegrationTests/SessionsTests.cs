@@ -99,11 +99,12 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
     }
 
     [Fact]
-    public async Task Refresh_ReusingARotatedToken_EndsTheWholeSession()
+    public async Task Refresh_ReusingARotatedToken_AfterTheReuseInterval_EndsTheWholeSession()
     {
         var (_, first) = await _api.NewSessionAsync();
         using var rotated = await _api.RefreshAsync(first);
         var (_, second) = IdentityClient.Tokens(await IdentityClient.JsonOf(rotated));
+        fx.Clock.Advance(TimeSpan.FromSeconds(11)); // passou o intervalo de reuso (10 s)
 
         using var reuse = await _api.RefreshAsync(first); // quem copiou o primeiro token
         using var legit = await _api.RefreshAsync(second); // e o dono, que tinha o novo
@@ -113,19 +114,32 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
     }
 
     [Fact]
-    public async Task Refresh_TwoAtTheSameTime_CountsAsReuse_AndEndsTheSession()
+    public async Task Refresh_ParallelWithTheSameToken_KeepsTheSession()
     {
         var (_, refresh) = await _api.NewSessionAsync();
 
+        // a página e um prefetch do mesmo navegador, em instâncias diferentes do BFF
         var responses = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => _api.RefreshAsync(refresh)));
         try
         {
-            // um passa (chegou primeiro), os outros encontram o token já trocado e derrubam a sessão
-            var winner = Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
-            Assert.All(responses.Where(r => r != winner), r => Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode));
-            var (_, next) = IdentityClient.Tokens(await IdentityClient.JsonOf(winner));
-            using var afterwards = await _api.RefreshAsync(next);
-            Assert.Equal(HttpStatusCode.Unauthorized, afterwards.StatusCode);
+            Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+            var tokens = new List<string>();
+            foreach (var r in responses)
+            {
+                var (access, next) = IdentityClient.Tokens(await IdentityClient.JsonOf(r));
+                using var me = await _api.MeAsync(access);
+                Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+                tokens.Add(next);
+            }
+            Assert.Equal(4, tokens.Distinct().Count());
+
+            // o navegador guarda uma das respostas e segue com ela; as outras deixam de valer
+            var kept = tokens[^1];
+            using var afterwards = await _api.RefreshAsync(kept);
+            Assert.Equal(HttpStatusCode.OK, afterwards.StatusCode);
+            fx.Clock.Advance(TimeSpan.FromSeconds(11));
+            using var forgotten = await _api.RefreshAsync(tokens[0]);
+            Assert.Equal(HttpStatusCode.Unauthorized, forgotten.StatusCode); // um irmão esquecido usado depois é reuso
         }
         finally
         {
@@ -134,6 +148,19 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
                 r.Dispose();
             }
         }
+    }
+
+    [Fact]
+    public async Task Refresh_InsideTheInterval_AfterLogout_DoesNotReopenTheSession()
+    {
+        var (_, first) = await _api.NewSessionAsync();
+        using var rotated = await _api.RefreshAsync(first);
+        var (_, second) = IdentityClient.Tokens(await IdentityClient.JsonOf(rotated));
+        using var logout = await _api.RevokeAsync(second);
+
+        using var reuse = await _api.RefreshAsync(first);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, reuse.StatusCode);
     }
 
     [Fact]

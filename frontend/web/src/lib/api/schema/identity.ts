@@ -116,8 +116,10 @@ export interface paths {
         /**
          * Troca o refresh token por um par novo
          * @description O refresh token enviado deixa de valer; guarde o novo. Token inválido, expirado, revogado ou já
-         *     trocado dá `401`. Um token já trocado, apresentado de novo (inclusive dois refresh simultâneos com
-         *     o mesmo token), derruba a sessão inteira.
+         *     trocado dá `401`. Um token já trocado, apresentado de novo, derruba a sessão inteira, a não ser
+         *     dentro do intervalo de reuso (`Identity:Tokens:RefreshReuseInterval`, 10 s): logo depois da troca,
+         *     ele ainda dá um par novo da mesma sessão (dois refresh simultâneos com o mesmo token passam). A
+         *     próxima troca normal invalida os pares que sobraram.
          */
         post: operations["refreshSession"];
         delete?: never;

@@ -12,7 +12,9 @@ info:
     - **Login** (`createSession`) devolve um **access token** (JWT RS256, 15 min) e um **refresh token**
       (opaco, 30 dias). Cinco senhas erradas seguidas bloqueiam a conta por 15 minutos (`423`).
     - **Refresh** (`refreshSession`) troca o refresh token por um par novo; o antigo deixa de valer.
-      Apresentar de novo um refresh token já trocado derruba a sessão inteira (sinal de token copiado).
+      Apresentar de novo um refresh token já trocado derruba a sessão inteira (sinal de token copiado),
+      menos nos 10 s seguintes à troca (intervalo de reuso), quando ele ainda dá um par novo da mesma
+      sessão: são requisições paralelas do mesmo navegador.
     - **Logout** (`revokeSession`) derruba a sessão do refresh token.
 
     O access token vai em `Authorization: Bearer <token>` nas outras APIs, que o validam sozinhas com as
@@ -23,7 +25,8 @@ info:
     anterior fica até o último token dela vencer. O `kid` do header do JWT diz qual chave usar.
 
     No navegador, o refresh token não deve ficar acessível ao JavaScript: o BFF do front o guarda em
-    cookie `HttpOnly` e faz um refresh por vez (dois refresh simultâneos com o mesmo token derrubam a sessão).
+    cookie `HttpOnly`. Refresh paralelos com o mesmo token (instâncias diferentes do BFF) cabem no
+    intervalo de reuso e mantêm a sessão.
 servers:
   - url: http://localhost:8006
     description: Serviço direto (dev)
@@ -209,8 +212,10 @@ paths:
       summary: Troca o refresh token por um par novo
       description: |
         O refresh token enviado deixa de valer; guarde o novo. Token inválido, expirado, revogado ou já
-        trocado dá `401`. Um token já trocado, apresentado de novo (inclusive dois refresh simultâneos com
-        o mesmo token), derruba a sessão inteira.
+        trocado dá `401`. Um token já trocado, apresentado de novo, derruba a sessão inteira, a não ser
+        dentro do intervalo de reuso (`Identity:Tokens:RefreshReuseInterval`, 10 s): logo depois da troca,
+        ele ainda dá um par novo da mesma sessão (dois refresh simultâneos com o mesmo token passam). A
+        próxima troca normal invalida os pares que sobraram.
       requestBody:
         required: true
         content:

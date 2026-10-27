@@ -14,8 +14,10 @@ public enum RevocationReason
 
 /// <summary>
 /// Refresh token rotativo. Cada uso troca o token por um novo da mesma família (um login = uma
-/// família); apresentar um token já trocado revoga a família toda, porque só quem copiou o token o
-/// teria. Só o hash (SHA-256) é guardado: o banco vazado não dá sessões.
+/// família); apresentar um token já trocado revoga a família toda, porque só quem o copiou o teria.
+/// A exceção é o intervalo de reuso: logo depois da troca, o mesmo token ainda dá um irmão na família
+/// (requisições paralelas do mesmo navegador). Só o hash (SHA-256) é guardado: o banco vazado não dá
+/// sessões.
 /// </summary>
 public sealed class RefreshToken
 {
@@ -44,6 +46,26 @@ public sealed class RefreshToken
 
     /// <summary>Já foi trocado por outro: apresentá-lo de novo é reuso.</summary>
     public bool WasRotated => RevocationReason == Domain.RevocationReason.Rotated;
+
+    /// <summary>
+    /// Foi trocado há no máximo <paramref name="interval"/> e ainda não venceu: apresentado de novo, é
+    /// uma requisição paralela da troca, não uma cópia.
+    /// </summary>
+    public bool RotatedWithin(DateTimeOffset now, TimeSpan interval) =>
+        WasRotated && interval > TimeSpan.Zero && now - RevokedAt!.Value <= interval && now < ExpiresAt;
+
+    /// <summary>
+    /// Um token novo da mesma família, para a requisição que chegou com este token logo depois da troca
+    /// (dentro do intervalo de reuso). Este continua trocado; o irmão vale <paramref name="lifetime"/>.
+    /// </summary>
+    public RefreshToken Sibling(byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime, TimeSpan reuseInterval)
+    {
+        if (!RotatedWithin(now, reuseInterval))
+        {
+            throw new InvalidOperationException("só um token trocado há pouco tem irmão; fora do intervalo é reuso");
+        }
+        return New(UserId, FamilyId, tokenHash, now, lifetime);
+    }
 
     /// <summary>Troca este token pelo próximo da família, que vale <paramref name="lifetime"/> a partir de agora.</summary>
     public RefreshToken Rotate(byte[] nextTokenHash, DateTimeOffset now, TimeSpan lifetime)
