@@ -19,6 +19,7 @@
   --tag-ink: #1b1f3b;
   --success: #0b6e50; /* 4,9:1 no próprio selo */
   --danger: #c8323b;
+  --danger-ink: #a3262e; /* texto vermelho sobre fundo tingido de vermelho (6,2:1 no selo) */
   --on-danger: #ffffff; /* texto sobre o vermelho */
   --focus: #1b1f3b;
   --photo: #eceef3; /* fundo das fotos e dos placeholders */
@@ -35,6 +36,7 @@
     --line: #2e3256;
     --success: #3fc495;
     --danger: #ff7a80;
+    --danger-ink: #ff7a80;
     --on-danger: #12142a;
     --focus: #ffd23f;
     --photo: #262a4c;
@@ -50,6 +52,7 @@
   --line: #2e3256;
   --success: #3fc495;
   --danger: #ff7a80;
+  --danger-ink: #ff7a80;
   --on-danger: #12142a;
   --focus: #ffd23f;
   --photo: #262a4c;
@@ -68,6 +71,7 @@
   --color-tag-ink: var(--tag-ink);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
   --color-on-danger: var(--on-danger);
   --color-focus: var(--focus);
   --color-photo: var(--photo);
