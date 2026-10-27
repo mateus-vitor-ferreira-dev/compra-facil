@@ -112,7 +112,32 @@ const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
 // o painel: situação e versão de cada produto (a versão é o ETag)
 for (const p of products) Object.assign(p, { status: "active", version: 1 });
 const adminKeys = new Set(); // Idempotency-Key dos ajustes de estoque
-const adminCampaigns = []; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
+const adminCampaigns = [];
+// dead letter topics: o inventory com duas mensagens; orders e notifications vazios
+const poison = (offset) => ({
+  event_id: null,
+  event_type: null,
+  topic: "orders.order.v1",
+  partition: 0,
+  offset,
+  attempts: 1,
+  error: "PoisonMessageException: mensagem sem envelope válido",
+  failed_at: "2026-10-27T12:00:00Z",
+});
+const deadLetterQueues = {
+  inventory: [
+    poison(7150),
+    {
+      ...poison(7151),
+      event_id: "0199f6a0-0000-7000-8000-0000000000d1",
+      event_type: "OrderPlaced",
+      attempts: 4,
+      error: "TimeoutException: banco do inventory não respondeu",
+    },
+  ],
+  orders: [],
+  notifications: [],
+}; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
 
@@ -486,6 +511,18 @@ async function json(req) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  const dlt = url.pathname.match(
+    /^\/(orders|inventory|payments|notifications)\/v1\/admin\/dead-letters(\/replay)?$/,
+  );
+  if (dlt) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    // o payments está com o Kafka fora: a tela explica em vez de quebrar
+    if (dlt[1] === "payments") return problem(res, 503, "Serviço indisponível");
+    const items = deadLetterQueues[dlt[1]];
+    // reprocessadas, falham de novo e voltam para a fila (são mensagens envenenadas)
+    if (dlt[2]) return send(res, 200, { replayed: items.length });
+    return send(res, 200, { items });
+  }
   if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
     return admin(req, res, url);
   }

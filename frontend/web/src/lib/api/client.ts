@@ -6,6 +6,7 @@ import { gatewayHeaders } from "./gateway-headers";
 import type { paths as catalog } from "./schema/catalog";
 import type { paths as identity } from "./schema/identity";
 import type { paths as inventory } from "./schema/inventory";
+import type { paths as notifications } from "./schema/notifications";
 import type { paths as orders } from "./schema/orders";
 import type { paths as payments } from "./schema/payments";
 
@@ -59,6 +60,7 @@ export const api = {
   catalog: (options?: CallOptions) => client<catalog>("catalog", options),
   identity: (options?: CallOptions) => client<identity>("identity", options),
   inventory: (options?: CallOptions) => client<inventory>("inventory", options),
+  notifications: (options?: CallOptions) => client<notifications>("notifications", options),
   orders: (options?: CallOptions) => client<orders>("orders", options),
   payments: (options?: CallOptions) => client<payments>("payments", options),
 };
