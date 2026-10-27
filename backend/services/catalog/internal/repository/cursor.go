@@ -19,11 +19,14 @@ const (
 )
 
 // cursor é serializado em JSON + base64url; o cliente o trata como opaco.
-// Listagens ordenadas usam keyset (T, ID); a busca por relevância usa offset (O).
+// Listagens ordenadas usam keyset: (T, ID) nos mais novos, (V, ID) nas ordens por preço e desconto.
+// A busca por relevância usa offset (O). S é a ordem que gerou o cursor: um cursor só vale para ela.
 type cursor struct {
-	T  *time.Time `json:"t,omitempty"`
-	ID uuid.UUID  `json:"i,omitzero"`
-	O  int        `json:"o,omitempty"`
+	S  domain.ProductSort `json:"s,omitempty"`
+	T  *time.Time         `json:"t,omitempty"`
+	V  *int64             `json:"v,omitempty"`
+	ID uuid.UUID          `json:"i,omitzero"`
+	O  int                `json:"o,omitempty"`
 }
 
 func (c cursor) encode() string {

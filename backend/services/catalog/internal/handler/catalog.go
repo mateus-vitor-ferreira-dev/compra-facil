@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -18,6 +19,7 @@ import (
 
 type productReader interface {
 	ListPublic(ctx context.Context, in service.ListProductsInput) (domain.Page[domain.Product], error)
+	ListBrands(ctx context.Context, in service.ListProductsInput) ([]domain.BrandCount, error)
 	GetPublic(ctx context.Context, id uuid.UUID) (domain.Product, error)
 }
 
@@ -45,40 +47,66 @@ func (h *CatalogHandler) Register(r gin.IRouter) {
 	v1 := r.Group("/v1")
 	v1.GET("/products", h.listProducts)
 	v1.GET("/products/:product_id", h.getProduct)
+	v1.GET("/brands", h.listBrands)
 	v1.GET("/categories", h.listCategories)
 	v1.GET("/campaigns", h.listActiveCampaigns)
 }
 
 func (h *CatalogHandler) listProducts(c *gin.Context) {
-	in := service.ListProductsInput{
-		Query:        c.Query("q"),
-		CategorySlug: c.Query("category"),
-		Cursor:       c.Query("cursor"),
-	}
-	var err error
-	if in.Limit, err = queryInt(c, "limit"); err != nil {
-		badRequest(c, err.Error())
+	in, ok := listInput(c)
+	if !ok {
 		return
 	}
-	if in.MinPriceCents, err = queryInt64Ptr(c, "min_price_cents"); err != nil {
-		badRequest(c, err.Error())
-		return
-	}
-	if in.MaxPriceCents, err = queryInt64Ptr(c, "max_price_cents"); err != nil {
-		badRequest(c, err.Error())
-		return
-	}
-	if in.OnSale, err = queryBool(c, "on_sale"); err != nil {
-		badRequest(c, err.Error())
-		return
-	}
-
 	page, err := h.products.ListPublic(c.Request.Context(), in)
 	if err != nil {
 		respondError(c, h.log, err)
 		return
 	}
 	c.JSON(http.StatusOK, toProductPageDTO(page))
+}
+
+func (h *CatalogHandler) listBrands(c *gin.Context) {
+	in, ok := listInput(c)
+	if !ok {
+		return
+	}
+	brands, err := h.products.ListBrands(c.Request.Context(), in)
+	if err != nil {
+		respondError(c, h.log, err)
+		return
+	}
+	out := brandsDTO{Data: make([]brandCountDTO, len(brands))}
+	for i, b := range brands {
+		out.Data[i] = brandCountDTO(b)
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+// listInput lê os filtros da listagem (os mesmos de /v1/brands); responde 400 e devolve false se algum
+// não tem o tipo certo.
+func listInput(c *gin.Context) (service.ListProductsInput, bool) {
+	in := service.ListProductsInput{
+		Query:        c.Query("q"),
+		CategorySlug: c.Query("category"),
+		Cursor:       c.Query("cursor"),
+		Sort:         domain.ProductSort(c.Query("sort")),
+	}
+	if raw := c.Query("brand"); raw != "" {
+		in.Brands = strings.Split(raw, ",")
+	}
+	var err error
+	if in.Limit, err = queryInt(c, "limit"); err == nil {
+		if in.MinPriceCents, err = queryInt64Ptr(c, "min_price_cents"); err == nil {
+			if in.MaxPriceCents, err = queryInt64Ptr(c, "max_price_cents"); err == nil {
+				in.OnSale, err = queryBool(c, "on_sale")
+			}
+		}
+	}
+	if err != nil {
+		badRequest(c, err.Error())
+		return in, false
+	}
+	return in, true
 }
 
 func (h *CatalogHandler) getProduct(c *gin.Context) {

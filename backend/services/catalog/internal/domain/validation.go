@@ -59,6 +59,7 @@ func Invalid(field, message string) error {
 
 const (
 	MaxPriceCents      = 100_000_000 // R$ 1 milhão
+	MaxBrandLength     = 80
 	MinDiscountPercent = 1
 	MaxDiscountPercent = 90
 	MaxCampaignItems   = 1000
@@ -83,6 +84,9 @@ func (p *Product) Validate() error {
 	v.check(skuPattern.MatchString(p.SKU), "sku", "use 3 a 32 caracteres: letras maiúsculas, dígitos e hífen")
 	v.length("name", p.Name, 3, 200)
 	v.check(utf8.RuneCountInString(p.Description) <= 5000, "description", "deve ter no máximo 5000 caracteres")
+	if p.Brand != nil {
+		v.length("brand", *p.Brand, 1, MaxBrandLength)
+	}
 	v.check(p.PriceCents >= 1 && p.PriceCents <= MaxPriceCents, "price_cents", "deve estar entre 1 e %d", MaxPriceCents)
 	v.check(p.Status.Valid(), "status", "deve ser draft, active ou inactive")
 	if p.ImageURL != nil {
@@ -96,6 +100,14 @@ func (p *Product) Normalize() {
 	p.SKU = strings.TrimSpace(p.SKU)
 	p.Name = strings.TrimSpace(p.Name)
 	p.Description = strings.TrimSpace(p.Description)
+	if p.Brand != nil {
+		trimmed := strings.TrimSpace(*p.Brand)
+		if trimmed == "" {
+			p.Brand = nil
+		} else {
+			p.Brand = &trimmed
+		}
+	}
 	if p.ImageURL != nil {
 		trimmed := strings.TrimSpace(*p.ImageURL)
 		if trimmed == "" {

@@ -17,6 +17,10 @@ type ProductFilter struct {
 	MinPriceCents *int64 // preço efetivo
 	MaxPriceCents *int64 // preço efetivo
 	OnSale        bool
+	// Brands filtra por marca (qualquer uma delas, sem diferenciar maiúsculas).
+	Brands []string
+	// Sort é a ordem; vazio é relevância com Query e mais novos sem.
+	Sort ProductSort
 	// Now é o instante usado para decidir quais campanhas estão ativas.
 	Now    time.Time
 	Cursor string
@@ -37,6 +41,9 @@ type ProductRepository interface {
 	GetByID(ctx context.Context, id uuid.UUID, now time.Time) (Product, error)
 	GetByIDs(ctx context.Context, ids []uuid.UUID, now time.Time) ([]Product, error)
 	List(ctx context.Context, f ProductFilter) (Page[Product], error)
+	// Brands conta as marcas dos produtos que passam no filtro (sem o filtro de marca), das mais
+	// frequentes para as menos, até limit.
+	Brands(ctx context.Context, f ProductFilter, limit int) ([]BrandCount, error)
 }
 
 type CategoryRepository interface {
@@ -62,4 +69,30 @@ type CampaignRepository interface {
 	// OverlappingProducts devolve, dentre productIDs, os que já estão em OUTRA campanha cujo período
 	// cruza [start, end). Com productIDs nil, considera os produtos atuais da própria campanha.
 	OverlappingProducts(ctx context.Context, campaignID uuid.UUID, start, end time.Time, productIDs []uuid.UUID) ([]uuid.UUID, error)
+}
+
+// ProductSort é a ordem da listagem pública (contrato: ProductSort).
+type ProductSort string
+
+const (
+	SortRelevance ProductSort = "relevance"
+	SortPriceAsc  ProductSort = "price_asc"
+	SortPriceDesc ProductSort = "price_desc"
+	SortDiscount  ProductSort = "discount"
+	SortNewest    ProductSort = "newest"
+)
+
+// Valid diz se a ordem existe no contrato.
+func (s ProductSort) Valid() bool {
+	switch s {
+	case SortRelevance, SortPriceAsc, SortPriceDesc, SortDiscount, SortNewest:
+		return true
+	}
+	return false
+}
+
+// BrandCount é uma marca e quantos produtos da listagem a têm (a faceta do filtro de marca).
+type BrandCount struct {
+	Name  string
+	Count int
 }

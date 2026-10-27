@@ -110,7 +110,7 @@ func seed(ctx context.Context, conn *pgx.Conn, opts options, now time.Time) (sta
 
 	products := generateProducts(rng, subs, opts.products, now, opts.mediaURL)
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"products"},
-		[]string{"id", "sku", "name", "description", "category_id", "image_url", "image", "price_cents", "currency", "status", "created_at", "updated_at"},
+		[]string{"id", "sku", "name", "description", "brand", "category_id", "image_url", "image", "price_cents", "currency", "status", "created_at", "updated_at"},
 		pgx.CopyFromSlice(len(products), func(i int) ([]any, error) { return products[i].row(), nil }),
 	); err != nil {
 		return st, fmt.Errorf("copiando produtos: %w", err)
@@ -196,6 +196,7 @@ type seedProduct struct {
 	id         uuid.UUID
 	sku, name  string
 	desc       string
+	brand      string
 	categoryID uuid.UUID
 	rootSlug   string
 	imageURL   string
@@ -208,7 +209,7 @@ type seedProduct struct {
 // domain é o produto como o repositório o devolveria logo após o Create (versão 1).
 func (p seedProduct) domain() domain.Product {
 	return domain.Product{
-		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, CategoryID: p.categoryID, ImageURL: &p.imageURL, Image: p.image,
+		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, Brand: &p.brand, CategoryID: p.categoryID, ImageURL: &p.imageURL, Image: p.image,
 		PriceCents: p.price, Currency: "BRL",
 		Status: domain.ProductStatus(p.status), Version: 1, CreatedAt: p.createdAt, UpdatedAt: p.createdAt,
 	}
@@ -216,7 +217,7 @@ func (p seedProduct) domain() domain.Product {
 
 func (p seedProduct) row() []any {
 	image, _ := json.Marshal(p.image) // tipos simples: não falha
-	return []any{p.id, p.sku, p.name, p.desc, p.categoryID, p.imageURL, image, p.price, "BRL", p.status, p.createdAt, p.createdAt}
+	return []any{p.id, p.sku, p.name, p.desc, p.brand, p.categoryID, p.imageURL, image, p.price, "BRL", p.status, p.createdAt, p.createdAt}
 }
 
 func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, mediaURL string) []seedProduct {
@@ -246,6 +247,7 @@ func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, me
 			sku:        sku,
 			name:       fmt.Sprintf("%s %s %s", noun, brand, attr),
 			desc:       fmt.Sprintf("%s %s %s. Garantia de 12 meses e entrega para todo o Brasil.", noun, brand, attr),
+			brand:      brand,
 			categoryID: sub.id,
 			rootSlug:   sub.rootSlug,
 			imageURL:   imageURL,
