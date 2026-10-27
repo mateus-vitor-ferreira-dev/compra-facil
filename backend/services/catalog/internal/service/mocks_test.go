@@ -45,6 +45,11 @@ func (m *productRepoMock) List(ctx context.Context, f domain.ProductFilter) (dom
 	return args.Get(0).(domain.Page[domain.Product]), args.Error(1)
 }
 
+func (m *productRepoMock) Brands(ctx context.Context, f domain.ProductFilter, limit int) ([]domain.BrandCount, error) {
+	args := m.Called(ctx, f, limit)
+	return args.Get(0).([]domain.BrandCount), args.Error(1)
+}
+
 type categoryRepoMock struct{ mock.Mock }
 
 func (m *categoryRepoMock) Create(ctx context.Context, c *domain.Category) error {
@@ -98,6 +103,11 @@ func (m *campaignRepoMock) NextStart(ctx context.Context, now time.Time) (time.T
 func (m *campaignRepoMock) List(ctx context.Context, cursor string, limit int) (domain.Page[domain.Campaign], error) {
 	args := m.Called(ctx, cursor, limit)
 	return args.Get(0).(domain.Page[domain.Campaign]), args.Error(1)
+}
+
+func (m *campaignRepoMock) ProductIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).([]uuid.UUID), args.Error(1)
 }
 
 func (m *campaignRepoMock) SetProducts(ctx context.Context, id uuid.UUID, ids []uuid.UUID) error {

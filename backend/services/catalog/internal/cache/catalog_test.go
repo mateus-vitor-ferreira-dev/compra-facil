@@ -82,6 +82,7 @@ func (s *memStore) ttlOf(prefix string) (time.Duration, bool) {
 type fakeReaders struct {
 	product   domain.Product
 	page      domain.Page[domain.Product]
+	brands    []domain.BrandCount
 	campaigns []domain.Campaign
 	nextStart time.Time
 	nextErr   error
@@ -102,6 +103,11 @@ func (f *fakeReaders) GetPublic(context.Context, uuid.UUID) (domain.Product, err
 func (f *fakeReaders) ListPublic(context.Context, service.ListProductsInput) (domain.Page[domain.Product], error) {
 	f.listCalls.Add(1)
 	return f.page, f.err
+}
+
+func (f *fakeReaders) ListBrands(context.Context, service.ListProductsInput) ([]domain.BrandCount, error) {
+	f.listCalls.Add(1)
+	return f.brands, f.err
 }
 
 func (f *fakeReaders) List(context.Context) ([]domain.Category, error) {

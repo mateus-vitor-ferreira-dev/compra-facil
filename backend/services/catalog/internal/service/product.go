@@ -37,15 +37,46 @@ type ListProductsInput struct {
 	MinPriceCents *int64
 	MaxPriceCents *int64
 	OnSale        bool
-	Cursor        string
-	Limit         int
+	// Brands: uma ou mais marcas (contrato: brand, separadas por vírgula).
+	Brands []string
+	// Sort: vazio é o padrão (relevância com Query, mais novos sem).
+	Sort   domain.ProductSort
+	Cursor string
+	Limit  int
 }
+
+// maxBrandFilters é o máximo de marcas num filtro (contrato: brand, maxItems).
+const maxBrandFilters = 20
 
 // ListPublic lista só produtos ativos, como o cliente vê.
 func (s *ProductService) ListPublic(ctx context.Context, in ListProductsInput) (domain.Page[domain.Product], error) {
+	filter, found, err := s.publicFilter(ctx, in)
+	if err != nil || !found {
+		return domain.Page[domain.Product]{Items: []domain.Product{}}, err
+	}
+	return s.list(ctx, filter)
+}
+
+// ListBrands conta as marcas dos produtos ativos da listagem (os mesmos filtros, sem o de marca).
+func (s *ProductService) ListBrands(ctx context.Context, in ListProductsInput) ([]domain.BrandCount, error) {
+	in.Brands, in.Sort, in.Cursor, in.Limit = nil, "", "", 0
+	filter, found, err := s.publicFilter(ctx, in)
+	if err != nil || !found {
+		return []domain.BrandCount{}, err
+	}
+	brands, err := s.products.Brands(ctx, filter, 0)
+	if err != nil {
+		return nil, fmt.Errorf("contando marcas: %w", err)
+	}
+	return brands, nil
+}
+
+// publicFilter valida a entrada e monta o filtro dos produtos ativos. found é false quando a categoria
+// não existe: a listagem é vazia, não um erro.
+func (s *ProductService) publicFilter(ctx context.Context, in ListProductsInput) (domain.ProductFilter, bool, error) {
 	query := strings.TrimSpace(in.Query)
 	if err := validateListInput(query, in); err != nil {
-		return domain.Page[domain.Product]{}, err
+		return domain.ProductFilter{}, false, err
 	}
 
 	active := domain.ProductActive
@@ -55,6 +86,8 @@ func (s *ProductService) ListPublic(ctx context.Context, in ListProductsInput) (
 		MinPriceCents: in.MinPriceCents,
 		MaxPriceCents: in.MaxPriceCents,
 		OnSale:        in.OnSale,
+		Brands:        in.Brands,
+		Sort:          in.Sort,
 		Now:           s.now(),
 		Cursor:        in.Cursor,
 		Limit:         in.Limit,
@@ -63,16 +96,14 @@ func (s *ProductService) ListPublic(ctx context.Context, in ListProductsInput) (
 	if in.CategorySlug != "" {
 		ids, err := s.categorySubtree(ctx, in.CategorySlug)
 		if errors.Is(err, domain.ErrNotFound) {
-			// filtro por categoria inexistente: lista vazia, não erro
-			return domain.Page[domain.Product]{Items: []domain.Product{}}, nil
+			return filter, false, nil
 		}
 		if err != nil {
-			return domain.Page[domain.Product]{}, err
+			return filter, false, err
 		}
 		filter.CategoryIDs = ids
 	}
-
-	return s.list(ctx, filter)
+	return filter, true, nil
 }
 
 func validateListInput(query string, in ListProductsInput) error {
@@ -91,6 +122,18 @@ func validateListInput(query string, in ListProductsInput) error {
 	}
 	if in.MinPriceCents != nil && in.MaxPriceCents != nil && *in.MinPriceCents > *in.MaxPriceCents {
 		fields = append(fields, domain.FieldError{Field: "max_price_cents", Message: "deve ser maior ou igual a min_price_cents"})
+	}
+	if in.Sort != "" && !in.Sort.Valid() {
+		fields = append(fields, domain.FieldError{Field: "sort", Message: "use relevance, price_asc, price_desc, discount ou newest"})
+	}
+	if len(in.Brands) > maxBrandFilters {
+		fields = append(fields, domain.FieldError{Field: "brand", Message: fmt.Sprintf("no máximo %d marcas", maxBrandFilters)})
+	}
+	for _, b := range in.Brands {
+		if n := utf8.RuneCountInString(strings.TrimSpace(b)); n < 1 || n > domain.MaxBrandLength {
+			fields = append(fields, domain.FieldError{Field: "brand", Message: fmt.Sprintf("cada marca tem de 1 a %d caracteres", domain.MaxBrandLength)})
+			break
+		}
 	}
 	if len(fields) > 0 {
 		return &domain.ValidationError{Fields: fields}
@@ -136,6 +179,8 @@ func (s *ProductService) GetMany(ctx context.Context, ids []uuid.UUID) ([]domain
 
 type AdminListInput struct {
 	Status *domain.ProductStatus
+	// Query busca por nome, marca, descrição e SKU (a mesma busca da vitrine), em qualquer status.
+	Query  string
 	SKU    string
 	Cursor string
 	Limit  int
@@ -148,9 +193,25 @@ func (s *ProductService) AdminList(ctx context.Context, in AdminListInput) (doma
 	if err := validateLimit(in.Limit); err != nil {
 		return domain.Page[domain.Product]{}, domain.Invalid("limit", err.Error())
 	}
+	query := strings.TrimSpace(in.Query)
+	if n := utf8.RuneCountInString(query); query != "" && (n < 2 || n > 100) {
+		return domain.Page[domain.Product]{}, domain.Invalid("q", "deve ter entre 2 e 100 caracteres")
+	}
 	return s.list(ctx, domain.ProductFilter{
-		Status: in.Status, SKU: strings.TrimSpace(in.SKU), Now: s.now(), Cursor: in.Cursor, Limit: in.Limit,
+		Status: in.Status, Query: query, SKU: strings.TrimSpace(in.SKU), Now: s.now(), Cursor: in.Cursor, Limit: in.Limit,
 	})
+}
+
+// AdminGetMany devolve os produtos dos ids em qualquer status (os produtos de uma campanha, até 1000).
+func (s *ProductService) AdminGetMany(ctx context.Context, ids []uuid.UUID) ([]domain.Product, error) {
+	if len(ids) > domain.MaxCampaignItems {
+		return nil, domain.Invalid("product_ids", fmt.Sprintf("no máximo %d por chamada", domain.MaxCampaignItems))
+	}
+	products, err := s.products.GetByIDs(ctx, ids, s.now())
+	if err != nil {
+		return nil, fmt.Errorf("produtos %v: %w", ids, err)
+	}
+	return products, nil
 }
 
 func (s *ProductService) AdminGet(ctx context.Context, id uuid.UUID) (domain.Product, error) {
@@ -166,6 +227,7 @@ type ProductInput struct {
 	SKU         string
 	Name        string
 	Description string
+	Brand       *string
 	CategoryID  uuid.UUID
 	ImageURL    *string
 	PriceCents  int64
@@ -174,7 +236,7 @@ type ProductInput struct {
 
 func (in ProductInput) toProduct() domain.Product {
 	p := domain.Product{
-		SKU: in.SKU, Name: in.Name, Description: in.Description, CategoryID: in.CategoryID,
+		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
 		ImageURL: in.ImageURL, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
 	}
 	p.Normalize()

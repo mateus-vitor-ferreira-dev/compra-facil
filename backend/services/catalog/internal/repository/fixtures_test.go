@@ -27,8 +27,9 @@ func mustCategory(t *testing.T, slug string, parent *uuid.UUID) domain.Category 
 
 type productOpt func(*domain.Product)
 
-func withName(name string) productOpt  { return func(p *domain.Product) { p.Name = name } }
-func withPrice(cents int64) productOpt { return func(p *domain.Product) { p.PriceCents = cents } }
+func withName(name string) productOpt   { return func(p *domain.Product) { p.Name = name } }
+func withPrice(cents int64) productOpt  { return func(p *domain.Product) { p.PriceCents = cents } }
+func withBrand(brand string) productOpt { return func(p *domain.Product) { p.Brand = &brand } }
 func withStatus(s domain.ProductStatus) productOpt {
 	return func(p *domain.Product) { p.Status = s }
 }

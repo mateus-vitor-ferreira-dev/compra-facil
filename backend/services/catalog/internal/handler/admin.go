@@ -27,6 +27,7 @@ type productAdmin interface {
 	Create(ctx context.Context, in service.ProductInput) (domain.Product, error)
 	Update(ctx context.Context, id uuid.UUID, in service.ProductInput, expectedVersion int) (domain.Product, error)
 	Delete(ctx context.Context, id uuid.UUID) error
+	AdminGetMany(ctx context.Context, ids []uuid.UUID) ([]domain.Product, error)
 }
 
 type categoryAdmin interface {
@@ -35,6 +36,8 @@ type categoryAdmin interface {
 
 type campaignAdmin interface {
 	AdminList(ctx context.Context, cursor string, limit int) (domain.Page[domain.Campaign], error)
+	Get(ctx context.Context, id uuid.UUID) (domain.Campaign, error)
+	ProductIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
 	Create(ctx context.Context, in service.CampaignInput) (domain.Campaign, error)
 	Update(ctx context.Context, id uuid.UUID, in service.CampaignInput) (domain.Campaign, error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -67,8 +70,10 @@ func (h *AdminHandler) Register(r gin.IRouter) {
 	admin.POST("/categories", h.createCategory)
 	admin.GET("/campaigns", h.listCampaigns)
 	admin.POST("/campaigns", h.createCampaign)
+	admin.GET("/campaigns/:campaign_id", h.getCampaign)
 	admin.PUT("/campaigns/:campaign_id", h.updateCampaign)
 	admin.DELETE("/campaigns/:campaign_id", h.deleteCampaign)
+	admin.GET("/campaigns/:campaign_id/products", h.listCampaignProducts)
 	admin.PUT("/campaigns/:campaign_id/products", h.setCampaignProducts)
 }
 
@@ -78,6 +83,7 @@ type productInputDTO struct {
 	SKU         string               `json:"sku"`
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
+	Brand       *string              `json:"brand"`
 	CategoryID  uuid.UUID            `json:"category_id"`
 	ImageURL    *string              `json:"image_url"`
 	PriceCents  int64                `json:"price_cents"`
@@ -86,13 +92,13 @@ type productInputDTO struct {
 
 func (in productInputDTO) toService() service.ProductInput {
 	return service.ProductInput{
-		SKU: in.SKU, Name: in.Name, Description: in.Description, CategoryID: in.CategoryID,
+		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
 		ImageURL: in.ImageURL, PriceCents: in.PriceCents, Status: in.Status,
 	}
 }
 
 func (h *AdminHandler) listProducts(c *gin.Context) {
-	in := service.AdminListInput{SKU: c.Query("sku"), Cursor: c.Query("cursor")}
+	in := service.AdminListInput{Query: c.Query("q"), SKU: c.Query("sku"), Cursor: c.Query("cursor")}
 	if raw := c.Query("status"); raw != "" {
 		status := domain.ProductStatus(raw)
 		in.Status = &status
@@ -248,6 +254,49 @@ func (h *AdminHandler) createCampaign(c *gin.Context) {
 	h.audit(c, "campanha criada", "campaign_id", camp.ID)
 	c.Header("Location", "/v1/admin/campaigns/"+camp.ID.String())
 	c.JSON(http.StatusCreated, toCampaignDTO(camp))
+}
+
+func (h *AdminHandler) getCampaign(c *gin.Context) {
+	id, ok := pathUUID(c, "campaign_id")
+	if !ok {
+		return
+	}
+	camp, err := h.campaigns.Get(c.Request.Context(), id)
+	if err != nil {
+		respondError(c, h.log, err)
+		return
+	}
+	c.JSON(http.StatusOK, toCampaignDTO(camp))
+}
+
+// listCampaignProducts: os produtos da campanha em qualquer status, para o painel mostrar e editar a lista.
+func (h *AdminHandler) listCampaignProducts(c *gin.Context) {
+	id, ok := pathUUID(c, "campaign_id")
+	if !ok {
+		return
+	}
+	ids, err := h.campaigns.ProductIDs(c.Request.Context(), id)
+	if err != nil {
+		respondError(c, h.log, err)
+		return
+	}
+	products, err := h.products.AdminGetMany(c.Request.Context(), ids)
+	if err != nil {
+		respondError(c, h.log, err)
+		return
+	}
+	// a ordem do repositório (por nome); GetByIDs não garante ordem
+	byID := make(map[uuid.UUID]domain.Product, len(products))
+	for _, p := range products {
+		byID[p.ID] = p
+	}
+	out := make([]adminProductDTO, 0, len(ids))
+	for _, pid := range ids {
+		if p, found := byID[pid]; found {
+			out = append(out, toAdminProductDTO(p))
+		}
+	}
+	c.JSON(http.StatusOK, listDTO[adminProductDTO]{Data: out})
 }
 
 func (h *AdminHandler) updateCampaign(c *gin.Context) {

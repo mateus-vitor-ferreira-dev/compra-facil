@@ -33,6 +33,7 @@ type productDTO struct {
 	SKU            string          `json:"sku"`
 	Name           string          `json:"name"`
 	Description    string          `json:"description"`
+	Brand          *string         `json:"brand"`
 	Category       categoryRefDTO  `json:"category"`
 	ImageURL       *string         `json:"image_url"`
 	Image          *imageDTO       `json:"image"`
@@ -112,6 +113,7 @@ func toProductDTO(p domain.Product) productDTO {
 		SKU:            p.SKU,
 		Name:           p.Name,
 		Description:    p.Description,
+		Brand:          p.Brand,
 		Category:       categoryRefDTO{ID: p.Category.ID, Slug: p.Category.Slug, Name: p.Category.Name},
 		ImageURL:       p.ImageURL,
 		Image:          toImageDTO(p),
@@ -167,4 +169,14 @@ func mapSlice[T, R any](in []T, f func(T) R) []R {
 		out[i] = f(v)
 	}
 	return out
+}
+
+// brandCountDTO é o BrandCount do contrato: uma marca e quantos produtos da listagem a têm.
+type brandCountDTO struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type brandsDTO struct {
+	Data []brandCountDTO `json:"data"`
 }

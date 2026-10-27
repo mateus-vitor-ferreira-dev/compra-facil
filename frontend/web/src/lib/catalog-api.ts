@@ -56,13 +56,31 @@ export function getProduct(id: string): Promise<Result<Product>> {
   });
 }
 
+export type BrandCount = components["schemas"]["BrandCount"];
+export type ProductSort = components["schemas"]["ProductSort"];
+
 export type ProductQuery = {
   q?: string;
   category?: string;
   onSale?: boolean;
+  brands?: string[];
+  minPriceCents?: number;
+  maxPriceCents?: number;
+  sort?: ProductSort;
   cursor?: string;
   limit?: number;
 };
+
+/** Os filtros da listagem como a API recebe (os mesmos em /v1/products e /v1/brands). */
+function filterParams(query: ProductQuery) {
+  return {
+    q: query.q || undefined,
+    category: query.category || undefined,
+    on_sale: query.onSale || undefined,
+    min_price_cents: query.minPriceCents,
+    max_price_cents: query.maxPriceCents,
+  };
+}
 
 export function listProducts(query: ProductQuery): Promise<Result<ProductPage>> {
   return call(async () => {
@@ -71,15 +89,25 @@ export function listProducts(query: ProductQuery): Promise<Result<ProductPage>> 
       .GET("/v1/products", {
         params: {
           query: {
-            q: query.q || undefined,
-            category: query.category || undefined,
-            on_sale: query.onSale || undefined,
+            ...filterParams(query),
+            brand: query.brands?.length ? query.brands : undefined,
+            sort: query.sort,
             cursor: query.cursor || undefined,
             limit: query.limit ?? 24,
           },
         },
       });
     return { data: r.data, response: r.response };
+  });
+}
+
+/** As marcas da listagem com a contagem (o filtro de marca), pelos mesmos filtros, sem o de marca. */
+export function listBrands(query: ProductQuery): Promise<Result<BrandCount[]>> {
+  return call(async () => {
+    const r = await api
+      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
+      .GET("/v1/brands", { params: { query: filterParams(query) } });
+    return { data: r.data?.data, response: r.response };
   });
 }
 

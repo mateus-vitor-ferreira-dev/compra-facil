@@ -41,11 +41,18 @@ export default async function AccountPage({ searchParams }: Props) {
             {account.name} ({account.email})
           </p>
         </div>
-        <form action={logout}>
-          <SubmitButton variant="secondary" size="sm" pendingLabel="Saindo…">
-            Sair
-          </SubmitButton>
-        </form>
+        <div className="flex flex-wrap gap-2">
+          {account.roles.includes("admin") && (
+            <Link href="/admin" className={buttonVariants({ variant: "primary", size: "sm" })}>
+              Abrir o painel
+            </Link>
+          )}
+          <form action={logout}>
+            <SubmitButton variant="secondary" size="sm" pendingLabel="Saindo…">
+              Sair
+            </SubmitButton>
+          </form>
+        </div>
       </div>
 
       <section aria-labelledby="pedidos" className="mt-10 max-w-3xl">

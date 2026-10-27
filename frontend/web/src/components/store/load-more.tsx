@@ -17,7 +17,7 @@ export function LoadMore({
   cursor,
   pageHref,
 }: {
-  /** os filtros da listagem, como a API recebe (q, category, on_sale) */
+  /** os filtros da listagem, como a API recebe (q, category, on_sale, brand, preço, sort) */
   query: Record<string, string>;
   cursor: string;
   /** a próxima página por link, para quem está sem JavaScript */

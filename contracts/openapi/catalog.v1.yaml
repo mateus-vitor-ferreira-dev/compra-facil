@@ -35,8 +35,9 @@ paths:
       operationId: listProducts
       summary: Lista e busca produtos
       description: |
-        Sem `q`, ordena do mais novo para o mais antigo. Com `q`, faz busca por texto (nome, descrição
-        e SKU, tolerante a erro de digitação) e ordena por relevância. Retorna só produtos `active`.
+        Com `q`, faz busca por texto (nome, descrição, marca e SKU, tolerante a erro de digitação).
+        Retorna só produtos `active`. A ordem vem de `sort`; sem ele, relevância com `q` e mais novos sem
+        `q`. O cursor vale só para a mesma ordem e os mesmos filtros.
       parameters:
         - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
         - $ref: "./common/v1/common.yaml#/components/parameters/Cursor"
@@ -71,6 +72,14 @@ paths:
           description: Só produtos em campanha ativa.
           schema:
             type: boolean
+        - $ref: "#/components/parameters/Brand"
+        - name: sort
+          in: query
+          description: |
+            `relevance` (só com `q`), `price_asc` e `price_desc` (preço efetivo, já com desconto),
+            `discount` (maior desconto de campanha primeiro) e `newest`.
+          schema:
+            $ref: "#/components/schemas/ProductSort"
       responses:
         "200":
           description: Página de produtos.
@@ -81,6 +90,64 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProductPage"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/brands:
+    get:
+      tags: [products]
+      operationId: listBrands
+      summary: Marcas dos produtos de uma listagem, com a contagem
+      description: |
+        As marcas dos produtos `active` que passam nos mesmos filtros da listagem (sem o próprio
+        `brand`), da mais frequente para a menos (até 50). O front monta o filtro de marca com elas.
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: q
+          in: query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: min_price_cents
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: max_price_cents
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: on_sale
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Marcas com a quantidade de produtos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BrandCount"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "422":
@@ -216,6 +283,13 @@ paths:
           description: Busca exata por SKU.
           schema:
             type: string
+        - name: q
+          in: query
+          description: Busca por nome, marca, descrição e SKU (a mesma da vitrine), em qualquer status.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
       responses:
         "200":
           description: Página de produtos.
@@ -438,6 +512,27 @@ paths:
   /v1/admin/campaigns/{campaign_id}:
     parameters:
       - $ref: "#/components/parameters/CampaignId"
+    get:
+      tags: [admin]
+      operationId: adminGetCampaign
+      summary: Detalhe de uma campanha
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Campanha.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
     put:
       tags: [admin]
       operationId: updateCampaign
@@ -493,6 +588,34 @@ paths:
   /v1/admin/campaigns/{campaign_id}/products:
     parameters:
       - $ref: "#/components/parameters/CampaignId"
+    get:
+      tags: [admin]
+      operationId: adminListCampaignProducts
+      summary: Os produtos da campanha
+      description: Em qualquer status, por nome (até 1000, o máximo de uma campanha).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Produtos da campanha.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminProduct"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
     put:
       tags: [admin]
       operationId: setCampaignProducts
@@ -535,6 +658,19 @@ paths:
 
 components:
   parameters:
+    Brand:
+      name: brand
+      in: query
+      description: Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas).
+      style: form
+      explode: false
+      schema:
+        type: array
+        maxItems: 20
+        items:
+          type: string
+          minLength: 1
+          maxLength: 80
     ProductId:
       name: product_id
       in: path
@@ -577,6 +713,9 @@ components:
           examples: ["Smart TV 55\" QLED"]
         description:
           type: string
+        brand:
+          type: [string, "null"]
+          examples: ["Samsung"]
         category:
           $ref: "#/components/schemas/CategoryRef"
         image_url:
@@ -670,6 +809,10 @@ components:
         description:
           type: string
           maxLength: 5000
+        brand:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 80
         category_id:
           type: string
           format: uuid
@@ -683,6 +826,20 @@ components:
           maximum: 100000000
         status:
           $ref: "#/components/schemas/ProductStatus"
+
+    ProductSort:
+      type: string
+      enum: [relevance, price_asc, price_desc, discount, newest]
+
+    BrandCount:
+      type: object
+      required: [name, count]
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+          minimum: 1
 
     ProductPage:
       type: object

@@ -23,12 +23,15 @@ internal sealed class RefreshTokenRepository(IdentityDbContext db) : IRefreshTok
 
     private const int FamilyLockClass = 1;
 
-    public Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, RevocationReason reason, CancellationToken ct) =>
+    public Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, RevocationReason reason, CancellationToken ct, Guid? except = null) =>
         db.RefreshTokens
-            .Where(t => t.FamilyId == familyId && t.RevokedAt == null)
+            .Where(t => t.FamilyId == familyId && t.RevokedAt == null && t.Id != except)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.RevokedAt, now)
                 .SetProperty(t => t.RevocationReason, reason), ct);
+
+    public Task<bool> FamilyIsActiveAsync(Guid familyId, DateTimeOffset now, CancellationToken ct) =>
+        db.RefreshTokens.AnyAsync(t => t.FamilyId == familyId && t.RevokedAt == null && t.ExpiresAt > now, ct);
 
     public async Task SaveChangesAsync(CancellationToken ct)
     {

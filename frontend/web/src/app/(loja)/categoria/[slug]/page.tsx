@@ -5,11 +5,11 @@ import { connection } from "next/server";
 import { buttonVariants } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { CatalogErrorState } from "@/components/store/catalog-error";
-import { FilterChip } from "@/components/store/filter-chip";
+import { ActiveFilters, ListingFilters } from "@/components/store/listing-filters";
 import { ProductListing } from "@/components/store/product-listing";
 import { brand } from "@/lib/brand";
 import { getCategories, type Category } from "@/lib/catalog-api";
-import { readFilters, withFilter } from "@/lib/storefront";
+import { activeFilterCount, readFilters, withFilter, withoutRefinements } from "@/lib/storefront";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -60,7 +60,9 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   if (!found.category) notFound();
   const { category, parent, root, subcategories } = found;
 
-  const { onSale, cursor } = readFilters(query);
+  const filters = readFilters(query);
+  const { onSale, cursor } = filters;
+  const filtered = activeFilterCount(filters) > 0;
 
   return (
     <main id="conteudo" className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6">
@@ -106,39 +108,50 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         </nav>
       )}
 
-      <div>
-        <FilterChip href={withFilter(path, query, "promocao", onSale ? null : "1")} active={onSale}>
-          Só em promoção
-        </FilterChip>
+      <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
+        <ListingFilters path={path} params={query} filters={filters} keep={{}} category={slug} />
+        <div className="min-w-0 space-y-4">
+          <ActiveFilters path={path} params={query} filters={filters} />
+          <ProductListing
+            query={{
+              category: slug,
+              onSale,
+              brands: filters.brands,
+              minPriceCents: filters.minPriceCents,
+              maxPriceCents: filters.maxPriceCents,
+              sort: filters.sort.api,
+              cursor,
+            }}
+            label={`Produtos em ${category.name}`}
+            selfHref={withFilter(path, query, "cursor", cursor ?? null)}
+            nextHref={(next) => withFilter(path, query, "cursor", next)}
+            empty={
+              filtered
+                ? {
+                    title: `Nenhum produto em ${category.name} com esses filtros`,
+                    description: "Tire uma marca, amplie a faixa de preço ou limpe os filtros.",
+                    action: (
+                      <Link
+                        href={withoutRefinements(path, query)}
+                        className={buttonVariants({ variant: "secondary" })}
+                      >
+                        Limpar filtros
+                      </Link>
+                    ),
+                  }
+                : {
+                    title: `Ainda não há produtos em ${category.name}`,
+                    description: "Veja as outras categorias ou as ofertas da semana.",
+                    action: (
+                      <Link href="/ofertas" className={buttonVariants({ variant: "secondary" })}>
+                        Ver as ofertas
+                      </Link>
+                    ),
+                  }
+            }
+          />
+        </div>
       </div>
-
-      <ProductListing
-        query={{ category: slug, onSale, cursor }}
-        label={`Produtos em ${category.name}`}
-        selfHref={withFilter(path, query, "cursor", cursor ?? null)}
-        nextHref={(next) => withFilter(path, query, "cursor", next)}
-        empty={
-          onSale
-            ? {
-                title: `Nada em promoção em ${category.name} agora`,
-                description: "Tire o filtro para ver todos os produtos da categoria.",
-                action: (
-                  <Link href={path} className={buttonVariants({ variant: "secondary" })}>
-                    Ver todos em {category.name}
-                  </Link>
-                ),
-              }
-            : {
-                title: `Ainda não há produtos em ${category.name}`,
-                description: "Veja as outras categorias ou as ofertas da semana.",
-                action: (
-                  <Link href="/ofertas" className={buttonVariants({ variant: "secondary" })}>
-                    Ver as ofertas
-                  </Link>
-                ),
-              }
-        }
-      />
     </main>
   );
 }

@@ -3,6 +3,7 @@ using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.Identity.Application.Accounts;
 using CompraFacil.Identity.Application.Tokens;
 using CompraFacil.Identity.Domain;
+using CompraFacil.Identity.Infrastructure.Google;
 using CompraFacil.Identity.Infrastructure.Keys;
 using CompraFacil.Identity.Infrastructure.Persistence;
 using Microsoft.AspNetCore.DataProtection;
@@ -63,6 +64,11 @@ public static class DependencyInjection
 
         // contracts/asyncapi/identity.v1.yaml: só publica (o outbox garante que conta e evento saem juntos)
         builder.AddMessaging<IdentityDbContext>("identity", m => m.Produces(AccountEvents.Topic));
+
+        // login com o Google (#180): o ID token vem do BFF e é validado pelo JWKS do Google
+        builder.Services.Configure<GoogleOptions>(builder.Configuration.GetSection(GoogleOptions.Section));
+        builder.Services.AddHttpClient(GoogleTokenValidator.HttpClientName);
+        builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 
         builder.Services.Configure<AdminSeedOptions>(builder.Configuration.GetSection(AdminSeedOptions.Section));
         builder.Services.AddScoped<AdminSeeder>();

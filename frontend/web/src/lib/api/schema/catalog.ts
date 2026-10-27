@@ -9,10 +9,32 @@ export interface paths {
         };
         /**
          * Lista e busca produtos
-         * @description Sem `q`, ordena do mais novo para o mais antigo. Com `q`, faz busca por texto (nome, descrição
-         *     e SKU, tolerante a erro de digitação) e ordena por relevância. Retorna só produtos `active`.
+         * @description Com `q`, faz busca por texto (nome, descrição, marca e SKU, tolerante a erro de digitação).
+         *     Retorna só produtos `active`. A ordem vem de `sort`; sem ele, relevância com `q` e mais novos sem
+         *     `q`. O cursor vale só para a mesma ordem e os mesmos filtros.
          */
         get: operations["listProducts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Marcas dos produtos de uma listagem, com a contagem
+         * @description As marcas dos produtos `active` que passam nos mesmos filtros da listagem (sem o próprio
+         *     `brand`), da mais frequente para a menos (até 50). O front monta o filtro de marca com elas.
+         */
+        get: operations["listBrands"];
         put?: never;
         post?: never;
         delete?: never;
@@ -173,7 +195,8 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /** Detalhe de uma campanha */
+        get: operations["adminGetCampaign"];
         /**
          * Altera uma campanha
          * @description Mudar datas ou desconto publica `price_changed` para os produtos afetados.
@@ -196,7 +219,11 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Os produtos da campanha
+         * @description Em qualquer status, por nome (até 1000, o máximo de uma campanha).
+         */
+        get: operations["adminListCampaignProducts"];
         /**
          * Define os produtos da campanha
          * @description Substitui a lista inteira. Um produto só pode estar em uma campanha por período.
@@ -231,6 +258,8 @@ export interface components {
             /** @example Smart TV 55" QLED */
             name: string;
             description?: string;
+            /** @example Samsung */
+            brand?: string | null;
             category: components["schemas"]["CategoryRef"];
             /**
              * Format: uri
@@ -287,6 +316,7 @@ export interface components {
             sku: components["schemas"]["Sku"];
             name: string;
             description?: string;
+            brand?: string | null;
             /** Format: uuid */
             category_id: string;
             /** Format: uri */
@@ -294,6 +324,12 @@ export interface components {
             /** Format: int64 */
             price_cents: number;
             status: components["schemas"]["ProductStatus"];
+        };
+        /** @enum {string} */
+        ProductSort: "relevance" | "price_asc" | "price_desc" | "discount" | "newest";
+        BrandCount: {
+            name: string;
+            count: number;
         };
         ProductPage: {
             data: components["schemas"]["Product"][];
@@ -510,6 +546,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
+        Brand: string[];
         ProductId: string;
         CampaignId: string;
         /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
@@ -550,6 +588,13 @@ export interface operations {
                 max_price_cents?: number;
                 /** @description Só produtos em campanha ativa. */
                 on_sale?: boolean;
+                /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
+                brand?: components["parameters"]["Brand"];
+                /**
+                 * @description `relevance` (só com `q`), `price_asc` e `price_desc` (preço efetivo, já com desconto),
+                 *     `discount` (maior desconto de campanha primeiro) e `newest`.
+                 */
+                sort?: components["schemas"]["ProductSort"];
             };
             header?: {
                 /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
@@ -568,6 +613,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listBrands: {
+        parameters: {
+            query?: {
+                q?: string;
+                category?: string;
+                min_price_cents?: number;
+                max_price_cents?: number;
+                on_sale?: boolean;
+            };
+            header?: {
+                /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcas com a quantidade de produtos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BrandCount"][];
+                    };
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -661,6 +741,8 @@ export interface operations {
                 status?: components["schemas"]["ProductStatus"];
                 /** @description Busca exata por SKU. */
                 sku?: string;
+                /** @description Busca por nome, marca, descrição e SKU (a mesma da vitrine), em qualquer status. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -902,6 +984,32 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    adminGetCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: components["parameters"]["CampaignId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Campanha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Campaign"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     updateCampaign: {
         parameters: {
             query?: never;
@@ -952,6 +1060,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    adminListCampaignProducts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: components["parameters"]["CampaignId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Produtos da campanha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminProduct"][];
+                    };
+                };
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

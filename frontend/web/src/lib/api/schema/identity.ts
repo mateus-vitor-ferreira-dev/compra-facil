@@ -104,6 +104,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login (ou cadastro) com a conta Google
+         * @description Recebe o ID token que o BFF obteve do Google (authorization code com PKCE) e o `nonce` que ele
+         *     gerou para este login. O identity valida a assinatura pelo JWKS do Google, o emissor, o `aud`
+         *     (o client id da loja), a validade, o `nonce` e `email_verified`.
+         *
+         *     A conta é achada pelo `sub` do Google, não pelo e-mail: trocar o e-mail no Google não muda a
+         *     conta. Sem conta, cria uma já confirmada (sem senha), com o papel `customer`. Se o e-mail já tem
+         *     conta com senha, responde `409` (título "Conta já existe"): o vínculo é por `linkGoogleSession`,
+         *     com a senha, para que um Google com o mesmo e-mail não entre na conta de outra pessoa.
+         */
+        post: operations["createGoogleSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/google/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Vincula o Google à conta do mesmo e-mail, com a senha dela
+         * @description Valida o ID token como `createGoogleSession`, confere a senha da conta do mesmo e-mail (com o
+         *     bloqueio por tentativas do login) e liga o `sub` do Google a ela. Daí em diante, o Google sozinho
+         *     entra nela.
+         */
+        post: operations["linkGoogleSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/refresh": {
         parameters: {
             query?: never;
@@ -116,8 +165,10 @@ export interface paths {
         /**
          * Troca o refresh token por um par novo
          * @description O refresh token enviado deixa de valer; guarde o novo. Token inválido, expirado, revogado ou já
-         *     trocado dá `401`. Um token já trocado, apresentado de novo (inclusive dois refresh simultâneos com
-         *     o mesmo token), derruba a sessão inteira.
+         *     trocado dá `401`. Um token já trocado, apresentado de novo, derruba a sessão inteira, a não ser
+         *     dentro do intervalo de reuso (`Identity:Tokens:RefreshReuseInterval`, 10 s): logo depois da troca,
+         *     ele ainda dá um par novo da mesma sessão (dois refresh simultâneos com o mesmo token passam). A
+         *     próxima troca normal invalida os pares que sobraram.
          */
         post: operations["refreshSession"];
         delete?: never;
@@ -201,6 +252,17 @@ export interface components {
             password: string;
             /** @example Ana Souza */
             name: string;
+        };
+        GoogleSessionRequest: {
+            /** @description O ID token (JWT) que o Google devolveu ao BFF. */
+            id_token: string;
+            /** @description O nonce que o BFF gerou para este login (vem dentro do ID token). */
+            nonce: string;
+        };
+        GoogleLinkRequest: {
+            id_token: string;
+            nonce: string;
+            password: string;
         };
         LoginRequest: {
             email: components["schemas"]["Email"];
@@ -539,6 +601,65 @@ export interface operations {
                 };
             };
             422: components["responses"]["UnprocessableEntity"];
+            /** @description Conta bloqueada temporariamente por senhas erradas. */
+            423: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    createGoogleSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleSessionRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Tokens"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description O e-mail já tem conta com senha; vincule com `linkGoogleSession`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    linkGoogleSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleLinkRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Tokens"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             /** @description Conta bloqueada temporariamente por senhas erradas. */
             423: {
                 headers: {

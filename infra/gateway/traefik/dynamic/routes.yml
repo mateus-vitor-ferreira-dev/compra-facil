@@ -8,27 +8,33 @@ http:
       service: catalog
       # vitrine: recebe o pico das campanhas, por isso o rate limit
       # catalog-problem-429 antes do rate limit: o errors só enxerga respostas de quem vem depois dele
-      middlewares: [cors, security-headers, catalog-problem-429, catalog-rate-limit, strip-service-prefix]
+      middlewares: [cors, security-headers, strip-bff-key, catalog-problem-429, catalog-rate-limit, strip-service-prefix]
     orders:
       rule: PathPrefix(`/orders`)
       entryPoints: [web]
       service: orders
-      middlewares: [cors, security-headers, strip-service-prefix]
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
     inventory:
       rule: PathPrefix(`/inventory`)
       entryPoints: [web]
       service: inventory
-      middlewares: [cors, security-headers, strip-service-prefix]
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
     payments:
       rule: PathPrefix(`/payments`)
       entryPoints: [web]
       service: payments
-      middlewares: [cors, security-headers, strip-service-prefix]
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
     identity:
       rule: PathPrefix(`/identity`)
       entryPoints: [web]
       service: identity
-      middlewares: [cors, security-headers, strip-service-prefix]
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
+    # dos avisos, só a operação (dead letter topic); o resto do notifications não sai do cluster
+    notifications-admin:
+      rule: PathPrefix(`/notifications/v1/admin`)
+      entryPoints: [web]
+      service: notifications
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
     media:
       rule: PathPrefix(`/media`)
       entryPoints: [web]
@@ -39,7 +45,23 @@ http:
       rule: PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)
       entryPoints: [web]
       service: identity
-      middlewares: [cors, security-headers, identity-problem-429, identity-rate-limit, strip-service-prefix]
+      middlewares: [cors, security-headers, strip-bff-key, identity-problem-429, identity-rate-limit, strip-service-prefix]
+{{- if env "BFF_GATEWAY_KEY" }}
+    # O BFF do front chama as APIs pelo servidor: sem isto, o limite por IP valeria para a loja inteira
+    # somada. Com o segredo do BFF (X-Bff-Key), o limite passa a ser pelo IP do comprador, que o BFF manda
+    # em X-Client-IP. Sem o segredo (ou com outro), a requisição cai nas rotas de cima, limitadas pelo IP
+    # de origem: um X-Client-IP forjado não escapa do limite. A regra mais longa tem prioridade (#176).
+    catalog-bff:
+      rule: PathPrefix(`/catalog`) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
+      entryPoints: [web]
+      service: catalog
+      middlewares: [cors, security-headers, strip-bff-key, catalog-problem-429, catalog-rate-limit-bff, strip-service-prefix]
+    identity-credentials-bff:
+      rule: (PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
+      entryPoints: [web]
+      service: identity
+      middlewares: [cors, security-headers, strip-bff-key, identity-problem-429, identity-rate-limit-bff, strip-service-prefix]
+{{- end }}
 
   services:
     catalog:
@@ -57,6 +79,10 @@ http:
     payments:
       loadBalancer:
         servers: [{ url: "http://payments:8004" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    notifications:
+      loadBalancer:
+        servers: [{ url: "http://notifications:8005" }]
         healthCheck: { path: /ready, interval: 5s, timeout: 2s }
     media:
       loadBalancer:

@@ -196,7 +196,7 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
   fonte da verdade, estão em [`contracts/openapi`](contracts/openapi), e o Swagger de cada serviço fica em `/<serviço>/docs`.
 - **CORS:** liberado para `CORS_ALLOWED_ORIGINS` (padrão `http://localhost:5173` e `http://localhost:3000`). O front
   pode ler os headers `Location`, `ETag`, `X-Request-ID`, `X-Trace-Id`, `Retry-After` e `X-Cache`.
-- **Erros:** sempre em `application/problem+json`, com `request_id` e `trace_id`. A vitrine tem rate limit por IP (`429` com `Retry-After`).
+- **Erros:** sempre em `application/problem+json`, com `request_id` e `trace_id`. A vitrine e o login têm rate limit por IP (`429` com `Retry-After`); pelo BFF do front, o limite é por comprador (`X-Client-IP`, aceito só com o segredo do BFF, `BFF_GATEWAY_KEY`).
 - **Conta:** `POST /identity/v1/accounts` cadastra; `POST /identity/v1/sessions` devolve o access token (JWT, 15 min)
   e o refresh token (30 dias, troca a cada uso em `/identity/v1/sessions/refresh`). O access token vai em
   `Authorization: Bearer`. O cadastro manda um e-mail com o link de confirmação (a página do front repassa a conta e o

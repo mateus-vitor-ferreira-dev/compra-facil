@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -53,6 +54,26 @@ func TestProductService_ListPublic_BuildsFilter(t *testing.T) {
 	products.AssertExpectations(t)
 }
 
+func TestProductService_ListBrands_SameFiltersWithoutBrandAndPaging(t *testing.T) {
+	svc, products, categories := newProductService()
+	cat := domain.Category{ID: uuid.New(), Slug: "notebooks"}
+	categories.On("GetBySlug", anyArg, "notebooks").Return(cat, nil)
+	categories.On("SubtreeIDs", anyArg, cat.ID).Return([]uuid.UUID{cat.ID}, nil)
+	want := []domain.BrandCount{{Name: "Dell", Count: 3}}
+	products.On("Brands", anyArg, mock.MatchedBy(func(f domain.ProductFilter) bool {
+		return *f.Status == domain.ProductActive && f.OnSale && len(f.Brands) == 0 && f.Sort == "" && f.Cursor == "" &&
+			assert.ObjectsAreEqual([]uuid.UUID{cat.ID}, f.CategoryIDs)
+	}), 0).Return(want, nil)
+
+	got, err := svc.ListBrands(ctx, ListProductsInput{
+		CategorySlug: "notebooks", OnSale: true, Brands: []string{"Dell"}, Sort: domain.SortPriceAsc, Cursor: "abc",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
+	products.AssertExpectations(t)
+}
+
 func TestProductService_ListPublic_UnknownCategoryIsEmpty(t *testing.T) {
 	svc, products, categories := newProductService()
 	categories.On("GetBySlug", anyArg, "nao-existe").Return(domain.Category{}, domain.ErrNotFound)
@@ -76,6 +97,9 @@ func TestProductService_ListPublic_Validation(t *testing.T) {
 		{"preço negativo", ListProductsInput{MinPriceCents: ptr[int64](-1)}, []string{"min_price_cents"}},
 		{"faixa invertida", ListProductsInput{MinPriceCents: ptr[int64](500), MaxPriceCents: ptr[int64](100)}, []string{"max_price_cents"}},
 		{"vários", ListProductsInput{Query: "a", Limit: -1}, []string{"q", "limit"}},
+		{"ordem que não existe", ListProductsInput{Sort: "barato"}, []string{"sort"}},
+		{"marca vazia", ListProductsInput{Brands: []string{"Dell", " "}}, []string{"brand"}},
+		{"marcas demais", ListProductsInput{Brands: slices.Repeat([]string{"Dell"}, 21)}, []string{"brand"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -173,6 +197,21 @@ func TestProductService_AdminList(t *testing.T) {
 
 	_, err = svc.AdminList(ctx, AdminListInput{Limit: 500})
 	assert.Equal(t, []string{"limit"}, validationFields(t, err))
+
+	_, err = svc.AdminList(ctx, AdminListInput{Query: "a"})
+	assert.Equal(t, []string{"q"}, validationFields(t, err))
+}
+
+func TestProductService_AdminList_SearchesAnyStatus(t *testing.T) {
+	svc, products, _ := newProductService()
+	products.On("List", anyArg, mock.MatchedBy(func(f domain.ProductFilter) bool {
+		return f.Status == nil && f.Query == "smart tv"
+	})).Return(domain.Page[domain.Product]{}, nil)
+
+	_, err := svc.AdminList(ctx, AdminListInput{Query: "  smart tv "})
+
+	require.NoError(t, err)
+	products.AssertExpectations(t)
 }
 
 func validInput(categoryID uuid.UUID) ProductInput {

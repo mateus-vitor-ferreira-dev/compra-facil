@@ -48,6 +48,10 @@ export async function ProductListing({
   if (query.q) apiQuery.q = query.q;
   if (query.category) apiQuery.category = query.category;
   if (query.onSale) apiQuery.on_sale = "true";
+  if (query.brands?.length) apiQuery.brand = query.brands.join(",");
+  if (query.minPriceCents !== undefined) apiQuery.min_price_cents = String(query.minPriceCents);
+  if (query.maxPriceCents !== undefined) apiQuery.max_price_cents = String(query.maxPriceCents);
+  if (query.sort) apiQuery.sort = query.sort;
 
   return (
     <>

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { accessToken } from "@/lib/auth/current";
+import { gatewayHeaders } from "@/lib/api/gateway-headers";
 import { problem } from "@/lib/auth/request";
 import { env } from "@/lib/env";
 
@@ -17,7 +18,11 @@ export async function GET(request: Request, { params }: Context): Promise<Respon
   const token = await accessToken();
   if (!token) return problem(401, "Não autenticado", "entre na conta para acompanhar o pedido");
 
-  const headers: Record<string, string> = { Authorization: `Bearer ${token}`, Accept: "text/event-stream" };
+  const headers: Record<string, string> = {
+    ...gatewayHeaders(request.headers),
+    Authorization: `Bearer ${token}`,
+    Accept: "text/event-stream",
+  };
   const lastEventId = request.headers.get("last-event-id");
   if (lastEventId) headers["Last-Event-ID"] = lastEventId;
 

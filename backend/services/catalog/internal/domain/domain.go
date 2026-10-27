@@ -49,9 +49,11 @@ type Product struct {
 	SKU         string
 	Name        string
 	Description string
-	CategoryID  uuid.UUID
-	Category    CategoryRef
-	ImageURL    *string
+	// Brand é a marca (filtro e faceta da listagem); nula se não informada.
+	Brand      *string
+	CategoryID uuid.UUID
+	Category   CategoryRef
+	ImageURL   *string
 	// Image são as dimensões e as variantes da foto de ImageURL; nulo se só a URL é conhecida.
 	Image      *ProductImage
 	PriceCents int64

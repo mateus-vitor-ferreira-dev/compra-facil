@@ -17,8 +17,14 @@ public interface IRefreshTokenRepository
     /// </summary>
     Task LockFamilyAsync(Guid familyId, CancellationToken ct);
 
-    /// <summary>Revoga, direto no banco, todos os tokens ainda válidos da família (uma sessão).</summary>
-    Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, RevocationReason reason, CancellationToken ct);
+    /// <summary>
+    /// Revoga, direto no banco, todos os tokens ainda válidos da família (uma sessão), menos
+    /// <paramref name="except"/>, se vier.
+    /// </summary>
+    Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, RevocationReason reason, CancellationToken ct, Guid? except = null);
+
+    /// <summary>A sessão continua aberta: algum token da família não foi revogado nem venceu.</summary>
+    Task<bool> FamilyIsActiveAsync(Guid familyId, DateTimeOffset now, CancellationToken ct);
 
     /// <exception cref="BuildingBlocks.Data.ConcurrencyConflictException">Outro refresh trocou o mesmo token antes (xmin).</exception>
     Task SaveChangesAsync(CancellationToken ct);

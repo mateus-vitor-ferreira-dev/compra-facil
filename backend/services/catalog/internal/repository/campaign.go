@@ -170,6 +170,16 @@ func (r *CampaignRepository) List(ctx context.Context, cursorStr string, limit i
 }
 
 // SetProducts troca a lista de produtos, sobe a versão e grava o CampaignUpdated com a lista nova.
+func (r *CampaignRepository) ProductIDs(ctx context.Context, campaignID uuid.UUID) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := r.db.WithContext(ctx).Table("campaign_products cp").
+		Joins("JOIN products p ON p.id = cp.product_id AND p.deleted_at IS NULL").
+		Where("cp.campaign_id = ?", campaignID).
+		Order("p.name, p.id").
+		Pluck("cp.product_id", &ids).Error
+	return ids, mapError(err)
+}
+
 func (r *CampaignRepository) SetProducts(ctx context.Context, campaignID uuid.UUID, productIDs []uuid.UUID) error {
 	now := r.db.NowFunc()
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

@@ -230,6 +230,7 @@ START_TEXT = """\
 | **Saúde dos serviços** | [Serviços (RED)](/d/compra-facil-red): taxa, erros e latência por serviço e rota |
 | **Pedidos e mensageria** | [SAGA de compra](/d/compra-facil-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |
 | **Pico de campanha** | [Campanha](/d/compra-facil-campanha): RPS, p95, cache, réplicas e o k6 |
+| **Loja (front)** | [Loja](/d/compra-facil-front): Web Vitals de quem compra e os traces do Next |
 
 ### Investigar uma requisição
 
@@ -275,12 +276,60 @@ home = dashboard(
         panel("stat", "Mensagens na DLT", [(
             'sum(increase(compra_facil_messaging_consumed_total{result="dead_lettered"}[1h])) or vector(0)', "", "A", True)],
               18, 22, 6, 4, decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": BAD, "value": 1}],
-              description="Ver e reprocessar: task dlt -- <serviço>."),
+              description="Ver e reprocessar: no painel da loja (/admin/falhas) ou task dlt -- <serviço>."),
     ],
     refresh="10s", time_from="now-1h",
 )
 
+# ---------------------------------------------------------------- 5. Front (Web Vitals e traces do Next)
+def p75(metric, by=""):
+    group = f"le, {by}" if by else "le"
+    return f"histogram_quantile(0.75, sum by ({group}) (rate({metric}_bucket[$__rate_interval])))"
+
+
+VITALS = [
+    # nome, métrica no Prometheus, unidade, limite bom, limite ruim (os do Google, no p75)
+    ("LCP: maior conteúdo", "web_vitals_lcp_milliseconds", "ms", 2500, 4000),
+    ("INP: resposta ao toque", "web_vitals_inp_milliseconds", "ms", 200, 500),
+    ("CLS: o layout pulando", "web_vitals_cls", "none", 0.1, 0.25),
+    ("FCP: primeiro conteúdo", "web_vitals_fcp_milliseconds", "ms", 1800, 3000),
+    ("TTFB: primeiro byte", "web_vitals_ttfb_milliseconds", "ms", 800, 1800),
+]
+front_panels = [row("Web Vitals no p75 (o percentil que o Google usa), na última hora", 0)]
+for i, (title, metric, unit, good, poor) in enumerate(VITALS):
+    front_panels.append(panel(
+        "stat", title,
+        [(f"histogram_quantile(0.75, sum by (le) (rate({metric}_bucket[1h])))", "", "A", True)],
+        [0, 5, 10, 15, 20][i], 1, [5, 5, 5, 5, 4][i], 4, unit=unit, decimals=2 if unit == "none" else 0,
+        thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": good}, {"color": BAD, "value": poor}],
+        description=f"Bom até {good}{'' if unit == 'none' else ' ms'}; ruim a partir de {poor}{'' if unit == 'none' else ' ms'}.",
+    ))
+front_panels += [
+    row("Por página", 5),
+    panel("timeseries", "LCP no p75 por página", [(p75("web_vitals_lcp_milliseconds", "page_route"), "{{page_route}}")],
+          0, 6, 12, 8, unit="ms"),
+    panel("timeseries", "INP no p75 por página", [(p75("web_vitals_inp_milliseconds", "page_route"), "{{page_route}}")],
+          12, 6, 12, 8, unit="ms"),
+    panel("bargauge", "Visitas com nota boa (última hora)", [(
+        f'sum(increase({metric}_count{{web_vitals_rating="good"}}[1h])) / sum(increase({metric}_count[1h]))',
+        title.split(":")[0], chr(ord("A") + i), True) for i, (title, metric, *_) in enumerate(VITALS)],
+          0, 14, 12, 7, unit="percentunit", decimals=0,
+          thresholds=[{"color": BAD, "value": None}, {"color": WARN, "value": 0.5}, {"color": GOOD, "value": 0.75}],
+          description="Parte das medições com nota boa, por métrica. A meta do Google é 75%."),
+    {"type": "table", "title": "Requisições mais lentas do Next (traces)", "datasource": TEMPO,
+     "description": "Páginas, server actions e rotas do BFF acima de 1 s; o trace segue até os serviços.",
+     "gridPos": {"x": 12, "y": 14, "w": 12, "h": 7},
+     "targets": [{"datasource": TEMPO, "refId": "A", "queryType": "traceql",
+                  "query": '{ resource.service.name = "web" && duration > 1s }', "limit": 20}],
+     "fieldConfig": {"defaults": {}, "overrides": []}, "options": {}},
+]
+front = dashboard(
+    "compra-facil-front", "CompraFácil — Loja (front)",
+    "Web Vitals medidos no navegador de quem compra e os traces do servidor do Next (#155).",
+    front_panels, refresh="30s", time_from="now-6h",
+)
+
 OUT.mkdir(exist_ok=True)
-for name, d in [("inicio", home), ("servicos-red", red), ("saga", saga), ("campanha", campaign)]:
+for name, d in [("inicio", home), ("servicos-red", red), ("saga", saga), ("campanha", campaign), ("front", front)]:
     (OUT / f"{name}.json").write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"{name}.json: {len([p for p in d['panels'] if p['type'] != 'row'])} painéis")

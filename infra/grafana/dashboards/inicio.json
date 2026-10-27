@@ -32,7 +32,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### Por onde começar\n\n| | |\n|---|---|\n| **Saúde dos serviços** | [Serviços (RED)](/d/compra-facil-red): taxa, erros e latência por serviço e rota |\n| **Pedidos e mensageria** | [SAGA de compra](/d/compra-facil-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |\n| **Pico de campanha** | [Campanha](/d/compra-facil-campanha): RPS, p95, cache, réplicas e o k6 |\n\n### Investigar uma requisição\n\nToda resposta da API traz o header **`X-Trace-Id`**, e todo erro traz o campo `trace_id`:\n\n- **no terminal:** `task trace -- <trace_id>` abre o trace aqui;\n- **na mão:** *Explore → Tempo* e cole o id no campo TraceQL.\n\nDo trace se vai para os logs do mesmo trace (botão *Logs for this span*), e de cada log de volta para o trace.\nLogs de um serviço: `task grafana:logs -- orders`.\n"
+        "content": "### Por onde começar\n\n| | |\n|---|---|\n| **Saúde dos serviços** | [Serviços (RED)](/d/compra-facil-red): taxa, erros e latência por serviço e rota |\n| **Pedidos e mensageria** | [SAGA de compra](/d/compra-facil-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |\n| **Pico de campanha** | [Campanha](/d/compra-facil-campanha): RPS, p95, cache, réplicas e o k6 |\n| **Loja (front)** | [Loja](/d/compra-facil-front): Web Vitals de quem compra e os traces do Next |\n\n### Investigar uma requisição\n\nToda resposta da API traz o header **`X-Trace-Id`**, e todo erro traz o campo `trace_id`:\n\n- **no terminal:** `task trace -- <trace_id>` abre o trace aqui;\n- **na mão:** *Explore → Tempo* e cole o id no campo TraceQL.\n\nDo trace se vai para os logs do mesmo trace (botão *Logs for this span*), e de cada log de volta para o trace.\nLogs de um serviço: `task grafana:logs -- orders`.\n"
       },
       "id": 1
     },
@@ -405,7 +405,7 @@
     {
       "type": "stat",
       "title": "Mensagens na DLT",
-      "description": "Ver e reprocessar: task dlt -- <serviço>.",
+      "description": "Ver e reprocessar: no painel da loja (/admin/falhas) ou task dlt -- <serviço>.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

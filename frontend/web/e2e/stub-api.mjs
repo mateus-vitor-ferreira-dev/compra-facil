@@ -5,7 +5,8 @@ import { createServer } from "node:http";
 const port = Number(process.env.STUB_PORT ?? 4010);
 const sessions = new Map(); // refresh token -> { email, used }
 const accessTokens = new Map(); // access token -> email
-const stats = { refresh: 0, revoke: 0, ordersPlaced: 0 };
+// ordersByKey: pedidos criados por Idempotency-Key (o teste do envio duplo olha só a dele)
+const stats = { refresh: 0, revoke: 0, ordersPlaced: 0, ordersByKey: {} };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
 
@@ -73,15 +74,16 @@ const campaigns = [
 ];
 
 const seed = [
-  ['Smart TV 55" QLED', "tv", 329990, 263992],
-  ["Fone Bluetooth com cancelamento de ruído", "fones", 49990, 49990],
-  ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992],
+  ['Smart TV 55" QLED', "tv", 329990, 263992, "Samsung"],
+  ["Fone Bluetooth com cancelamento de ruído", "fones", 49990, 49990, "Sony"],
+  ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992, "Dell"],
 ];
-// 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"
+// 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"; três marcas
+const fones = ["JBL", "Edifier", "Xiaomi"];
 for (let i = 1; i <= 30; i++)
-  seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100]);
+  seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100, fones[i % 3]]);
 
-const products = seed.map(([name, slug, price, effective], i) => {
+const products = seed.map(([name, slug, price, effective, brand], i) => {
   const { id, name: categoryName } = bySlug[slug];
   const category = { id, slug, name: categoryName };
   return {
@@ -89,6 +91,7 @@ const products = seed.map(([name, slug, price, effective], i) => {
     sku: `SKU-${i}`,
     name,
     description: "",
+    brand,
     category,
     image_url: null,
     image: null,
@@ -101,26 +104,264 @@ const products = seed.map(([name, slug, price, effective], i) => {
 });
 
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
-const stock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
+const baseStock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
+// ajustes feitos pelo painel, por produto
+const adjustments = new Map();
+const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
 
-/** GET /v1/products com os filtros que a vitrine usa; o cursor é o índice do próximo item. */
-function listProducts(url) {
+// o painel: situação e versão de cada produto (a versão é o ETag)
+for (const p of products) Object.assign(p, { status: "active", version: 1 });
+const adminKeys = new Set(); // Idempotency-Key dos ajustes de estoque
+const adminCampaigns = [];
+// dead letter topics: o inventory com duas mensagens; orders e notifications vazios
+const poison = (offset) => ({
+  event_id: null,
+  event_type: null,
+  topic: "orders.order.v1",
+  partition: 0,
+  offset,
+  attempts: 1,
+  error: "PoisonMessageException: mensagem sem envelope válido",
+  failed_at: "2026-10-27T12:00:00Z",
+});
+const deadLetterQueues = {
+  inventory: [
+    poison(7150),
+    {
+      ...poison(7151),
+      event_id: "0199f6a0-0000-7000-8000-0000000000d1",
+      event_type: "OrderPlaced",
+      attempts: 4,
+      error: "TimeoutException: banco do inventory não respondeu",
+    },
+  ],
+  orders: [],
+  notifications: [],
+}; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
+const isAdmin = (req) =>
+  (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
+
+/** Corpo do ProductInput aplicado ao produto (o preço novo vale para o efetivo sem campanha). */
+function applyInput(p, body) {
+  const category = categories.find((c) => c.id === body.category_id) ?? p.category;
+  Object.assign(p, {
+    sku: body.sku,
+    name: body.name,
+    description: body.description ?? "",
+    brand: body.brand ?? null,
+    image_url: body.image_url ?? null,
+    status: body.status,
+    category: { id: category.id, slug: category.slug, name: category.name },
+    price: { amount_cents: body.price_cents, currency: "BRL" },
+    effective_price: {
+      amount_cents: p.campaign
+        ? Math.floor((body.price_cents * (100 - p.campaign.discount_percent)) / 100)
+        : body.price_cents,
+      currency: "BRL",
+    },
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function admin(req, res, url) {
+  if (!isAdmin(req)) return problem(res, req.headers.authorization ? 403 : 401, "Sem permissão");
+  const one = url.pathname.match(/^\/catalog\/v1\/admin\/products\/([0-9a-f-]{36})$/);
+  if (one) {
+    const p = products.find((x) => x.id === one[1]);
+    if (!p) return problem(res, 404, "Recurso não encontrado");
+    if (req.method === "GET") {
+      res.setHeader("ETag", `"${p.version}"`);
+      return send(res, 200, p);
+    }
+    if (req.method === "PUT") {
+      const body = await json(req);
+      if (req.headers["if-match"] !== `"${p.version}"`) return problem(res, 412, "Versão desatualizada");
+      if (products.some((x) => x.id !== p.id && x.sku === body.sku)) return problem(res, 409, "Conflito");
+      applyInput(p, body);
+      p.version++;
+      res.setHeader("ETag", `"${p.version}"`);
+      return send(res, 200, p);
+    }
+    if (req.method === "DELETE") {
+      products.splice(products.indexOf(p), 1);
+      return res.writeHead(204).end();
+    }
+  }
+  const adjust = url.pathname.match(/^\/inventory\/v1\/admin\/stock\/([0-9a-f-]{36})\/adjustments$/);
+  if (adjust && req.method === "POST") {
+    const { delta } = await json(req);
+    const key = `${adjust[1]}:${req.headers["idempotency-key"]}`;
+    if (!adminKeys.has(key)) {
+      if (stock(adjust[1]) + delta < 0) return problem(res, 409, "Conflito");
+      adminKeys.add(key);
+      adjustments.set(adjust[1], (adjustments.get(adjust[1]) ?? 0) + delta);
+    }
+    const available = stock(adjust[1]);
+    return send(res, 200, {
+      product_id: adjust[1],
+      on_hand: available,
+      reserved: 0,
+      available,
+      updated_at: new Date().toISOString(),
+    });
+  }
+  if (req.method === "GET" && url.pathname === "/catalog/v1/admin/products") {
+    const q = url.searchParams.get("q")?.toLowerCase();
+    const status = url.searchParams.get("status");
+    const data = products.filter(
+      (p) =>
+        (!q || `${p.name} ${p.brand} ${p.sku}`.toLowerCase().includes(q)) && (!status || p.status === status),
+    );
+    return send(res, 200, { data: data.slice(0, 50), page: { next_cursor: null, has_more: false } });
+  }
+  if (req.method === "POST" && url.pathname === "/catalog/v1/admin/products") {
+    const body = await json(req);
+    if (products.some((x) => x.sku === body.sku)) return problem(res, 409, "Conflito");
+    if (!/^[A-Z0-9-]{3,32}$/.test(body.sku)) {
+      return send(
+        res,
+        422,
+        {
+          type: "about:blank",
+          title: "Dados inválidos",
+          status: 422,
+          errors: [{ field: "sku", message: "use letras maiúsculas" }],
+        },
+        "application/problem+json",
+      );
+    }
+    const p = {
+      id: crypto.randomUUID(),
+      campaign: null,
+      image: null,
+      version: 1,
+      created_at: new Date().toISOString(),
+    };
+    applyInput(p, body);
+    products.push(p);
+    res.setHeader("ETag", '"1"');
+    return send(res, 201, p);
+  }
+  // ---- campanhas: um produto fica em uma campanha por período ----
+  const campaignPath = url.pathname.match(/^\/catalog\/v1\/admin\/campaigns\/([0-9a-f-]{36})(\/products)?$/);
+  const overlaps = (a, b) =>
+    Date.parse(a.starts_at) < Date.parse(b.ends_at) && Date.parse(b.starts_at) < Date.parse(a.ends_at);
+  const withCount = (c) => ({ ...c, product_count: c.products.length, products: undefined });
+  if (url.pathname === "/catalog/v1/admin/campaigns") {
+    if (req.method === "GET") {
+      return send(res, 200, {
+        data: adminCampaigns.map(withCount),
+        page: { next_cursor: null, has_more: false },
+      });
+    }
+    const body = await json(req);
+    if (adminCampaigns.some((c) => c.slug === body.slug)) return problem(res, 409, "Conflito");
+    const c = { id: crypto.randomUUID(), ...body, products: [] };
+    adminCampaigns.push(c);
+    return send(res, 201, withCount(c));
+  }
+  if (campaignPath) {
+    const c = adminCampaigns.find((x) => x.id === campaignPath[1]);
+    if (!c) return problem(res, 404, "Recurso não encontrado");
+    if (campaignPath[2]) {
+      if (req.method === "GET")
+        return send(res, 200, {
+          data: c.products.map((id) => products.find((p) => p.id === id)).filter(Boolean),
+        });
+      const { product_ids } = await json(req);
+      const busy = adminCampaigns.some(
+        (o) => o.id !== c.id && overlaps(o, c) && o.products.some((id) => product_ids.includes(id)),
+      );
+      if (busy) {
+        return send(
+          res,
+          409,
+          {
+            type: "about:blank",
+            title: "Conflito",
+            status: 409,
+            detail: "produtos já estão em outra campanha no período",
+            trace_id: "4bf92f3577b34da6a3ce929d0e0e4736",
+          },
+          "application/problem+json",
+        );
+      }
+      c.products = product_ids;
+      return res.writeHead(204).end();
+    }
+    if (req.method === "GET") return send(res, 200, withCount(c));
+    if (req.method === "PUT") {
+      Object.assign(c, await json(req));
+      return send(res, 200, withCount(c));
+    }
+    if (req.method === "DELETE") {
+      adminCampaigns.splice(adminCampaigns.indexOf(c), 1);
+      return res.writeHead(204).end();
+    }
+  }
+  if (req.method === "POST" && url.pathname === "/catalog/v1/admin/categories") {
+    const body = await json(req);
+    if (categories.some((c) => c.slug === body.slug)) return problem(res, 409, "Conflito");
+    const c = {
+      id: crypto.randomUUID(),
+      slug: body.slug,
+      name: body.name,
+      parent_id: body.parent_id ?? null,
+    };
+    categories.push(c);
+    bySlug[c.slug] = c;
+    return send(res, 201, c);
+  }
+  return problem(res, 404, "Recurso não encontrado");
+}
+
+/** Os produtos que passam nos filtros da vitrine (sem a marca, para a faceta). */
+function filtered(url) {
   const q = url.searchParams.get("q")?.toLowerCase();
   const slug = url.searchParams.get("category");
   const family = slug
     ? categories.filter((c) => c.slug === slug || c.parent_id === bySlug[slug]?.id).map((c) => c.slug)
     : null;
-  const matches = products.filter(
+  const min = Number(url.searchParams.get("min_price_cents") ?? 0);
+  const max = Number(url.searchParams.get("max_price_cents") ?? Infinity);
+  return products.filter(
     (p) =>
-      (!q || p.name.toLowerCase().includes(q)) &&
+      (!q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)) &&
       (!family || family.includes(p.category.slug)) &&
-      (url.searchParams.get("on_sale") !== "true" || p.campaign),
+      (url.searchParams.get("on_sale") !== "true" || p.campaign) &&
+      p.effective_price.amount_cents >= min &&
+      p.effective_price.amount_cents <= max,
   );
+}
+
+const sorters = {
+  price_asc: (a, b) => a.effective_price.amount_cents - b.effective_price.amount_cents,
+  price_desc: (a, b) => b.effective_price.amount_cents - a.effective_price.amount_cents,
+  discount: (a, b) => (b.campaign?.discount_percent ?? 0) - (a.campaign?.discount_percent ?? 0),
+};
+
+/** GET /v1/products com os filtros e as ordens da vitrine; o cursor é o índice do próximo item. */
+function listProducts(url) {
+  const brands = (url.searchParams.get("brand") ?? "").toLowerCase().split(",").filter(Boolean);
+  const matches = filtered(url).filter((p) => !brands.length || brands.includes(p.brand.toLowerCase()));
+  const sorter = sorters[url.searchParams.get("sort")];
+  if (sorter) matches.sort(sorter);
   const start = Number(url.searchParams.get("cursor") ?? 0);
   const limit = Number(url.searchParams.get("limit") ?? 20);
   const data = matches.slice(start, start + limit);
   const more = start + limit < matches.length;
   return { data, page: { next_cursor: more ? String(start + limit) : null, has_more: more } };
+}
+
+/** GET /v1/brands: as marcas da listagem com a contagem, das mais frequentes para as menos. */
+function listBrands(url) {
+  const counts = new Map();
+  for (const p of filtered(url)) counts.set(p.brand, (counts.get(p.brand) ?? 0) + 1);
+  return {
+    data: [...counts]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count })),
+  };
 }
 
 // ---- pedidos feitos no teste: a SAGA anda sozinha com o tempo ----
@@ -210,6 +451,7 @@ async function placeOrder(req, res, email) {
   placed.set(id, { order, owner: email, reserveAt: now + 800, endAt: now + 1600, outcome });
   byKey.set(`${email}:${key}`, id);
   stats.ordersPlaced++;
+  stats.ordersByKey[key] = (stats.ordersByKey[key] ?? 0) + 1;
   return send(res, 202, order);
 }
 
@@ -234,6 +476,35 @@ function streamOrder(req, res, entry) {
     }
   }, 50);
   req.on("close", () => clearInterval(timer));
+}
+
+// ---- o Google de mentira: escolha de conta, código de autorização e ID token ----
+const googleCodes = new Map(); // code -> { email, sub, nonce }
+const googleLinked = new Set(); // e-mails com senha já vinculados ao Google
+const fakeJwt = (payload) =>
+  `e30.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.assinatura-de-mentira`;
+const jwtPayload = (token) =>
+  JSON.parse(Buffer.from(String(token).split(".")[1] ?? "", "base64url").toString());
+
+/** GET /google/authorize: a tela de escolha de conta, como a do Google. */
+function googleChooser(res, url) {
+  const back = new URL(url.searchParams.get("redirect_uri"));
+  const state = url.searchParams.get("state");
+  const nonce = url.searchParams.get("nonce");
+  const link = (email) => {
+    const code = `code-${crypto.randomUUID()}`;
+    googleCodes.set(code, { email, sub: `google-${email}`, nonce });
+    const to = new URL(back);
+    to.search = new URLSearchParams({ code, state }).toString();
+    return `<li><a href="${to}">${email}</a></li>`;
+  };
+  const cancel = new URL(back);
+  cancel.search = new URLSearchParams({ error: "access_denied", state }).toString();
+  const fresh = `nova-${crypto.randomUUID().slice(0, 8)}@gmail.com`;
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(
+    `<!doctype html><title>Escolha uma conta</title><h1>Escolha uma conta</h1><ul>${[fresh, "ana@exemplo.com", ...accounts.keys()].map(link).join("")}</ul><a href="${cancel}">Cancelar</a>`,
+  );
 }
 
 function tokens(email) {
@@ -269,6 +540,33 @@ async function json(req) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  if (req.method === "GET" && url.pathname === "/google/authorize") return googleChooser(res, url);
+  if (req.method === "POST" && url.pathname === "/google/token") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const form = new URLSearchParams(raw);
+    const grant = googleCodes.get(form.get("code"));
+    if (!grant || !form.get("code_verifier") || form.get("client_secret") !== "segredo-de-teste") {
+      return send(res, 400, { error: "invalid_grant" });
+    }
+    googleCodes.delete(form.get("code"));
+    return send(res, 200, { id_token: fakeJwt({ ...grant, email_verified: true }), token_type: "Bearer" });
+  }
+  const dlt = url.pathname.match(
+    /^\/(orders|inventory|payments|notifications)\/v1\/admin\/dead-letters(\/replay)?$/,
+  );
+  if (dlt) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    // o payments está com o Kafka fora: a tela explica em vez de quebrar
+    if (dlt[1] === "payments") return problem(res, 503, "Serviço indisponível");
+    const items = deadLetterQueues[dlt[1]];
+    // reprocessadas, falham de novo e voltam para a fila (são mensagens envenenadas)
+    if (dlt[2]) return send(res, 200, { replayed: items.length });
+    return send(res, 200, { items });
+  }
+  if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
+    return admin(req, res, url);
+  }
   const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})(\/events)?$/);
   if (req.method === "GET" && order) {
     const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
@@ -300,6 +598,8 @@ createServer(async (req, res) => {
         return problem(res, 429, "Muitas requisições");
       }
       return send(res, 200, listProducts(url));
+    case "GET /catalog/v1/brands":
+      return send(res, 200, listBrands(url));
     case "GET /inventory/v1/stock": {
       const ids = (url.searchParams.get("product_ids") ?? "").split(",").filter(Boolean);
       return send(res, 200, {
@@ -365,6 +665,23 @@ createServer(async (req, res) => {
       }
       return problem(res, 401, "Não autenticado");
     }
+    case "POST /identity/v1/sessions/google": {
+      const { id_token, nonce } = await json(req);
+      const claims = jwtPayload(id_token);
+      if (claims.nonce !== nonce) return problem(res, 401, "Não autenticado");
+      // e-mail com conta e senha (a Ana, as criadas no cadastro): o Google só entra depois do vínculo
+      const hasPassword = claims.email === "ana@exemplo.com" || accounts.has(claims.email);
+      if (hasPassword && !googleLinked.has(claims.email)) return problem(res, 409, "Conta já existe");
+      return send(res, 200, tokens(claims.email));
+    }
+    case "POST /identity/v1/sessions/google/link": {
+      const { id_token, nonce, password } = await json(req);
+      const claims = jwtPayload(id_token);
+      const expected = accounts.get(claims.email)?.password ?? "senha-boa-123";
+      if (claims.nonce !== nonce || password !== expected) return problem(res, 401, "Não autenticado");
+      googleLinked.add(claims.email);
+      return send(res, 200, tokens(claims.email));
+    }
     case "POST /identity/v1/sessions/refresh": {
       stats.refresh++;
       const session = sessions.get((await json(req)).refresh_token);
@@ -385,7 +702,8 @@ createServer(async (req, res) => {
         email,
         name: "Ana Souza",
         email_confirmed: true,
-        roles: ["customer"],
+        // "admin@..." é da equipe: abre o painel
+        roles: email.startsWith("admin@") ? ["admin"] : ["customer"],
         created_at: "2026-10-01T10:00:00Z",
       });
     }

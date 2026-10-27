@@ -10,7 +10,7 @@ namespace CompraFacil.Identity.Api.Controllers;
 [ApiController]
 [Route("v1/sessions")]
 [Produces("application/json")]
-public sealed class SessionsController(Sessions sessions) : ControllerBase
+public sealed class SessionsController(Sessions sessions, GoogleSignIn google) : ControllerBase
 {
     /// <summary>createSession: login com e-mail e senha.</summary>
     [HttpPost]
@@ -39,12 +39,37 @@ public sealed class SessionsController(Sessions sessions) : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// createGoogleSession: login (ou cadastro) com o ID token do Google. E-mail que já tem conta com
+    /// senha dá 409: o vínculo exige a senha (linkGoogleSession).
+    /// </summary>
+    [HttpPost("google")]
+    public async Task<TokenResponse> Google(GoogleSessionRequest body, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        NoStore();
+        return TokenResponse.From(await google.SignInAsync(body.IdToken ?? "", body.Nonce ?? "", ct));
+    }
+
+    /// <summary>linkGoogleSession: liga o Google à conta do mesmo e-mail, conferindo a senha dela.</summary>
+    [HttpPost("google/link")]
+    public async Task<TokenResponse> LinkGoogle(GoogleLinkRequest body, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        NoStore();
+        return TokenResponse.From(await google.LinkAsync(body.IdToken ?? "", body.Nonce ?? "", body.Password ?? "", ct));
+    }
+
     private void NoStore() => Response.Headers.CacheControl = "no-store";
 }
 
 public sealed record LoginRequest(string? Email, string? Password);
 
 public sealed record RefreshRequest(string? RefreshToken);
+
+public sealed record GoogleSessionRequest(string? IdToken, string? Nonce);
+
+public sealed record GoogleLinkRequest(string? IdToken, string? Nonce, string? Password);
 
 public sealed record TokenResponse(string AccessToken, string TokenType, int ExpiresIn, string RefreshToken, int RefreshExpiresIn)
 {

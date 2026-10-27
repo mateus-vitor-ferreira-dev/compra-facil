@@ -21,7 +21,9 @@ public sealed class LoginValidator : AbstractValidator<LoginCommand>
 /// <summary>
 /// Login, refresh e logout. O login dá um access token curto (JWT) e um refresh token longo; cada
 /// refresh troca o refresh token por outro (rotação) e um token já trocado, apresentado de novo,
-/// derruba a sessão inteira, inclusive quando os dois chegam juntos. Erro de credencial é sempre o mesmo 401, exista a conta ou não.
+/// derruba a sessão inteira. Dentro do intervalo de reuso (segundos depois da troca), o mesmo token
+/// ainda dá um par novo da sessão: são requisições paralelas do mesmo navegador, não uma cópia. Erro de
+/// credencial é sempre o mesmo 401, exista a conta ou não.
 /// </summary>
 public sealed class Sessions(
     IValidator<LoginCommand> validator,
@@ -76,6 +78,13 @@ public sealed class Sessions(
             throw new UnauthorizedException(InvalidCredentials);
         }
 
+        return await StartAsync(user, ct);
+    }
+
+    /// <summary>Abre uma sessão nova (uma família de refresh tokens) para quem já foi autenticado.</summary>
+    public async Task<IssuedSession> StartAsync(User user, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(user);
         var refreshToken = RefreshTokenValue.New();
         refreshTokens.Add(RefreshToken.Issue(user.Id, RefreshTokenValue.Hash(refreshToken), clock.GetUtcNow(), options.Value.RefreshTokenLifetime));
         await refreshTokens.SaveChangesAsync(ct);
@@ -103,7 +112,17 @@ public sealed class Sessions(
             }
             if (current.WasRotated)
             {
-                // o token já tinha sido trocado: alguém tem uma cópia; nenhum token da sessão vale mais
+                // trocado há segundos, com a sessão aberta: a outra metade de duas requisições paralelas
+                var reuseInterval = options.Value.RefreshReuseInterval;
+                if (current.RotatedWithin(now, reuseInterval) && await refreshTokens.FamilyIsActiveAsync(current.FamilyId, now, ct)
+                    && await users.FindByIdAsync(current.UserId.ToString()) is { } owner)
+                {
+                    var siblingToken = RefreshTokenValue.New();
+                    refreshTokens.Add(current.Sibling(RefreshTokenValue.Hash(siblingToken), now, options.Value.RefreshTokenLifetime, reuseInterval));
+                    await refreshTokens.SaveChangesAsync(ct);
+                    return await SessionAsync(owner, siblingToken, ct);
+                }
+                // fora do intervalo: alguém tem uma cópia; nenhum token da sessão vale mais
                 await refreshTokens.RevokeFamilyAsync(current.FamilyId, now, RevocationReason.Reuse, ct);
                 return null;
             }
@@ -116,8 +135,12 @@ public sealed class Sessions(
             }
 
             var nextToken = RefreshTokenValue.New();
-            refreshTokens.Add(current.Rotate(RefreshTokenValue.Hash(nextToken), now, options.Value.RefreshTokenLifetime));
+            var next = current.Rotate(RefreshTokenValue.Hash(nextToken), now, options.Value.RefreshTokenLifetime);
+            refreshTokens.Add(next);
             await refreshTokens.SaveChangesAsync(ct);
+            // irmãos do intervalo de reuso que ficaram para trás (a resposta que o navegador não guardou)
+            // saem: a sessão volta a ter um token só
+            await refreshTokens.RevokeFamilyAsync(current.FamilyId, now, RevocationReason.Rotated, ct, except: next.Id);
             return await SessionAsync(user, nextToken, ct);
         }, ct);
         return session ?? throw new UnauthorizedException(InvalidRefreshToken);

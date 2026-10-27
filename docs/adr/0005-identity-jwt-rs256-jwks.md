@@ -37,9 +37,16 @@ Um serviço **identity** (.NET, no template dos outros) emite os tokens. Os dema
   chave acontece sob um advisory lock do Postgres, para duas réplicas não criarem duas chaves.
 - **Refresh token opaco e rotativo** (30 dias): cada uso troca o token por um novo da mesma família, e o banco
   guarda só o SHA-256. Um token já trocado, apresentado de novo, **derruba a família inteira**, porque só quem
-  o copiou o teria. Refresh e logout da mesma sessão passam por um advisory lock da família: dois refresh
-  simultâneos com o mesmo token viram reuso (o segundo espera o primeiro e encontra o token já trocado), e um
-  logout no meio de um refresh também derruba o token que esse refresh acabou de criar.
+  o copiou o teria. Refresh e logout da mesma sessão passam por um advisory lock da família, e um logout no
+  meio de um refresh também derruba o token que esse refresh acabou de criar.
+- **Intervalo de reuso** (#173, 10 s, `Identity:Tokens:RefreshReuseInterval`): logo depois da troca, o token
+  anterior ainda dá um par novo da mesma família (um irmão), em vez de derrubar a sessão, desde que a sessão
+  continue aberta (sem logout nem reuso). Duas requisições do mesmo navegador (a página e um prefetch) caem
+  em instâncias diferentes do BFF na Vercel e renovam o mesmo token juntas; sem o intervalo, uma ganhava e a
+  outra deslogava o cliente. A próxima troca normal revoga os irmãos que sobraram, e a sessão volta a ter um
+  token só. Fora da janela, vale a detecção de reuso. É o "reuse interval" do Auth0; a alternativa, um lock
+  distribuído no BFF (Redis/Upstash), poria infraestrutura nova no front para resolver o que o emissor
+  resolve sozinho.
 - **O bloqueio por senha não derruba sessões abertas**: senão, cinco tentativas com o e-mail de alguém
   bastariam para desconectá-lo a cada 15 minutos.
 - **Contra tentativa de senha em massa**: o bloqueio é por conta, e o gateway limita login e cadastro por IP
@@ -69,8 +76,10 @@ procedimento manual de deploy, que costuma não acontecer.
   da rotação, isso só acontece na primeira chave do identity, quando ainda não há token em circulação.
 - Logout não invalida o access token já emitido; ele vale até vencer (15 min). Para revogação imediata seria
   preciso uma lista de bloqueio consultada a cada requisição, que é o acoplamento que o JWT evita.
-- O BFF do front (#148) guarda o refresh token em cookie `HttpOnly` e faz **um refresh por vez**: dois em
-  paralelo com o mesmo token contam como reuso e derrubam a sessão.
+- O BFF do front (#148) guarda o refresh token em cookie `HttpOnly` e faz um refresh por vez em cada
+  instância; entre instâncias, o intervalo de reuso mantém a sessão.
+- O intervalo de reuso é a janela em que um token copiado ainda passa: quem o roubou nos 10 s seguintes à
+  troca ganha um par da sessão. Fora dela, o roubo é detectado como antes. Zero desliga o intervalo.
 - Confirmação de e-mail (#168): o identity publica `AccountRegistered` e `EmailConfirmationRequested` pelo
   outbox, na mesma transação do cadastro, e o notifications manda o link. Exigir a confirmação para entrar é
   configuração (`Identity:EmailConfirmation:Required`), desligada no ambiente local.
@@ -78,3 +87,9 @@ procedimento manual de deploy, que costuma não acontecer.
   produção só vale por completo para as chaves criadas depois.
 - O anel do Data Protection no mesmo banco das chaves protege contra vazamento de backup parcial, não do banco
   inteiro. Em produção (F9), o anel deve ser protegido por uma chave fora do banco (certificado ou KMS).
+- **Login com o Google** (#180): o BFF faz o authorization code com PKCE e entrega o ID token ao identity
+  (`POST /v1/sessions/google`), que o valida pelo JWKS do Google (emissor, `aud` igual ao client id,
+  validade, `nonce`, `email_verified`) e abre uma sessão própria, com os mesmos tokens do login por senha.
+  A conta é a do `sub` do Google (`user_logins`), não a do e-mail; um e-mail que já tem conta com senha só
+  é ligado ao Google depois de confirmar a senha (`/google/link`). O resto do sistema não muda: os serviços
+  continuam validando só os tokens do identity.
