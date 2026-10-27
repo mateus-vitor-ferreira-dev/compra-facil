@@ -96,8 +96,6 @@ export function listProducts(query: ProductQuery): Promise<Result<ProductPage>> 
             limit: query.limit ?? 24,
           },
         },
-        // o contrato pede as marcas separadas por vírgula (brand=Dell,Acer)
-        querySerializer: { array: { style: "form", explode: false } },
       });
     return { data: r.data, response: r.response };
   });
