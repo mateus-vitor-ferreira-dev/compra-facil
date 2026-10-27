@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { gatewayHeaders } from "@/lib/api/gateway-headers";
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
@@ -18,7 +19,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
-  const result = await refreshSession(refresh);
+  const result = await refreshSession(refresh, fetch, gatewayHeaders(request.headers));
   const cookies = result.ok ? sessionCookies(result.tokens) : clearedCookies();
   for (const c of cookies) {
     if (c.value) request.cookies.set(c.name, c.value);
