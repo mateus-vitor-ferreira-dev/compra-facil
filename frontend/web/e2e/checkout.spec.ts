@@ -60,7 +60,6 @@ test("o mesmo formulário enviado duas vezes faz um pedido só", async ({ browse
   const form = page.locator("form").filter({ has: page.locator("input[name=idempotency_key]") });
   const fields = await form.evaluate((f: HTMLFormElement) => [...new FormData(f)] as [string, string][]);
   const action = new URL((await form.getAttribute("action")) || "/checkout", page.url()).toString();
-  const before = (await (await page.request.get(`${STUB}/__stats`)).json()).ordersPlaced as number;
 
   const submit = () =>
     context.request.post(action, { multipart: Object.fromEntries(fields), maxRedirects: 0 });
@@ -71,8 +70,12 @@ test("o mesmo formulário enviado duas vezes faz um pedido só", async ({ browse
   expect(target).toMatch(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
   expect(second.headers()["location"]).toBe(target);
   expect(third.headers()["location"]).toBe(target);
-  const after = (await (await page.request.get(`${STUB}/__stats`)).json()).ordersPlaced as number;
-  expect(after - before).toBe(1);
+  // só os pedidos desta chave: outros testes em paralelo também fazem pedidos
+  const key = fields.find(([name]) => name === "idempotency_key")?.[1];
+  const stats = (await (await page.request.get(`${STUB}/__stats`)).json()) as {
+    ordersByKey: Record<string, number>;
+  };
+  expect(stats.ordersByKey[String(key)]).toBe(1);
   await context.close();
 });
 

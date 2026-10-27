@@ -147,3 +147,80 @@ export async function adjustStock(token: string, id: string, idempotencyKey: str
   if (result.ok) updateTag("inventory:stock");
   return result;
 }
+
+// ---------- campanhas ----------
+
+export type Campaign = CatalogSchemas["schemas"]["Campaign"];
+export type CampaignInput = CatalogSchemas["schemas"]["CampaignInput"];
+
+export function listCampaigns(token: string, cursor?: string) {
+  return run(() =>
+    api.catalog({ token }).GET("/v1/admin/campaigns", {
+      params: { query: { cursor: cursor || undefined, limit: 50 } },
+      cache: "no-store",
+    }),
+  );
+}
+
+export function getCampaign(token: string, id: string) {
+  return run(() =>
+    api.catalog({ token }).GET("/v1/admin/campaigns/{campaign_id}", {
+      params: { path: { campaign_id: id } },
+      cache: "no-store",
+    }),
+  );
+}
+
+export function campaignProducts(token: string, id: string) {
+  return run(() =>
+    api.catalog({ token }).GET("/v1/admin/campaigns/{campaign_id}/products", {
+      params: { path: { campaign_id: id } },
+      cache: "no-store",
+    }),
+  );
+}
+
+export async function createCampaign(token: string, body: CampaignInput) {
+  const result = await run(() => api.catalog({ token }).POST("/v1/admin/campaigns", { body }));
+  if (result.ok) refreshCampaigns();
+  return result;
+}
+
+export async function updateCampaign(token: string, id: string, body: CampaignInput) {
+  const result = await run(() =>
+    api.catalog({ token }).PUT("/v1/admin/campaigns/{campaign_id}", {
+      params: { path: { campaign_id: id } },
+      body,
+    }),
+  );
+  if (result.ok) refreshCampaigns();
+  return result;
+}
+
+export async function deleteCampaign(token: string, id: string) {
+  const result = await run(() =>
+    api.catalog({ token }).DELETE("/v1/admin/campaigns/{campaign_id}", {
+      params: { path: { campaign_id: id } },
+    }),
+  );
+  if (result.ok) refreshCampaigns();
+  return result;
+}
+
+/** Substitui a lista inteira de produtos da campanha (o contrato não tem "acrescentar um"). */
+export async function setCampaignProducts(token: string, id: string, productIds: string[]) {
+  const result = await run(() =>
+    api.catalog({ token }).PUT("/v1/admin/campaigns/{campaign_id}/products", {
+      params: { path: { campaign_id: id } },
+      body: { product_ids: productIds },
+    }),
+  );
+  if (result.ok) refreshCampaigns();
+  return result;
+}
+
+/** Campanha muda o preço de muitos produtos de uma vez: a vitrine relê produtos e campanhas. */
+function refreshCampaigns() {
+  refreshStorefront();
+  updateTag("catalog:campaigns");
+}
