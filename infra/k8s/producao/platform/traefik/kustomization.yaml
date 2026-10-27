@@ -1,5 +1,0 @@
-# A configuração do Traefik do k3s (kube-system): à parte, porque a plataforma põe tudo em compra-facil.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - traefik.yaml

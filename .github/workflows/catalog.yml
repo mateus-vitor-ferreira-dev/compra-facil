@@ -105,7 +105,7 @@ jobs:
         uses: docker/metadata-action@v6.2.0
         with:
           images: ghcr.io/${{ github.repository_owner }}/compra-facil-catalog
-          # o commit inteiro é a tag imutável que o GitOps usa; a curta é para gente
+          # o commit inteiro é a tag imutável; a curta é para gente; a da branch (main) é a que a produção segue
           tags: |
             type=sha,format=long
             type=sha,format=short
@@ -115,7 +115,7 @@ jobs:
         with:
           context: backend/services/catalog
           target: api
-          # a VM da Oracle é ARM; compilação cruzada no Dockerfile, sem QEMU
+          # o VPS da produção é ARM; compilação cruzada no Dockerfile, sem QEMU
           platforms: linux/amd64,linux/arm64
           build-args: VERSION=${{ github.sha }}
           push: true
@@ -146,7 +146,7 @@ jobs:
   arm64:
     name: imagem roda em ARM
     needs: image
-    # runner ARM nativo: a imagem publicada roda como na VM da Oracle, sem emulação
+    # runner ARM nativo: a imagem publicada roda como no VPS da produção, sem emulação
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:

@@ -189,6 +189,7 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 | [0003](docs/adr/0003-retries-e-dead-letter-topics.md) | Retries em tópicos próprios e dead letter topic por serviço |
 | [0004](docs/adr/0004-contrato-consumer-driven-sem-pact.md) | Contrato consumer-driven orders → catalog sem Pact (o PactNet não suporta gRPC) |
 | [0005](docs/adr/0005-identity-jwt-rs256-jwks.md) | Serviço identity: JWT RS256 com rotação de chave publicada no JWKS, refresh token rotativo |
+| [0006](docs/adr/0006-producao-no-coolify-e-cloudflare.md) | Produção: API no Coolify da Hetzner, loja no Cloudflare Workers, fotos no R2, observabilidade no Grafana Cloud |
 
 ## 🔌 Para quem consome as APIs
 

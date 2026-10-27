@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: compra-facil
-  labels:
-    # os pods da loja não rodam privilegiados nem como root
-    pod-security.kubernetes.io/enforce: restricted
