@@ -334,6 +334,8 @@ export interface components {
         ProductPage: {
             data: components["schemas"]["Product"][];
             page: components["schemas"]["PageInfo"];
+            /** @description Quantos produtos a listagem tem, com os filtros; só com `page`. */
+            total?: number;
         };
         Category: {
             /** Format: uuid */
@@ -590,6 +592,11 @@ export interface operations {
                 on_sale?: boolean;
                 /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
                 brand?: components["parameters"]["Brand"];
+                /**
+                 * @description Paginação por número (a partir de 1), com o `total` da listagem na resposta: a vitrine mostra
+                 *     os números das páginas. Alternativa ao `cursor` (os dois juntos dão 422). Até a página 200.
+                 */
+                page?: number;
                 /**
                  * @description `relevance` (só com `q`), `price_asc` e `price_desc` (preço efetivo, já com desconto),
                  *     `discount` (maior desconto de campanha primeiro) e `newest`.

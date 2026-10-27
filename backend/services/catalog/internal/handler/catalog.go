@@ -95,6 +95,10 @@ func listInput(c *gin.Context) (service.ListProductsInput, bool) {
 		in.Brands = strings.Split(raw, ",")
 	}
 	var err error
+	if in.Page, err = queryInt(c, "page"); err != nil {
+		badRequest(c, err.Error())
+		return in, false
+	}
 	if in.Limit, err = queryInt(c, "limit"); err == nil {
 		if in.MinPriceCents, err = queryInt64Ptr(c, "min_price_cents"); err == nil {
 			if in.MaxPriceCents, err = queryInt64Ptr(c, "max_price_cents"); err == nil {

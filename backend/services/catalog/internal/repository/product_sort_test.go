@@ -116,3 +116,40 @@ func TestProductRepository_BrandFilterAndFacet(t *testing.T) {
 		assert.Equal(t, []string{"NOTE-ACER"}, got)
 	})
 }
+
+func TestProductRepository_NumberedPages_WithTheTotal(t *testing.T) {
+	resetDB(t)
+	repo := NewProductRepository(testDB)
+	cat := mustCategory(t, "tv", nil)
+	for i := range 7 {
+		mustProduct(t, seqSKU(i), cat.ID, withPrice(int64(100+i)), withName("Smart TV modelo"), withBrand("LG"))
+	}
+	mustProduct(t, "OUTRA", cat.ID, withName("Geladeira"), withBrand("Brastemp"))
+
+	var seen []string
+	for n := 1; n <= 3; n++ {
+		page, err := repo.List(ctx, domain.ProductFilter{Now: now, Sort: domain.SortPriceAsc, Limit: 3, Page: n})
+		require.NoError(t, err)
+		require.NotNil(t, page.Total)
+		assert.Equal(t, 8, *page.Total, "o total é da listagem inteira")
+		assert.Equal(t, n < 3, page.More, "há página depois da %d", n)
+		assert.Empty(t, page.NextCursor, "por número, sem cursor")
+		seen = append(seen, skus(page.Items)...)
+	}
+	assert.Len(t, seen, 8, "as páginas cobrem tudo, sem repetir")
+	assert.Equal(t, seqSKU(0), seen[0])
+
+	filtered, err := repo.List(ctx, domain.ProductFilter{Now: now, Brands: []string{"lg"}, Limit: 3, Page: 1})
+	require.NoError(t, err)
+	assert.Equal(t, 7, *filtered.Total, "o total respeita os filtros")
+
+	search, err := repo.List(ctx, domain.ProductFilter{Now: now, Query: "smart tv", Limit: 3, Page: 2})
+	require.NoError(t, err)
+	assert.Equal(t, 7, *search.Total, "na busca, o total usa o mesmo limiar da lista")
+	assert.Len(t, search.Items, 3)
+
+	beyond, err := repo.List(ctx, domain.ProductFilter{Now: now, Limit: 3, Page: 9})
+	require.NoError(t, err)
+	assert.Empty(t, beyond.Items)
+	assert.Equal(t, 8, *beyond.Total)
+}

@@ -1,67 +1,100 @@
+import Link from "next/link";
 import { NotFoundIllustration } from "@/components/brand/illustrations";
+import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
 import { listProducts, type ProductQuery } from "@/lib/catalog-api";
 import { env } from "@/lib/env";
+import { pageCount } from "@/lib/pagination";
+import { withFilter } from "@/lib/storefront";
 import { CatalogErrorState } from "./catalog-error";
-import { LoadMore } from "./load-more";
+import { Pagination } from "./pagination";
 import { ProductGrid } from "./product-grid";
 
+type Params = Record<string, string | string[] | undefined>;
+
+// produtos por página: 4 linhas de 6 no desktop, 12 de 2 no celular
+export const PER_PAGE = 24;
+
+const count = new Intl.NumberFormat("pt-BR");
+
 /**
- * A grade de uma listagem (categoria, ofertas, busca) com o "Ver mais" por cursor, o estado vazio e o
- * JSON-LD ItemList para os buscadores.
+ * A grade de uma listagem (categoria, ofertas, busca): quantos produtos há, a página atual e a
+ * paginação numerada (?pagina=), o estado vazio e o JSON-LD ItemList para os buscadores.
  */
 export async function ProductListing({
   query,
   label,
-  selfHref,
-  nextHref,
+  path,
+  params,
   empty,
 }: {
   query: ProductQuery;
   label: string;
-  /** a própria página, para o "Tentar de novo" */
-  selfHref: string;
-  /** a próxima página por link (sem JavaScript), a partir do cursor */
-  nextHref: (cursor: string) => string;
+  /** a própria listagem e os parâmetros dela, para os links das páginas */
+  path: string;
+  params: Params;
   empty: { title: string; description: string; action?: React.ReactNode };
 }) {
-  const result = await listProducts(query);
-  if (!result.ok) return <CatalogErrorState error={result.error} retryHref={selfHref} />;
+  const current = query.page ?? 1;
+  const result = await listProducts({ ...query, page: current, limit: PER_PAGE });
+  const self = withFilter(path, params, "pagina", current === 1 ? null : String(current));
+  if (!result.ok) return <CatalogErrorState error={result.error} retryHref={self} />;
 
-  const { data: products, page } = result.data;
+  const { data: products } = result.data;
+  const total = result.data.total ?? products.length;
+  const pages = pageCount(total, PER_PAGE);
+  if (products.length === 0 && total > 0) {
+    // a página pedida passou do fim (a listagem encolheu desde o link)
+    return (
+      <StateMessage
+        illustration={<NotFoundIllustration />}
+        title={`Esta listagem tem ${pages === 1 ? "1 página" : `${pages} páginas`}`}
+        description="A página que você abriu não existe mais: os produtos mudaram desde o link."
+        action={
+          <Link
+            href={withFilter(path, params, "pagina", null)}
+            className={buttonVariants({ variant: "secondary" })}
+          >
+            Ir para a primeira página
+          </Link>
+        }
+      />
+    );
+  }
   if (products.length === 0) {
     return <StateMessage illustration={<NotFoundIllustration />} {...empty} />;
   }
 
   const site = env.SITE_URL.replace(/\/$/, "");
+  const first = (current - 1) * PER_PAGE;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     itemListElement: products.map((p, i) => ({
       "@type": "ListItem",
-      position: i + 1,
+      position: first + i + 1,
       url: `${site}/produto/${p.id}`,
       name: p.name,
     })),
   };
-  const apiQuery: Record<string, string> = {};
-  if (query.q) apiQuery.q = query.q;
-  if (query.category) apiQuery.category = query.category;
-  if (query.onSale) apiQuery.on_sale = "true";
-  if (query.brands?.length) apiQuery.brand = query.brands.join(",");
-  if (query.minPriceCents !== undefined) apiQuery.min_price_cents = String(query.minPriceCents);
-  if (query.maxPriceCents !== undefined) apiQuery.max_price_cents = String(query.maxPriceCents);
-  if (query.sort) apiQuery.sort = query.sort;
 
   return (
     <>
-      {/* os cards são h3: o h2 da grade mantém a ordem dos títulos para quem navega por eles */}
-      <h2 className="sr-only">{label}</h2>
-      <ProductGrid products={products} label={label} priorityCount={query.cursor ? 0 : 4}>
-        {page.has_more && page.next_cursor && (
-          <LoadMore query={apiQuery} cursor={page.next_cursor} pageHref={nextHref(page.next_cursor)} />
+      <p className="text-ink-soft text-sm" aria-live="polite">
+        <span className="font-condensed text-ink text-base font-bold tabular-nums">
+          {count.format(total)}
+        </span>{" "}
+        {total === 1 ? "produto" : "produtos"}
+        {pages > 1 && (
+          <>
+            , mostrando {count.format(first + 1)} a {count.format(first + products.length)}
+          </>
         )}
-      </ProductGrid>
+      </p>
+      {/* os cards são h3: o h2 da grade mantém a ordem dos títulos para quem navega por eles */}
+      <h2 className="sr-only">{pages > 1 ? `${label}, página ${current} de ${pages}` : label}</h2>
+      <ProductGrid products={products} label={label} priorityCount={current === 1 ? 4 : 0} />
+      <Pagination path={path} params={params} current={current} total={pages} />
       <script
         type="application/ld+json"
         // o "<" escapado impede que um nome de produto feche a tag

@@ -9,7 +9,7 @@ import { ActiveFilters, ListingFilters } from "@/components/store/listing-filter
 import { ProductListing } from "@/components/store/product-listing";
 import { brand } from "@/lib/brand";
 import { getCategories, type Category } from "@/lib/catalog-api";
-import { activeFilterCount, readFilters, withFilter, withoutRefinements } from "@/lib/storefront";
+import { activeFilterCount, readFilters, withoutRefinements } from "@/lib/storefront";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -61,7 +61,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const { category, parent, root, subcategories } = found;
 
   const filters = readFilters(query);
-  const { onSale, cursor } = filters;
+  const { onSale } = filters;
   const filtered = activeFilterCount(filters) > 0;
 
   return (
@@ -120,11 +120,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               minPriceCents: filters.minPriceCents,
               maxPriceCents: filters.maxPriceCents,
               sort: filters.sort.api,
-              cursor,
+              page: filters.page,
             }}
             label={`Produtos em ${category.name}`}
-            selfHref={withFilter(path, query, "cursor", cursor ?? null)}
-            nextHref={(next) => withFilter(path, query, "cursor", next)}
+            path={path}
+            params={query}
             empty={
               filtered
                 ? {

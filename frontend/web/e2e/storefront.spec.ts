@@ -13,7 +13,7 @@ test("a home destaca a campanha vigente e lista o que está em promoção", asyn
   await expect(onSale).toContainText("de R$ 3.299,90 por R$ 2.639,92, 20% de desconto");
 });
 
-test("a categoria mãe inclui as subcategorias e o 'Ver mais' traz a próxima página", async ({ page }) => {
+test("a categoria mãe inclui as subcategorias, paginada por número", async ({ page }) => {
   await page.goto("/categoria/eletronicos");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Eletrônicos");
   await expect(page.getByRole("navigation", { name: "Subcategorias de Eletrônicos" })).toContainText(
@@ -21,12 +21,35 @@ test("a categoria mãe inclui as subcategorias e o 'Ver mais' traz a próxima p�
   );
 
   const grid = page.getByRole("list", { name: "Produtos em Eletrônicos" });
+  const pages = page.getByRole("navigation", { name: "Páginas de produtos" });
   await expect(grid.locator("article")).toHaveCount(24);
-  await page.getByRole("link", { name: "Ver mais produtos" }).click();
-  await expect(grid.locator("article")).toHaveCount(32);
-  await expect(page.getByRole("link", { name: "Ver mais produtos" })).toHaveCount(0);
-  // o foco foi para o primeiro produto novo
-  await expect(page.locator(":focus")).toHaveText(/Fone de ouvido modelo/);
+  await expect(page.getByText("32 produtos, mostrando 1 a 24")).toBeVisible();
+  await expect(pages.getByRole("link", { name: "Página 1" })).toHaveAttribute("aria-current", "page");
+
+  await pages.getByRole("link", { name: "Próxima" }).click();
+  await expect(page).toHaveURL(/\/categoria\/eletronicos\?pagina=2$/);
+  await expect(grid.locator("article")).toHaveCount(8);
+  await expect(page.getByText("32 produtos, mostrando 25 a 32")).toBeVisible();
+  await expect(pages.getByRole("link", { name: "Próxima" })).toHaveCount(0); // última página
+
+  await pages.getByRole("link", { name: "Anterior" }).click();
+  await expect(page).toHaveURL(/\/categoria\/eletronicos$/);
+
+  // trocar um filtro volta à primeira página
+  await page.goto("/categoria/eletronicos?pagina=2");
+  await page
+    .getByRole("complementary", { name: "Filtrar e ordenar" })
+    .getByRole("radio", { name: "Menor preço" })
+    .check();
+  await expect(page).toHaveURL(/ordem=menor-preco/);
+  await expect(page).not.toHaveURL(/pagina=/);
+});
+
+test("página além do fim explica e leva à primeira", async ({ page }) => {
+  await page.goto("/categoria/eletronicos?pagina=9");
+  await expect(page.getByRole("heading", { name: "Esta listagem tem 2 páginas" })).toBeVisible();
+  await page.getByRole("link", { name: "Ir para a primeira página" }).click();
+  await expect(page).toHaveURL(/\/categoria\/eletronicos$/);
 });
 
 test("'Só em promoção' fica na URL e filtra a categoria", async ({ page }) => {

@@ -217,6 +217,10 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 		q = q.Order("p.created_at DESC, p.id DESC")
 	}
 
+	if f.Page > 0 {
+		return r.numberedPage(ctx, q, f, search, limit)
+	}
+
 	var rows []productRow
 	if err := r.find(q.Limit(limit+1), search != "", &rows); err != nil {
 		return domain.Page[domain.Product]{}, mapError(err)
@@ -229,6 +233,38 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 			page.NextCursor = next.encode()
 		}
 	}
+	page.Items = toProducts(rows)
+	return page, nil
+}
+
+// numberedPage pagina por número (OFFSET) na mesma ordem, e conta o total da listagem com os mesmos
+// filtros: a vitrine mostra "1.234 produtos" e os números das páginas. O OFFSET é limitado pela página
+// máxima do serviço; a busca e o total rodam na mesma transação (o limiar da busca vale para os dois).
+func (r *ProductRepository) numberedPage(ctx context.Context, q *gorm.DB, f domain.ProductFilter, search string, limit int) (domain.Page[domain.Product], error) {
+	counter := applyFilters(r.baseQuery(ctx, f.Now), f)
+	if len(f.Brands) > 0 {
+		counter = counter.Where("lower(p.brand) IN ?", lowerAll(f.Brands))
+	}
+	if search != "" {
+		counter = counter.Where("f_unaccent(@q) <% p.search_text", map[string]any{"q": search})
+	}
+	var rows []productRow
+	if err := r.find(q.Offset((f.Page-1)*limit).Limit(limit+1), search != "", &rows); err != nil {
+		return domain.Page[domain.Product]{}, mapError(err)
+	}
+	var total []int64
+	if err := r.find(counter.Select("count(*)"), search != "", &total); err != nil {
+		return domain.Page[domain.Product]{}, mapError(err)
+	}
+	page := domain.Page[domain.Product]{More: len(rows) > limit}
+	if page.More {
+		rows = rows[:limit]
+	}
+	n := 0
+	if len(total) > 0 {
+		n = int(total[0])
+	}
+	page.Total = &n
 	page.Items = toProducts(rows)
 	return page, nil
 }

@@ -73,6 +73,15 @@ paths:
           schema:
             type: boolean
         - $ref: "#/components/parameters/Brand"
+        - name: page
+          in: query
+          description: |
+            Paginação por número (a partir de 1), com o `total` da listagem na resposta: a vitrine mostra
+            os números das páginas. Alternativa ao `cursor` (os dois juntos dão 422). Até a página 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
         - name: sort
           in: query
           description: |
@@ -851,6 +860,10 @@ components:
             $ref: "#/components/schemas/Product"
         page:
           $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+        total:
+          type: integer
+          minimum: 0
+          description: Quantos produtos a listagem tem, com os filtros; só com `page`.
 
     Category:
       type: object

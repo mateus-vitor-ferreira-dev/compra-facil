@@ -98,6 +98,8 @@ func TestProductService_ListPublic_Validation(t *testing.T) {
 		{"faixa invertida", ListProductsInput{MinPriceCents: ptr[int64](500), MaxPriceCents: ptr[int64](100)}, []string{"max_price_cents"}},
 		{"vários", ListProductsInput{Query: "a", Limit: -1}, []string{"q", "limit"}},
 		{"ordem que não existe", ListProductsInput{Sort: "barato"}, []string{"sort"}},
+		{"página além do máximo", ListProductsInput{Page: MaxPage + 1}, []string{"page"}},
+		{"página e cursor juntos", ListProductsInput{Page: 2, Cursor: "abc"}, []string{"cursor"}},
 		{"marca vazia", ListProductsInput{Brands: []string{"Dell", " "}}, []string{"brand"}},
 		{"marcas demais", ListProductsInput{Brands: slices.Repeat([]string{"Dell"}, 21)}, []string{"brand"}},
 	}
