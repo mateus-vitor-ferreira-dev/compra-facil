@@ -1,0 +1,4 @@
+# Propriedades do cluster, lidas só na primeira partida (o volume vazio). Cada serviço cria os próprios
+# tópicos (o relay do outbox e as DLTs): um nome errado não vira um tópico novo por engano.
+auto_create_topics_enabled: false
+default_topic_replications: 1

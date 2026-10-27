@@ -35,11 +35,14 @@ http:
       entryPoints: [web]
       service: notifications
       middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
+{{- if ne (env "GATEWAY_MEDIA") "off" }}
+    # as fotos dos produtos no ambiente local; em produção elas saem do R2, com domínio próprio
     media:
       rule: PathPrefix(`/media`)
       entryPoints: [web]
       service: media
       middlewares: [security-headers, strip-service-prefix]
+{{- end }}
     # login, refresh, logout, cadastro e confirmação de e-mail: as rotas que aceitam senha ou token, com rate limit
     identity-credentials:
       rule: PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)
@@ -84,10 +87,12 @@ http:
       loadBalancer:
         servers: [{ url: "http://notifications:8005" }]
         healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+{{- if ne (env "GATEWAY_MEDIA") "off" }}
     media:
       loadBalancer:
         servers: [{ url: "http://media:8080" }]
         healthCheck: { path: /health, interval: 5s, timeout: 2s }
+{{- end }}
     identity:
       loadBalancer:
         servers: [{ url: "http://identity:8006" }]
