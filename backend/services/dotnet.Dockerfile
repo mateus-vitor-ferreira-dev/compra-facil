@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Imagem dos serviços .NET (orders, inventory, payments, notifications, identity): um Dockerfile para os
 # cinco, o serviço vem por build arg. Runtime chiseled: sem shell, sem gerenciador de pacotes,
-# usuário não-root. Multi-arquitetura (amd64 e arm64, a VM da Oracle é ARM) por compilação cruzada:
+# usuário não-root. Multi-arquitetura (amd64 e arm64, o VPS da produção é ARM) por compilação cruzada:
 # o SDK roda na arquitetura de quem builda e publica para a do alvo; o runtime só copia, sem emular.
 # Contexto do build: raiz do repositório (usa backend/Directory.*.props, backend/libs/dotnet e contracts/).
 #   docker build -f backend/services/dotnet.Dockerfile --build-arg SERVICE=orders \

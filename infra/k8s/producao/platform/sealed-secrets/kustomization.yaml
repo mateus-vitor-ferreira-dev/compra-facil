@@ -1,5 +1,0 @@
-# O controller do Sealed Secrets, do release oficial (o chart saiu do repositório antigo), em versão fixa.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.41.2/controller.yaml
