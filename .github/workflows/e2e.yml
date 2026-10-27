@@ -17,6 +17,7 @@ on:
       - backend/Directory.Build.props
       - backend/Directory.Packages.props
       - load-tests/k6/e2e-compra.js
+      - load-tests/k6/gateway-bff.js
       - .github/workflows/e2e.yml
   workflow_dispatch:
 
@@ -32,6 +33,9 @@ jobs:
     name: compra ponta a ponta
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      # o gateway com a rota do BFF (#176), para o teste do rate limit por comprador
+      BFF_GATEWAY_KEY: chave-do-bff-no-ci
     steps:
       - uses: actions/checkout@v7.0.1
       # o build das 6 imagens enche o disco do runner (e aí o Redpanda e o pull do k6 falham). Apagar os
@@ -56,6 +60,9 @@ jobs:
       # o admin entra pelo identity (operador inicial do compose)
       - name: Compra ponta a ponta (k6)
         run: docker compose run --rm k6 run --quiet /scripts/e2e-compra.js
+
+      - name: Rate limit por comprador com o BFF (k6)
+        run: docker compose run --rm k6 run --quiet /scripts/gateway-bff.js
 
       - name: Estado e logs (em caso de falha)
         if: failure()

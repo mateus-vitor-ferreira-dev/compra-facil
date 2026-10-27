@@ -53,13 +53,17 @@ export type RefreshResult = { ok: true; tokens: Tokens } | { ok: false; status: 
 // intervalo de reuso do identity (10 s) faz o refresh paralelo dar um par novo da mesma sessão.
 const inFlight = new Map<string, Promise<RefreshResult>>();
 
-export function refreshSession(refreshToken: string, fetcher: typeof fetch = fetch): Promise<RefreshResult> {
+export function refreshSession(
+  refreshToken: string,
+  fetcher: typeof fetch = fetch,
+  extraHeaders: Record<string, string> = {},
+): Promise<RefreshResult> {
   const running = inFlight.get(refreshToken);
   if (running) return running;
   const call = (async (): Promise<RefreshResult> => {
     const response = await fetcher(`${env.API_URL.replace(/\/$/, "")}/identity/v1/sessions/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...extraHeaders },
       body: JSON.stringify({ refresh_token: refreshToken }),
       cache: "no-store",
     });

@@ -36,6 +36,22 @@ http:
         period: 1s
         burst: 100
 
+    # a vitrine pelo BFF do front (rota catalog-bff): o mesmo limite, por comprador. O BFF manda o IP de
+    # quem está comprando em X-Client-IP, e essa rota só existe para quem tem o segredo do BFF
+    catalog-rate-limit-bff:
+      rateLimit:
+        average: 50
+        period: 1s
+        burst: 100
+        sourceCriterion:
+          requestHeaderName: X-Client-IP
+
+    # o segredo do BFF não segue para os serviços
+    strip-bff-key:
+      headers:
+        customRequestHeaders:
+          X-Bff-Key: ""
+
     # o contrato exige 429 em application/problem+json; o Traefik responde texto puro, então o corpo
     # vem do próprio catalog (GET /problems/429), mantendo o status do rate limit
     catalog-problem-429:
@@ -51,6 +67,15 @@ http:
         average: 5
         period: 1s
         burst: 20
+
+    # login e cadastro pelo BFF do front: o mesmo limite, por comprador (X-Client-IP)
+    identity-rate-limit-bff:
+      rateLimit:
+        average: 5
+        period: 1s
+        burst: 20
+        sourceCriterion:
+          requestHeaderName: X-Client-IP
 
     # o mesmo do catalog: o corpo do 429 em ProblemDetails vem do próprio identity
     identity-problem-429:

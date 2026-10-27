@@ -1,6 +1,8 @@
 import "server-only";
+import { headers } from "next/headers";
 import createClient, { type Middleware } from "openapi-fetch";
 import { env } from "@/lib/env";
+import { gatewayHeaders } from "./gateway-headers";
 import type { paths as catalog } from "./schema/catalog";
 import type { paths as identity } from "./schema/identity";
 import type { paths as inventory } from "./schema/inventory";
@@ -25,6 +27,19 @@ function client<Paths extends object>(service: string, options: CallOptions = {}
       ? (request: Request) => fetch(request, { next: { revalidate, tags } } as RequestInit)
       : undefined,
   });
+  // o IP do comprador para o rate limit do gateway (#176); só com o BFF configurado para isso, então
+  // as páginas estáticas e os testes não leem os cabeçalhos da requisição
+  if (env.BFF_GATEWAY_KEY && env.CLIENT_IP_HEADER) {
+    const client: Middleware = {
+      async onRequest({ request }) {
+        for (const [name, value] of Object.entries(gatewayHeaders(await headers()))) {
+          request.headers.set(name, value);
+        }
+        return request;
+      },
+    };
+    api.use(client);
+  }
   if (token) {
     const auth: Middleware = {
       onRequest({ request }) {

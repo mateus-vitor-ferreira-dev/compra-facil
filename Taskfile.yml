@@ -317,6 +317,14 @@ tasks:
     cmds:
       - docker compose run --rm k6 run --quiet /scripts/e2e-compra.js
 
+  test:gateway-bff:
+    desc: "Rate limit por comprador com o BFF do front (#176): sobe o gateway com BFF_GATEWAY_KEY e roda o k6"
+    env:
+      BFF_GATEWAY_KEY: '{{.BFF_GATEWAY_KEY | default "chave-local-do-bff"}}'
+    cmds:
+      - docker compose up -d --wait gateway
+      - docker compose run --rm k6 run --quiet /scripts/gateway-bff.js
+
   load:
     desc: "k6: campanha promocional, 90% leitura e 10% compras, com rampa até o pico; métricas no Prometheus (ex.: task load -- -e PEAK_RATE=800)"
     cmds:
