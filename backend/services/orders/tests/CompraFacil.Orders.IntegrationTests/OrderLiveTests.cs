@@ -57,6 +57,19 @@ public sealed class LiveClient(OrdersFixture fx)
         await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().SaveChangesAsync(Ct);
     }
 
+    /// <summary>StockReserved como o consumer de eventos aplica: dentro de uma transação, com commit no fim.</summary>
+    public async Task ReserveAsync(Guid order)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+        await using var tx = await db.Database.BeginTransactionAsync(Ct);
+        var handler = ActivatorUtilities.CreateInstance<OnStockReserved>(scope.ServiceProvider);
+        await handler.HandleAsync(new StockReservedData(order),
+            new EventContext(Guid.NewGuid(), "StockReserved", "t", "c", DateTimeOffset.UtcNow), Ct);
+        await db.SaveChangesAsync(Ct);
+        await tx.CommitAsync(Ct);
+    }
+
     /// <summary>Lê eventos até o servidor fechar ou dar o prazo; para em <paramref name="until"/>, se vier.</summary>
     public static async Task<List<SseEvent>> ReadAsync(HttpResponseMessage response, TimeSpan timeout, Func<List<SseEvent>, bool>? until = null)
     {
@@ -229,6 +242,27 @@ public sealed class OrderLiveNotificationTests(SlowPollOrdersFixture fx) : IClas
         var events = (await reading).Where(e => e.Event == "order").ToList();
 
         Assert.Equal(["pending", "confirmed"], events.Select(LiveClient.Status));
+        Assert.True(DateTimeOffset.UtcNow - started < TimeSpan.FromSeconds(5), "sem o aviso, só sairia na releitura de 1 min");
+    }
+
+    [Fact]
+    public async Task EachSagaStep_ArrivesOnCommit_WithoutWaitingForKafka()
+    {
+        var (order, customer) = await _live.PlaceAsync();
+        using var response = await _live.OpenAsync(order, fx.Identity.CustomerToken(customer));
+        var reading = LiveClient.ReadAsync(response, TimeSpan.FromSeconds(10));
+        await Task.Delay(300, LiveClient.Ct);
+        var started = DateTimeOffset.UtcNow;
+
+        await _live.ReserveAsync(order);
+        await Task.Delay(300, LiveClient.Ct);
+        await _live.ConfirmAsync(order);
+        var events = (await reading).Where(e => e.Event == "order").ToList();
+
+        // sem Notify manual: quem avisa é o commit (OrderCommitNotifier)
+        Assert.Equal(["pending", "pending", "confirmed"], events.Select(LiveClient.Status));
+        var steps = events.Select(e => JsonDocument.Parse(e.Data!).RootElement.GetProperty("stock_reserved_at").ValueKind).ToList();
+        Assert.Equal([JsonValueKind.Null, JsonValueKind.String, JsonValueKind.String], steps);
         Assert.True(DateTimeOffset.UtcNow - started < TimeSpan.FromSeconds(5), "sem o aviso, só sairia na releitura de 1 min");
     }
 

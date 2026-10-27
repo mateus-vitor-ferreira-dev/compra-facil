@@ -10,7 +10,8 @@ info:
     O resultado chega de forma assíncrona:
 
     `pending` → `confirmed` (estoque reservado e pagamento aprovado) **ou** `cancelled`
-    (`cancellation_reason`: `out_of_stock` ou `payment_failed`).
+    (`cancellation_reason`: `out_of_stock` ou `payment_failed`). Enquanto `pending`, o
+    `stock_reserved_at` diz a etapa: nulo, reservando o estoque; preenchido, cobrando o pagamento.
 
     Acompanhe ao vivo por `GET /v1/orders/{order_id}/events` (Server-Sent Events), por
     `GET /v1/orders/{order_id}` (polling) ou pelo e-mail do `notifications`.
@@ -370,6 +371,12 @@ components:
           type: [string, "null"]
           format: uuid
           description: Preenchido quando o payments processa a cobrança.
+        stock_reserved_at:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            Quando o inventory reservou o estoque. Com o pedido `pending`, nulo é a etapa da reserva e
+            preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
         created_at:
           type: string
           format: date-time
