@@ -14,11 +14,15 @@ kubeseal --controller-namespace kube-system --controller-name sealed-secrets-con
 # shellcheck disable=SC1090
 set -a; source "$env_file"; set +a
 
-# seal <nome do Secret> <tipo> <chave=VARIÁVEL>...
+# seal <nome do Secret> <tipo> <chave=VARIÁVEL | chave:=valor fixo>...
 seal() {
   local name=$1 type=$2; shift 2
   local args=()
   for pair in "$@"; do
+    if [[ $pair == *:=* ]]; then
+      args+=(--from-literal="${pair%%:=*}=${pair#*:=}")
+      continue
+    fi
     local key=${pair%%=*} var=${pair#*=}
     [[ -n ${!var:-} ]] || { echo "faltou $var em $env_file (Secret $name)" >&2; exit 1; }
     args+=(--from-literal="$key=${!var}")
@@ -30,6 +34,14 @@ seal() {
 }
 
 seal bff-gateway-key Opaque key=BFF_GATEWAY_KEY
+
+# o usuário de cada serviço no Postgres (o CloudNativePG lê username/password; os serviços, a senha)
+for service in catalog orders inventory payments notifications identity; do
+  seal "pg-$service" kubernetes.io/basic-auth "username:=$service" "password=PG_${service^^}_PASSWORD"
+done
+
+# a chave S3 compatível com que o barman grava os backups do Postgres no Object Storage
+seal backup-s3 Opaque ACCESS_KEY_ID=S3_ACCESS_KEY_ID ACCESS_SECRET_KEY=S3_SECRET_ACCESS_KEY REGION=OCI_REGION
 
 # imagens privadas no GHCR: o segredo de pull (dispensável se os pacotes forem públicos)
 if [[ -n ${GHCR_TOKEN:-} ]]; then
