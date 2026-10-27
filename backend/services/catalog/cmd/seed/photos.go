@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"math/rand/v2"
 	"strings"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
@@ -18,8 +17,8 @@ import (
 //go:embed photos.json
 var photosJSON []byte
 
-// photosPerSubcategory é quantas fotos cada subcategoria tem (<slug>-1 ... <slug>-N).
-const photosPerSubcategory = 4
+// minPhotosPerSubcategory: com menos que isto, cards vizinhos de uma listagem repetiriam a foto (#178).
+const minPhotosPerSubcategory = 10
 
 type photo struct {
 	Width    int `json:"width"`
@@ -38,9 +37,25 @@ func loadPhotos() (map[string]photo, error) {
 	return photos, nil
 }
 
-// photoFor sorteia uma das fotos da subcategoria: a URL da maior variante e a ProductImage com todas.
-func photoFor(rng *rand.Rand, photos map[string]photo, mediaURL, subSlug string) (string, *domain.ProductImage) {
-	name := fmt.Sprintf("%s-%d", subSlug, rng.IntN(photosPerSubcategory)+1)
+// photoCount é quantas fotos a subcategoria tem no manifesto (<slug>-1 ... <slug>-N, sem buracos).
+func photoCount(photos map[string]photo, subSlug string) int {
+	n := 0
+	for {
+		if _, ok := photos[fmt.Sprintf("%s-%d", subSlug, n+1)]; !ok {
+			return n
+		}
+		n++
+	}
+}
+
+// photoFor devolve a foto n (a partir de 0, em ciclo) da subcategoria: a URL da maior variante e a
+// ProductImage com todas.
+func photoFor(photos map[string]photo, mediaURL, subSlug string, n int) (string, *domain.ProductImage) {
+	count := photoCount(photos, subSlug)
+	if count == 0 {
+		panic("subcategoria " + subSlug + " sem fotos no manifesto: rode scripts/media/product_images.py build e go generate ./cmd/seed")
+	}
+	name := fmt.Sprintf("%s-%d", subSlug, n%count+1)
 	p, ok := photos[name]
 	if !ok || len(p.Variants) == 0 {
 		panic("foto " + name + " fora do manifesto: rode scripts/media/product_images.py build e go generate ./cmd/seed")

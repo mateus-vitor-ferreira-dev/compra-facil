@@ -35,27 +35,28 @@ MANIFEST = ROOT / "infra" / "media" / "manifest.json"
 VARIANT_WIDTHS = (320, 480, 640, 960, 1200)
 MIN_SIZE = 600  # foto menor que isso não entra: ficaria borrada na página do produto
 SIZE = 800  # das pranchas de escolha
-CANDIDATES = 12
+CANDIDATES = 20  # por busca (o máximo do Openverse sem chave)
 API = "https://api.openverse.org/v1/images/"
 # fontes de fotografia CC0/domínio público; a Wikimedia traz muito logo e diagrama
 SOURCES = "stocksnap,rawpixel"
 USER_AGENT = "compra-facil-seed/1.0 (https://github.com/mateus-vitor-ferreira-dev/compra-facil)"
 
-# subcategoria do seed (backend/services/catalog/cmd/seed/catalog_data.go) -> busca em inglês
+# subcategoria do seed (backend/services/catalog/cmd/seed/catalog_data.go) -> buscas em inglês. Várias
+# por subcategoria (#178): com uma só, as candidatas boas não davam 10 fotos diferentes
 QUERIES = {
-    "tv": "television",
-    "fones": "headphones",
-    "caixas-de-som": "speaker",
-    "notebooks": "laptop",
-    "monitores": "computer monitor",
-    "perifericos": "keyboard",
-    "geladeiras": "refrigerator",
-    "fogoes": "stove",
-    "lavadoras": "washing machine",
-    "sofas": "sofa",
-    "colchoes": "bed",
-    "bicicletas": "bicycle",
-    "fitness": "dumbbell",
+    "tv": ["television", "flat screen tv", "tv living room"],
+    "fones": ["headphones", "wireless earbuds", "headset"],
+    "caixas-de-som": ["speaker", "bluetooth speaker", "soundbar"],
+    "notebooks": ["laptop", "notebook computer", "laptop desk"],
+    "monitores": ["computer monitor", "desktop computer screen", "monitor desk"],
+    "perifericos": ["keyboard", "computer mouse", "webcam"],
+    "geladeiras": ["refrigerator", "fridge kitchen", "refrigerator door"],
+    "fogoes": ["stove", "cooktop", "gas stove kitchen"],
+    "lavadoras": ["washing machine", "laundry machine", "front load washer"],
+    "sofas": ["sofa", "couch living room", "armchair"],
+    "colchoes": ["bed", "mattress", "bedroom bed"],
+    "bicicletas": ["bicycle", "mountain bike", "road bike"],
+    "fitness": ["dumbbell", "treadmill", "kettlebell"],
 }
 
 
@@ -91,12 +92,18 @@ def square(path, size=SIZE):
 
 
 
-def fetch_one(sub, query):
+def fetch_one(sub, queries):
     folder = CACHE / sub
     folder.mkdir(parents=True, exist_ok=True)
-    results = search(query)
-    kept = []
+    meta_file = folder / "meta.json"
+    # o cache acumula: as fotos já escolhidas em buscas anteriores continuam achadas pelo build
+    kept = json.loads(meta_file.read_text()) if meta_file.exists() else []
+    seen = {r["id"] for r in kept}
+    results = [r for q in queries for r in search(q)]
     for r in results:
+        if r["id"] in seen:
+            continue
+        seen.add(r["id"])
         path = folder / f"{r['id']}.img"
         try:
             if not path.exists():
@@ -105,13 +112,13 @@ def fetch_one(sub, query):
             kept.append(r)
         except Exception as e:
             print(f"  {sub} {r['id']}: {e}", file=sys.stderr)
-    (folder / "meta.json").write_text(json.dumps(kept, ensure_ascii=False, indent=1))
+    meta_file.write_text(json.dumps(kept, ensure_ascii=False, indent=1))
     sheet(sub, kept)
     print(f"{sub}: {len(kept)} candidatas")
 
 
 def sheet(sub, results):
-    thumb, cols = 260, 4
+    thumb, cols = 200, 6
     rows = (len(results) + cols - 1) // cols
     board = Image.new("RGB", (cols * thumb, max(rows, 1) * (thumb + 22)), "white")
     draw = ImageDraw.Draw(board)

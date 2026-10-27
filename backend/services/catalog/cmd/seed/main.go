@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -199,6 +200,7 @@ type seedProduct struct {
 	brand      string
 	categoryID uuid.UUID
 	rootSlug   string
+	subSlug    string
 	imageURL   string
 	image      *domain.ProductImage
 	price      int64
@@ -241,7 +243,6 @@ func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, me
 		}
 
 		sku := fmt.Sprintf("%s-%06d", sub.skuPrefix, i+1)
-		imageURL, image := photoFor(rng, photos, mediaURL, sub.slug)
 		out[i] = seedProduct{
 			id:         newUUID(rng),
 			sku:        sku,
@@ -250,14 +251,30 @@ func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, me
 			brand:      brand,
 			categoryID: sub.id,
 			rootSlug:   sub.rootSlug,
-			imageURL:   imageURL,
-			image:      image,
+			subSlug:    sub.slug,
 			price:      roundPrice(sub.minPrice + rng.Int64N(sub.maxPrice-sub.minPrice+1)),
 			status:     status,
 			createdAt:  now.Add(-time.Duration(rng.Int64N(int64(365 * 24 * time.Hour)))),
 		}
 	}
+	assignPhotos(out, photos, mediaURL)
 	return out
+}
+
+// assignPhotos dá as fotos de cada subcategoria em sequência, na ordem em que a vitrine lista (os mais
+// novos primeiro): cards vizinhos de uma listagem não repetem a foto enquanto a subcategoria tiver
+// fotos para isso (#178). Antes era sorteio entre 4, e a mesma foto aparecia seguida.
+func assignPhotos(products []seedProduct, photos map[string]photo, mediaURL string) {
+	bySub := map[uuid.UUID][]int{}
+	for i, p := range products {
+		bySub[p.categoryID] = append(bySub[p.categoryID], i)
+	}
+	for _, idx := range bySub {
+		sort.Slice(idx, func(a, b int) bool { return products[idx[a]].createdAt.After(products[idx[b]].createdAt) })
+		for n, i := range idx {
+			products[i].imageURL, products[i].image = photoFor(photos, mediaURL, products[i].subSlug, n)
+		}
+	}
 }
 
 type seededCampaign struct {
