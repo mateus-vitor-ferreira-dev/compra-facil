@@ -5,7 +5,7 @@ import { createServer } from "node:http";
 const port = Number(process.env.STUB_PORT ?? 4010);
 const sessions = new Map(); // refresh token -> { email, used }
 const accessTokens = new Map(); // access token -> email
-const stats = { refresh: 0, revoke: 0 };
+const stats = { refresh: 0, revoke: 0, ordersPlaced: 0 };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
 
@@ -123,6 +123,119 @@ function listProducts(url) {
   return { data, page: { next_cursor: more ? String(start + limit) : null, has_more: more } };
 }
 
+// ---- pedidos feitos no teste: a SAGA anda sozinha com o tempo ----
+const placed = new Map(); // id -> { order, reserveAt, endAt, outcome }
+const byKey = new Map(); // `${email}:${Idempotency-Key}` -> id
+const TRACE = "4bf92f3577b34da6a3ce929d0e0e4736";
+const ANA = "0199f6a0-0000-7000-8000-000000000a1a";
+
+/** O pedido no instante `now`: reservando, cobrando e, no fim, confirmado ou cancelado. */
+function orderAt(entry, now = Date.now()) {
+  const { order, reserveAt, endAt, outcome } = entry;
+  if (outcome === "out_of_stock" && now >= reserveAt) {
+    return { ...order, status: "cancelled", cancellation_reason: "out_of_stock", updated_at: iso(reserveAt) };
+  }
+  const reserved = now >= reserveAt ? { stock_reserved_at: iso(reserveAt), updated_at: iso(reserveAt) } : {};
+  if (now < endAt) return { ...order, ...reserved };
+  return outcome === "payment_failed"
+    ? {
+        ...order,
+        ...reserved,
+        status: "cancelled",
+        cancellation_reason: "payment_failed",
+        updated_at: iso(endAt),
+      }
+    : { ...order, ...reserved, status: "confirmed", payment_id: crypto.randomUUID(), updated_at: iso(endAt) };
+}
+const iso = (ms) => new Date(ms).toISOString();
+const eventId = (o) => String(Date.parse(o.updated_at));
+
+async function placeOrder(req, res, email) {
+  const key = req.headers["idempotency-key"];
+  if (!key) return problem(res, 400, "Requisição malformada");
+  const existing = byKey.get(`${email}:${key}`);
+  const { items } = await json(req);
+  if (existing) return send(res, 202, orderAt(placed.get(existing)));
+  // "instavel@..." pega o catálogo fora e sem cópia local: 503 com Retry-After e o trace para o suporte
+  if (email.startsWith("instavel@")) {
+    res.setHeader("Retry-After", "7");
+    return send(
+      res,
+      503,
+      { type: "about:blank", title: "Serviço indisponível", status: 503, trace_id: TRACE },
+      "application/problem+json",
+    );
+  }
+  const lines = items.map((i) => ({ ...i, product: products.find((p) => p.id === i.product_id) }));
+  if (
+    lines.some((l) => !l.product || l.expected_unit_price_cents !== l.product.effective_price.amount_cents)
+  ) {
+    return send(
+      res,
+      409,
+      { type: "about:blank", title: "Itens recusados pelo catálogo", status: 409, trace_id: TRACE },
+      "application/problem+json",
+    );
+  }
+  const orderItems = lines.map(({ product, quantity }) => ({
+    product_id: product.id,
+    sku: product.sku,
+    name: product.name,
+    quantity,
+    unit_price: product.effective_price,
+    line_total: { amount_cents: product.effective_price.amount_cents * quantity, currency: "BRL" },
+    campaign_id: product.campaign?.id ?? null,
+  }));
+  const total = orderItems.reduce((sum, i) => sum + i.line_total.amount_cents, 0);
+  const now = Date.now();
+  const id = crypto.randomUUID();
+  const order = {
+    id,
+    customer_id: ANA,
+    status: "pending",
+    cancellation_reason: null,
+    items: orderItems,
+    total: { amount_cents: total, currency: "BRL" },
+    payment_id: null,
+    stock_reserved_at: null,
+    created_at: iso(now),
+    updated_at: iso(now),
+  };
+  // o gateway falso recusa acima de R$ 50.000,00; o inventory, acima do saldo
+  const outcome = lines.some((l) => l.quantity > stock(l.product.id))
+    ? "out_of_stock"
+    : total > 5_000_000
+      ? "payment_failed"
+      : "confirmed";
+  placed.set(id, { order, owner: email, reserveAt: now + 800, endAt: now + 1600, outcome });
+  byKey.set(`${email}:${key}`, id);
+  stats.ordersPlaced++;
+  return send(res, 202, order);
+}
+
+/** GET .../events: o estado atual e cada mudança, em Server-Sent Events, até o estado final. */
+function streamOrder(req, res, entry) {
+  const last = req.headers["last-event-id"];
+  let current = orderAt(entry);
+  if (current.status !== "pending" && last === eventId(current)) return res.writeHead(204).end();
+  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
+  res.write("retry: 3000\n\n");
+  const emit = (o) => res.write(`id: ${eventId(o)}\nevent: order\ndata: ${JSON.stringify(o)}\n\n`);
+  if (last !== eventId(current)) emit(current);
+  const timer = setInterval(() => {
+    const next = orderAt(entry);
+    if (next.updated_at !== current.updated_at) {
+      current = next;
+      emit(current);
+    }
+    if (current.status !== "pending") {
+      clearInterval(timer);
+      res.end();
+    }
+  }, 50);
+  req.on("close", () => clearInterval(timer));
+}
+
 function tokens(email) {
   seq++;
   const access = `access-${seq}`;
@@ -156,12 +269,23 @@ async function json(req) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
-  const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})$/);
+  const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})(\/events)?$/);
   if (req.method === "GET" && order) {
     const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
     if (!email) return problem(res, 401, "Não autenticado");
-    const found = email === "ana@exemplo.com" && orders.find((o) => o.id === order[1]);
+    const entry = placed.get(order[1]);
+    if (entry && entry.owner === email)
+      return order[2] ? streamOrder(req, res, entry) : send(res, 200, orderAt(entry));
+    const found = !order[2] && email === "ana@exemplo.com" && orders.find((o) => o.id === order[1]);
     return found ? send(res, 200, found) : problem(res, 404, "Recurso não encontrado");
+  }
+  // o teste muda o preço de um produto no meio da compra: POST /__price {product_id, amount_cents}
+  if (req.method === "POST" && url.pathname === "/__price") {
+    const { product_id, amount_cents } = await json(req);
+    const product = products.find((p) => p.id === product_id);
+    product.price = { amount_cents, currency: "BRL" };
+    product.effective_price = { amount_cents, currency: "BRL" };
+    return send(res, 200, product);
   }
   const detail = url.pathname.match(/^\/catalog\/v1\/products\/([0-9a-f-]{36})$/);
   if (req.method === "GET" && detail) {
@@ -216,6 +340,11 @@ createServer(async (req, res) => {
       if (token !== "token-bom") return problem(res, 422, "Dados inválidos");
       res.writeHead(204).end();
       return;
+    }
+    case "POST /orders/v1/orders": {
+      const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
+      if (!email) return problem(res, 401, "Não autenticado");
+      return placeOrder(req, res, email);
     }
     case "GET /orders/v1/me/orders": {
       const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));

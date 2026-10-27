@@ -18,7 +18,9 @@ export default defineConfig({
   webServer: [
     { command: "node e2e/stub-api.mjs", url: `${STUB}/__stats`, reuseExistingServer: !process.env.CI },
     {
-      command: "npm run start",
+      // o cache de dados do Next fica em disco: sem limpar, o preço de uma execução vaza para a próxima
+      command:
+        "node -e \"require('fs').rmSync('.next/cache/fetch-cache',{recursive:true,force:true})\" && npm run start",
       url: "http://localhost:3000/robots.txt",
       env: { API_URL: STUB },
       reuseExistingServer: !process.env.CI,

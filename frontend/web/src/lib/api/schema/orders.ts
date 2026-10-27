@@ -184,6 +184,12 @@ export interface components {
              * @description Preenchido quando o payments processa a cobrança.
              */
             payment_id?: string | null;
+            /**
+             * Format: date-time
+             * @description Quando o inventory reservou o estoque. Com o pedido `pending`, nulo é a etapa da reserva e
+             *     preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
+             */
+            stock_reserved_at?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
