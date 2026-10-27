@@ -78,6 +78,7 @@ type productInputDTO struct {
 	SKU         string               `json:"sku"`
 	Name        string               `json:"name"`
 	Description string               `json:"description"`
+	Brand       *string              `json:"brand"`
 	CategoryID  uuid.UUID            `json:"category_id"`
 	ImageURL    *string              `json:"image_url"`
 	PriceCents  int64                `json:"price_cents"`
@@ -86,7 +87,7 @@ type productInputDTO struct {
 
 func (in productInputDTO) toService() service.ProductInput {
 	return service.ProductInput{
-		SKU: in.SKU, Name: in.Name, Description: in.Description, CategoryID: in.CategoryID,
+		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
 		ImageURL: in.ImageURL, PriceCents: in.PriceCents, Status: in.Status,
 	}
 }

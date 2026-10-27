@@ -32,6 +32,7 @@ const (
 
 type productReader interface {
 	ListPublic(ctx context.Context, in service.ListProductsInput) (domain.Page[domain.Product], error)
+	ListBrands(ctx context.Context, in service.ListProductsInput) ([]domain.BrandCount, error)
 	GetPublic(ctx context.Context, id uuid.UUID) (domain.Product, error)
 }
 
@@ -99,6 +100,14 @@ func (c *Catalog) ListPublic(ctx context.Context, in service.ListProductsInput) 
 			return c.capTTL(ctx, c.opts.ListTTL, ends...)
 		},
 	)
+}
+
+// ListBrands guarda a faceta de marcas como as listagens; o TTL vai até a próxima virada de campanha,
+// porque a faceta de "só em promoção" e a faixa de preço dependem do desconto vigente.
+func (c *Catalog) ListBrands(ctx context.Context, in service.ListProductsInput) ([]domain.BrandCount, error) {
+	return cached(ctx, c, "brands", "brands:"+hashKey(in),
+		func(ctx context.Context) ([]domain.BrandCount, error) { return c.products.ListBrands(ctx, in) },
+		func(ctx context.Context, _ []domain.BrandCount) time.Duration { return c.capTTL(ctx, c.opts.ListTTL) })
 }
 
 func (c *Catalog) List(ctx context.Context) ([]domain.Category, error) {

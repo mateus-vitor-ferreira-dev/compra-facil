@@ -30,7 +30,13 @@ const (
 	// limiar do operador <% (padrão do pg_trgm: 0.6). 0.5 aceita 1 letra faltando em palavras de ~8 letras
 	searchSimilarityThreshold = "0.5"
 
-	productColumns = `p.id, p.sku, p.name, p.description, p.category_id, p.image_url, p.image, p.price_cents,
+	// desconto da campanha vigente (0 sem campanha): a ordem "maior desconto"
+	discountSQL = `COALESCE(ac.discount_percent, 0)`
+
+	// marcas na faceta do filtro
+	maxBrands = 50
+
+	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.price_cents,
 		p.currency, p.status, p.version, p.created_at, p.updated_at,
 		cat.slug AS category_slug, cat.name AS category_name,
 		ac.id AS campaign_id, ac.name AS campaign_name,
@@ -167,9 +173,90 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 	if err != nil {
 		return domain.Page[domain.Product]{}, err
 	}
+	search := strings.ToLower(strings.TrimSpace(f.Query))
+	sort := resolveSort(f.Sort, search != "")
+	// o cursor é da ordem que o gerou (os de antes da ordenação não têm S: mais novos ou relevância)
+	if f.Cursor != "" && cur.S != sort && (cur.S != "" || (sort != domain.SortNewest && sort != domain.SortRelevance)) {
+		return domain.Page[domain.Product]{}, domain.ErrInvalidCursor
+	}
 	limit := clampLimit(f.Limit)
-	q := r.baseQuery(ctx, f.Now)
+	q := applyFilters(r.baseQuery(ctx, f.Now), f)
+	if len(f.Brands) > 0 {
+		q = q.Where("lower(p.brand) IN ?", lowerAll(f.Brands))
+	}
+	if search != "" {
+		// <% usa o índice trigram; word_similarity tolera erro de digitação e palavra parcial,
+		// e f_unaccent faz "fogao" achar "Fogão"
+		q = q.Where("f_unaccent(@q) <% p.search_text", map[string]any{"q": search})
+	}
 
+	switch sort {
+	case domain.SortRelevance:
+		q = q.Select(productColumns+", word_similarity(f_unaccent(@q), p.search_text) AS search_score", map[string]any{"q": search}).
+			Order("search_score DESC, p.id").
+			Offset(cur.O)
+	case domain.SortPriceAsc:
+		if cur.V != nil {
+			q = q.Where("("+effectivePriceSQL+", p.id) > (?, ?)", *cur.V, cur.ID)
+		}
+		q = q.Order(effectivePriceSQL + " ASC, p.id ASC")
+	case domain.SortPriceDesc:
+		if cur.V != nil {
+			q = q.Where("("+effectivePriceSQL+", p.id) < (?, ?)", *cur.V, cur.ID)
+		}
+		q = q.Order(effectivePriceSQL + " DESC, p.id DESC")
+	case domain.SortDiscount:
+		if cur.V != nil {
+			q = q.Where("("+discountSQL+", p.id) < (?, ?)", *cur.V, cur.ID)
+		}
+		q = q.Order(discountSQL + " DESC, p.id DESC")
+	default: // mais novos
+		if cur.T != nil {
+			q = q.Where("(p.created_at, p.id) < (?, ?)", *cur.T, cur.ID)
+		}
+		q = q.Order("p.created_at DESC, p.id DESC")
+	}
+
+	var rows []productRow
+	if err := r.find(q.Limit(limit+1), search != "", &rows); err != nil {
+		return domain.Page[domain.Product]{}, mapError(err)
+	}
+
+	page := domain.Page[domain.Product]{}
+	if len(rows) > limit {
+		rows = rows[:limit]
+		if next, ok := nextCursor(sort, cur, rows[len(rows)-1], limit); ok {
+			page.NextCursor = next.encode()
+		}
+	}
+	page.Items = toProducts(rows)
+	return page, nil
+}
+
+// Brands conta as marcas dos produtos que passam nos filtros da listagem (sem o de marca).
+func (r *ProductRepository) Brands(ctx context.Context, f domain.ProductFilter, limit int) ([]domain.BrandCount, error) {
+	if limit <= 0 || limit > maxBrands {
+		limit = maxBrands
+	}
+	q := applyFilters(r.baseQuery(ctx, f.Now), f).
+		Select("p.brand AS name, count(*) AS count").
+		Where("p.brand IS NOT NULL").
+		Group("p.brand").
+		Order("count DESC, p.brand").
+		Limit(limit)
+	search := strings.ToLower(strings.TrimSpace(f.Query))
+	if search != "" {
+		q = q.Where("f_unaccent(@q) <% p.search_text", map[string]any{"q": search})
+	}
+	var out []domain.BrandCount
+	if err := r.find(q, search != "", &out); err != nil {
+		return nil, mapError(err)
+	}
+	return out, nil
+}
+
+// applyFilters aplica os filtros comuns à listagem e à faceta de marcas.
+func applyFilters(q *gorm.DB, f domain.ProductFilter) *gorm.DB {
 	if f.Status != nil {
 		q = q.Where("p.status = ?", string(*f.Status))
 	}
@@ -188,45 +275,54 @@ func (r *ProductRepository) List(ctx context.Context, f domain.ProductFilter) (d
 	if f.OnSale {
 		q = q.Where("ac.id IS NOT NULL")
 	}
-
-	search := strings.ToLower(strings.TrimSpace(f.Query))
-	if search != "" {
-		// <% usa o índice trigram; word_similarity tolera erro de digitação e palavra parcial,
-		// e f_unaccent faz "fogao" achar "Fogão"
-		q = q.Select(productColumns+", word_similarity(f_unaccent(@q), p.search_text) AS search_score", map[string]any{"q": search}).
-			Where("f_unaccent(@q) <% p.search_text", map[string]any{"q": search}).
-			Order("search_score DESC, p.id").
-			Offset(cur.O)
-	} else {
-		if cur.T != nil {
-			q = q.Where("(p.created_at, p.id) < (?, ?)", *cur.T, cur.ID)
-		}
-		q = q.Order("p.created_at DESC, p.id DESC")
-	}
-
-	var rows []productRow
-	if err := r.find(q.Limit(limit+1), search != "", &rows); err != nil {
-		return domain.Page[domain.Product]{}, mapError(err)
-	}
-
-	page := domain.Page[domain.Product]{}
-	if len(rows) > limit {
-		rows = rows[:limit]
-		last := rows[len(rows)-1]
-		next := cursor{T: &last.Rec.CreatedAt, ID: last.Rec.ID}
-		if search != "" {
-			next = cursor{O: cur.O + limit}
-		}
-		if next.O <= maxSearchOffset {
-			page.NextCursor = next.encode()
-		}
-	}
-	page.Items = toProducts(rows)
-	return page, nil
+	return q
 }
 
-// find executa a listagem; na busca, ajusta o limiar de similaridade só nesta transação.
-func (r *ProductRepository) find(q *gorm.DB, search bool, rows *[]productRow) error {
+// resolveSort aplica a ordem padrão: relevância com busca, mais novos sem (relevância sem busca
+// também vira mais novos: não há o que pontuar).
+func resolveSort(s domain.ProductSort, search bool) domain.ProductSort {
+	switch {
+	case s == "" && search, s == domain.SortRelevance && search:
+		return domain.SortRelevance
+	case s == "" || s == domain.SortRelevance:
+		return domain.SortNewest
+	default:
+		return s
+	}
+}
+
+// nextCursor aponta a página seguinte a partir do último item: o valor da ordem e o id (keyset), ou o
+// offset na relevância (até maxSearchOffset).
+func nextCursor(sort domain.ProductSort, cur cursor, last productRow, limit int) (cursor, bool) {
+	p := last.toDomain()
+	switch sort {
+	case domain.SortRelevance:
+		next := cursor{S: sort, O: cur.O + limit}
+		return next, next.O <= maxSearchOffset
+	case domain.SortPriceAsc, domain.SortPriceDesc:
+		v := p.EffectivePriceCents()
+		return cursor{S: sort, V: &v, ID: p.ID}, true
+	case domain.SortDiscount:
+		var v int64
+		if p.ActiveCampaign != nil {
+			v = int64(p.ActiveCampaign.DiscountPercent)
+		}
+		return cursor{S: sort, V: &v, ID: p.ID}, true
+	default:
+		return cursor{S: domain.SortNewest, T: &last.Rec.CreatedAt, ID: last.Rec.ID}, true
+	}
+}
+
+func lowerAll(xs []string) []string {
+	out := make([]string, len(xs))
+	for i, x := range xs {
+		out[i] = strings.ToLower(strings.TrimSpace(x))
+	}
+	return out
+}
+
+// find executa a consulta; na busca, ajusta o limiar de similaridade só nesta transação.
+func (r *ProductRepository) find(q *gorm.DB, search bool, rows any) error {
 	if !search {
 		return q.Find(rows).Error
 	}

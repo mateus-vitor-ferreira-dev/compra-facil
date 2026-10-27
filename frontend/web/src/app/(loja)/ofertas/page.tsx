@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { FilterChip } from "@/components/store/filter-chip";
+import { ActiveFilters, ListingFilters } from "@/components/store/listing-filters";
 import { ProductListing } from "@/components/store/product-listing";
 import { categoryTree, getActiveCampaigns, getCategories } from "@/lib/catalog-api";
 import { formatEnd, readFilters, withFilter } from "@/lib/storefront";
@@ -18,7 +19,8 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 export default async function Offers({ searchParams }: Props) {
   await connection();
   const params = await searchParams;
-  const { category, cursor } = readFilters(params);
+  const filters = readFilters(params);
+  const { category, cursor } = filters;
   const [campaigns, categories] = await Promise.all([getActiveCampaigns(), getCategories()]);
   const roots = categories.ok ? categoryTree(categories.data) : [];
   const self = withFilter("/ofertas", params, "cursor", cursor ?? null);
@@ -62,16 +64,37 @@ export default async function Offers({ searchParams }: Props) {
         </nav>
       )}
 
-      <ProductListing
-        query={{ onSale: true, category, cursor }}
-        label="Ofertas"
-        selfHref={self}
-        nextHref={(next) => withFilter("/ofertas", params, "cursor", next)}
-        empty={{
-          title: "Nenhuma oferta neste departamento agora",
-          description: "As campanhas mudam toda semana. Veja as ofertas dos outros departamentos.",
-        }}
-      />
+      <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
+        <ListingFilters
+          path="/ofertas"
+          params={params}
+          filters={filters}
+          keep={category ? { categoria: category } : {}}
+          category={category}
+          onSaleFixed
+        />
+        <div className="min-w-0 space-y-4">
+          <ActiveFilters path="/ofertas" params={params} filters={filters} onSaleFixed />
+          <ProductListing
+            query={{
+              onSale: true,
+              category,
+              brands: filters.brands,
+              minPriceCents: filters.minPriceCents,
+              maxPriceCents: filters.maxPriceCents,
+              sort: filters.sort.api,
+              cursor,
+            }}
+            label="Ofertas"
+            selfHref={self}
+            nextHref={(next) => withFilter("/ofertas", params, "cursor", next)}
+            empty={{
+              title: "Nenhuma oferta com esses filtros agora",
+              description: "As campanhas mudam toda semana. Tire um filtro ou veja os outros departamentos.",
+            }}
+          />
+        </div>
+      </div>
     </main>
   );
 }

@@ -31,16 +31,18 @@ test("a categoria mãe inclui as subcategorias e o 'Ver mais' traz a próxima p�
 
 test("'Só em promoção' fica na URL e filtra a categoria", async ({ page }) => {
   await page.goto("/categoria/tv");
-  await page.getByRole("link", { name: "Só em promoção" }).click();
+  const filters = page.getByRole("complementary", { name: "Filtrar e ordenar" });
+  await filters.getByRole("checkbox", { name: "Só em promoção" }).check();
   await expect(page).toHaveURL(/promocao=1/);
-  await expect(page.getByRole("link", { name: "Só em promoção (ligado)" })).toHaveAttribute(
-    "aria-current",
-    "true",
-  );
+  await expect(
+    page
+      .getByRole("navigation", { name: "Filtros ligados" })
+      .getByRole("link", { name: "Só em promoção (tirar o filtro)" }),
+  ).toBeVisible();
 
   await page.goto("/categoria/fones?promocao=1");
   await expect(
-    page.getByRole("heading", { name: "Nada em promoção em Fones de ouvido agora" }),
+    page.getByRole("heading", { name: "Nenhum produto em Fones de ouvido com esses filtros" }),
   ).toBeVisible();
 });
 

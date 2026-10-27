@@ -25,6 +25,7 @@ import (
 
 type fakeProducts struct {
 	page    domain.Page[domain.Product]
+	brands  []domain.BrandCount
 	product domain.Product
 	err     error
 	gotIn   service.ListProductsInput
@@ -33,6 +34,11 @@ type fakeProducts struct {
 func (f *fakeProducts) ListPublic(_ context.Context, in service.ListProductsInput) (domain.Page[domain.Product], error) {
 	f.gotIn = in
 	return f.page, f.err
+}
+
+func (f *fakeProducts) ListBrands(_ context.Context, in service.ListProductsInput) ([]domain.BrandCount, error) {
+	f.gotIn = in
+	return f.brands, f.err
 }
 
 func (f *fakeProducts) GetPublic(context.Context, uuid.UUID) (domain.Product, error) {
@@ -91,9 +97,10 @@ func serve(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder
 
 func sampleProduct(withCampaign bool) domain.Product {
 	img := "https://cdn.example.com/tv.jpg"
+	brand := "Samsung"
 	created := time.Date(2026, 10, 1, 10, 0, 0, 0, time.FixedZone("BRT", -3*3600))
 	p := domain.Product{
-		ID: uuid.New(), SKU: "TV-55", Name: "Smart TV 55", Description: "QLED", CategoryID: uuid.New(),
+		ID: uuid.New(), SKU: "TV-55", Name: "Smart TV 55", Description: "QLED", Brand: &brand, CategoryID: uuid.New(),
 		Category: domain.CategoryRef{ID: uuid.New(), Slug: "tv", Name: "TVs"}, ImageURL: &img,
 		PriceCents: 10000, Currency: "BRL", Status: domain.ProductActive, Version: 3,
 		CreatedAt: created, UpdatedAt: created,
@@ -130,8 +137,31 @@ func TestListProducts(t *testing.T) {
 	first := data[0].(map[string]any)
 	assert.InDelta(t, 7000, first["effective_price"].(map[string]any)["amount_cents"], 0, "com 30% de desconto")
 	assert.Equal(t, "2026-10-01T13:00:00Z", first["created_at"], "datas em UTC")
+	assert.Equal(t, "Samsung", first["brand"])
 	assert.Nil(t, data[1].(map[string]any)["campaign"], "sem campanha é null")
 	assert.Equal(t, map[string]any{"next_cursor": "abc", "has_more": true}, body["page"])
+}
+
+func TestListProducts_SortAndBrands(t *testing.T) {
+	products := &fakeProducts{page: domain.Page[domain.Product]{Items: []domain.Product{}}}
+	api := newAPI(products, fakeCategories{}, fakeCampaigns{})
+
+	w := serve(t, api, "/v1/products?sort=price_asc&brand=Dell,Acer")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, domain.SortPriceAsc, products.gotIn.Sort)
+	assert.Equal(t, []string{"Dell", "Acer"}, products.gotIn.Brands)
+}
+
+func TestListBrands(t *testing.T) {
+	products := &fakeProducts{brands: []domain.BrandCount{{Name: "Dell", Count: 3}, {Name: "Acer", Count: 1}}}
+	api := newAPI(products, fakeCategories{}, fakeCampaigns{})
+
+	w := serve(t, api, "/v1/brands?category=notebooks&on_sale=true")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, `{"data":[{"name":"Dell","count":3},{"name":"Acer","count":1}]}`, w.Body.String())
+	assert.Equal(t, service.ListProductsInput{CategorySlug: "notebooks", OnSale: true}, products.gotIn)
 }
 
 func TestListProducts_EmptyAndLastPage(t *testing.T) {
