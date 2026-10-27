@@ -48,9 +48,9 @@ export function clearedCookies(): Array<{ name: string; value: string; options: 
 
 export type RefreshResult = { ok: true; tokens: Tokens } | { ok: false; status: number };
 
-// Um refresh por vez para cada refresh token, nesta instância: o identity derruba a sessão inteira se o
-// mesmo refresh token for usado duas vezes (detecção de reuso), e o navegador costuma disparar várias
-// requisições juntas (página, prefetch, imagens).
+// Um refresh por vez para cada refresh token, nesta instância: o navegador costuma disparar várias
+// requisições juntas (página, prefetch, imagens), e uma troca basta. Entre instâncias (Vercel), o
+// intervalo de reuso do identity (10 s) faz o refresh paralelo dar um par novo da mesma sessão.
 const inFlight = new Map<string, Promise<RefreshResult>>();
 
 export function refreshSession(refreshToken: string, fetcher: typeof fetch = fetch): Promise<RefreshResult> {
