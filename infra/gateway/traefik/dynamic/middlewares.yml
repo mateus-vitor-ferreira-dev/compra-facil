@@ -35,6 +35,13 @@ http:
         average: 50
         period: 1s
         burst: 100
+{{- if env "CLIENT_IP_DEPTH" }}
+        # atrás de outro proxy (o do Coolify, em produção): o IP do cliente é o que ele acrescentou ao
+        # X-Forwarded-For, e não o do proxy, que somaria todo mundo num limite só
+        sourceCriterion:
+          ipStrategy:
+            depth: {{ env "CLIENT_IP_DEPTH" }}
+{{- end }}
 
     # a vitrine pelo BFF do front (rota catalog-bff): o mesmo limite, por comprador. O BFF manda o IP de
     # quem está comprando em X-Client-IP, e essa rota só existe para quem tem o segredo do BFF
@@ -67,6 +74,13 @@ http:
         average: 5
         period: 1s
         burst: 20
+{{- if env "CLIENT_IP_DEPTH" }}
+        # atrás de outro proxy (o do Coolify, em produção): o IP do cliente é o que ele acrescentou ao
+        # X-Forwarded-For, e não o do proxy, que somaria todo mundo num limite só
+        sourceCriterion:
+          ipStrategy:
+            depth: {{ env "CLIENT_IP_DEPTH" }}
+{{- end }}
 
     # login e cadastro pelo BFF do front: o mesmo limite, por comprador (X-Client-IP)
     identity-rate-limit-bff:

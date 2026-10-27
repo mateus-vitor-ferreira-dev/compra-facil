@@ -1,0 +1,18 @@
+# O broker em produção, em modo de produção: sem esta configuração o rpk parte em modo de
+# desenvolvimento, que pula o fsync (uma mensagem confirmada some se o VPS cair). Um broker só.
+redpanda:
+  data_directory: /var/lib/redpanda/data
+  developer_mode: false
+  empty_seed_starts_cluster: true
+  seed_servers: []
+  kafka_api:
+    - { name: internal, address: 0.0.0.0, port: 9092 }
+  advertised_kafka_api:
+    - { name: internal, address: redpanda, port: 9092 }
+  rpc_server: { address: 0.0.0.0, port: 33145 }
+  advertised_rpc_api: { address: redpanda, port: 33145 }
+  admin:
+    - { address: 0.0.0.0, port: 9644 }
+rpk:
+  # divide o VPS com outros projetos: sem prender CPU nem a memória toda
+  overprovisioned: true

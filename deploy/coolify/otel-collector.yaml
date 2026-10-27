@@ -1,0 +1,60 @@
+# O Collector em produção: recebe o OTLP dos serviços, do gateway e do backup, como no local, e manda
+# tudo para o Grafana Cloud (um endpoint OTLP só para traces, métricas e logs). Ver deploy/README.md.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  # o lag dos consumers, lido do Redpanda
+  kafka_metrics:
+    brokers: [redpanda:9092]
+    scrapers: [brokers, topics, consumers]
+    collection_interval: 30s
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  batch: {}
+  # o plano gratuito do Grafana Cloud conta séries e GB: as sondas de saúde (a cada poucos segundos, do
+  # Docker e do gateway) não viram traces
+  filter/sondas:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["url.path"] == "/health" or attributes["url.path"] == "/ready" or attributes["url.path"] == "/ping"'
+  resource/ambiente:
+    attributes:
+      - { key: deployment.environment.name, value: producao, action: upsert }
+
+exporters:
+  otlphttp/grafana-cloud:
+    endpoint: ${env:GRAFANA_CLOUD_OTLP_ENDPOINT}
+    headers:
+      Authorization: Basic ${env:GRAFANA_CLOUD_OTLP_AUTH}
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/sondas, resource/ambiente, batch]
+      exporters: [otlphttp/grafana-cloud]
+    metrics:
+      receivers: [otlp, kafka_metrics]
+      processors: [memory_limiter, resource/ambiente, batch]
+      exporters: [otlphttp/grafana-cloud]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/ambiente, batch]
+      exporters: [otlphttp/grafana-cloud]
