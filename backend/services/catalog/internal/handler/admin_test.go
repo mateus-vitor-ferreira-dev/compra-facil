@@ -53,6 +53,16 @@ func (f *fakeProductAdmin) Update(_ context.Context, id uuid.UUID, in service.Pr
 	return f.product, f.err
 }
 
+func (f *fakeProductAdmin) AdminGetMany(_ context.Context, ids []uuid.UUID) ([]domain.Product, error) {
+	out := make([]domain.Product, 0, len(ids))
+	for i := len(ids) - 1; i >= 0; i-- { // de trás para frente: o handler devolve na ordem dos ids
+		p := f.product
+		p.ID = ids[i]
+		out = append(out, p)
+	}
+	return out, f.err
+}
+
 func (f *fakeProductAdmin) Delete(_ context.Context, id uuid.UUID) error {
 	f.gotID = id
 	f.deleteCalls++
@@ -79,11 +89,23 @@ type fakeCampaignAdmin struct {
 	gotIn     service.CampaignInput
 	gotID     uuid.UUID
 	gotIDs    []uuid.UUID
+	// os produtos que ProductIDs devolve
+	productIDs []uuid.UUID
 }
 
 func (f *fakeCampaignAdmin) AdminList(_ context.Context, cursor string, limit int) (domain.Page[domain.Campaign], error) {
 	f.gotCursor, f.gotLimit = cursor, limit
 	return f.page, f.err
+}
+
+func (f *fakeCampaignAdmin) Get(_ context.Context, id uuid.UUID) (domain.Campaign, error) {
+	f.gotID = id
+	return f.camp, f.err
+}
+
+func (f *fakeCampaignAdmin) ProductIDs(_ context.Context, id uuid.UUID) ([]uuid.UUID, error) {
+	f.gotID = id
+	return f.productIDs, f.err
 }
 
 func (f *fakeCampaignAdmin) Create(_ context.Context, in service.CampaignInput) (domain.Campaign, error) {
@@ -229,6 +251,8 @@ func TestAdmin_AllRoutesRequireAuth(t *testing.T) {
 		{http.MethodPost, "/v1/admin/categories"},
 		{http.MethodGet, "/v1/admin/campaigns"},
 		{http.MethodPost, "/v1/admin/campaigns"},
+		{http.MethodGet, "/v1/admin/campaigns/" + id},
+		{http.MethodGet, "/v1/admin/campaigns/" + id + "/products"},
 		{http.MethodPut, "/v1/admin/campaigns/" + id},
 		{http.MethodDelete, "/v1/admin/campaigns/" + id},
 		{http.MethodPut, "/v1/admin/campaigns/" + id + "/products"},
@@ -247,11 +271,11 @@ func TestAdmin_ListProducts(t *testing.T) {
 	p.Status = domain.ProductDraft
 	f.products.page = domain.Page[domain.Product]{Items: []domain.Product{p}, NextCursor: "abc"}
 
-	w := send(t, api, http.MethodGet, "/v1/admin/products?status=draft&sku=TV-55&limit=10&cursor=xyz", "", adminHeaders(t), true)
+	w := send(t, api, http.MethodGet, "/v1/admin/products?status=draft&q=smart+tv&sku=TV-55&limit=10&cursor=xyz", "", adminHeaders(t), true)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	draft := domain.ProductDraft
-	assert.Equal(t, service.AdminListInput{Status: &draft, SKU: "TV-55", Cursor: "xyz", Limit: 10}, f.products.gotList)
+	assert.Equal(t, service.AdminListInput{Status: &draft, Query: "smart tv", SKU: "TV-55", Cursor: "xyz", Limit: 10}, f.products.gotList)
 	first := decode(t, w)["data"].([]any)[0].(map[string]any)
 	assert.Equal(t, "draft", first["status"])
 	assert.InDelta(t, 3, first["version"], 0)
@@ -496,6 +520,35 @@ func TestAdmin_UpdateAndDeleteCampaign(t *testing.T) {
 		assert.Equal(t, http.StatusNoContent, w.Code)
 		assert.Equal(t, id, f.campaigns.gotID)
 	})
+}
+
+func TestAdmin_GetCampaignAndItsProducts(t *testing.T) {
+	id := uuid.New()
+	api, f := newAdminAPI(t)
+	f.campaigns.camp = sampleCampaign()
+	f.products.product = sampleProduct(false)
+	first, second := uuid.New(), uuid.New()
+	f.campaigns.productIDs = []uuid.UUID{first, second}
+
+	camp := send(t, api, http.MethodGet, "/v1/admin/campaigns/"+id.String(), "", adminHeaders(t), true)
+	products := send(t, api, http.MethodGet, "/v1/admin/campaigns/"+id.String()+"/products", "", adminHeaders(t), true)
+
+	require.Equal(t, http.StatusOK, camp.Code)
+	require.Equal(t, http.StatusOK, products.Code)
+	assert.Equal(t, id, f.campaigns.gotID)
+	data := decode(t, products)["data"].([]any)
+	require.Len(t, data, 2)
+	assert.Equal(t, first.String(), data[0].(map[string]any)["id"], "na ordem do repositório (por nome)")
+	assert.Equal(t, second.String(), data[1].(map[string]any)["id"])
+}
+
+func TestAdmin_GetCampaign_NotFound(t *testing.T) {
+	api, f := newAdminAPI(t)
+	f.campaigns.err = fmt.Errorf("campanha: %w", domain.ErrNotFound)
+
+	w := send(t, api, http.MethodGet, "/v1/admin/campaigns/"+uuid.NewString()+"/products", "", adminHeaders(t), true)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
 func TestAdmin_SetCampaignProducts(t *testing.T) {

@@ -64,6 +64,8 @@ type CampaignRepository interface {
 	// produto; instante zero se não houver nenhuma agendada.
 	NextStart(ctx context.Context, now time.Time) (time.Time, error)
 	List(ctx context.Context, cursor string, limit int) (Page[Campaign], error)
+	// ProductIDs devolve os produtos da campanha (qualquer status, sem os removidos).
+	ProductIDs(ctx context.Context, campaignID uuid.UUID) ([]uuid.UUID, error)
 	// SetProducts substitui a lista de produtos da campanha (transação única).
 	SetProducts(ctx context.Context, campaignID uuid.UUID, productIDs []uuid.UUID) error
 	// OverlappingProducts devolve, dentre productIDs, os que já estão em OUTRA campanha cujo período

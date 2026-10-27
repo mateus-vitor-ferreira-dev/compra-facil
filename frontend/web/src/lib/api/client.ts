@@ -22,6 +22,9 @@ function client<Paths extends object>(service: string, options: CallOptions = {}
   const cached = revalidate !== undefined || tags !== undefined;
   const api = createClient<Paths>({
     baseUrl: `${env.API_URL.replace(/\/$/, "")}/${service}`,
+    // os contratos pedem as listas na query separadas por vírgula (style form, explode false):
+    // ?product_ids=a,b e não ?product_ids=a&product_ids=b, que o inventory leria como um id só
+    querySerializer: { array: { style: "form", explode: false } },
     // o openapi-fetch chama fetch(request): o cache do Next vem no segundo argumento
     fetch: cached
       ? (request: Request) => fetch(request, { next: { revalidate, tags } } as RequestInit)

@@ -103,7 +103,133 @@ const products = seed.map(([name, slug, price, effective, brand], i) => {
 });
 
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
-const stock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
+const baseStock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
+// ajustes feitos pelo painel, por produto
+const adjustments = new Map();
+const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
+
+// o painel: situação e versão de cada produto (a versão é o ETag)
+for (const p of products) Object.assign(p, { status: "active", version: 1 });
+const adminKeys = new Set(); // Idempotency-Key dos ajustes de estoque
+const isAdmin = (req) =>
+  (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
+
+/** Corpo do ProductInput aplicado ao produto (o preço novo vale para o efetivo sem campanha). */
+function applyInput(p, body) {
+  const category = categories.find((c) => c.id === body.category_id) ?? p.category;
+  Object.assign(p, {
+    sku: body.sku,
+    name: body.name,
+    description: body.description ?? "",
+    brand: body.brand ?? null,
+    image_url: body.image_url ?? null,
+    status: body.status,
+    category: { id: category.id, slug: category.slug, name: category.name },
+    price: { amount_cents: body.price_cents, currency: "BRL" },
+    effective_price: {
+      amount_cents: p.campaign
+        ? Math.floor((body.price_cents * (100 - p.campaign.discount_percent)) / 100)
+        : body.price_cents,
+      currency: "BRL",
+    },
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function admin(req, res, url) {
+  if (!isAdmin(req)) return problem(res, req.headers.authorization ? 403 : 401, "Sem permissão");
+  const one = url.pathname.match(/^\/catalog\/v1\/admin\/products\/([0-9a-f-]{36})$/);
+  if (one) {
+    const p = products.find((x) => x.id === one[1]);
+    if (!p) return problem(res, 404, "Recurso não encontrado");
+    if (req.method === "GET") {
+      res.setHeader("ETag", `"${p.version}"`);
+      return send(res, 200, p);
+    }
+    if (req.method === "PUT") {
+      const body = await json(req);
+      if (req.headers["if-match"] !== `"${p.version}"`) return problem(res, 412, "Versão desatualizada");
+      if (products.some((x) => x.id !== p.id && x.sku === body.sku)) return problem(res, 409, "Conflito");
+      applyInput(p, body);
+      p.version++;
+      res.setHeader("ETag", `"${p.version}"`);
+      return send(res, 200, p);
+    }
+    if (req.method === "DELETE") {
+      products.splice(products.indexOf(p), 1);
+      return res.writeHead(204).end();
+    }
+  }
+  const adjust = url.pathname.match(/^\/inventory\/v1\/admin\/stock\/([0-9a-f-]{36})\/adjustments$/);
+  if (adjust && req.method === "POST") {
+    const { delta } = await json(req);
+    const key = `${adjust[1]}:${req.headers["idempotency-key"]}`;
+    if (!adminKeys.has(key)) {
+      if (stock(adjust[1]) + delta < 0) return problem(res, 409, "Conflito");
+      adminKeys.add(key);
+      adjustments.set(adjust[1], (adjustments.get(adjust[1]) ?? 0) + delta);
+    }
+    const available = stock(adjust[1]);
+    return send(res, 200, {
+      product_id: adjust[1],
+      on_hand: available,
+      reserved: 0,
+      available,
+      updated_at: new Date().toISOString(),
+    });
+  }
+  if (req.method === "GET" && url.pathname === "/catalog/v1/admin/products") {
+    const q = url.searchParams.get("q")?.toLowerCase();
+    const status = url.searchParams.get("status");
+    const data = products.filter(
+      (p) =>
+        (!q || `${p.name} ${p.brand} ${p.sku}`.toLowerCase().includes(q)) && (!status || p.status === status),
+    );
+    return send(res, 200, { data: data.slice(0, 50), page: { next_cursor: null, has_more: false } });
+  }
+  if (req.method === "POST" && url.pathname === "/catalog/v1/admin/products") {
+    const body = await json(req);
+    if (products.some((x) => x.sku === body.sku)) return problem(res, 409, "Conflito");
+    if (!/^[A-Z0-9-]{3,32}$/.test(body.sku)) {
+      return send(
+        res,
+        422,
+        {
+          type: "about:blank",
+          title: "Dados inválidos",
+          status: 422,
+          errors: [{ field: "sku", message: "use letras maiúsculas" }],
+        },
+        "application/problem+json",
+      );
+    }
+    const p = {
+      id: crypto.randomUUID(),
+      campaign: null,
+      image: null,
+      version: 1,
+      created_at: new Date().toISOString(),
+    };
+    applyInput(p, body);
+    products.push(p);
+    res.setHeader("ETag", '"1"');
+    return send(res, 201, p);
+  }
+  if (req.method === "POST" && url.pathname === "/catalog/v1/admin/categories") {
+    const body = await json(req);
+    if (categories.some((c) => c.slug === body.slug)) return problem(res, 409, "Conflito");
+    const c = {
+      id: crypto.randomUUID(),
+      slug: body.slug,
+      name: body.name,
+      parent_id: body.parent_id ?? null,
+    };
+    categories.push(c);
+    bySlug[c.slug] = c;
+    return send(res, 201, c);
+  }
+  return problem(res, 404, "Recurso não encontrado");
+}
 
 /** Os produtos que passam nos filtros da vitrine (sem a marca, para a faceta). */
 function filtered(url) {
@@ -300,6 +426,9 @@ async function json(req) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
+    return admin(req, res, url);
+  }
   const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})(\/events)?$/);
   if (req.method === "GET" && order) {
     const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
@@ -418,7 +547,8 @@ createServer(async (req, res) => {
         email,
         name: "Ana Souza",
         email_confirmed: true,
-        roles: ["customer"],
+        // "admin@..." é da equipe: abre o painel
+        roles: email.startsWith("admin@") ? ["admin"] : ["customer"],
         created_at: "2026-10-01T10:00:00Z",
       });
     }
