@@ -179,6 +179,8 @@ func (s *ProductService) GetMany(ctx context.Context, ids []uuid.UUID) ([]domain
 
 type AdminListInput struct {
 	Status *domain.ProductStatus
+	// Query busca por nome, marca, descrição e SKU (a mesma busca da vitrine), em qualquer status.
+	Query  string
 	SKU    string
 	Cursor string
 	Limit  int
@@ -191,9 +193,25 @@ func (s *ProductService) AdminList(ctx context.Context, in AdminListInput) (doma
 	if err := validateLimit(in.Limit); err != nil {
 		return domain.Page[domain.Product]{}, domain.Invalid("limit", err.Error())
 	}
+	query := strings.TrimSpace(in.Query)
+	if n := utf8.RuneCountInString(query); query != "" && (n < 2 || n > 100) {
+		return domain.Page[domain.Product]{}, domain.Invalid("q", "deve ter entre 2 e 100 caracteres")
+	}
 	return s.list(ctx, domain.ProductFilter{
-		Status: in.Status, SKU: strings.TrimSpace(in.SKU), Now: s.now(), Cursor: in.Cursor, Limit: in.Limit,
+		Status: in.Status, Query: query, SKU: strings.TrimSpace(in.SKU), Now: s.now(), Cursor: in.Cursor, Limit: in.Limit,
 	})
+}
+
+// AdminGetMany devolve os produtos dos ids em qualquer status (os produtos de uma campanha, até 1000).
+func (s *ProductService) AdminGetMany(ctx context.Context, ids []uuid.UUID) ([]domain.Product, error) {
+	if len(ids) > domain.MaxCampaignItems {
+		return nil, domain.Invalid("product_ids", fmt.Sprintf("no máximo %d por chamada", domain.MaxCampaignItems))
+	}
+	products, err := s.products.GetByIDs(ctx, ids, s.now())
+	if err != nil {
+		return nil, fmt.Errorf("produtos %v: %w", ids, err)
+	}
+	return products, nil
 }
 
 func (s *ProductService) AdminGet(ctx context.Context, id uuid.UUID) (domain.Product, error) {

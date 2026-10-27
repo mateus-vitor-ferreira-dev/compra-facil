@@ -105,6 +105,11 @@ func (m *campaignRepoMock) List(ctx context.Context, cursor string, limit int) (
 	return args.Get(0).(domain.Page[domain.Campaign]), args.Error(1)
 }
 
+func (m *campaignRepoMock) ProductIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).([]uuid.UUID), args.Error(1)
+}
+
 func (m *campaignRepoMock) SetProducts(ctx context.Context, id uuid.UUID, ids []uuid.UUID) error {
 	return m.Called(ctx, id, ids).Error(0)
 }

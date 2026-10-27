@@ -115,6 +115,18 @@ func (s *CampaignService) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+// ProductIDs devolve os produtos da campanha; campanha inexistente é ErrNotFound.
+func (s *CampaignService) ProductIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error) {
+	if _, err := s.Get(ctx, id); err != nil {
+		return nil, err
+	}
+	ids, err := s.campaigns.ProductIDs(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("produtos da campanha %s: %w", id, err)
+	}
+	return ids, nil
+}
+
 // SetProducts substitui os produtos da campanha.
 func (s *CampaignService) SetProducts(ctx context.Context, id uuid.UUID, productIDs []uuid.UUID) error {
 	if len(productIDs) > domain.MaxCampaignItems {

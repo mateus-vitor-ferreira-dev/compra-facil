@@ -197,6 +197,21 @@ func TestProductService_AdminList(t *testing.T) {
 
 	_, err = svc.AdminList(ctx, AdminListInput{Limit: 500})
 	assert.Equal(t, []string{"limit"}, validationFields(t, err))
+
+	_, err = svc.AdminList(ctx, AdminListInput{Query: "a"})
+	assert.Equal(t, []string{"q"}, validationFields(t, err))
+}
+
+func TestProductService_AdminList_SearchesAnyStatus(t *testing.T) {
+	svc, products, _ := newProductService()
+	products.On("List", anyArg, mock.MatchedBy(func(f domain.ProductFilter) bool {
+		return f.Status == nil && f.Query == "smart tv"
+	})).Return(domain.Page[domain.Product]{}, nil)
+
+	_, err := svc.AdminList(ctx, AdminListInput{Query: "  smart tv "})
+
+	require.NoError(t, err)
+	products.AssertExpectations(t)
 }
 
 func validInput(categoryID uuid.UUID) ProductInput {

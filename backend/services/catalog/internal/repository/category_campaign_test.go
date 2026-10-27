@@ -76,6 +76,22 @@ func TestCampaignRepository_CRUD(t *testing.T) {
 	assert.ErrorIs(t, repo.Delete(ctx, c.ID), domain.ErrNotFound)
 }
 
+func TestCampaignRepository_ProductIDs_ByName_WithoutDeleted(t *testing.T) {
+	resetDB(t)
+	repo := NewCampaignRepository(testDB)
+	cat := mustCategory(t, "tv", nil)
+	zeta := mustProduct(t, "ZETA", cat.ID, withName("Zeta TV"))
+	alfa := mustProduct(t, "ALFA", cat.ID, withName("Alfa TV"), withStatus(domain.ProductDraft))
+	gone := mustProduct(t, "GONE", cat.ID)
+	camp := mustCampaign(t, "bf", 10, now, now.Add(time.Hour), zeta.ID, alfa.ID, gone.ID)
+	require.NoError(t, NewProductRepository(testDB).Delete(ctx, gone.ID))
+
+	ids, err := repo.ProductIDs(ctx, camp.ID)
+
+	require.NoError(t, err)
+	assert.Equal(t, []uuid.UUID{alfa.ID, zeta.ID}, ids, "por nome, qualquer status, sem o removido")
+}
+
 func TestCampaignRepository_SetProducts(t *testing.T) {
 	resetDB(t)
 	repo := NewCampaignRepository(testDB)
