@@ -8,11 +8,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { readCart, readUndo } from "@/lib/cart";
+import { loadCartLines, type CartLine } from "@/lib/cart-lines";
 import { MAX_QUANTITY, lineIssue, summarize, type Line } from "@/lib/cart-rules";
-import type { Product } from "@/lib/catalog";
 import { getProduct } from "@/lib/catalog-api";
 import { formatMoney } from "@/lib/format";
-import { getAvailability } from "@/lib/inventory-api";
 import { cn } from "@/lib/utils";
 import { acceptCartPrices, removeFromCart, undoRemove, updateQuantity } from "./actions";
 
@@ -20,9 +19,13 @@ export const metadata: Metadata = { title: "Carrinho", robots: { index: false } 
 
 const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
 
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
 /** O carrinho: cada linha com o preço de agora, o estoque e o que precisa de atenção antes do pedido. */
-export default async function CartPage() {
+export default async function CartPage({ searchParams }: Props) {
   await connection();
+  // ?conferir=1: o pedido foi recusado porque um preço ou um produto mudou no meio do caminho
+  const recheck = (await searchParams).conferir === "1";
   const [cart, removed] = await Promise.all([readCart(), readUndo()]);
   const removedProduct =
     removed && !cart.items.some((i) => i.id === removed.id) ? await getProduct(removed.id) : undefined;
@@ -61,23 +64,7 @@ export default async function CartPage() {
     );
   }
 
-  const ids = cart.items.map((i) => i.id);
-  const [products, stock] = await Promise.all([Promise.all(ids.map(getProduct)), getAvailability(ids)]);
-  const byId = new Map<string, Product>(products.flatMap((p) => (p.ok ? [[p.data.id, p.data]] : [])));
-  // um produto que não respondeu (sem ser 404) não é dado como removido: a linha só fica sem preço
-  const unreachable = products.some((p) => !p.ok && p.error.status !== 404);
-
-  const lines: (Line & { product?: Product })[] = cart.items.map((item) => {
-    const product = byId.get(item.id);
-    return {
-      ...item,
-      product,
-      unit: product
-        ? { price: product.price.amount_cents, effective: product.effective_price.amount_cents }
-        : undefined,
-      available: stock.ok ? stock.data[item.id] : undefined,
-    };
-  });
+  const { lines, unreachable } = await loadCartLines(cart);
   const summary = summarize(lines);
   const priceChanges = lines.filter((l) => lineIssue(l) === "price_changed").length;
 
@@ -85,6 +72,22 @@ export default async function CartPage() {
     <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Carrinho</h1>
       {undo}
+
+      {recheck && (
+        <section
+          role="alert"
+          aria-labelledby="conferir"
+          className="border-ink bg-surface mt-4 rounded-md border-l-4 p-4"
+        >
+          <h2 id="conferir" className="font-semibold">
+            O pedido não foi feito: algo mudou no carrinho
+          </h2>
+          <p className="text-ink-soft text-sm">
+            Um preço mudou ou um produto saiu de venda desde que você revisou. Nada foi cobrado. Confira os
+            avisos abaixo e continue para o pagamento de novo.
+          </p>
+        </section>
+      )}
 
       {priceChanges > 0 && (
         <section
@@ -112,7 +115,7 @@ export default async function CartPage() {
       <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <ul aria-label="Produtos no carrinho" className="divide-line border-line divide-y border-y">
           {lines.map((line) => (
-            <CartLine key={line.id} line={line} unreachable={unreachable} />
+            <CartLineItem key={line.id} line={line} unreachable={unreachable} />
           ))}
         </ul>
 
@@ -176,7 +179,7 @@ export default async function CartPage() {
   );
 }
 
-function CartLine({ line, unreachable }: { line: Line & { product?: Product }; unreachable: boolean }) {
+function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: boolean }) {
   const { product } = line;
   const issue = lineIssue(line);
   const productId = <input type="hidden" name="product_id" value={line.id} />;

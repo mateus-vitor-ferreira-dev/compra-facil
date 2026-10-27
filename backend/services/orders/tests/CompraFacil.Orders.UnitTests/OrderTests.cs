@@ -61,6 +61,47 @@ public sealed class OrderTests
     }
 
     [Fact]
+    public void MarkStockReserved_MovesToTheChargingStep_Once()
+    {
+        var order = Pending();
+        Assert.Null(order.StockReservedAt);
+
+        Assert.True(order.MarkStockReserved(s_now.AddSeconds(1)));
+        Assert.False(order.MarkStockReserved(s_now.AddSeconds(2))); // evento repetido
+
+        Assert.Equal(OrderStatus.Pending, order.Status);
+        Assert.Equal(s_now.AddSeconds(1), order.StockReservedAt);
+        Assert.Equal(s_now.AddSeconds(1), order.UpdatedAt);
+    }
+
+    [Fact]
+    public void MarkStockReserved_AfterTheEnd_ChangesNothing()
+    {
+        var order = Pending();
+        order.Cancel(CancellationReason.OutOfStock, s_now);
+
+        Assert.False(order.MarkStockReserved(s_now.AddSeconds(1)));
+        Assert.Null(order.StockReservedAt);
+        Assert.Equal(s_now, order.UpdatedAt);
+    }
+
+    [Fact]
+    public void PaymentResult_ImpliesTheReservation_EvenIfStockReservedComesLater()
+    {
+        var confirmed = Pending();
+        confirmed.Confirm(Guid.NewGuid(), s_now.AddSeconds(3));
+        var refused = Pending();
+        refused.Cancel(CancellationReason.PaymentFailed, s_now.AddSeconds(4), Guid.NewGuid(), "card_declined");
+        var reserved = Pending();
+        reserved.MarkStockReserved(s_now.AddSeconds(1));
+        reserved.Confirm(Guid.NewGuid(), s_now.AddSeconds(5));
+
+        Assert.Equal(s_now.AddSeconds(3), confirmed.StockReservedAt);
+        Assert.Equal(s_now.AddSeconds(4), refused.StockReservedAt);
+        Assert.Equal(s_now.AddSeconds(1), reserved.StockReservedAt); // a reserva de verdade é mantida
+    }
+
+    [Fact]
     public void Cancel_OutOfStock_HasNoPayment()
     {
         var order = Pending();
@@ -70,6 +111,7 @@ public sealed class OrderTests
         Assert.Equal(OrderStatus.Cancelled, order.Status);
         Assert.Equal(CancellationReason.OutOfStock, order.CancellationReason);
         Assert.Null(order.PaymentFailureReason);
+        Assert.Null(order.StockReservedAt);
     }
 
     [Fact]

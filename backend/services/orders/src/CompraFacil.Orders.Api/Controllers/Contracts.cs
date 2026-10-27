@@ -19,6 +19,7 @@ public sealed record OrderResponse(
     IReadOnlyList<OrderItemData> Items,
     Money Total,
     Guid? PaymentId,
+    DateTimeOffset? StockReservedAt,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
@@ -26,7 +27,7 @@ public sealed record OrderResponse(
     {
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.CustomerId, o.Status, o.CancellationReason, [.. o.Items.Select(OrderItemData.From)],
-            o.Total, o.PaymentId, o.CreatedAt, o.UpdatedAt);
+            o.Total, o.PaymentId, o.StockReservedAt, o.CreatedAt, o.UpdatedAt);
     }
 }
 

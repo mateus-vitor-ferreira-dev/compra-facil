@@ -33,6 +33,7 @@ public static class DependencyInjection
         // catálogo (snapshot)
         builder.AddMessaging<OrdersDbContext>("orders", m => m
             .Produces(OrderEvents.Topic)
+            .Handle<StockReservedData, OnStockReserved>(OrderEvents.ReservationsTopic, "StockReserved")
             .Handle<StockReservationFailedData, OnStockReservationFailed>(OrderEvents.ReservationsTopic, "StockReservationFailed")
             .Handle<PaymentApprovedData, OnPaymentApproved>(OrderEvents.PaymentsTopic, "PaymentApproved")
             .Handle<PaymentFailedData, OnPaymentFailed>(OrderEvents.PaymentsTopic, "PaymentFailed")
