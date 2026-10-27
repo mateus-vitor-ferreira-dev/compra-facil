@@ -10,6 +10,20 @@ GitOps: o Argo CD lê esta pasta na branch `main` e aplica sozinho. Um merge na 
 | `platform/traefik/` | O Traefik do k3s: HTTP vira HTTPS |
 | `platform/sealed-secrets/` | O controller do Sealed Secrets, do release oficial (versão fixa) |
 | `platform/base/` | Namespace `compra-facil` (pods em *restricted*), emissores do Let's Encrypt, o certificado da API e os middlewares do gateway |
+| `platform/cnpg-barman/` | O plugin Barman Cloud do CloudNativePG (o operador vem do chart, em `apps/cloudnative-pg.yaml`) |
+| `platform/data/` | Os dados: Postgres (CloudNativePG, com backup no Object Storage), Redpanda e Redis |
+
+## Os dados
+
+- **Postgres**: um `Cluster` do CloudNativePG, uma instância, um banco e um usuário por serviço
+  (database-per-service, como no compose). As senhas são os Secrets `pg-<serviço>` (selados); cada
+  usuário só entra no próprio banco (`pg_hba`). Backup contínuo no bucket `compra-facil-backups`: o WAL
+  a cada segmento e uma base por dia, 30 dias para voltar a qualquer instante. Como restaurar:
+  [docs/runbooks/postgres-restauracao.md](../../../docs/runbooks/postgres-restauracao.md).
+- **Redpanda**: um broker, o log num volume, em modo de produção (com fsync) e sem criação automática
+  de tópico (cada serviço cria os seus). O que ainda não foi confirmado pelo broker espera no outbox.
+- **Redis**: só o cache do catalog, sem volume: perdê-lo custa uma leitura a mais no banco.
+- Os três só aceitam conexão de pods do namespace `compra-facil` (NetworkPolicy).
 
 ## Os middlewares do gateway
 
@@ -33,6 +47,7 @@ Depois do `tofu apply` (#157) e do DNS apontado:
 
 ```bash
 scripts/deploy/definir-dominio.sh comprafacil.dev        # troca comprafacil.example em tudo; faça commit
+scripts/deploy/definir-object-storage.sh "$(tofu -chdir=infra/oci output -raw s3_endpoint)"   # idem
 
 ssh -fN -L 6443:localhost:6443 ubuntu@<ip>               # túnel para a API do k3s
 export KUBECONFIG=~/.kube/compra-facil.yaml              # o k3s.yaml copiado da VM (ver infra/oci)
@@ -74,3 +89,14 @@ rotas de produção:
   `X-Client-IP` forjado sem a chave continua limitado pela origem; o `X-Bff-Key` não chega ao serviço;
 - o segredo selado pelo `selar-segredos.sh` foi aberto pelo controller;
 - o Argo CD sobe com estes valores, e as Applications passam no dry-run do servidor.
+
+E os dados, com um S3 local (SeaweedFS) no lugar do Object Storage:
+
+- o operador e o plugin sobem; o `Cluster` fica saudável com a primeira base no bucket e o WAL
+  arquivando; os seis usuários entram cada um no seu banco e são recusados nos outros; o `catalog`
+  cria `pg_trgm` e `unaccent`;
+- PITR: um cluster ao lado, restaurado num instante, tem a linha que depois foi apagada no original;
+- desastre: apagados o cluster e o volume, o `postgres` volta do bucket com o mesmo nome, até o último
+  WAL, e segue arquivando com o `serverName` novo (o runbook);
+- o Redpanda parte em modo de produção, com `auto_create_topics_enabled=false`, e produz e consome;
+- de fora do namespace, Postgres, Redpanda e Redis não respondem.

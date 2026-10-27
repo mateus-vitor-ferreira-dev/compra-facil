@@ -1,0 +1,11 @@
+# Os dados da loja (#160). As senhas (pg-<serviço>) e a chave do Object Storage (backup-s3) são
+# SealedSecrets em platform/base/secrets, gerados por scripts/deploy/selar-segredos.sh.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: compra-facil
+resources:
+  - postgres.yaml
+  - backup.yaml
+  - redpanda.yaml
+  - redis.yaml
+  - network-policy.yaml

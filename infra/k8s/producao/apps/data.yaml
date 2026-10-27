@@ -1,0 +1,17 @@
+# Os dados da loja (#160): o Postgres com backup e PITR, o Redpanda e o Redis, com volumes.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: data
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mateus-vitor-ferreira-dev/compra-facil.git
+    targetRevision: main
+    path: infra/k8s/producao/platform/data
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: compra-facil
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }

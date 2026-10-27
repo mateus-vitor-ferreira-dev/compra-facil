@@ -1,0 +1,21 @@
+# O plugin Barman Cloud do CloudNativePG: o backup contínuo (WAL) e as bases no Object Storage (#160).
+# Depois do operador e do cert-manager (o plugin usa certificados para falar com o operador).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cnpg-barman
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mateus-vitor-ferreira-dev/compra-facil.git
+    targetRevision: main
+    path: infra/k8s/producao/platform/cnpg-barman
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [ServerSideApply=true]
