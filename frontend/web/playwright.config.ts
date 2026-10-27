@@ -22,7 +22,14 @@ export default defineConfig({
       command:
         "node -e \"require('fs').rmSync('.next/cache/fetch-cache',{recursive:true,force:true})\" && npm run start",
       url: "http://localhost:3000/robots.txt",
-      env: { API_URL: STUB },
+      env: {
+        API_URL: STUB,
+        // o stub faz o papel do Google (e2e/google.spec.ts)
+        GOOGLE_CLIENT_ID: "loja-de-teste",
+        GOOGLE_CLIENT_SECRET: "segredo-de-teste",
+        GOOGLE_AUTH_URL: `${STUB}/google/authorize`,
+        GOOGLE_TOKEN_URL: `${STUB}/google/token`,
+      },
       reuseExistingServer: !process.env.CI,
     },
   ],

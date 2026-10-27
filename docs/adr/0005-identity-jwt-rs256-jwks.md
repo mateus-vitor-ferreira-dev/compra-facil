@@ -87,3 +87,9 @@ procedimento manual de deploy, que costuma não acontecer.
   produção só vale por completo para as chaves criadas depois.
 - O anel do Data Protection no mesmo banco das chaves protege contra vazamento de backup parcial, não do banco
   inteiro. Em produção (F9), o anel deve ser protegido por uma chave fora do banco (certificado ou KMS).
+- **Login com o Google** (#180): o BFF faz o authorization code com PKCE e entrega o ID token ao identity
+  (`POST /v1/sessions/google`), que o valida pelo JWKS do Google (emissor, `aud` igual ao client id,
+  validade, `nonce`, `email_verified`) e abre uma sessão própria, com os mesmos tokens do login por senha.
+  A conta é a do `sub` do Google (`user_logins`), não a do e-mail; um e-mail que já tem conta com senha só
+  é ligado ao Google depois de confirmar a senha (`/google/link`). O resto do sistema não muda: os serviços
+  continuam validando só os tokens do identity.
