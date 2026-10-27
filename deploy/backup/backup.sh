@@ -17,7 +17,7 @@ BACKUP_TIME=${BACKUP_TIME:-06:00}
 RETENTION=${BACKUP_RETENTION_DAYS:-14}
 # o R2 e outros S3 compatíveis recusam os checksums novos do aws-cli; só quando exigido
 export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
-export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-auto}
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
 
 s3() { aws --endpoint-url "$S3_ENDPOINT" s3 "$@"; }
 log() { echo "{\"time\":\"$(date -u +%FT%TZ)\",\"level\":\"$1\",\"msg\":\"$2\"}"; }

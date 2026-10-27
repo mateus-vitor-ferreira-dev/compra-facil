@@ -8,7 +8,7 @@ day=${1:?uso: restore.sh <AAAA-MM-DD> <banco> [banco...]}
 shift
 [ $# -gt 0 ] || { echo "diga quais bancos" >&2; exit 1; }
 export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required
-export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-auto}
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
 dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
 for db in "$@"; do
