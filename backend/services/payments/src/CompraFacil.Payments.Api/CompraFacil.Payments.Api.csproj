@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Cobrança dos pedidos. -->
+  <ItemGroup>
+    <!-- ferramentas do EF (dotnet ef migrations) usam a Api como projeto de startup -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Payments.Application/CompraFacil.Payments.Application.csproj" />
+    <ProjectReference Include="../CompraFacil.Payments.Infrastructure/CompraFacil.Payments.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- o contrato (fonte da verdade) vai junto do binário e é servido em /openapi e /docs -->
+    <Content Include="$(ContractsDir)openapi/payments.v1.yaml" Link="openapi/payments.v1.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ContractsDir)openapi/common/v1/common.yaml" Link="openapi/common/v1/common.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(ContractsDir)openapi/common/v1/dead-letters.yaml" Link="openapi/common/v1/dead-letters.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

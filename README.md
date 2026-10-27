@@ -161,7 +161,7 @@ estados, sequências e garantias da SAGA: [`docs/arquitetura/saga.md`](docs/arqu
 | Plataforma | gateway, mensageria, observabilidade | Traefik 3 · Redpanda · OpenTelemetry Collector · Tempo · Loki · Prometheus · Grafana · k6 |
 
 Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · template comum dos serviços
-.NET: [`libs/dotnet/README.md`](libs/dotnet/README.md)
+.NET: [`backend/libs/dotnet/README.md`](backend/libs/dotnet/README.md)
 
 ## 📈 Resultados
 
@@ -296,19 +296,21 @@ serviço novo que ainda não exista; para recriar tudo do zero, use `task reset`
 
 ```
 compra-facil/
-├── contracts/            # fonte da verdade entre os times
+├── backend/              # o que roda no servidor
+│   ├── services/
+│   │   ├── catalog/      #   Go: cmd/, internal/{domain,handler,service,repository,grpcserver,cache,events}
+│   │   ├── orders/       #   .NET: src/{Api,Application,Domain,Infrastructure}, tests/{Unit,Integration}
+│   │   └── inventory/ payments/ notifications/ identity/
+│   ├── libs/dotnet/      #   BuildingBlocks: outbox, Kafka, inbox, retry/DLT, JWT, OTel, ProblemDetails
+│   └── Directory.*.props, global.json   # build .NET comum aos serviços
+├── frontend/             # o que roda no navegador (Next.js, F8)
+├── contracts/            # fonte da verdade entre os times, e dos tipos do front
 │   ├── proto/            #   gRPC (Buf: lint + breaking change)
 │   ├── openapi/          #   REST de cada serviço (Spectral)
 │   └── asyncapi/         #   eventos Kafka (AsyncAPI 3)
-├── services/
-│   ├── catalog/          # Go: cmd/, internal/{domain,handler,service,repository,grpcserver,cache,events,telemetry}
-│   ├── orders/           # .NET: src/{Api,Application,Domain,Infrastructure}, tests/{Unit,Integration}
-│   └── inventory/ payments/ notifications/
-├── libs/dotnet/          # BuildingBlocks: outbox, Kafka, inbox, retry/DLT, OTel, ProblemDetails
-├── gateway/traefik/      # rotas, CORS, rate limit
-├── infra/                # compose, OTel Collector, Tempo, Loki, Prometheus, Grafana (dashboards como código)
-├── load-tests/           # k6 (campanha, cache, caos) e o experimento de escala
-├── scripts/              # métricas de entrega
+├── infra/                # compose, gateway (Traefik), k8s (Helm), fotos (/media), OTel, Grafana
+├── load-tests/           # k6 (campanha, cache, caos, e2e) e o experimento de escala
+├── scripts/              # métricas de entrega, Grafana, fotos dos produtos
 ├── docs/                 # parecer, arquitetura (C4, SAGA), ADRs, resultados
 └── .github/workflows/    # um pipeline por serviço + contratos
 ```

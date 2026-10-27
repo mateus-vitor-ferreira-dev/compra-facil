@@ -1,4 +1,4 @@
-# Pipeline do catalog (time de catálogo, Go). Não depende de nada do .NET: mudanças em libs/dotnet, nos
+# Pipeline do catalog (time de catálogo, Go). Não depende de nada do .NET: mudanças em backend/libs/dotnet, nos
 # serviços de compras ou nos contratos deles não disparam este, e mudar o catalog não dispara os deles.
 name: catalog
 
@@ -6,7 +6,7 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - services/catalog/**
+      - backend/services/catalog/**
       # só os contratos que o catalog serve ou valida (o dele e os comuns): mudança no contrato de
       # outro serviço não republica o catalog (#91)
       - contracts/proto/catalog/**
@@ -21,7 +21,7 @@ on:
       - .github/workflows/catalog.yml
   pull_request:
     paths:
-      - services/catalog/**
+      - backend/services/catalog/**
       # só os contratos que o catalog serve ou valida (o dele e os comuns): mudança no contrato de
       # outro serviço não republica o catalog (#91)
       - contracts/proto/catalog/**
@@ -44,7 +44,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: services/catalog
+    working-directory: backend/services/catalog
 
 jobs:
   lint:
@@ -55,14 +55,14 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version-file: services/catalog/go.mod
-          cache-dependency-path: services/catalog/go.sum
+          go-version-file: backend/services/catalog/go.mod
+          cache-dependency-path: backend/services/catalog/go.sum
       # módulos baixados antes: com o cache frio, carregar os pacotes estourava o prazo do lint
       - run: go mod download
       - uses: golangci/golangci-lint-action@v9.3.0
         with:
           version: v2.14.0
-          working-directory: services/catalog
+          working-directory: backend/services/catalog
           args: --timeout=8m
 
   test:
@@ -73,8 +73,8 @@ jobs:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
         with:
-          go-version-file: services/catalog/go.mod
-          cache-dependency-path: services/catalog/go.sum
+          go-version-file: backend/services/catalog/go.mod
+          cache-dependency-path: backend/services/catalog/go.sum
       - name: go test (Postgres e Redpanda reais via testcontainers-go)
         # sem o Ryuk (o container que limpa os outros no fim): o runner é descartado depois do job, e os
         # pacotes rodando em paralelo disputavam o mesmo Ryuk e estouravam o prazo de espera dele
@@ -111,7 +111,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
       - uses: docker/build-push-action@v7.4.0
         with:
-          context: services/catalog
+          context: backend/services/catalog
           target: api
           build-args: VERSION=${{ github.sha }}
           push: true
