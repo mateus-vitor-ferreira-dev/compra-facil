@@ -195,7 +195,8 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /** Detalhe de uma campanha */
+        get: operations["adminGetCampaign"];
         /**
          * Altera uma campanha
          * @description Mudar datas ou desconto publica `price_changed` para os produtos afetados.
@@ -218,7 +219,11 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Os produtos da campanha
+         * @description Em qualquer status, por nome (até 1000, o máximo de uma campanha).
+         */
+        get: operations["adminListCampaignProducts"];
         /**
          * Define os produtos da campanha
          * @description Substitui a lista inteira. Um produto só pode estar em uma campanha por período.
@@ -736,6 +741,8 @@ export interface operations {
                 status?: components["schemas"]["ProductStatus"];
                 /** @description Busca exata por SKU. */
                 sku?: string;
+                /** @description Busca por nome, marca, descrição e SKU (a mesma da vitrine), em qualquer status. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -977,6 +984,32 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    adminGetCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: components["parameters"]["CampaignId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Campanha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Campaign"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     updateCampaign: {
         parameters: {
             query?: never;
@@ -1027,6 +1060,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    adminListCampaignProducts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: components["parameters"]["CampaignId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Produtos da campanha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminProduct"][];
+                    };
+                };
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
