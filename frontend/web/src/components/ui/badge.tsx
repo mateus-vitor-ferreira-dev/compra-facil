@@ -12,7 +12,7 @@ const badgeVariants = cva("inline-flex items-center gap-1 rounded-sm px-2 py-0.5
       deal: "bg-tag text-tag-ink",
       neutral: "bg-ink/8 text-ink",
       success: "bg-success/12 text-success",
-      danger: "bg-danger/12 text-danger",
+      danger: "bg-danger/12 text-danger-ink",
       outline: "border border-line text-ink-soft",
     },
   },

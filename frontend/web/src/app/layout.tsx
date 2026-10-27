@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import type { ReactNode } from "react";
 import { Toaster } from "@/components/ui/toast";
+import { WebVitals } from "@/components/web-vitals";
 import { brand } from "@/lib/brand";
 import { env } from "@/lib/env";
 import "./globals.css";
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Pular para o conteúdo
         </a>
         <Toaster>{children}</Toaster>
+        <WebVitals />
       </body>
     </html>
   );
