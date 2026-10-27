@@ -78,6 +78,13 @@ public sealed class Sessions(
             throw new UnauthorizedException(InvalidCredentials);
         }
 
+        return await StartAsync(user, ct);
+    }
+
+    /// <summary>Abre uma sessão nova (uma família de refresh tokens) para quem já foi autenticado.</summary>
+    public async Task<IssuedSession> StartAsync(User user, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(user);
         var refreshToken = RefreshTokenValue.New();
         refreshTokens.Add(RefreshToken.Issue(user.Id, RefreshTokenValue.Hash(refreshToken), clock.GetUtcNow(), options.Value.RefreshTokenLifetime));
         await refreshTokens.SaveChangesAsync(ct);

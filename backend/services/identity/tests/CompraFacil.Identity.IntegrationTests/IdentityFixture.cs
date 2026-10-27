@@ -26,6 +26,9 @@ public class IdentityFixture : IAsyncLifetime
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
+    /// <summary>O Google de mentira que emite os ID tokens do login com o Google.</summary>
+    public FakeGoogle Google { get; } = new();
+
     /// <summary>Login só com e-mail confirmado (Identity:EmailConfirmation:Required).</summary>
     protected virtual bool RequireConfirmedEmail => false;
 
@@ -38,7 +41,13 @@ public class IdentityFixture : IAsyncLifetime
             .UseSetting("Identity:Admin:Password", AdminPassword)
             .UseSetting("Kafka:Enabled", "false") // os eventos são conferidos no outbox
             .UseSetting("Identity:EmailConfirmation:Required", RequireConfirmedEmail ? "true" : "false")
-            .ConfigureTestServices(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(Clock))));
+            .UseSetting("Identity:Google:Authority", FakeGoogle.Authority)
+            .UseSetting("Identity:Google:ClientIds:0", FakeGoogle.ClientId)
+            .ConfigureTestServices(s =>
+            {
+                s.Replace(ServiceDescriptor.Singleton<TimeProvider>(Clock));
+                s.AddHttpClient("google").ConfigurePrimaryHttpMessageHandler(Google.Handler);
+            }));
         using var _ = Factory.CreateClient(); // sobe: migrations, primeira chave e admin
     }
 
@@ -46,6 +55,7 @@ public class IdentityFixture : IAsyncLifetime
     {
         await Factory.DisposeAsync();
         await _postgres.DisposeAsync();
+        Google.Dispose();
         GC.SuppressFinalize(this);
     }
 }
@@ -62,6 +72,12 @@ public sealed class IdentityClient(HttpClient http)
 
     public Task<HttpResponseMessage> LoginAsync(string email, string password = "senha-boa-123") =>
         http.PostAsJsonAsync("/v1/sessions", new { email, password }, Ct);
+
+    public Task<HttpResponseMessage> GoogleAsync(string idToken, string nonce) =>
+        http.PostAsJsonAsync("/v1/sessions/google", new { id_token = idToken, nonce }, Ct);
+
+    public Task<HttpResponseMessage> LinkGoogleAsync(string idToken, string nonce, string password) =>
+        http.PostAsJsonAsync("/v1/sessions/google/link", new { id_token = idToken, nonce, password }, Ct);
 
     public Task<HttpResponseMessage> RefreshAsync(string refreshToken) =>
         http.PostAsJsonAsync("/v1/sessions/refresh", new { refresh_token = refreshToken }, Ct);

@@ -478,6 +478,35 @@ function streamOrder(req, res, entry) {
   req.on("close", () => clearInterval(timer));
 }
 
+// ---- o Google de mentira: escolha de conta, código de autorização e ID token ----
+const googleCodes = new Map(); // code -> { email, sub, nonce }
+const googleLinked = new Set(); // e-mails com senha já vinculados ao Google
+const fakeJwt = (payload) =>
+  `e30.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.assinatura-de-mentira`;
+const jwtPayload = (token) =>
+  JSON.parse(Buffer.from(String(token).split(".")[1] ?? "", "base64url").toString());
+
+/** GET /google/authorize: a tela de escolha de conta, como a do Google. */
+function googleChooser(res, url) {
+  const back = new URL(url.searchParams.get("redirect_uri"));
+  const state = url.searchParams.get("state");
+  const nonce = url.searchParams.get("nonce");
+  const link = (email) => {
+    const code = `code-${crypto.randomUUID()}`;
+    googleCodes.set(code, { email, sub: `google-${email}`, nonce });
+    const to = new URL(back);
+    to.search = new URLSearchParams({ code, state }).toString();
+    return `<li><a href="${to}">${email}</a></li>`;
+  };
+  const cancel = new URL(back);
+  cancel.search = new URLSearchParams({ error: "access_denied", state }).toString();
+  const fresh = `nova-${crypto.randomUUID().slice(0, 8)}@gmail.com`;
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(
+    `<!doctype html><title>Escolha uma conta</title><h1>Escolha uma conta</h1><ul>${[fresh, "ana@exemplo.com", ...accounts.keys()].map(link).join("")}</ul><a href="${cancel}">Cancelar</a>`,
+  );
+}
+
 function tokens(email) {
   seq++;
   const access = `access-${seq}`;
@@ -511,6 +540,18 @@ async function json(req) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
+  if (req.method === "GET" && url.pathname === "/google/authorize") return googleChooser(res, url);
+  if (req.method === "POST" && url.pathname === "/google/token") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const form = new URLSearchParams(raw);
+    const grant = googleCodes.get(form.get("code"));
+    if (!grant || !form.get("code_verifier") || form.get("client_secret") !== "segredo-de-teste") {
+      return send(res, 400, { error: "invalid_grant" });
+    }
+    googleCodes.delete(form.get("code"));
+    return send(res, 200, { id_token: fakeJwt({ ...grant, email_verified: true }), token_type: "Bearer" });
+  }
   const dlt = url.pathname.match(
     /^\/(orders|inventory|payments|notifications)\/v1\/admin\/dead-letters(\/replay)?$/,
   );
@@ -623,6 +664,23 @@ createServer(async (req, res) => {
           : send(res, 200, tokens(email));
       }
       return problem(res, 401, "Não autenticado");
+    }
+    case "POST /identity/v1/sessions/google": {
+      const { id_token, nonce } = await json(req);
+      const claims = jwtPayload(id_token);
+      if (claims.nonce !== nonce) return problem(res, 401, "Não autenticado");
+      // e-mail com conta e senha (a Ana, as criadas no cadastro): o Google só entra depois do vínculo
+      const hasPassword = claims.email === "ana@exemplo.com" || accounts.has(claims.email);
+      if (hasPassword && !googleLinked.has(claims.email)) return problem(res, 409, "Conta já existe");
+      return send(res, 200, tokens(claims.email));
+    }
+    case "POST /identity/v1/sessions/google/link": {
+      const { id_token, nonce, password } = await json(req);
+      const claims = jwtPayload(id_token);
+      const expected = accounts.get(claims.email)?.password ?? "senha-boa-123";
+      if (claims.nonce !== nonce || password !== expected) return problem(res, 401, "Não autenticado");
+      googleLinked.add(claims.email);
+      return send(res, 200, tokens(claims.email));
     }
     case "POST /identity/v1/sessions/refresh": {
       stats.refresh++;

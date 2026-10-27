@@ -319,6 +319,8 @@ services:
       # operador inicial, só no ambiente local: entra no painel e nas rotas /v1/admin/*
       Identity__Admin__Email: ${ADMIN_EMAIL:-admin@comprafacil.local}
       Identity__Admin__Password: ${ADMIN_PASSWORD:-admin-compra-facil}
+      # login com o Google (#180): o client id do Google Cloud; vazio desliga
+      Identity__Google__ClientIds__0: ${GOOGLE_CLIENT_ID:-}
 
   orders:
     <<: *dotnet-service

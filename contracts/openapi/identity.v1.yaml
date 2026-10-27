@@ -16,6 +16,8 @@ info:
       menos nos 10 s seguintes à troca (intervalo de reuso), quando ele ainda dá um par novo da mesma
       sessão: são requisições paralelas do mesmo navegador.
     - **Logout** (`revokeSession`) derruba a sessão do refresh token.
+    - **Google** (`createGoogleSession`, `linkGoogleSession`): login e cadastro com o ID token do Google;
+      a conta é a do `sub` do Google, e um e-mail que já tem conta com senha só é vinculado com a senha.
 
     O access token vai em `Authorization: Bearer <token>` nas outras APIs, que o validam sozinhas com as
     chaves públicas de `/.well-known/jwks.json` (cache de 5 min). Claims: `sub` (id da conta), `email`,
@@ -205,6 +207,80 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
+  /v1/sessions/google:
+    post:
+      tags: [sessions]
+      operationId: createGoogleSession
+      summary: Login (ou cadastro) com a conta Google
+      description: |
+        Recebe o ID token que o BFF obteve do Google (authorization code com PKCE) e o `nonce` que ele
+        gerou para este login. O identity valida a assinatura pelo JWKS do Google, o emissor, o `aud`
+        (o client id da loja), a validade, o `nonce` e `email_verified`.
+
+        A conta é achada pelo `sub` do Google, não pelo e-mail: trocar o e-mail no Google não muda a
+        conta. Sem conta, cria uma já confirmada (sem senha), com o papel `customer`. Se o e-mail já tem
+        conta com senha, responde `409` (título "Conta já existe"): o vínculo é por `linkGoogleSession`,
+        com a senha, para que um Google com o mesmo e-mail não entre na conta de outra pessoa.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleSessionRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "409":
+          description: O e-mail já tem conta com senha; vincule com `linkGoogleSession`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/google/link:
+    post:
+      tags: [sessions]
+      operationId: linkGoogleSession
+      summary: Vincula o Google à conta do mesmo e-mail, com a senha dela
+      description: |
+        Valida o ID token como `createGoogleSession`, confere a senha da conta do mesmo e-mail (com o
+        bloqueio por tentativas do login) e liga o `sub` do Google a ela. Daí em diante, o Google sozinho
+        entra nela.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleLinkRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "423":
+          description: Conta bloqueada temporariamente por senhas erradas.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/sessions/refresh:
     post:
       tags: [sessions]
@@ -320,6 +396,35 @@ components:
           minLength: 1
           maxLength: 120
           examples: ["Ana Souza"]
+
+    GoogleSessionRequest:
+      type: object
+      required: [id_token, nonce]
+      additionalProperties: false
+      properties:
+        id_token:
+          type: string
+          maxLength: 4096
+          description: O ID token (JWT) que o Google devolveu ao BFF.
+        nonce:
+          type: string
+          maxLength: 128
+          description: O nonce que o BFF gerou para este login (vem dentro do ID token).
+
+    GoogleLinkRequest:
+      type: object
+      required: [id_token, nonce, password]
+      additionalProperties: false
+      properties:
+        id_token:
+          type: string
+          maxLength: 4096
+        nonce:
+          type: string
+          maxLength: 128
+        password:
+          type: string
+          maxLength: 128
 
     LoginRequest:
       type: object
