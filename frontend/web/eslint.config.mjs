@@ -13,6 +13,8 @@ const config = [
       "test-results/**",
       ".lighthouseci/**",
       "next-env.d.ts",
+      ".open-next/**",
+      ".wrangler/**",
     ],
   },
   {

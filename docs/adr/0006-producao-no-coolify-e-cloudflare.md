@@ -48,4 +48,8 @@ que mostra o HPA do catálogo, continua.
   git. O compose de produção e o runbook de deploy ficam versionados.
 - **Backup diário em vez de PITR**: o backup do Coolify é um dump por dia. Uma perda volta para o último
   dump, e não para um instante qualquer, como faria o WAL contínuo do CloudNativePG.
+- **`middleware.ts` em vez de `proxy.ts` no front**: o OpenNext só suporta o middleware no runtime Edge,
+  então a renovação da sessão volta para a convenção que o Next 16 deprecou (o `proxy.ts` roda em Node).
+  O CI roda o e2e inteiro contra o Worker, para o que funciona no Next e não no Workers aparecer antes da
+  produção. Quando o OpenNext suportar o `proxy.ts`, o arquivo volta.
 - **Dependência de uma pessoa**: o VPS e as contas da Cloudflare são do Mateus.
