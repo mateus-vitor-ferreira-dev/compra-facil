@@ -29,6 +29,12 @@ http:
       entryPoints: [web]
       service: identity
       middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
+    # dos avisos, só a operação (dead letter topic); o resto do notifications não sai do cluster
+    notifications-admin:
+      rule: PathPrefix(`/notifications/v1/admin`)
+      entryPoints: [web]
+      service: notifications
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
     media:
       rule: PathPrefix(`/media`)
       entryPoints: [web]
@@ -73,6 +79,10 @@ http:
     payments:
       loadBalancer:
         servers: [{ url: "http://payments:8004" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+    notifications:
+      loadBalancer:
+        servers: [{ url: "http://notifications:8005" }]
         healthCheck: { path: /ready, interval: 5s, timeout: 2s }
     media:
       loadBalancer:
