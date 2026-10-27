@@ -1,0 +1,27 @@
+# Let's Encrypt pelo desafio HTTP-01 no Traefik. O staging serve para testar sem gastar o limite de
+# certificados da produção; troque o issuer do Certificate depois de ver que funciona.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: operacao@comprafacil.example
+    privateKeySecretRef: { name: letsencrypt-staging-account }
+    solvers:
+      - http01:
+          ingress: { ingressClassName: traefik }
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: operacao@comprafacil.example
+    privateKeySecretRef: { name: letsencrypt-account }
+    solvers:
+      - http01:
+          ingress: { ingressClassName: traefik }
