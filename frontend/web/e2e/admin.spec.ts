@@ -16,8 +16,9 @@ async function openProduct(page: Page, name: string) {
 }
 
 test("o painel pede login e não existe para quem é cliente", async ({ page }) => {
-  await page.goto("/admin/produtos");
-  await expect(page).toHaveURL(/\/entrar\?voltar=/);
+  // sem sessão, o login traz de volta para a página pedida, com a busca
+  await page.goto("/admin/produtos?q=fone");
+  await expect(page).toHaveURL(/\/entrar\?voltar=%2Fadmin%2Fprodutos%3Fq%3Dfone$/);
 
   await signIn(page, "ana@exemplo.com", "/conta");
   await expect(page.getByRole("link", { name: "Abrir o painel" })).toHaveCount(0);
