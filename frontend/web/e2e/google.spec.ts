@@ -35,6 +35,7 @@ test("e-mail que já tem conta pede a senha uma vez para vincular", async ({ pag
 
   // daí em diante, o Google sozinho entra
   await page.getByRole("button", { name: "Sair" }).click();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Entrar" })).toBeVisible();
   await page.goto("/entrar?voltar=%2Fconta");
   await page.getByRole("link", { name: "Continuar com o Google" }).click();
   await page.getByRole("link", { name: email }).click();
