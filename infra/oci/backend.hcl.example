@@ -1,0 +1,17 @@
+# Estado do OpenTofu no Object Storage da Oracle, pela API S3 compatível. Copie para backend.hcl (fora do
+# git) e rode: tofu init -backend-config=backend.hcl
+# O bucket compra-facil-tofu-state é criado uma vez à mão (ver infra/oci/README.md): o estado não pode
+# morar num bucket que ele mesmo cria.
+bucket   = "compra-facil-tofu-state"
+key      = "producao/terraform.tfstate"
+region   = "sa-saopaulo-1"
+endpoints = {
+  s3 = "https://<namespace>.compat.objectstorage.sa-saopaulo-1.oraclecloud.com"
+}
+use_path_style              = true
+skip_region_validation      = true
+skip_credentials_validation = true
+skip_requesting_account_id  = true
+skip_metadata_api_check     = true
+skip_s3_checksum            = true
+# access_key e secret_key: AWS_ACCESS_KEY_ID e AWS_SECRET_ACCESS_KEY (chave "Customer Secret" da Oracle)

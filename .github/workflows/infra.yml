@@ -1,0 +1,172 @@
+# Infraestrutura na Oracle (OpenTofu, infra/oci, #157): formatação, validação e varredura de segurança em
+# todo PR; o plano quando os segredos da Oracle existem; o apply só à mão, no environment "producao"
+# (com aprovação de quem administra).
+name: infra
+
+on:
+  pull_request:
+    paths:
+      - infra/oci/**
+      - .github/workflows/infra.yml
+  push:
+    branches: [main, develop]
+    paths:
+      - infra/oci/**
+      - .github/workflows/infra.yml
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Aplicar o plano na Oracle (pede aprovação do environment producao)
+        type: boolean
+        default: false
+
+concurrency:
+  # dois applies ao mesmo tempo no mesmo estado, nunca
+  group: infra-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: infra/oci
+
+env:
+  TOFU_VERSION: 1.13.2
+
+jobs:
+  validate:
+    name: fmt, validate e segurança
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: opentofu/setup-opentofu@v2.0.2
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+      - run: tofu fmt -check -recursive
+      - run: tofu init -backend=false -input=false
+      - run: tofu validate
+      - name: Varredura de configuração (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: infra/oci
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+  plan:
+    name: plano
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # sem os segredos da Oracle (antes da #156), o plano é pulado em vez de falhar
+      CONFIGURED: ${{ secrets.OCI_TENANCY_OCID != '' }}
+      TF_VAR_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
+      TF_VAR_user_ocid: ${{ secrets.OCI_USER_OCID }}
+      TF_VAR_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+      TF_VAR_private_key_path: ${{ github.workspace }}/oci_api_key.pem
+      TF_VAR_region: ${{ vars.OCI_REGION }}
+      TF_VAR_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
+      TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
+      TF_VAR_admin_cidr: ${{ vars.ADMIN_CIDR }}
+      TF_VAR_domain: ${{ vars.DOMAIN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.TOFU_STATE_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TOFU_STATE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        if: env.CONFIGURED == 'true'
+      - uses: opentofu/setup-opentofu@v2.0.2
+        if: env.CONFIGURED == 'true'
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+      - name: Chave da API da Oracle
+        if: env.CONFIGURED == 'true'
+        run: |
+          umask 077
+          printf '%s\n' "${{ secrets.OCI_PRIVATE_KEY }}" > "$TF_VAR_private_key_path"
+      - name: init (estado no Object Storage)
+        if: env.CONFIGURED == 'true'
+        run: |
+          endpoint="https://${{ vars.OCI_NAMESPACE }}.compat.objectstorage.${{ vars.OCI_REGION }}.oraclecloud.com"
+          tofu init -input=false \
+            -backend-config="bucket=compra-facil-tofu-state" \
+            -backend-config="key=producao/terraform.tfstate" \
+            -backend-config="region=${{ vars.OCI_REGION }}" \
+            -backend-config="endpoints={s3=\"$endpoint\"}" \
+            -backend-config="use_path_style=true" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_requesting_account_id=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="skip_s3_checksum=true"
+      - name: plan
+        if: env.CONFIGURED == 'true'
+        run: |
+          tofu plan -input=false -no-color -out=plano.tfplan | tee plano.txt
+          { echo '### Plano do OpenTofu'; echo '```'; tail -c 60000 plano.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Sem os segredos da Oracle
+        if: env.CONFIGURED != 'true'
+        run: |
+          echo "Plano pulado, os segredos OCI_* ainda não existem (#156)." >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: aplicar na Oracle
+    needs: plan
+    # só à mão (workflow_dispatch com apply) e com a aprovação do environment producao
+    if: github.event_name == 'workflow_dispatch' && inputs.apply
+    environment: producao
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # sem os segredos da Oracle (antes da #156), o plano é pulado em vez de falhar
+      CONFIGURED: ${{ secrets.OCI_TENANCY_OCID != '' }}
+      TF_VAR_tenancy_ocid: ${{ secrets.OCI_TENANCY_OCID }}
+      TF_VAR_user_ocid: ${{ secrets.OCI_USER_OCID }}
+      TF_VAR_fingerprint: ${{ secrets.OCI_FINGERPRINT }}
+      TF_VAR_private_key_path: ${{ github.workspace }}/oci_api_key.pem
+      TF_VAR_region: ${{ vars.OCI_REGION }}
+      TF_VAR_compartment_ocid: ${{ secrets.OCI_COMPARTMENT_OCID }}
+      TF_VAR_ssh_public_key: ${{ vars.SSH_PUBLIC_KEY }}
+      TF_VAR_admin_cidr: ${{ vars.ADMIN_CIDR }}
+      TF_VAR_domain: ${{ vars.DOMAIN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.TOFU_STATE_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TOFU_STATE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        if: env.CONFIGURED == 'true'
+      - uses: opentofu/setup-opentofu@v2.0.2
+        if: env.CONFIGURED == 'true'
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+      - name: Chave da API da Oracle
+        if: env.CONFIGURED == 'true'
+        run: |
+          umask 077
+          printf '%s\n' "${{ secrets.OCI_PRIVATE_KEY }}" > "$TF_VAR_private_key_path"
+      - name: init (estado no Object Storage)
+        if: env.CONFIGURED == 'true'
+        run: |
+          endpoint="https://${{ vars.OCI_NAMESPACE }}.compat.objectstorage.${{ vars.OCI_REGION }}.oraclecloud.com"
+          tofu init -input=false \
+            -backend-config="bucket=compra-facil-tofu-state" \
+            -backend-config="key=producao/terraform.tfstate" \
+            -backend-config="region=${{ vars.OCI_REGION }}" \
+            -backend-config="endpoints={s3=\"$endpoint\"}" \
+            -backend-config="use_path_style=true" \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_requesting_account_id=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="skip_s3_checksum=true"
+      - name: plan e apply
+        if: env.CONFIGURED == 'true'
+        run: |
+          tofu plan -input=false -no-color -out=plano.tfplan
+          tofu apply -input=false plano.tfplan
+      - name: Sem os segredos da Oracle
+        if: env.CONFIGURED != 'true'
+        run: |
+          echo "Plano pulado, os segredos OCI_* ainda não existem (#156)." >> "$GITHUB_STEP_SUMMARY"
