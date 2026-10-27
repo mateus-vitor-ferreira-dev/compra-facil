@@ -1,0 +1,10 @@
+# Copie para terraform.tfvars (fora do git). No CI, as mesmas variáveis vêm dos segredos como TF_VAR_*.
+tenancy_ocid     = "ocid1.tenancy.oc1..aaaa"
+user_ocid        = "ocid1.user.oc1..aaaa"
+fingerprint      = "aa:bb:cc:..."
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "sa-saopaulo-1"
+compartment_ocid = "ocid1.tenancy.oc1..aaaa"
+ssh_public_key   = "ssh-ed25519 AAAA... voce@maquina"
+admin_cidr       = "203.0.113.10/32"
+domain           = "comprafacil.dev"

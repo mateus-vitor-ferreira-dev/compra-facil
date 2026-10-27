@@ -1,0 +1,28 @@
+#cloud-config
+# Primeiro boot da VM (#157): atualiza o sistema, abre 80/443 no firewall local e instala o k3s numa
+# versão fixa. O resto (cert-manager, Argo CD, os serviços) vem por GitOps (#159, #161).
+package_update: true
+package_upgrade: true
+packages:
+  - netfilter-persistent
+  - iptables-persistent
+
+write_files:
+  # o k3s com o Traefik embutido (ingress) e o certificado da API valendo para o domínio e o localhost
+  # (a API só é acessada por túnel SSH)
+  - path: /etc/rancher/k3s/config.yaml
+    permissions: "0600"
+    content: |
+      write-kubeconfig-mode: "0600"
+      tls-san:
+        - "k3s.${domain}"
+        - "127.0.0.1"
+      secrets-encryption: true
+
+runcmd:
+  # a imagem Ubuntu da Oracle traz um iptables que recusa tudo menos o SSH, mesmo com a security list
+  # aberta: 80 e 443 entram antes da regra de REJECT
+  - iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+  - iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+  - netfilter-persistent save
+  - curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server
