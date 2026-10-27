@@ -60,13 +60,17 @@ it("formatEnd mostra o término no horário de Brasília", () => {
 });
 
 describe("filtros da URL", () => {
-  it("lê q, categoria, promoção e cursor", () => {
+  it("lê q, categoria, promoção e a página", () => {
     expect(readFilters({ q: "  tv ", categoria: ["fones", "x"], promocao: "1" })).toMatchObject({
       q: "tv",
       category: "fones",
       onSale: true,
-      cursor: undefined,
+      page: 1,
     });
+    expect(readFilters({ pagina: "3" }).page).toBe(3);
+    expect(readFilters({ pagina: "0" }).page).toBe(1);
+    expect(readFilters({ pagina: "abc" }).page).toBe(1);
+    expect(readFilters({ pagina: "999" }).page).toBe(200);
   });
 
   it("lê marcas, preço em reais e a ordem; relevância só na busca", () => {
@@ -119,7 +123,11 @@ describe("filtros da URL", () => {
   it("trocar um filtro mantém os outros e volta à primeira página", () => {
     const params = { q: "tv", cursor: "abc", promocao: "1" };
     expect(withFilter("/busca", params, "promocao", null)).toBe("/busca?q=tv");
-    expect(withFilter("/busca", params, "cursor", "def")).toBe("/busca?q=tv&promocao=1&cursor=def");
+    expect(withFilter("/busca", { ...params, pagina: "4" }, "pagina", "5")).toBe(
+      "/busca?q=tv&promocao=1&pagina=5",
+    );
+    // trocar um filtro volta à primeira página
+    expect(withFilter("/busca", { ...params, pagina: "4" }, "promocao", null)).toBe("/busca?q=tv");
     expect(withFilter("/ofertas", {}, "categoria", null)).toBe("/ofertas");
   });
 });

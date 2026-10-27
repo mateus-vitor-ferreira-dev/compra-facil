@@ -7,7 +7,7 @@ import { StateMessage } from "@/components/ui/state";
 import { ActiveFilters, ListingFilters } from "@/components/store/listing-filters";
 import { ProductListing } from "@/components/store/product-listing";
 import { categoryTree, getCategories } from "@/lib/catalog-api";
-import { activeFilterCount, readFilters, withFilter } from "@/lib/storefront";
+import { activeFilterCount, readFilters } from "@/lib/storefront";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -21,7 +21,7 @@ export default async function SearchPage({ searchParams }: Props) {
   await connection();
   const params = await searchParams;
   const filters = readFilters(params);
-  const { q, onSale, cursor } = filters;
+  const { q, onSale } = filters;
   const filtered = activeFilterCount(filters) > 0;
   const categories = await getCategories();
   const roots = categories.ok ? categoryTree(categories.data) : [];
@@ -75,11 +75,11 @@ export default async function SearchPage({ searchParams }: Props) {
               minPriceCents: filters.minPriceCents,
               maxPriceCents: filters.maxPriceCents,
               sort: filters.sort.api,
-              cursor,
+              page: filters.page,
             }}
             label={`Resultados para ${q}`}
-            selfHref={withFilter("/busca", params, "cursor", cursor ?? null)}
-            nextHref={(next) => withFilter("/busca", params, "cursor", next)}
+            path={"/busca"}
+            params={params}
             empty={{
               title: `Nenhum produto encontrado para “${q}”`,
               description: filtered

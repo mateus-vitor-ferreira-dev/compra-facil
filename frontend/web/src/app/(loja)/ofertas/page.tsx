@@ -20,10 +20,9 @@ export default async function Offers({ searchParams }: Props) {
   await connection();
   const params = await searchParams;
   const filters = readFilters(params);
-  const { category, cursor } = filters;
+  const { category } = filters;
   const [campaigns, categories] = await Promise.all([getActiveCampaigns(), getCategories()]);
   const roots = categories.ok ? categoryTree(categories.data) : [];
-  const self = withFilter("/ofertas", params, "cursor", cursor ?? null);
 
   return (
     <main id="conteudo" className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6">
@@ -83,11 +82,11 @@ export default async function Offers({ searchParams }: Props) {
               minPriceCents: filters.minPriceCents,
               maxPriceCents: filters.maxPriceCents,
               sort: filters.sort.api,
-              cursor,
+              page: filters.page,
             }}
             label="Ofertas"
-            selfHref={self}
-            nextHref={(next) => withFilter("/ofertas", params, "cursor", next)}
+            path={"/ofertas"}
+            params={params}
             empty={{
               title: "Nenhuma oferta com esses filtros agora",
               description: "As campanhas mudam toda semana. Tire um filtro ou veja os outros departamentos.",

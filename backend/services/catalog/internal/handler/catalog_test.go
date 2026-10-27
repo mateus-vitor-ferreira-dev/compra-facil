@@ -153,6 +153,22 @@ func TestListProducts_SortAndBrands(t *testing.T) {
 	assert.Equal(t, []string{"Dell", "Acer"}, products.gotIn.Brands)
 }
 
+func TestListProducts_NumberedPage_HasTheTotal(t *testing.T) {
+	total := 1234
+	products := &fakeProducts{page: domain.Page[domain.Product]{
+		Items: []domain.Product{sampleProduct(false)}, Total: &total, More: true,
+	}}
+	api := newAPI(products, fakeCategories{}, fakeCampaigns{})
+
+	w := serve(t, api, "/v1/products?page=3&limit=24")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 3, products.gotIn.Page)
+	body := decode(t, w)
+	assert.InDelta(t, 1234, body["total"], 0)
+	assert.Equal(t, map[string]any{"next_cursor": nil, "has_more": true}, body["page"])
+}
+
 func TestListBrands(t *testing.T) {
 	products := &fakeProducts{brands: []domain.BrandCount{{Name: "Dell", Count: 3}, {Name: "Acer", Count: 1}}}
 	api := newAPI(products, fakeCategories{}, fakeCampaigns{})

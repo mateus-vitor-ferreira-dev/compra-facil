@@ -79,7 +79,7 @@ const reais = (v: string | string[] | undefined) => {
 
 /**
  * Os filtros das listagens, lidos da URL: ?q=, ?categoria=, ?promocao=1, ?marca= (uma ou mais),
- * ?preco-min= e ?preco-max= (em reais), ?ordem= e ?cursor=. A ordem padrão é relevância na busca e
+ * ?preco-min= e ?preco-max= (em reais), ?ordem= e ?pagina=. A ordem padrão é relevância na busca e
  * novidades no resto.
  */
 export function readFilters(params: Params) {
@@ -96,7 +96,8 @@ export function readFilters(params: Params) {
     maxPriceCents: reais(params["preco-max"]),
     sort: (sort ?? SORTS.find((s) => s.value === (q ? "relevancia" : "novidades")))!,
     sortChosen: Boolean(sort),
-    cursor: first(params.cursor),
+    // a página (a partir de 1); o que não é número de 1 a 200 é a primeira
+    page: Math.min(Math.max(Number.parseInt(first(params.pagina) ?? "1", 10) || 1, 1), 200),
   };
 }
 
@@ -111,11 +112,14 @@ export function activeFilterCount(f: Filters, { onSaleFixed = false } = {}): num
   );
 }
 
-/** Os parâmetros da URL sem o cursor, preservando os que têm vários valores (?marca=). */
+/**
+ * Os parâmetros da URL sem a página (trocar filtro volta à primeira) nem o cursor de antes da paginação
+ * numerada, preservando os que têm vários valores (?marca=).
+ */
 function carry(params: Params, skip: (key: string, value: string) => boolean): URLSearchParams {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (k === "cursor") continue;
+    if (k === "cursor" || k === "pagina") continue;
     for (const value of all(v)) if (!skip(k, value)) next.append(k, value);
   }
   return next;

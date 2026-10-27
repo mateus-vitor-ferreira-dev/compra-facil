@@ -84,6 +84,8 @@ type pageInfoDTO struct {
 type productPageDTO struct {
 	Data []productDTO `json:"data"`
 	Page pageInfoDTO  `json:"page"`
+	// Total só na paginação por número (page): quantos produtos a listagem tem
+	Total *int `json:"total,omitempty"`
 }
 
 type categoryDTO struct {
@@ -134,6 +136,10 @@ func toProductPageDTO(page domain.Page[domain.Product]) productPageDTO {
 		out.Data[i] = toProductDTO(p)
 	}
 	out.Page = toPageInfo(page.NextCursor)
+	if page.Total != nil {
+		out.Total = page.Total
+		out.Page.HasMore = page.More
+	}
 	return out
 }
 

@@ -346,10 +346,13 @@ function listProducts(url) {
   const matches = filtered(url).filter((p) => !brands.length || brands.includes(p.brand.toLowerCase()));
   const sorter = sorters[url.searchParams.get("sort")];
   if (sorter) matches.sort(sorter);
-  const start = Number(url.searchParams.get("cursor") ?? 0);
   const limit = Number(url.searchParams.get("limit") ?? 20);
+  // por número (?page=, com o total) ou pelo cursor (o índice do próximo item)
+  const page = Number(url.searchParams.get("page") ?? 0);
+  const start = page > 0 ? (page - 1) * limit : Number(url.searchParams.get("cursor") ?? 0);
   const data = matches.slice(start, start + limit);
   const more = start + limit < matches.length;
+  if (page > 0) return { data, page: { next_cursor: null, has_more: more }, total: matches.length };
   return { data, page: { next_cursor: more ? String(start + limit) : null, has_more: more } };
 }
 
