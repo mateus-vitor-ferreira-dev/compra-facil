@@ -56,6 +56,8 @@ public sealed record OrderCancelledData(
 
 // ---- consumidos dos outros serviços (só os campos usados) ----
 
+public sealed record StockReservedData(Guid OrderId);
+
 public sealed record StockReservationFailedData(Guid OrderId);
 
 public sealed record PaymentApprovedData(Guid OrderId, Guid PaymentId);

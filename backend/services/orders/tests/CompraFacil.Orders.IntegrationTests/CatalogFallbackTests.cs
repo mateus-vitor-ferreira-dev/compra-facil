@@ -140,14 +140,14 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
         var before = fx.Catalog.Calls;
 
         // cada pedido tenta 3 vezes; com 10 chamadas na janela e metade falhando, o circuito abre (as
-        // falhas dos outros testes da classe também contam, então pode abrir antes)
+        // falhas dos outros testes da classe também contam, então pode já estar aberto: zero chamadas)
         for (var i = 0; i < 6; i++)
         {
             using var response = await PlaceAsync(product);
             Assert.Equal(HttpStatusCode.Accepted, response.StatusCode); // todos pela cópia local
         }
         var whileOpen = fx.Catalog.Calls;
-        Assert.InRange(whileOpen - before, 1, 6 * 3 - 1); // sem o circuito seriam 18
+        Assert.InRange(whileOpen - before, 0, 6 * 3 - 1); // sem o circuito seriam 18
         using (var response = await PlaceAsync(product))
         {
             Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);

@@ -612,9 +612,10 @@ components:
         variantes WebP de 320 a 1200 px (nunca maiores que a original), servidas pelo gateway em `/media`
         (em produção, pela CDN) com cache permanente: o nome muda quando a foto muda.
 
-        No front (`next/image`): um `loader` que escolhe a menor variante com largura maior ou igual à
-        pedida, e `sizes` de acordo com o layout. Foto definida pelo admin só por URL vem sem dimensões e
-        com `variants` vazio: exiba a `url` em proporção 1:1 com `object-fit: cover`.
+        No front: `<img srcset>` com as variantes (`url` e `width` de cada uma) e `sizes` de acordo com o
+        layout; o navegador baixa a menor que serve. O `loader` do `next/image` não serve aqui, porque não
+        recebe a lista de variantes de cada foto. Foto definida pelo admin só por URL vem sem dimensões e com
+        `variants` vazio: exiba a `url` em proporção 1:1 com `object-fit: cover`.
       required: [url, width, height, variants]
       properties:
         url:

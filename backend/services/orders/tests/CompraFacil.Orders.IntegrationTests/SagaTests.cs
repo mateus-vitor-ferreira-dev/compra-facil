@@ -71,6 +71,36 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
     }
 
     [Fact]
+    public async Task StockReserved_MarksTheChargingStep_WithoutPublishing()
+    {
+        var order = await PlaceOrderAsync();
+        Assert.Equal(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("stock_reserved_at").ValueKind);
+
+        await HandleAsync<StockReservedData, OnStockReserved>(new StockReservedData(order));
+
+        var json = await GetOrderAsync(order);
+        Assert.Equal("pending", json.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.String, json.GetProperty("stock_reserved_at").ValueKind);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json.GetRawText());
+        Assert.Empty(await OutcomeEventsAsync(order)); // quem segue a SAGA é o payments
+    }
+
+    [Fact]
+    public async Task StockReserved_AfterThePaymentResult_IsIgnored()
+    {
+        var order = await PlaceOrderAsync();
+        await HandleAsync<PaymentApprovedData, OnPaymentApproved>(new PaymentApprovedData(order, Guid.NewGuid()));
+        var confirmed = await GetOrderAsync(order);
+
+        await HandleAsync<StockReservedData, OnStockReserved>(new StockReservedData(order));
+
+        var json = await GetOrderAsync(order);
+        Assert.Equal("confirmed", json.GetProperty("status").GetString());
+        Assert.Equal(confirmed.GetProperty("updated_at").GetString(), json.GetProperty("updated_at").GetString());
+        Assert.Equal(confirmed.GetProperty("stock_reserved_at").GetString(), json.GetProperty("stock_reserved_at").GetString());
+    }
+
+    [Fact]
     public async Task StockReservationFailed_CancelsOutOfStock()
     {
         var order = await PlaceOrderAsync();

@@ -13,6 +13,7 @@ Catálogo em **Go**, compras em **.NET**, SAGA coreografada sobre **Kafka**, obs
 [![payments](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml)
 [![notifications](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml)
 [![identity](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml)
+[![web](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml)
 [![contracts](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml)
 
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
@@ -251,6 +252,7 @@ task dlt -- payments          # mensagens na dead letter topic; task dlt:replay 
 task grafana                  # abre o Grafana no dashboard Início
 task trace -- <trace_id>      # abre o trace de uma resposta (header X-Trace-Id)
 task e2e                      # compra ponta a ponta pelo gateway (confirmada, sem estoque, pagamento recusado)
+task web:dev                  # o front (Next.js) em http://localhost:3000, com o ambiente no ar
 task k8s:up && task k8s:seed  # o mesmo sistema num cluster k3d (Helm), com HPA no catálogo
 task k8s:load -- 600 2m       # k6 dentro do cluster: o catálogo escala sozinho de 1 para 4 réplicas
 ```
@@ -303,7 +305,7 @@ compra-facil/
 │   │   └── inventory/ payments/ notifications/ identity/
 │   ├── libs/dotnet/      #   BuildingBlocks: outbox, Kafka, inbox, retry/DLT, JWT, OTel, ProblemDetails
 │   └── Directory.*.props, global.json   # build .NET comum aos serviços
-├── frontend/             # o que roda no navegador (Next.js, F8)
+├── frontend/web/         # a loja e o BFF (Next.js): tokens em cookie httpOnly, tipos gerados dos contratos
 ├── contracts/            # fonte da verdade entre os times, e dos tipos do front
 │   ├── proto/            #   gRPC (Buf: lint + breaking change)
 │   ├── openapi/          #   REST de cada serviço (Spectral)

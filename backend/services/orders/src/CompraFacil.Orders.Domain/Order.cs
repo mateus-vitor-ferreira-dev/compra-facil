@@ -20,7 +20,9 @@ public enum CancellationReason
 /// <summary>
 /// Pedido de compra e dono da SAGA. Nasce <see cref="OrderStatus.Pending"/> e termina
 /// <see cref="OrderStatus.Confirmed"/> (estoque reservado e pagamento aprovado) ou
-/// <see cref="OrderStatus.Cancelled"/>. Os estados finais não mudam mais.
+/// <see cref="OrderStatus.Cancelled"/>. Os estados finais não mudam mais. No meio, o
+/// <see cref="StockReservedAt"/> marca a etapa da SAGA: sem ele, o estoque está sendo reservado; com
+/// ele, o pagamento está sendo cobrado.
 /// </summary>
 public sealed class Order
 {
@@ -44,6 +46,9 @@ public sealed class Order
     public string? PaymentFailureReason { get; private set; }
 
     public Guid? PaymentId { get; private set; }
+
+    /// <summary>Quando o inventory reservou o estoque (nulo: ainda não reservou, ou recusou).</summary>
+    public DateTimeOffset? StockReservedAt { get; private set; }
     public IReadOnlyList<OrderItem> Items => _items;
     public Money Total { get; private set; }
 
@@ -92,12 +97,29 @@ public sealed class Order
         return order;
     }
 
+    /// <summary>
+    /// Estoque reservado: a SAGA passa para a cobrança. Devolve false se não mudou nada (o pedido já
+    /// terminou ou a reserva já estava marcada), para o evento repetido ou atrasado não virar transição.
+    /// </summary>
+    public bool MarkStockReserved(DateTimeOffset now)
+    {
+        if (Status != OrderStatus.Pending || StockReservedAt is not null)
+        {
+            return false;
+        }
+        StockReservedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
     /// <summary>Pagamento aprovado: fim feliz da SAGA.</summary>
     public void Confirm(Guid paymentId, DateTimeOffset now)
     {
         EnsurePending("confirmar");
         Status = OrderStatus.Confirmed;
         PaymentId = paymentId;
+        // o payments só cobra com o estoque reservado; o StockReserved pode chegar depois (outro tópico)
+        StockReservedAt ??= now;
         UpdatedAt = now;
     }
 
@@ -113,6 +135,10 @@ public sealed class Order
         CancellationReason = reason;
         PaymentId = paymentId;
         PaymentFailureReason = reason == Domain.CancellationReason.PaymentFailed ? paymentFailureReason : null;
+        if (reason == Domain.CancellationReason.PaymentFailed)
+        {
+            StockReservedAt ??= now; // recusa de pagamento: houve reserva (que o OrderCancelled libera)
+        }
         UpdatedAt = now;
     }
 

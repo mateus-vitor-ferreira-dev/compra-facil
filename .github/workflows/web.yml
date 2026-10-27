@@ -1,0 +1,63 @@
+# Pipeline do front (frontend/web, Next.js). Roda quando o front muda ou quando um contrato REST muda
+# (os tipos do front saem de contracts/openapi). Mudança só no backend não dispara este.
+name: web
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - frontend/web/**
+      - contracts/openapi/**
+      - .github/workflows/web.yml
+  pull_request:
+    paths:
+      - frontend/web/**
+      - contracts/openapi/**
+      - .github/workflows/web.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: frontend/web
+
+jobs:
+  check:
+    name: lint, tipos, testes, build, e2e e Lighthouse
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: frontend/web/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/web/package-lock.json
+      - run: npm ci
+      - name: Tipos dos contratos em dia (contracts/openapi)
+        run: npm run api:check
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - name: Testes de unidade (Vitest + Testing Library)
+        run: npm test
+      - run: npm run build
+      - name: Testes de navegador (Playwright, com a API falsa)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - uses: actions/upload-artifact@v7.0.2
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/web/playwright-report
+          retention-days: 7
+      - name: Lighthouse CI (performance, acessibilidade, SEO e boas práticas ≥ 90)
+        run: npm run lhci

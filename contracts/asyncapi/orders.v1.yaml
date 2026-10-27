@@ -7,9 +7,11 @@ info:
     SAGA de compra:
 
     1. `POST /v1/orders` grava o pedido `pending` e o `OrderPlaced` na mesma transação (outbox);
-    2. `PaymentApproved` → pedido `confirmed` → `OrderConfirmed`;
-    3. `StockReservationFailed` → `cancelled` (`out_of_stock`) → `OrderCancelled`;
-    4. `PaymentFailed` → `cancelled` (`payment_failed`) → `OrderCancelled`, que faz o inventory
+    2. `StockReserved` → o pedido segue `pending`, agora na etapa da cobrança (`stock_reserved_at`, para
+       o acompanhamento ao vivo); não publica nada;
+    3. `PaymentApproved` → pedido `confirmed` → `OrderConfirmed`;
+    4. `StockReservationFailed` → `cancelled` (`out_of_stock`) → `OrderCancelled`;
+    5. `PaymentFailed` → `cancelled` (`payment_failed`) → `OrderCancelled`, que faz o inventory
        liberar a reserva (compensação).
 
     Também consome `catalog.product.v1` e `catalog.campaign.v1` para manter o snapshot local de
@@ -63,12 +65,13 @@ operations:
       - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
 
-  onStockReservationFailed:
+  onReservationResult:
     action: receive
     channel:
       $ref: "#/channels/reservationEvents"
-    summary: Cancela o pedido por falta de estoque.
+    summary: Marca a etapa da cobrança (reservado) ou cancela o pedido por falta de estoque.
     messages:
+      - $ref: "#/channels/reservationEvents/messages/StockReserved"
       - $ref: "#/channels/reservationEvents/messages/StockReservationFailed"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"

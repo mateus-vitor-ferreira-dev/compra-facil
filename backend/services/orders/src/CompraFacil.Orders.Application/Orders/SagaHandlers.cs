@@ -54,6 +54,38 @@ public sealed partial class OrderOutcome(IOrderRepository orders, IOutbox outbox
     private static partial void LogAlreadyFinished(ILogger logger, Guid orderId, OrderStatus status, string because);
 }
 
+/// <summary>
+/// StockReserved → o pedido passa para a etapa da cobrança. Não publica nada (quem segue a SAGA é o
+/// payments); só registra a etapa para o cliente acompanhar o pedido ao vivo.
+/// </summary>
+public sealed partial class OnStockReserved(IOrderRepository orders, TimeProvider clock, ILogger<OnStockReserved> logger)
+    : IHandleEvent<StockReservedData>
+{
+    public Task HandleAsync(StockReservedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return OptimisticConcurrency.RetryAsync(orders.Reset, async () =>
+        {
+            var order = await orders.GetForUpdateAsync(data.OrderId, ct);
+            if (order is null)
+            {
+                LogUnknownOrder(logger, data.OrderId);
+                return false;
+            }
+            // pedido que já terminou (o pagamento chegou antes, por outro tópico) ou reserva repetida
+            if (!order.MarkStockReserved(clock.GetUtcNow()))
+            {
+                return false;
+            }
+            await orders.SaveChangesAsync(ct);
+            return true;
+        });
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "StockReserved para pedido desconhecido {OrderId}; ignorado")]
+    private static partial void LogUnknownOrder(ILogger logger, Guid orderId);
+}
+
 /// <summary>StockReservationFailed → pedido cancelado por falta de estoque (não há reserva a liberar).</summary>
 public sealed class OnStockReservationFailed(OrderOutcome outcome) : IHandleEvent<StockReservationFailedData>
 {

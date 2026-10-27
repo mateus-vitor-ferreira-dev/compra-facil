@@ -158,6 +158,10 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("status");
 
+                    b.Property<DateTimeOffset?>("StockReservedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("stock_reserved_at");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
