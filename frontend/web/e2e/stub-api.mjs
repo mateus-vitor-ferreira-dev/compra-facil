@@ -73,15 +73,16 @@ const campaigns = [
 ];
 
 const seed = [
-  ['Smart TV 55" QLED', "tv", 329990, 263992],
-  ["Fone Bluetooth com cancelamento de ruído", "fones", 49990, 49990],
-  ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992],
+  ['Smart TV 55" QLED', "tv", 329990, 263992, "Samsung"],
+  ["Fone Bluetooth com cancelamento de ruído", "fones", 49990, 49990, "Sony"],
+  ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992, "Dell"],
 ];
-// 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"
+// 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"; três marcas
+const fones = ["JBL", "Edifier", "Xiaomi"];
 for (let i = 1; i <= 30; i++)
-  seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100]);
+  seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100, fones[i % 3]]);
 
-const products = seed.map(([name, slug, price, effective], i) => {
+const products = seed.map(([name, slug, price, effective, brand], i) => {
   const { id, name: categoryName } = bySlug[slug];
   const category = { id, slug, name: categoryName };
   return {
@@ -89,6 +90,7 @@ const products = seed.map(([name, slug, price, effective], i) => {
     sku: `SKU-${i}`,
     name,
     description: "",
+    brand,
     category,
     image_url: null,
     image: null,
@@ -103,24 +105,53 @@ const products = seed.map(([name, slug, price, effective], i) => {
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
 const stock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
 
-/** GET /v1/products com os filtros que a vitrine usa; o cursor é o índice do próximo item. */
-function listProducts(url) {
+/** Os produtos que passam nos filtros da vitrine (sem a marca, para a faceta). */
+function filtered(url) {
   const q = url.searchParams.get("q")?.toLowerCase();
   const slug = url.searchParams.get("category");
   const family = slug
     ? categories.filter((c) => c.slug === slug || c.parent_id === bySlug[slug]?.id).map((c) => c.slug)
     : null;
-  const matches = products.filter(
+  const min = Number(url.searchParams.get("min_price_cents") ?? 0);
+  const max = Number(url.searchParams.get("max_price_cents") ?? Infinity);
+  return products.filter(
     (p) =>
-      (!q || p.name.toLowerCase().includes(q)) &&
+      (!q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)) &&
       (!family || family.includes(p.category.slug)) &&
-      (url.searchParams.get("on_sale") !== "true" || p.campaign),
+      (url.searchParams.get("on_sale") !== "true" || p.campaign) &&
+      p.effective_price.amount_cents >= min &&
+      p.effective_price.amount_cents <= max,
   );
+}
+
+const sorters = {
+  price_asc: (a, b) => a.effective_price.amount_cents - b.effective_price.amount_cents,
+  price_desc: (a, b) => b.effective_price.amount_cents - a.effective_price.amount_cents,
+  discount: (a, b) => (b.campaign?.discount_percent ?? 0) - (a.campaign?.discount_percent ?? 0),
+};
+
+/** GET /v1/products com os filtros e as ordens da vitrine; o cursor é o índice do próximo item. */
+function listProducts(url) {
+  const brands = (url.searchParams.get("brand") ?? "").toLowerCase().split(",").filter(Boolean);
+  const matches = filtered(url).filter((p) => !brands.length || brands.includes(p.brand.toLowerCase()));
+  const sorter = sorters[url.searchParams.get("sort")];
+  if (sorter) matches.sort(sorter);
   const start = Number(url.searchParams.get("cursor") ?? 0);
   const limit = Number(url.searchParams.get("limit") ?? 20);
   const data = matches.slice(start, start + limit);
   const more = start + limit < matches.length;
   return { data, page: { next_cursor: more ? String(start + limit) : null, has_more: more } };
+}
+
+/** GET /v1/brands: as marcas da listagem com a contagem, das mais frequentes para as menos. */
+function listBrands(url) {
+  const counts = new Map();
+  for (const p of filtered(url)) counts.set(p.brand, (counts.get(p.brand) ?? 0) + 1);
+  return {
+    data: [...counts]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count })),
+  };
 }
 
 // ---- pedidos feitos no teste: a SAGA anda sozinha com o tempo ----
@@ -300,6 +331,8 @@ createServer(async (req, res) => {
         return problem(res, 429, "Muitas requisições");
       }
       return send(res, 200, listProducts(url));
+    case "GET /catalog/v1/brands":
+      return send(res, 200, listBrands(url));
     case "GET /inventory/v1/stock": {
       const ids = (url.searchParams.get("product_ids") ?? "").split(",").filter(Boolean);
       return send(res, 200, {

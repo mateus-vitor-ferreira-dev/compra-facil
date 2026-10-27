@@ -56,27 +56,95 @@ export function formatEnd(endsAt: string): string {
 type Params = Record<string, string | string[] | undefined>;
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() || undefined;
+const all = (v: string | string[] | undefined) =>
+  (Array.isArray(v) ? v : v ? [v] : []).map((x) => x.trim()).filter(Boolean);
 
-/** Os filtros das listagens, lidos da URL: ?q=, ?categoria=, ?promocao=1, ?cursor=. */
+/** As ordens da listagem: o nome na URL (?ordem=), o da API e o texto para o cliente. */
+export const SORTS = [
+  { value: "relevancia", api: "relevance", label: "Mais relevantes" },
+  { value: "novidades", api: "newest", label: "Novidades" },
+  { value: "menor-preco", api: "price_asc", label: "Menor preço" },
+  { value: "maior-preco", api: "price_desc", label: "Maior preço" },
+  { value: "maior-desconto", api: "discount", label: "Maior desconto" },
+] as const;
+export type SortValue = (typeof SORTS)[number]["value"];
+export type ApiSort = (typeof SORTS)[number]["api"];
+
+/** Reais inteiros da URL (?preco-min=3000) em centavos; o que não é número não vira filtro. */
+const reais = (v: string | string[] | undefined) => {
+  const raw = first(v)?.replace(/\./g, "").replace(",", ".");
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 && n <= 1_000_000 ? Math.round(n * 100) : undefined;
+};
+
+/**
+ * Os filtros das listagens, lidos da URL: ?q=, ?categoria=, ?promocao=1, ?marca= (uma ou mais),
+ * ?preco-min= e ?preco-max= (em reais), ?ordem= e ?cursor=. A ordem padrão é relevância na busca e
+ * novidades no resto.
+ */
 export function readFilters(params: Params) {
+  const q = first(params.q);
+  const requested = SORTS.find((s) => s.value === first(params.ordem));
+  // relevância só existe com busca
+  const sort = requested && (requested.value !== "relevancia" || q) ? requested : undefined;
   return {
-    q: first(params.q),
+    q,
     category: first(params.categoria),
     onSale: first(params.promocao) === "1",
+    brands: [...new Set(all(params.marca))].slice(0, 20),
+    minPriceCents: reais(params["preco-min"]),
+    maxPriceCents: reais(params["preco-max"]),
+    sort: (sort ?? SORTS.find((s) => s.value === (q ? "relevancia" : "novidades")))!,
+    sortChosen: Boolean(sort),
     cursor: first(params.cursor),
   };
 }
 
-/** A URL da listagem com um filtro trocado (nulo tira o filtro); trocar filtro volta à 1ª página. */
-export function withFilter(path: string, params: Params, key: string, value: string | null): string {
+export type Filters = ReturnType<typeof readFilters>;
+
+/** Quantos filtros estão ligados (a ordem não conta): o número do botão "Filtrar e ordenar". */
+export function activeFilterCount(f: Filters, { onSaleFixed = false } = {}): number {
+  return (
+    f.brands.length +
+    (f.minPriceCents !== undefined || f.maxPriceCents !== undefined ? 1 : 0) +
+    (f.onSale && !onSaleFixed ? 1 : 0)
+  );
+}
+
+/** Os parâmetros da URL sem o cursor, preservando os que têm vários valores (?marca=). */
+function carry(params: Params, skip: (key: string, value: string) => boolean): URLSearchParams {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    const value = first(v);
-    if (value && k !== key && k !== "cursor") next.set(k, value);
+    if (k === "cursor") continue;
+    for (const value of all(v)) if (!skip(k, value)) next.append(k, value);
   }
+  return next;
+}
+
+const href = (path: string, qs: URLSearchParams) => (qs.size ? `${path}?${qs}` : path);
+
+/** A URL da listagem com um filtro trocado (nulo tira o filtro); trocar filtro volta à 1ª página. */
+export function withFilter(path: string, params: Params, key: string, value: string | null): string {
+  const next = carry(params, (k) => k === key);
   if (value !== null) next.set(key, value);
-  const qs = next.toString();
-  return qs ? `${path}?${qs}` : path;
+  return href(path, next);
+}
+
+/** A URL sem um valor de um filtro de vários (tirar só a "Dell" de ?marca=Dell&marca=Acer). */
+export function withoutValue(path: string, params: Params, key: string, value: string): string {
+  return href(
+    path,
+    carry(params, (k, v) => k === key && v === value),
+  );
+}
+
+/** A URL sem nenhum dos filtros de refinamento (marca, preço, promoção), mantendo busca e ordem. */
+export function withoutRefinements(path: string, params: Params, keep: string[] = []): string {
+  const refinements = ["marca", "preco-min", "preco-max", "promocao"].filter((k) => !keep.includes(k));
+  return href(
+    path,
+    carry(params, (k) => refinements.includes(k)),
+  );
 }
 
 /** Sem acento e em minúsculas, para casar a busca com o nome das categorias. */

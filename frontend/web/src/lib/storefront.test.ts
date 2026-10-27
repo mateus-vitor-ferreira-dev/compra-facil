@@ -5,6 +5,9 @@ import {
   readFilters,
   remaining,
   withFilter,
+  withoutRefinements,
+  withoutValue,
+  activeFilterCount,
 } from "./storefront";
 
 const now = Date.parse("2026-10-26T12:00:00Z");
@@ -58,12 +61,59 @@ it("formatEnd mostra o término no horário de Brasília", () => {
 
 describe("filtros da URL", () => {
   it("lê q, categoria, promoção e cursor", () => {
-    expect(readFilters({ q: "  tv ", categoria: ["fones", "x"], promocao: "1" })).toEqual({
+    expect(readFilters({ q: "  tv ", categoria: ["fones", "x"], promocao: "1" })).toMatchObject({
       q: "tv",
       category: "fones",
       onSale: true,
       cursor: undefined,
     });
+  });
+
+  it("lê marcas, preço em reais e a ordem; relevância só na busca", () => {
+    const f = readFilters({
+      marca: ["Dell", "Acer", "Dell"],
+      "preco-min": "1.500",
+      "preco-max": "3000,50",
+      ordem: "menor-preco",
+    });
+    expect(f).toMatchObject({
+      brands: ["Dell", "Acer"],
+      minPriceCents: 150000,
+      maxPriceCents: 300050,
+      sortChosen: true,
+    });
+    expect(f.sort.api).toBe("price_asc");
+    expect(readFilters({ "preco-min": "abc", ordem: "relevancia" })).toMatchObject({
+      minPriceCents: undefined,
+      sortChosen: false,
+    });
+    expect(readFilters({}).sort.value).toBe("novidades");
+    expect(readFilters({ q: "tv" }).sort.value).toBe("relevancia");
+  });
+
+  it("conta os filtros ligados (a ordem não conta; a promoção fixa das ofertas também não)", () => {
+    const f = readFilters({
+      marca: ["Dell", "Acer"],
+      "preco-max": "3000",
+      promocao: "1",
+      ordem: "maior-preco",
+    });
+    expect(activeFilterCount(f)).toBe(4);
+    expect(activeFilterCount(f, { onSaleFixed: true })).toBe(3);
+  });
+
+  it("tira uma marca só, ou todos os refinamentos mantendo busca e ordem", () => {
+    const params = {
+      q: "notebook",
+      marca: ["Dell", "Acer"],
+      "preco-max": "3000",
+      ordem: "menor-preco",
+      cursor: "x",
+    };
+    expect(withoutValue("/busca", params, "marca", "Dell")).toBe(
+      "/busca?q=notebook&marca=Acer&preco-max=3000&ordem=menor-preco",
+    );
+    expect(withoutRefinements("/busca", params)).toBe("/busca?q=notebook&ordem=menor-preco");
   });
 
   it("trocar um filtro mantém os outros e volta à primeira página", () => {
