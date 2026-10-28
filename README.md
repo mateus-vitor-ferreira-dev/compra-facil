@@ -12,6 +12,7 @@ Catálogo em **Go**, compras em **.NET**, SAGA coreografada sobre **Kafka**, obs
 [![inventory](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/inventory.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/inventory.yml)
 [![payments](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml)
 [![notifications](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml)
+[![fulfillment](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/fulfillment.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/fulfillment.yml)
 [![identity](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml)
 [![web](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml)
 [![contracts](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml)
@@ -121,13 +122,15 @@ flowchart LR
     orders & inventory & payments <--> kafka
     kafka --> notifications["<b>notifications</b><br/><small>.NET</small>"]
     notifications --> mail["📨 SMTP"]
+    kafka <--> fulfillment["<b>fulfillment</b><br/><small>.NET · dropshipping</small>"]
+    fulfillment <-- "API + webhooks" --> supplier["🚚 Fornecedor<br/><small>simulado em dev</small>"]
 
     classDef go fill:#00ADD8,stroke:#007d9c,color:#fff
     classDef net fill:#512BD4,stroke:#3a1f99,color:#fff
     classDef infra fill:#334155,stroke:#1e293b,color:#fff
     class catalog go
-    class orders,inventory,payments,notifications,identity net
-    class gateway,kafka,redis,mail infra
+    class orders,inventory,payments,notifications,identity,fulfillment net
+    class gateway,kafka,redis,mail,supplier infra
 ```
 
 Cada serviço tem **banco PostgreSQL próprio**, publica pelo outbox e manda traces, métricas e logs por OTLP.
@@ -157,7 +160,7 @@ estados, sequências e garantias da SAGA: [`docs/arquitetura/saga.md`](docs/arqu
 | Time | Serviços | Stack |
 |---|---|---|
 | Catálogo e campanhas | `catalog` | Go 1.26 · Gin · GORM · golang-migrate · Redis · franz-go |
-| Processamento de compras | `orders`, `inventory`, `payments`, `notifications` | C# · ASP.NET Core 10 · EF Core · Confluent.Kafka · Polly · MailKit |
+| Processamento de compras | `orders`, `inventory`, `payments`, `notifications`, `fulfillment` | C# · ASP.NET Core 10 · EF Core · Confluent.Kafka · Polly · MailKit |
 | Contas | `identity` | C# · ASP.NET Core Identity · JWT RS256 com rotação de chave · JWKS |
 | Plataforma | gateway, mensageria, observabilidade | Traefik 3 · Redpanda · OpenTelemetry Collector · Tempo · Loki · Prometheus · Grafana · k6 |
 
@@ -262,7 +265,7 @@ task k8s:load -- 600 2m       # k6 dentro do cluster: o catálogo escala sozinho
 <summary><b>Portas e acessos do ambiente local</b></summary>
 
 Os serviços da aplicação **só entram pelo gateway** (`http://localhost/<serviço>`). Para depurar um serviço
-direto (portas 8001–8006 e gRPC 9001), use `task up:debug`.
+direto (portas 8001–8007 e gRPC 9001), use `task up:debug`.
 
 | Componente | Acesso pelo host | Uso |
 |---|---|---|
@@ -271,6 +274,7 @@ direto (portas 8001–8006 e gRPC 9001), use `task up:debug`.
 | Redis 8 | `localhost:6379` (`REDIS_PORT`) | cache do catálogo |
 | Redpanda (Kafka) | `localhost:19092` · console http://localhost:8080 | eventos |
 | Mailpit | SMTP `localhost:1025` · UI http://localhost:8025 | e-mails do `notifications` |
+| Fornecedor simulado | http://127.0.0.1:8091 (`/sim/orders`) | o fornecedor de dropshipping do `fulfillment` ([`supplier-sim`](backend/services/supplier-sim/README.md)) |
 | Grafana | http://127.0.0.1:3001 | dashboards e Explore (Tempo, Loki, Prometheus) |
 | Prometheus | http://127.0.0.1:9090 | |
 | OTLP | `127.0.0.1:4317` (gRPC), `:4318` (HTTP) | para serviços rodando fora do compose |
@@ -303,7 +307,8 @@ compra-facil/
 │   ├── services/
 │   │   ├── catalog/      #   Go: cmd/, internal/{domain,handler,service,repository,grpcserver,cache,events}
 │   │   ├── orders/       #   .NET: src/{Api,Application,Domain,Infrastructure}, tests/{Unit,Integration}
-│   │   └── inventory/ payments/ notifications/ identity/
+│   │   ├── inventory/ payments/ notifications/ identity/ fulfillment/
+│   │   └── supplier-sim/ #   Go: o fornecedor de dropshipping simulado (contrato do CJ), só no compose
 │   ├── libs/dotnet/      #   BuildingBlocks: outbox, Kafka, inbox, retry/DLT, JWT, OTel, ProblemDetails
 │   └── Directory.*.props, global.json   # build .NET comum aos serviços
 ├── frontend/web/         # a loja e o BFF (Next.js): tokens em cookie httpOnly, tipos gerados dos contratos

@@ -68,3 +68,8 @@ overrides:
     rules:
       compra-facil-paths-kebab-case: off
       compra-facil-properties-snake-case: off
+
+  # o corpo do webhook é o formato do fornecedor (CJ Dropshipping, camelCase): a loja só recebe
+  - files: ["fulfillment.v1.yaml#/components/schemas/SupplierWebhook"]
+    rules:
+      compra-facil-properties-snake-case: off

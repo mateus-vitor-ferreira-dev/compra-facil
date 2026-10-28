@@ -39,6 +39,8 @@ services:
       CLIENT_IP_DEPTH: "1"
       # as fotos saem do R2, não do gateway
       GATEWAY_MEDIA: "off"
+      # o fulfillment (dropshipping, ADR 0007) entra na produção com o fornecedor de verdade (#227)
+      GATEWAY_FULFILLMENT: "off"
     volumes:
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - ../../infra/gateway/traefik/dynamic:/etc/traefik/dynamic:ro

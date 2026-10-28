@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- O pedido no fornecedor e as regras de status dele. Não depende de ASP.NET nem de EF Core. -->
+</Project>

@@ -8,11 +8,12 @@ Fonte da verdade dos eventos no Kafka (Redpanda em dev). Cada serviço tem um ar
 |---|---|---|---|
 | [`catalog.v1.yaml`](catalog.v1.yaml) | `catalog.product.v1` | `ProductCreated`, `ProductUpdated`, `ProductPriceChanged`, `ProductDeleted` | orders (snapshot), inventory |
 | | `catalog.campaign.v1` | `CampaignCreated`, `CampaignUpdated`, `CampaignDeleted` | orders (snapshot) |
-| [`orders.v1.yaml`](orders.v1.yaml) | `orders.order.v1` | `OrderPlaced`, `OrderConfirmed`, `OrderCancelled` | inventory, payments, notifications |
+| [`orders.v1.yaml`](orders.v1.yaml) | `orders.order.v1` | `OrderPlaced`, `OrderConfirmed`, `OrderCancelled` | inventory, payments, notifications, fulfillment |
 | [`inventory.v1.yaml`](inventory.v1.yaml) | `inventory.reservation.v1` | `StockReserved`, `StockReservationFailed`, `StockReleased` | payments, orders |
 | [`payments.v1.yaml`](payments.v1.yaml) | `payments.payment.v1` | `PaymentApproved`, `PaymentFailed` | orders |
 | [`identity.v1.yaml`](identity.v1.yaml) | `identity.account.v1` | `AccountRegistered`, `EmailConfirmationRequested` | notifications |
 | [`notifications.v1.yaml`](notifications.v1.yaml) | — | só consome | — |
+| [`fulfillment.v1.yaml`](fulfillment.v1.yaml) | `fulfillment.supplier-order.v1` | `SupplierOrderPlaced`, `SupplierOrderShipped`, `SupplierOrderDelivered`, `SupplierOrderFailed` | — (a SAGA com o fornecedor, #219) |
 | [`common/v1/common.yaml`](common/v1/common.yaml) | — | envelope, headers, chaves, servidores | — |
 
 ## SAGA de compra (coreografada)
@@ -21,7 +22,8 @@ Fonte da verdade dos eventos no Kafka (Redpanda em dev). Cada serviço tem um ar
 orders      ── OrderPlaced ─────────────▶ inventory (reserva), payments (guarda o valor)
 inventory   ── StockReserved ───────────▶ payments          (ou StockReservationFailed ─▶ orders)
 payments    ── PaymentApproved ─────────▶ orders            (ou PaymentFailed ──────────▶ orders)
-orders      ── OrderConfirmed ──────────▶ inventory (baixa definitiva), notifications
+orders      ── OrderConfirmed ──────────▶ inventory (baixa definitiva), notifications,
+                                          fulfillment (pedido ao fornecedor, ADR 0007)
              └ OrderCancelled ──────────▶ inventory (libera a reserva → StockReleased),
                                           payments (descarta a pendência), notifications
 ```
@@ -66,7 +68,7 @@ Todo evento é um JSON com os metadados no topo e o conteúdo em `data`
   pedido/produto/campanha caem na mesma partição e chegam em ordem.
 - **Headers**: `traceparent`/`tracestate` (W3C) levam o trace do OpenTelemetry através do broker.
 - **Tópicos**: `<serviço>.<agregado>.v<N>`, 3 partições, retenção de 7 dias.
-- **Consumer group** = nome do serviço (`orders`, `inventory`, `payments`, `notifications`).
+- **Consumer group** = nome do serviço (`orders`, `inventory`, `payments`, `notifications`, `fulfillment`).
 
 ## Regras para consumidores
 

@@ -1,0 +1,47 @@
+# Pipeline do fulfillment (time de compras): a integração com o fornecedor de dropshipping (ADR 0007). Só
+# roda quando algo que afeta o fulfillment muda: o próprio serviço, a lib comum, os contratos ou o build .NET.
+name: fulfillment
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - backend/services/fulfillment/**
+      - backend/libs/dotnet/**
+      - contracts/**
+      - backend/services/dotnet.Dockerfile
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
+      - .editorconfig
+      - backend/dotnet-tools.json
+      - .github/workflows/fulfillment.yml
+      - .github/workflows/_dotnet-service.yml
+  pull_request:
+    paths:
+      - backend/services/fulfillment/**
+      - backend/libs/dotnet/**
+      - contracts/**
+      - backend/services/dotnet.Dockerfile
+      - backend/Directory.Build.props
+      - backend/Directory.Packages.props
+      - backend/global.json
+      - .editorconfig
+      - backend/dotnet-tools.json
+      - .github/workflows/fulfillment.yml
+      - .github/workflows/_dotnet-service.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fulfillment:
+    uses: ./.github/workflows/_dotnet-service.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      service: fulfillment
+      project: CompraFacil.Fulfillment.Api
+      port: "8007"
