@@ -17,8 +17,10 @@ import (
 //go:embed photos.json
 var photosJSON []byte
 
-// minPhotosPerSubcategory: com menos que isto, cards vizinhos de uma listagem repetiriam a foto (#178).
-const minPhotosPerSubcategory = 10
+// minPhotosPerSubcategory: o mínimo de fotos por subcategoria (#178). As fotos vão em sequência, então
+// cards vizinhos nunca repetem; com poucas, a mesma volta a cada poucos produtos. A meta é 12 (o
+// product_images.py pede isso), mas os acervos livres não tinham 10 boas de TV e de monitor.
+const minPhotosPerSubcategory = 6
 
 type photo struct {
 	Width    int `json:"width"`

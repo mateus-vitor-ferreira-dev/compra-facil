@@ -1,81 +1,121 @@
 {
  "tv-1": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-1.cea28479-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-1.cea28479-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tv-1.cea28479-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "tv-1.cea28479-853.webp"
+   }
+  ]
+ },
+ "tv-2": {
+  "width": 719,
+  "height": 719,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-2.c733c59c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-2.c733c59c-480.webp"
+   },
+   {
+    "width": 719,
+    "file": "tv-2.c733c59c-719.webp"
+   }
+  ]
+ },
+ "tv-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-3.8b5e3569-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-3.8b5e3569-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tv-3.8b5e3569-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tv-3.8b5e3569-1024.webp"
+   }
+  ]
+ },
+ "tv-4": {
   "width": 683,
   "height": 683,
   "variants": [
    {
     "width": 320,
-    "file": "tv-1.d226c7dd-320.webp"
+    "file": "tv-4.e1c2ee0a-320.webp"
    },
    {
     "width": 480,
-    "file": "tv-1.d226c7dd-480.webp"
+    "file": "tv-4.e1c2ee0a-480.webp"
    },
    {
     "width": 683,
-    "file": "tv-1.d226c7dd-683.webp"
+    "file": "tv-4.e1c2ee0a-683.webp"
    }
   ]
  },
- "tv-2": {
-  "width": 898,
-  "height": 898,
-  "variants": [
-   {
-    "width": 320,
-    "file": "tv-2.97211e0b-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "tv-2.97211e0b-480.webp"
-   },
-   {
-    "width": 640,
-    "file": "tv-2.97211e0b-640.webp"
-   },
-   {
-    "width": 898,
-    "file": "tv-2.97211e0b-898.webp"
-   }
-  ]
- },
- "tv-3": {
-  "width": 768,
-  "height": 768,
-  "variants": [
-   {
-    "width": 320,
-    "file": "tv-3.87568abb-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "tv-3.87568abb-480.webp"
-   },
-   {
-    "width": 640,
-    "file": "tv-3.87568abb-640.webp"
-   },
-   {
-    "width": 768,
-    "file": "tv-3.87568abb-768.webp"
-   }
-  ]
- },
- "tv-4": {
+ "tv-5": {
   "width": 720,
   "height": 720,
   "variants": [
    {
     "width": 320,
-    "file": "tv-4.2b1936bf-320.webp"
+    "file": "tv-5.14436c23-320.webp"
    },
    {
     "width": 480,
-    "file": "tv-4.2b1936bf-480.webp"
+    "file": "tv-5.14436c23-480.webp"
    },
    {
     "width": 720,
-    "file": "tv-4.2b1936bf-720.webp"
+    "file": "tv-5.14436c23-720.webp"
+   }
+  ]
+ },
+ "tv-6": {
+  "width": 826,
+  "height": 826,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tv-6.332470d0-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tv-6.332470d0-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tv-6.332470d0-640.webp"
+   },
+   {
+    "width": 826,
+    "file": "tv-6.332470d0-826.webp"
    }
   ]
  },
@@ -85,311 +125,643 @@
   "variants": [
    {
     "width": 320,
-    "file": "fones-1.f750dcc5-320.webp"
+    "file": "fones-1.f1a9d7d5-320.webp"
    },
    {
     "width": 480,
-    "file": "fones-1.f750dcc5-480.webp"
+    "file": "fones-1.f1a9d7d5-480.webp"
    },
    {
     "width": 640,
-    "file": "fones-1.f750dcc5-640.webp"
+    "file": "fones-1.f1a9d7d5-640.webp"
    },
    {
     "width": 960,
-    "file": "fones-1.f750dcc5-960.webp"
+    "file": "fones-1.f1a9d7d5-960.webp"
    }
   ]
  },
  "fones-2": {
-  "width": 640,
-  "height": 640,
+  "width": 720,
+  "height": 720,
   "variants": [
    {
     "width": 320,
-    "file": "fones-2.bb0cfe15-320.webp"
+    "file": "fones-2.8058c5ca-320.webp"
    },
    {
     "width": 480,
-    "file": "fones-2.bb0cfe15-480.webp"
+    "file": "fones-2.8058c5ca-480.webp"
    },
    {
-    "width": 640,
-    "file": "fones-2.bb0cfe15-640.webp"
+    "width": 720,
+    "file": "fones-2.8058c5ca-720.webp"
    }
   ]
  },
  "fones-3": {
-  "width": 641,
-  "height": 641,
-  "variants": [
-   {
-    "width": 320,
-    "file": "fones-3.719fbeb6-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "fones-3.719fbeb6-480.webp"
-   },
-   {
-    "width": 641,
-    "file": "fones-3.719fbeb6-641.webp"
-   }
-  ]
- },
- "fones-4": {
-  "width": 640,
-  "height": 640,
-  "variants": [
-   {
-    "width": 320,
-    "file": "fones-4.0c862987-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "fones-4.0c862987-480.webp"
-   },
-   {
-    "width": 640,
-    "file": "fones-4.0c862987-640.webp"
-   }
-  ]
- },
- "caixas-de-som-1": {
-  "width": 640,
-  "height": 640,
-  "variants": [
-   {
-    "width": 320,
-    "file": "caixas-de-som-1.2785ade9-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "caixas-de-som-1.2785ade9-480.webp"
-   },
-   {
-    "width": 640,
-    "file": "caixas-de-som-1.2785ade9-640.webp"
-   }
-  ]
- },
- "caixas-de-som-2": {
-  "width": 640,
-  "height": 640,
-  "variants": [
-   {
-    "width": 320,
-    "file": "caixas-de-som-2.05938435-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "caixas-de-som-2.05938435-480.webp"
-   },
-   {
-    "width": 640,
-    "file": "caixas-de-som-2.05938435-640.webp"
-   }
-  ]
- },
- "caixas-de-som-3": {
-  "width": 640,
-  "height": 640,
-  "variants": [
-   {
-    "width": 320,
-    "file": "caixas-de-som-3.62c73fb3-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "caixas-de-som-3.62c73fb3-480.webp"
-   },
-   {
-    "width": 640,
-    "file": "caixas-de-som-3.62c73fb3-640.webp"
-   }
-  ]
- },
- "caixas-de-som-4": {
   "width": 960,
   "height": 960,
   "variants": [
    {
     "width": 320,
-    "file": "caixas-de-som-4.2af3f5e9-320.webp"
+    "file": "fones-3.c253131b-320.webp"
    },
    {
     "width": 480,
-    "file": "caixas-de-som-4.2af3f5e9-480.webp"
+    "file": "fones-3.c253131b-480.webp"
    },
    {
     "width": 640,
-    "file": "caixas-de-som-4.2af3f5e9-640.webp"
+    "file": "fones-3.c253131b-640.webp"
    },
    {
     "width": 960,
-    "file": "caixas-de-som-4.2af3f5e9-960.webp"
+    "file": "fones-3.c253131b-960.webp"
    }
   ]
  },
- "notebooks-1": {
-  "width": 648,
-  "height": 648,
+ "fones-4": {
+  "width": 960,
+  "height": 960,
   "variants": [
    {
     "width": 320,
-    "file": "notebooks-1.a005fc2c-320.webp"
+    "file": "fones-4.6e20f0d9-320.webp"
    },
    {
     "width": 480,
-    "file": "notebooks-1.a005fc2c-480.webp"
-   },
-   {
-    "width": 648,
-    "file": "notebooks-1.a005fc2c-648.webp"
-   }
-  ]
- },
- "notebooks-2": {
-  "width": 638,
-  "height": 638,
-  "variants": [
-   {
-    "width": 320,
-    "file": "notebooks-2.4efd80da-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "notebooks-2.4efd80da-480.webp"
-   },
-   {
-    "width": 638,
-    "file": "notebooks-2.4efd80da-638.webp"
-   }
-  ]
- },
- "notebooks-3": {
-  "width": 638,
-  "height": 638,
-  "variants": [
-   {
-    "width": 320,
-    "file": "notebooks-3.fefa02d4-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "notebooks-3.fefa02d4-480.webp"
-   },
-   {
-    "width": 638,
-    "file": "notebooks-3.fefa02d4-638.webp"
-   }
-  ]
- },
- "notebooks-4": {
-  "width": 640,
-  "height": 640,
-  "variants": [
-   {
-    "width": 320,
-    "file": "notebooks-4.88ceae88-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "notebooks-4.88ceae88-480.webp"
+    "file": "fones-4.6e20f0d9-480.webp"
    },
    {
     "width": 640,
-    "file": "notebooks-4.88ceae88-640.webp"
+    "file": "fones-4.6e20f0d9-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fones-4.6e20f0d9-960.webp"
+   }
+  ]
+ },
+ "fones-5": {
+  "width": 894,
+  "height": 894,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-5.cf0c3ce0-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-5.cf0c3ce0-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-5.cf0c3ce0-640.webp"
+   },
+   {
+    "width": 894,
+    "file": "fones-5.cf0c3ce0-894.webp"
+   }
+  ]
+ },
+ "fones-6": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-6.99f4cd56-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-6.99f4cd56-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-6.99f4cd56-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fones-6.99f4cd56-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "fones-6.99f4cd56-1200.webp"
+   }
+  ]
+ },
+ "fones-7": {
+  "width": 964,
+  "height": 964,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-7.f076ff5d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-7.f076ff5d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-7.f076ff5d-640.webp"
+   },
+   {
+    "width": 964,
+    "file": "fones-7.f076ff5d-964.webp"
+   }
+  ]
+ },
+ "fones-8": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-8.6ef10fa1-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-8.6ef10fa1-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-8.6ef10fa1-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fones-8.6ef10fa1-960.webp"
+   }
+  ]
+ },
+ "fones-9": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fones-9.038dd520-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fones-9.038dd520-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fones-9.038dd520-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fones-9.038dd520-960.webp"
+   }
+  ]
+ },
+ "caixas-de-som-1": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-1.5b530568-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-1.5b530568-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-1.5b530568-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "caixas-de-som-1.5b530568-853.webp"
+   }
+  ]
+ },
+ "caixas-de-som-2": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-2.a03cf42b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-2.a03cf42b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-2.a03cf42b-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "caixas-de-som-2.a03cf42b-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "caixas-de-som-2.a03cf42b-1200.webp"
+   }
+  ]
+ },
+ "caixas-de-som-3": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-3.ced30899-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-3.ced30899-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-3.ced30899-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "caixas-de-som-3.ced30899-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "caixas-de-som-3.ced30899-1200.webp"
+   }
+  ]
+ },
+ "caixas-de-som-4": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-4.c6ab0fe5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-4.c6ab0fe5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-4.c6ab0fe5-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "caixas-de-som-4.c6ab0fe5-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "caixas-de-som-4.c6ab0fe5-1200.webp"
+   }
+  ]
+ },
+ "caixas-de-som-5": {
+  "width": 920,
+  "height": 920,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-5.dc94b998-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-5.dc94b998-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-5.dc94b998-640.webp"
+   },
+   {
+    "width": 920,
+    "file": "caixas-de-som-5.dc94b998-920.webp"
+   }
+  ]
+ },
+ "caixas-de-som-6": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-6.99c62f0d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-6.99c62f0d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-6.99c62f0d-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "caixas-de-som-6.99c62f0d-853.webp"
+   }
+  ]
+ },
+ "caixas-de-som-7": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-7.99762765-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-7.99762765-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-7.99762765-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "caixas-de-som-7.99762765-853.webp"
+   }
+  ]
+ },
+ "caixas-de-som-8": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-8.84ce8698-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-8.84ce8698-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-8.84ce8698-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "caixas-de-som-8.84ce8698-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "caixas-de-som-8.84ce8698-1200.webp"
+   }
+  ]
+ },
+ "caixas-de-som-9": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-9.12391304-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-9.12391304-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-9.12391304-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "caixas-de-som-9.12391304-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "caixas-de-som-9.12391304-1200.webp"
+   }
+  ]
+ },
+ "caixas-de-som-10": {
+  "width": 719,
+  "height": 719,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-10.bd5cee14-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-10.bd5cee14-480.webp"
+   },
+   {
+    "width": 719,
+    "file": "caixas-de-som-10.bd5cee14-719.webp"
+   }
+  ]
+ },
+ "caixas-de-som-11": {
+  "width": 622,
+  "height": 622,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-11.9f7d0b56-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-11.9f7d0b56-480.webp"
+   },
+   {
+    "width": 622,
+    "file": "caixas-de-som-11.9f7d0b56-622.webp"
+   }
+  ]
+ },
+ "caixas-de-som-12": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "caixas-de-som-12.7d9eb883-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "caixas-de-som-12.7d9eb883-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "caixas-de-som-12.7d9eb883-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "caixas-de-som-12.7d9eb883-853.webp"
    }
   ]
  },
  "monitores-1": {
-  "width": 640,
-  "height": 640,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "monitores-1.33f535a3-320.webp"
+    "file": "monitores-1.173166c3-320.webp"
    },
    {
     "width": 480,
-    "file": "monitores-1.33f535a3-480.webp"
+    "file": "monitores-1.173166c3-480.webp"
    },
    {
     "width": 640,
-    "file": "monitores-1.33f535a3-640.webp"
+    "file": "monitores-1.173166c3-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "monitores-1.173166c3-853.webp"
    }
   ]
  },
  "monitores-2": {
-  "width": 640,
-  "height": 640,
+  "width": 850,
+  "height": 850,
   "variants": [
    {
     "width": 320,
-    "file": "monitores-2.a40a906b-320.webp"
+    "file": "monitores-2.e6d9141b-320.webp"
    },
    {
     "width": 480,
-    "file": "monitores-2.a40a906b-480.webp"
+    "file": "monitores-2.e6d9141b-480.webp"
    },
    {
     "width": 640,
-    "file": "monitores-2.a40a906b-640.webp"
+    "file": "monitores-2.e6d9141b-640.webp"
+   },
+   {
+    "width": 850,
+    "file": "monitores-2.e6d9141b-850.webp"
    }
   ]
  },
  "monitores-3": {
-  "width": 640,
-  "height": 640,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "monitores-3.c89e7874-320.webp"
+    "file": "monitores-3.2c36ecec-320.webp"
    },
    {
     "width": 480,
-    "file": "monitores-3.c89e7874-480.webp"
+    "file": "monitores-3.2c36ecec-480.webp"
    },
    {
     "width": 640,
-    "file": "monitores-3.c89e7874-640.webp"
+    "file": "monitores-3.2c36ecec-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "monitores-3.2c36ecec-853.webp"
    }
   ]
  },
  "monitores-4": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "monitores-4.46f14536-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "monitores-4.46f14536-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "monitores-4.46f14536-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "monitores-4.46f14536-853.webp"
+   }
+  ]
+ },
+ "monitores-5": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "monitores-5.3eaf86ae-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "monitores-5.3eaf86ae-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "monitores-5.3eaf86ae-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "monitores-5.3eaf86ae-853.webp"
+   }
+  ]
+ },
+ "monitores-6": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "monitores-6.806edd18-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "monitores-6.806edd18-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "monitores-6.806edd18-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "monitores-6.806edd18-853.webp"
+   }
+  ]
+ },
+ "monitores-7": {
   "width": 640,
   "height": 640,
   "variants": [
    {
     "width": 320,
-    "file": "monitores-4.ed1265da-320.webp"
+    "file": "monitores-7.96f17294-320.webp"
    },
    {
     "width": 480,
-    "file": "monitores-4.ed1265da-480.webp"
+    "file": "monitores-7.96f17294-480.webp"
    },
    {
     "width": 640,
-    "file": "monitores-4.ed1265da-640.webp"
+    "file": "monitores-7.96f17294-640.webp"
    }
   ]
  },
  "perifericos-1": {
-  "width": 667,
-  "height": 667,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "perifericos-1.6e755c9e-320.webp"
+    "file": "perifericos-1.abe9117a-320.webp"
    },
    {
     "width": 480,
-    "file": "perifericos-1.6e755c9e-480.webp"
+    "file": "perifericos-1.abe9117a-480.webp"
    },
    {
-    "width": 667,
-    "file": "perifericos-1.6e755c9e-667.webp"
+    "width": 640,
+    "file": "perifericos-1.abe9117a-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "perifericos-1.abe9117a-853.webp"
    }
   ]
  },
@@ -399,567 +771,2149 @@
   "variants": [
    {
     "width": 320,
-    "file": "perifericos-2.af4139d4-320.webp"
+    "file": "perifericos-2.d61f9149-320.webp"
    },
    {
     "width": 480,
-    "file": "perifericos-2.af4139d4-480.webp"
+    "file": "perifericos-2.d61f9149-480.webp"
    },
    {
     "width": 720,
-    "file": "perifericos-2.af4139d4-720.webp"
+    "file": "perifericos-2.d61f9149-720.webp"
    }
   ]
  },
  "perifericos-3": {
-  "width": 638,
-  "height": 638,
+  "width": 848,
+  "height": 848,
   "variants": [
    {
     "width": 320,
-    "file": "perifericos-3.b8cd18cd-320.webp"
+    "file": "perifericos-3.708a428f-320.webp"
    },
    {
     "width": 480,
-    "file": "perifericos-3.b8cd18cd-480.webp"
+    "file": "perifericos-3.708a428f-480.webp"
    },
    {
-    "width": 638,
-    "file": "perifericos-3.b8cd18cd-638.webp"
+    "width": 640,
+    "file": "perifericos-3.708a428f-640.webp"
+   },
+   {
+    "width": 848,
+    "file": "perifericos-3.708a428f-848.webp"
    }
   ]
  },
  "perifericos-4": {
-  "width": 720,
-  "height": 720,
+  "width": 800,
+  "height": 800,
   "variants": [
    {
     "width": 320,
-    "file": "perifericos-4.f6cf9c82-320.webp"
+    "file": "perifericos-4.269af83c-320.webp"
    },
    {
     "width": 480,
-    "file": "perifericos-4.f6cf9c82-480.webp"
+    "file": "perifericos-4.269af83c-480.webp"
    },
    {
-    "width": 720,
-    "file": "perifericos-4.f6cf9c82-720.webp"
+    "width": 640,
+    "file": "perifericos-4.269af83c-640.webp"
+   },
+   {
+    "width": 800,
+    "file": "perifericos-4.269af83c-800.webp"
+   }
+  ]
+ },
+ "perifericos-5": {
+  "width": 851,
+  "height": 851,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-5.8e2ede34-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-5.8e2ede34-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perifericos-5.8e2ede34-640.webp"
+   },
+   {
+    "width": 851,
+    "file": "perifericos-5.8e2ede34-851.webp"
+   }
+  ]
+ },
+ "perifericos-6": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-6.f30e8b86-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-6.f30e8b86-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perifericos-6.f30e8b86-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "perifericos-6.f30e8b86-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "perifericos-6.f30e8b86-1200.webp"
+   }
+  ]
+ },
+ "perifericos-7": {
+  "width": 842,
+  "height": 842,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-7.ff7e8726-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-7.ff7e8726-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perifericos-7.ff7e8726-640.webp"
+   },
+   {
+    "width": 842,
+    "file": "perifericos-7.ff7e8726-842.webp"
+   }
+  ]
+ },
+ "perifericos-8": {
+  "width": 713,
+  "height": 713,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-8.0abd5ec6-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-8.0abd5ec6-480.webp"
+   },
+   {
+    "width": 713,
+    "file": "perifericos-8.0abd5ec6-713.webp"
+   }
+  ]
+ },
+ "perifericos-9": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-9.06ad8010-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-9.06ad8010-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perifericos-9.06ad8010-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "perifericos-9.06ad8010-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "perifericos-9.06ad8010-1200.webp"
+   }
+  ]
+ },
+ "perifericos-10": {
+  "width": 1155,
+  "height": 1155,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-10.194bb717-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-10.194bb717-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perifericos-10.194bb717-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "perifericos-10.194bb717-960.webp"
+   },
+   {
+    "width": 1155,
+    "file": "perifericos-10.194bb717-1155.webp"
+   }
+  ]
+ },
+ "perifericos-11": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perifericos-11.89dc3c81-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perifericos-11.89dc3c81-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perifericos-11.89dc3c81-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "perifericos-11.89dc3c81-853.webp"
+   }
+  ]
+ },
+ "notebooks-1": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-1.56d20ee7-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-1.56d20ee7-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-1.56d20ee7-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "notebooks-1.56d20ee7-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "notebooks-1.56d20ee7-1200.webp"
+   }
+  ]
+ },
+ "notebooks-2": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-2.59699dbd-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-2.59699dbd-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-2.59699dbd-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "notebooks-2.59699dbd-853.webp"
+   }
+  ]
+ },
+ "notebooks-3": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-3.2dc4b6ae-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-3.2dc4b6ae-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-3.2dc4b6ae-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "notebooks-3.2dc4b6ae-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "notebooks-3.2dc4b6ae-1200.webp"
+   }
+  ]
+ },
+ "notebooks-4": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-4.cbe2d15f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-4.cbe2d15f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-4.cbe2d15f-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "notebooks-4.cbe2d15f-853.webp"
+   }
+  ]
+ },
+ "notebooks-5": {
+  "width": 854,
+  "height": 854,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-5.b1f09b5a-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-5.b1f09b5a-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-5.b1f09b5a-640.webp"
+   },
+   {
+    "width": 854,
+    "file": "notebooks-5.b1f09b5a-854.webp"
+   }
+  ]
+ },
+ "notebooks-6": {
+  "width": 1042,
+  "height": 1042,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-6.9997ae3c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-6.9997ae3c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-6.9997ae3c-640.webp"
+   },
+   {
+    "width": 1042,
+    "file": "notebooks-6.9997ae3c-1042.webp"
+   }
+  ]
+ },
+ "notebooks-7": {
+  "width": 789,
+  "height": 789,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-7.a812f7c9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-7.a812f7c9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-7.a812f7c9-640.webp"
+   },
+   {
+    "width": 789,
+    "file": "notebooks-7.a812f7c9-789.webp"
+   }
+  ]
+ },
+ "notebooks-8": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-8.5bff4dae-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-8.5bff4dae-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-8.5bff4dae-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "notebooks-8.5bff4dae-853.webp"
+   }
+  ]
+ },
+ "notebooks-9": {
+  "width": 848,
+  "height": 848,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-9.a331e6c5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-9.a331e6c5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-9.a331e6c5-640.webp"
+   },
+   {
+    "width": 848,
+    "file": "notebooks-9.a331e6c5-848.webp"
+   }
+  ]
+ },
+ "notebooks-10": {
+  "width": 855,
+  "height": 855,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-10.54d2b877-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-10.54d2b877-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-10.54d2b877-640.webp"
+   },
+   {
+    "width": 855,
+    "file": "notebooks-10.54d2b877-855.webp"
+   }
+  ]
+ },
+ "notebooks-11": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-11.9a18d4dc-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-11.9a18d4dc-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-11.9a18d4dc-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "notebooks-11.9a18d4dc-853.webp"
+   }
+  ]
+ },
+ "notebooks-12": {
+  "width": 857,
+  "height": 857,
+  "variants": [
+   {
+    "width": 320,
+    "file": "notebooks-12.17f93c0e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "notebooks-12.17f93c0e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "notebooks-12.17f93c0e-640.webp"
+   },
+   {
+    "width": 857,
+    "file": "notebooks-12.17f93c0e-857.webp"
    }
   ]
  },
  "geladeiras-1": {
-  "width": 683,
-  "height": 683,
+  "width": 1200,
+  "height": 1200,
   "variants": [
    {
     "width": 320,
-    "file": "geladeiras-1.cadf56cc-320.webp"
+    "file": "geladeiras-1.5848b258-320.webp"
    },
    {
     "width": 480,
-    "file": "geladeiras-1.cadf56cc-480.webp"
+    "file": "geladeiras-1.5848b258-480.webp"
    },
    {
-    "width": 683,
-    "file": "geladeiras-1.cadf56cc-683.webp"
+    "width": 640,
+    "file": "geladeiras-1.5848b258-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "geladeiras-1.5848b258-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "geladeiras-1.5848b258-1200.webp"
    }
   ]
  },
  "geladeiras-2": {
-  "width": 678,
-  "height": 678,
+  "width": 1200,
+  "height": 1200,
   "variants": [
    {
     "width": 320,
-    "file": "geladeiras-2.da69c072-320.webp"
+    "file": "geladeiras-2.427d79fc-320.webp"
    },
    {
     "width": 480,
-    "file": "geladeiras-2.da69c072-480.webp"
+    "file": "geladeiras-2.427d79fc-480.webp"
    },
    {
-    "width": 678,
-    "file": "geladeiras-2.da69c072-678.webp"
+    "width": 640,
+    "file": "geladeiras-2.427d79fc-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "geladeiras-2.427d79fc-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "geladeiras-2.427d79fc-1200.webp"
    }
   ]
  },
  "geladeiras-3": {
-  "width": 679,
-  "height": 679,
+  "width": 898,
+  "height": 898,
   "variants": [
    {
     "width": 320,
-    "file": "geladeiras-3.2cb04917-320.webp"
+    "file": "geladeiras-3.054e8a8f-320.webp"
    },
    {
     "width": 480,
-    "file": "geladeiras-3.2cb04917-480.webp"
+    "file": "geladeiras-3.054e8a8f-480.webp"
    },
    {
-    "width": 679,
-    "file": "geladeiras-3.2cb04917-679.webp"
+    "width": 640,
+    "file": "geladeiras-3.054e8a8f-640.webp"
+   },
+   {
+    "width": 898,
+    "file": "geladeiras-3.054e8a8f-898.webp"
    }
   ]
  },
  "geladeiras-4": {
-  "width": 641,
-  "height": 641,
+  "width": 1024,
+  "height": 1024,
   "variants": [
    {
     "width": 320,
-    "file": "geladeiras-4.91936c4d-320.webp"
+    "file": "geladeiras-4.4f468d4a-320.webp"
    },
    {
     "width": 480,
-    "file": "geladeiras-4.91936c4d-480.webp"
+    "file": "geladeiras-4.4f468d4a-480.webp"
    },
    {
-    "width": 641,
-    "file": "geladeiras-4.91936c4d-641.webp"
+    "width": 640,
+    "file": "geladeiras-4.4f468d4a-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "geladeiras-4.4f468d4a-1024.webp"
    }
   ]
  },
- "fogoes-1": {
+ "geladeiras-5": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-5.71a37275-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-5.71a37275-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "geladeiras-5.71a37275-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "geladeiras-5.71a37275-1024.webp"
+   }
+  ]
+ },
+ "geladeiras-6": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-6.5e9ecbda-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-6.5e9ecbda-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "geladeiras-6.5e9ecbda-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "geladeiras-6.5e9ecbda-1024.webp"
+   }
+  ]
+ },
+ "geladeiras-7": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-7.3d7ff189-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-7.3d7ff189-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "geladeiras-7.3d7ff189-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "geladeiras-7.3d7ff189-1024.webp"
+   }
+  ]
+ },
+ "geladeiras-8": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-8.21f10b00-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-8.21f10b00-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "geladeiras-8.21f10b00-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "geladeiras-8.21f10b00-1024.webp"
+   }
+  ]
+ },
+ "geladeiras-9": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-9.147347c1-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-9.147347c1-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "geladeiras-9.147347c1-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "geladeiras-9.147347c1-1024.webp"
+   }
+  ]
+ },
+ "geladeiras-10": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "geladeiras-10.aa9e3c10-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "geladeiras-10.aa9e3c10-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "geladeiras-10.aa9e3c10-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "geladeiras-10.aa9e3c10-1024.webp"
+   }
+  ]
+ },
+ "lavadoras-1": {
+  "width": 770,
+  "height": 770,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-1.155b37e9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-1.155b37e9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "lavadoras-1.155b37e9-640.webp"
+   },
+   {
+    "width": 770,
+    "file": "lavadoras-1.155b37e9-770.webp"
+   }
+  ]
+ },
+ "lavadoras-2": {
   "width": 960,
   "height": 960,
   "variants": [
    {
     "width": 320,
-    "file": "fogoes-1.2378459a-320.webp"
+    "file": "lavadoras-2.2bea549d-320.webp"
    },
    {
     "width": 480,
-    "file": "fogoes-1.2378459a-480.webp"
+    "file": "lavadoras-2.2bea549d-480.webp"
    },
    {
     "width": 640,
-    "file": "fogoes-1.2378459a-640.webp"
+    "file": "lavadoras-2.2bea549d-640.webp"
    },
    {
     "width": 960,
-    "file": "fogoes-1.2378459a-960.webp"
-   }
-  ]
- },
- "fogoes-2": {
-  "width": 640,
-  "height": 640,
-  "variants": [
-   {
-    "width": 320,
-    "file": "fogoes-2.abdb3757-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "fogoes-2.abdb3757-480.webp"
-   },
-   {
-    "width": 640,
-    "file": "fogoes-2.abdb3757-640.webp"
-   }
-  ]
- },
- "fogoes-3": {
-  "width": 683,
-  "height": 683,
-  "variants": [
-   {
-    "width": 320,
-    "file": "fogoes-3.0eb9f7da-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "fogoes-3.0eb9f7da-480.webp"
-   },
-   {
-    "width": 683,
-    "file": "fogoes-3.0eb9f7da-683.webp"
-   }
-  ]
- },
- "fogoes-4": {
-  "width": 683,
-  "height": 683,
-  "variants": [
-   {
-    "width": 320,
-    "file": "fogoes-4.e7bf78e7-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "fogoes-4.e7bf78e7-480.webp"
-   },
-   {
-    "width": 683,
-    "file": "fogoes-4.e7bf78e7-683.webp"
-   }
-  ]
- },
- "lavadoras-1": {
-  "width": 683,
-  "height": 683,
-  "variants": [
-   {
-    "width": 320,
-    "file": "lavadoras-1.82d887bc-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "lavadoras-1.82d887bc-480.webp"
-   },
-   {
-    "width": 683,
-    "file": "lavadoras-1.82d887bc-683.webp"
-   }
-  ]
- },
- "lavadoras-2": {
-  "width": 706,
-  "height": 706,
-  "variants": [
-   {
-    "width": 320,
-    "file": "lavadoras-2.83fdbaff-320.webp"
-   },
-   {
-    "width": 480,
-    "file": "lavadoras-2.83fdbaff-480.webp"
-   },
-   {
-    "width": 706,
-    "file": "lavadoras-2.83fdbaff-706.webp"
+    "file": "lavadoras-2.2bea549d-960.webp"
    }
   ]
  },
  "lavadoras-3": {
-  "width": 730,
-  "height": 730,
+  "width": 851,
+  "height": 851,
   "variants": [
    {
     "width": 320,
-    "file": "lavadoras-3.ab7b6815-320.webp"
+    "file": "lavadoras-3.d615c96c-320.webp"
    },
    {
     "width": 480,
-    "file": "lavadoras-3.ab7b6815-480.webp"
+    "file": "lavadoras-3.d615c96c-480.webp"
    },
    {
-    "width": 730,
-    "file": "lavadoras-3.ab7b6815-730.webp"
+    "width": 640,
+    "file": "lavadoras-3.d615c96c-640.webp"
+   },
+   {
+    "width": 851,
+    "file": "lavadoras-3.d615c96c-851.webp"
    }
   ]
  },
  "lavadoras-4": {
-  "width": 683,
-  "height": 683,
+  "width": 1024,
+  "height": 1024,
   "variants": [
    {
     "width": 320,
-    "file": "lavadoras-4.99ee385b-320.webp"
+    "file": "lavadoras-4.4fb4abb8-320.webp"
    },
    {
     "width": 480,
-    "file": "lavadoras-4.99ee385b-480.webp"
+    "file": "lavadoras-4.4fb4abb8-480.webp"
    },
    {
-    "width": 683,
-    "file": "lavadoras-4.99ee385b-683.webp"
+    "width": 640,
+    "file": "lavadoras-4.4fb4abb8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "lavadoras-4.4fb4abb8-1024.webp"
+   }
+  ]
+ },
+ "lavadoras-5": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-5.0fafa787-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-5.0fafa787-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "lavadoras-5.0fafa787-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "lavadoras-5.0fafa787-1024.webp"
+   }
+  ]
+ },
+ "lavadoras-6": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-6.3088c95b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-6.3088c95b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "lavadoras-6.3088c95b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "lavadoras-6.3088c95b-1024.webp"
+   }
+  ]
+ },
+ "lavadoras-7": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-7.499a40ab-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-7.499a40ab-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "lavadoras-7.499a40ab-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "lavadoras-7.499a40ab-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "lavadoras-7.499a40ab-1200.webp"
+   }
+  ]
+ },
+ "lavadoras-8": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "lavadoras-8.5e615cba-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "lavadoras-8.5e615cba-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "lavadoras-8.5e615cba-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "lavadoras-8.5e615cba-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "lavadoras-8.5e615cba-1200.webp"
+   }
+  ]
+ },
+ "fogoes-1": {
+  "width": 844,
+  "height": 844,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-1.99be714c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-1.99be714c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-1.99be714c-640.webp"
+   },
+   {
+    "width": 844,
+    "file": "fogoes-1.99be714c-844.webp"
+   }
+  ]
+ },
+ "fogoes-2": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-2.d1c019fc-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-2.d1c019fc-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-2.d1c019fc-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fogoes-2.d1c019fc-853.webp"
+   }
+  ]
+ },
+ "fogoes-3": {
+  "width": 855,
+  "height": 855,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-3.80292872-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-3.80292872-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-3.80292872-640.webp"
+   },
+   {
+    "width": 855,
+    "file": "fogoes-3.80292872-855.webp"
+   }
+  ]
+ },
+ "fogoes-4": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-4.e88ccb6f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-4.e88ccb6f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-4.e88ccb6f-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fogoes-4.e88ccb6f-853.webp"
+   }
+  ]
+ },
+ "fogoes-5": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-5.e17164dd-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-5.e17164dd-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-5.e17164dd-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fogoes-5.e17164dd-853.webp"
+   }
+  ]
+ },
+ "fogoes-6": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-6.ef14b841-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-6.ef14b841-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-6.ef14b841-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fogoes-6.ef14b841-853.webp"
+   }
+  ]
+ },
+ "fogoes-7": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-7.2799ae14-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-7.2799ae14-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-7.2799ae14-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fogoes-7.2799ae14-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "fogoes-7.2799ae14-1200.webp"
+   }
+  ]
+ },
+ "fogoes-8": {
+  "width": 796,
+  "height": 796,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-8.a1b174fe-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-8.a1b174fe-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-8.a1b174fe-640.webp"
+   },
+   {
+    "width": 796,
+    "file": "fogoes-8.a1b174fe-796.webp"
+   }
+  ]
+ },
+ "fogoes-9": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-9.61443b2c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-9.61443b2c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-9.61443b2c-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fogoes-9.61443b2c-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "fogoes-9.61443b2c-1200.webp"
+   }
+  ]
+ },
+ "fogoes-10": {
+  "width": 896,
+  "height": 896,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-10.0a4e51df-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-10.0a4e51df-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-10.0a4e51df-640.webp"
+   },
+   {
+    "width": 896,
+    "file": "fogoes-10.0a4e51df-896.webp"
+   }
+  ]
+ },
+ "fogoes-11": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fogoes-11.14de0c3c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fogoes-11.14de0c3c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fogoes-11.14de0c3c-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fogoes-11.14de0c3c-853.webp"
    }
   ]
  },
  "sofas-1": {
-  "width": 1000,
-  "height": 1000,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "sofas-1.c0404685-320.webp"
+    "file": "sofas-1.f73c81b5-320.webp"
    },
    {
     "width": 480,
-    "file": "sofas-1.c0404685-480.webp"
+    "file": "sofas-1.f73c81b5-480.webp"
    },
    {
     "width": 640,
-    "file": "sofas-1.c0404685-640.webp"
+    "file": "sofas-1.f73c81b5-640.webp"
    },
    {
-    "width": 1000,
-    "file": "sofas-1.c0404685-1000.webp"
+    "width": 853,
+    "file": "sofas-1.f73c81b5-853.webp"
    }
   ]
  },
  "sofas-2": {
-  "width": 683,
-  "height": 683,
+  "width": 850,
+  "height": 850,
   "variants": [
    {
     "width": 320,
-    "file": "sofas-2.e7cccbb8-320.webp"
+    "file": "sofas-2.a5fd8911-320.webp"
    },
    {
     "width": 480,
-    "file": "sofas-2.e7cccbb8-480.webp"
+    "file": "sofas-2.a5fd8911-480.webp"
    },
    {
-    "width": 683,
-    "file": "sofas-2.e7cccbb8-683.webp"
+    "width": 640,
+    "file": "sofas-2.a5fd8911-640.webp"
+   },
+   {
+    "width": 850,
+    "file": "sofas-2.a5fd8911-850.webp"
    }
   ]
  },
  "sofas-3": {
-  "width": 825,
-  "height": 825,
+  "width": 720,
+  "height": 720,
   "variants": [
    {
     "width": 320,
-    "file": "sofas-3.93de3488-320.webp"
+    "file": "sofas-3.b52f0261-320.webp"
    },
    {
     "width": 480,
-    "file": "sofas-3.93de3488-480.webp"
+    "file": "sofas-3.b52f0261-480.webp"
    },
    {
-    "width": 640,
-    "file": "sofas-3.93de3488-640.webp"
-   },
-   {
-    "width": 825,
-    "file": "sofas-3.93de3488-825.webp"
+    "width": 720,
+    "file": "sofas-3.b52f0261-720.webp"
    }
   ]
  },
  "sofas-4": {
-  "width": 683,
-  "height": 683,
+  "width": 830,
+  "height": 830,
   "variants": [
    {
     "width": 320,
-    "file": "sofas-4.39f73301-320.webp"
+    "file": "sofas-4.bbedbf31-320.webp"
    },
    {
     "width": 480,
-    "file": "sofas-4.39f73301-480.webp"
+    "file": "sofas-4.bbedbf31-480.webp"
    },
    {
-    "width": 683,
-    "file": "sofas-4.39f73301-683.webp"
+    "width": 640,
+    "file": "sofas-4.bbedbf31-640.webp"
+   },
+   {
+    "width": 830,
+    "file": "sofas-4.bbedbf31-830.webp"
+   }
+  ]
+ },
+ "sofas-5": {
+  "width": 720,
+  "height": 720,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-5.e29342d5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-5.e29342d5-480.webp"
+   },
+   {
+    "width": 720,
+    "file": "sofas-5.e29342d5-720.webp"
+   }
+  ]
+ },
+ "sofas-6": {
+  "width": 834,
+  "height": 834,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-6.4eaefe87-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-6.4eaefe87-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-6.4eaefe87-640.webp"
+   },
+   {
+    "width": 834,
+    "file": "sofas-6.4eaefe87-834.webp"
+   }
+  ]
+ },
+ "sofas-7": {
+  "width": 851,
+  "height": 851,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-7.fad46f9a-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-7.fad46f9a-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-7.fad46f9a-640.webp"
+   },
+   {
+    "width": 851,
+    "file": "sofas-7.fad46f9a-851.webp"
+   }
+  ]
+ },
+ "sofas-8": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-8.248fbcc0-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-8.248fbcc0-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-8.248fbcc0-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "sofas-8.248fbcc0-853.webp"
+   }
+  ]
+ },
+ "sofas-9": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-9.6fb86235-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-9.6fb86235-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-9.6fb86235-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "sofas-9.6fb86235-853.webp"
+   }
+  ]
+ },
+ "sofas-10": {
+  "width": 908,
+  "height": 908,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-10.8755406f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-10.8755406f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-10.8755406f-640.webp"
+   },
+   {
+    "width": 908,
+    "file": "sofas-10.8755406f-908.webp"
+   }
+  ]
+ },
+ "sofas-11": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sofas-11.b798c2db-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sofas-11.b798c2db-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sofas-11.b798c2db-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "sofas-11.b798c2db-960.webp"
    }
   ]
  },
  "colchoes-1": {
-  "width": 636,
-  "height": 636,
+  "width": 800,
+  "height": 800,
   "variants": [
    {
     "width": 320,
-    "file": "colchoes-1.c9b2faa5-320.webp"
+    "file": "colchoes-1.4f5da339-320.webp"
    },
    {
     "width": 480,
-    "file": "colchoes-1.c9b2faa5-480.webp"
+    "file": "colchoes-1.4f5da339-480.webp"
    },
    {
-    "width": 636,
-    "file": "colchoes-1.c9b2faa5-636.webp"
+    "width": 640,
+    "file": "colchoes-1.4f5da339-640.webp"
+   },
+   {
+    "width": 800,
+    "file": "colchoes-1.4f5da339-800.webp"
    }
   ]
  },
  "colchoes-2": {
-  "width": 636,
-  "height": 636,
+  "width": 854,
+  "height": 854,
   "variants": [
    {
     "width": 320,
-    "file": "colchoes-2.ee52115e-320.webp"
+    "file": "colchoes-2.b7fdeb18-320.webp"
    },
    {
     "width": 480,
-    "file": "colchoes-2.ee52115e-480.webp"
+    "file": "colchoes-2.b7fdeb18-480.webp"
    },
    {
-    "width": 636,
-    "file": "colchoes-2.ee52115e-636.webp"
+    "width": 640,
+    "file": "colchoes-2.b7fdeb18-640.webp"
+   },
+   {
+    "width": 854,
+    "file": "colchoes-2.b7fdeb18-854.webp"
    }
   ]
  },
  "colchoes-3": {
-  "width": 634,
-  "height": 634,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "colchoes-3.b964de1e-320.webp"
+    "file": "colchoes-3.37aeae82-320.webp"
    },
    {
     "width": 480,
-    "file": "colchoes-3.b964de1e-480.webp"
+    "file": "colchoes-3.37aeae82-480.webp"
    },
    {
-    "width": 634,
-    "file": "colchoes-3.b964de1e-634.webp"
+    "width": 640,
+    "file": "colchoes-3.37aeae82-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "colchoes-3.37aeae82-853.webp"
    }
   ]
  },
  "colchoes-4": {
-  "width": 672,
-  "height": 672,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "colchoes-4.57dfef3c-320.webp"
+    "file": "colchoes-4.f5695441-320.webp"
    },
    {
     "width": 480,
-    "file": "colchoes-4.57dfef3c-480.webp"
+    "file": "colchoes-4.f5695441-480.webp"
    },
    {
-    "width": 672,
-    "file": "colchoes-4.57dfef3c-672.webp"
+    "width": 640,
+    "file": "colchoes-4.f5695441-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "colchoes-4.f5695441-853.webp"
+   }
+  ]
+ },
+ "colchoes-5": {
+  "width": 720,
+  "height": 720,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-5.597e5765-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-5.597e5765-480.webp"
+   },
+   {
+    "width": 720,
+    "file": "colchoes-5.597e5765-720.webp"
+   }
+  ]
+ },
+ "colchoes-6": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-6.e678ad07-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-6.e678ad07-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "colchoes-6.e678ad07-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "colchoes-6.e678ad07-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "colchoes-6.e678ad07-1200.webp"
+   }
+  ]
+ },
+ "colchoes-7": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-7.6dda765f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-7.6dda765f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "colchoes-7.6dda765f-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "colchoes-7.6dda765f-853.webp"
+   }
+  ]
+ },
+ "colchoes-8": {
+  "width": 845,
+  "height": 845,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-8.85d28d93-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-8.85d28d93-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "colchoes-8.85d28d93-640.webp"
+   },
+   {
+    "width": 845,
+    "file": "colchoes-8.85d28d93-845.webp"
+   }
+  ]
+ },
+ "colchoes-9": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-9.8ca32421-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-9.8ca32421-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "colchoes-9.8ca32421-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "colchoes-9.8ca32421-853.webp"
+   }
+  ]
+ },
+ "colchoes-10": {
+  "width": 851,
+  "height": 851,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-10.74156540-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-10.74156540-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "colchoes-10.74156540-640.webp"
+   },
+   {
+    "width": 851,
+    "file": "colchoes-10.74156540-851.webp"
+   }
+  ]
+ },
+ "colchoes-11": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-11.8f87bc0f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-11.8f87bc0f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "colchoes-11.8f87bc0f-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "colchoes-11.8f87bc0f-853.webp"
+   }
+  ]
+ },
+ "colchoes-12": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "colchoes-12.cb01a33e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "colchoes-12.cb01a33e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "colchoes-12.cb01a33e-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "colchoes-12.cb01a33e-853.webp"
    }
   ]
  },
  "bicicletas-1": {
-  "width": 640,
-  "height": 640,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "bicicletas-1.6566c90c-320.webp"
+    "file": "bicicletas-1.cc375a24-320.webp"
    },
    {
     "width": 480,
-    "file": "bicicletas-1.6566c90c-480.webp"
+    "file": "bicicletas-1.cc375a24-480.webp"
    },
    {
     "width": 640,
-    "file": "bicicletas-1.6566c90c-640.webp"
+    "file": "bicicletas-1.cc375a24-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "bicicletas-1.cc375a24-853.webp"
    }
   ]
  },
  "bicicletas-2": {
-  "width": 640,
-  "height": 640,
+  "width": 827,
+  "height": 827,
   "variants": [
    {
     "width": 320,
-    "file": "bicicletas-2.648c5bf4-320.webp"
+    "file": "bicicletas-2.32706315-320.webp"
    },
    {
     "width": 480,
-    "file": "bicicletas-2.648c5bf4-480.webp"
+    "file": "bicicletas-2.32706315-480.webp"
    },
    {
     "width": 640,
-    "file": "bicicletas-2.648c5bf4-640.webp"
+    "file": "bicicletas-2.32706315-640.webp"
+   },
+   {
+    "width": 827,
+    "file": "bicicletas-2.32706315-827.webp"
    }
   ]
  },
  "bicicletas-3": {
-  "width": 640,
-  "height": 640,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "bicicletas-3.4253d950-320.webp"
+    "file": "bicicletas-3.ad81b8e9-320.webp"
    },
    {
     "width": 480,
-    "file": "bicicletas-3.4253d950-480.webp"
+    "file": "bicicletas-3.ad81b8e9-480.webp"
    },
    {
     "width": 640,
-    "file": "bicicletas-3.4253d950-640.webp"
+    "file": "bicicletas-3.ad81b8e9-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "bicicletas-3.ad81b8e9-853.webp"
    }
   ]
  },
  "bicicletas-4": {
-  "width": 657,
-  "height": 657,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "bicicletas-4.eb0a6755-320.webp"
+    "file": "bicicletas-4.b3a9755e-320.webp"
    },
    {
     "width": 480,
-    "file": "bicicletas-4.eb0a6755-480.webp"
+    "file": "bicicletas-4.b3a9755e-480.webp"
    },
    {
-    "width": 657,
-    "file": "bicicletas-4.eb0a6755-657.webp"
+    "width": 640,
+    "file": "bicicletas-4.b3a9755e-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "bicicletas-4.b3a9755e-853.webp"
+   }
+  ]
+ },
+ "bicicletas-5": {
+  "width": 880,
+  "height": 880,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-5.996da9f7-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-5.996da9f7-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-5.996da9f7-640.webp"
+   },
+   {
+    "width": 880,
+    "file": "bicicletas-5.996da9f7-880.webp"
+   }
+  ]
+ },
+ "bicicletas-6": {
+  "width": 879,
+  "height": 879,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-6.60f7730d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-6.60f7730d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-6.60f7730d-640.webp"
+   },
+   {
+    "width": 879,
+    "file": "bicicletas-6.60f7730d-879.webp"
+   }
+  ]
+ },
+ "bicicletas-7": {
+  "width": 784,
+  "height": 784,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-7.cd5c38a1-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-7.cd5c38a1-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-7.cd5c38a1-640.webp"
+   },
+   {
+    "width": 784,
+    "file": "bicicletas-7.cd5c38a1-784.webp"
+   }
+  ]
+ },
+ "bicicletas-8": {
+  "width": 1200,
+  "height": 1200,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-8.27d9bd82-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-8.27d9bd82-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-8.27d9bd82-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "bicicletas-8.27d9bd82-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "bicicletas-8.27d9bd82-1200.webp"
+   }
+  ]
+ },
+ "bicicletas-9": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-9.21d5620f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-9.21d5620f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-9.21d5620f-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "bicicletas-9.21d5620f-853.webp"
+   }
+  ]
+ },
+ "bicicletas-10": {
+  "width": 912,
+  "height": 912,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-10.724dc81f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-10.724dc81f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-10.724dc81f-640.webp"
+   },
+   {
+    "width": 912,
+    "file": "bicicletas-10.724dc81f-912.webp"
+   }
+  ]
+ },
+ "bicicletas-11": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-11.ed67ac0b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-11.ed67ac0b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-11.ed67ac0b-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "bicicletas-11.ed67ac0b-853.webp"
+   }
+  ]
+ },
+ "bicicletas-12": {
+  "width": 912,
+  "height": 912,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-12.0513f204-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-12.0513f204-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-12.0513f204-640.webp"
+   },
+   {
+    "width": 912,
+    "file": "bicicletas-12.0513f204-912.webp"
    }
   ]
  },
  "fitness-1": {
-  "width": 683,
-  "height": 683,
+  "width": 1200,
+  "height": 1200,
   "variants": [
    {
     "width": 320,
-    "file": "fitness-1.a8dc57c7-320.webp"
+    "file": "fitness-1.372e895a-320.webp"
    },
    {
     "width": 480,
-    "file": "fitness-1.a8dc57c7-480.webp"
+    "file": "fitness-1.372e895a-480.webp"
    },
    {
-    "width": 683,
-    "file": "fitness-1.a8dc57c7-683.webp"
+    "width": 640,
+    "file": "fitness-1.372e895a-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fitness-1.372e895a-960.webp"
+   },
+   {
+    "width": 1200,
+    "file": "fitness-1.372e895a-1200.webp"
    }
   ]
  },
  "fitness-2": {
-  "width": 683,
-  "height": 683,
+  "width": 989,
+  "height": 989,
   "variants": [
    {
     "width": 320,
-    "file": "fitness-2.bcd5101c-320.webp"
+    "file": "fitness-2.2dbe5ba7-320.webp"
    },
    {
     "width": 480,
-    "file": "fitness-2.bcd5101c-480.webp"
+    "file": "fitness-2.2dbe5ba7-480.webp"
    },
    {
-    "width": 683,
-    "file": "fitness-2.bcd5101c-683.webp"
+    "width": 640,
+    "file": "fitness-2.2dbe5ba7-640.webp"
+   },
+   {
+    "width": 989,
+    "file": "fitness-2.2dbe5ba7-989.webp"
    }
   ]
  },
  "fitness-3": {
-  "width": 683,
-  "height": 683,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "fitness-3.154cbc02-320.webp"
+    "file": "fitness-3.4b4b5b01-320.webp"
    },
    {
     "width": 480,
-    "file": "fitness-3.154cbc02-480.webp"
+    "file": "fitness-3.4b4b5b01-480.webp"
    },
    {
-    "width": 683,
-    "file": "fitness-3.154cbc02-683.webp"
+    "width": 640,
+    "file": "fitness-3.4b4b5b01-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fitness-3.4b4b5b01-853.webp"
    }
   ]
  },
  "fitness-4": {
-  "width": 683,
-  "height": 683,
+  "width": 853,
+  "height": 853,
   "variants": [
    {
     "width": 320,
-    "file": "fitness-4.9e02aec5-320.webp"
+    "file": "fitness-4.15bac431-320.webp"
    },
    {
     "width": 480,
-    "file": "fitness-4.9e02aec5-480.webp"
+    "file": "fitness-4.15bac431-480.webp"
    },
    {
-    "width": 683,
-    "file": "fitness-4.9e02aec5-683.webp"
+    "width": 640,
+    "file": "fitness-4.15bac431-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fitness-4.15bac431-853.webp"
+   }
+  ]
+ },
+ "fitness-5": {
+  "width": 1164,
+  "height": 1164,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-5.e9410894-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-5.e9410894-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fitness-5.e9410894-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fitness-5.e9410894-960.webp"
+   },
+   {
+    "width": 1164,
+    "file": "fitness-5.e9410894-1164.webp"
+   }
+  ]
+ },
+ "fitness-6": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-6.cf9522ca-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-6.cf9522ca-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fitness-6.cf9522ca-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fitness-6.cf9522ca-960.webp"
+   }
+  ]
+ },
+ "fitness-7": {
+  "width": 960,
+  "height": 960,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-7.4129663e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-7.4129663e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fitness-7.4129663e-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "fitness-7.4129663e-960.webp"
+   }
+  ]
+ },
+ "fitness-8": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-8.8429e98c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-8.8429e98c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fitness-8.8429e98c-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fitness-8.8429e98c-853.webp"
+   }
+  ]
+ },
+ "fitness-9": {
+  "width": 854,
+  "height": 854,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-9.de60a237-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-9.de60a237-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fitness-9.de60a237-640.webp"
+   },
+   {
+    "width": 854,
+    "file": "fitness-9.de60a237-854.webp"
+   }
+  ]
+ },
+ "fitness-10": {
+  "width": 853,
+  "height": 853,
+  "variants": [
+   {
+    "width": 320,
+    "file": "fitness-10.a5a58fde-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "fitness-10.a5a58fde-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "fitness-10.a5a58fde-640.webp"
+   },
+   {
+    "width": 853,
+    "file": "fitness-10.a5a58fde-853.webp"
    }
   ]
  }

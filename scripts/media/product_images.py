@@ -49,11 +49,11 @@ SOURCES = ["pixabay", "commons", "openverse"]
 # subcategoria do seed (backend/services/catalog/cmd/seed/catalog_data.go) -> o que é, para o curador,
 # e as buscas em inglês. Várias por subcategoria (#178): com uma só, não davam 10 fotos diferentes
 SUBCATEGORIES = {
-    "tv": ("televisores de tela plana (smart TV)", ["television", "flat screen tv", "tv living room", "smart tv"]),
+    "tv": ("televisores de tela plana (smart TV)", ["flat screen tv", "smart tv", "tv living room", "led television", "television wall mounted"]),
     "fones": ("fones de ouvido, headphones, earbuds e headsets", ["headphones", "wireless earbuds", "headset"]),
     "caixas-de-som": ("caixas de som e soundbars", ["speaker", "bluetooth speaker", "soundbar", "loudspeaker"]),
     "notebooks": ("notebooks (laptops)", ["laptop", "notebook computer", "laptop desk"]),
-    "monitores": ("monitores de computador", ["computer monitor", "desktop computer screen", "monitor desk"]),
+    "monitores": ("monitores de computador", ["computer monitor", "desktop computer screen", "monitor desk", "desk setup monitor"]),
     "perifericos": ("periféricos: teclado, mouse e webcam", ["computer keyboard", "computer mouse", "webcam", "mechanical keyboard"]),
     "geladeiras": ("geladeiras (refrigeradores domésticos)", ["refrigerator", "fridge kitchen", "refrigerator door"]),
     "fogoes": ("fogões e cooktops domésticos", ["stove", "cooktop", "gas stove kitchen", "kitchen range"]),
@@ -199,6 +199,9 @@ def build():
         "permite usar e editar sem atribuição; o crédito fica aqui do mesmo jeito. As marcas citadas nos nomes dos",
         "produtos do seed são só massa de teste: as fotos não mostram esses produtos nem têm relação com essas marcas.",
         "",
+        "Onde os acervos livres não tinham fotos de catálogo suficientes (geladeiras, lavadoras e TV), as que faltavam",
+        "foram geradas por IA (Runway), sem marca, e estão marcadas assim na tabela.",
+        "",
         "| Foto | Maior variante | Título | Autor | Licença | Origem |",
         "|---|---|---|---|---|---|",
     ]
@@ -225,8 +228,8 @@ def build():
             license_ = cell(f.get("licenca_nome"))
             if f.get("licenca_url"):
                 license_ = f"[{license_}]({f['licenca_url']})"
-            lines.append(f"| `{name}` | {top}px | {cell(f['titulo'])} | {cell(f['autor'])} | {license_} "
-                         f"| [{f['fonte']}]({f['origem']}) |")
+            origem = f"[{f['fonte']}]({f['origem']})" if f.get("origem") else cell(f["fonte"])
+            lines.append(f"| `{name}` | {top}px | {cell(f['titulo'])} | {cell(f['autor'])} | {license_} | {origem} |")
     CREDITS.write_text("\n".join(lines) + "\n")
     MANIFEST.write_text(json.dumps(manifest, indent=1) + "\n")
     files = list(OUT.glob("*.webp"))
