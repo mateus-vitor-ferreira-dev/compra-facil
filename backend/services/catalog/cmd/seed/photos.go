@@ -17,10 +17,10 @@ import (
 //go:embed photos.json
 var photosJSON []byte
 
-// minPhotosPerSubcategory: o mínimo de fotos por subcategoria (#178). As fotos vão em sequência, então
-// cards vizinhos nunca repetem; com poucas, a mesma volta a cada poucos produtos. A meta é 12 (o
-// product_images.py pede isso), mas os acervos livres não tinham 10 boas de TV e de monitor.
-const minPhotosPerSubcategory = 6
+// minPhotosPerSubcategory: o mínimo de fotos de um tipo que tem fotos (#178, #210). As fotos vão em
+// sequência, então cards vizinhos nunca repetem; com poucas, a mesma volta a cada poucos produtos. Um
+// tipo sem nenhuma ainda é aceito: a loja mostra o ícone da categoria até as fotos chegarem.
+const minPhotosPerSubcategory = 3
 
 type photo struct {
 	Width    int `json:"width"`
@@ -50,12 +50,13 @@ func photoCount(photos map[string]photo, subSlug string) int {
 	}
 }
 
-// photoFor devolve a foto n (a partir de 0, em ciclo) da subcategoria: a URL da maior variante e a
-// ProductImage com todas.
+// photoFor devolve a foto n (a partir de 0, em ciclo) do tipo de produto: a URL da maior variante e a
+// ProductImage com todas. Tipo ainda sem fotos devolve vazio, e a loja mostra o ícone da categoria (as
+// fotos dos tipos novos chegam aos poucos, #210).
 func photoFor(photos map[string]photo, mediaURL, subSlug string, n int) (string, *domain.ProductImage) {
 	count := photoCount(photos, subSlug)
 	if count == 0 {
-		panic("subcategoria " + subSlug + " sem fotos no manifesto: rode scripts/media/product_images.py build e go generate ./cmd/seed")
+		return "", nil
 	}
 	name := fmt.Sprintf("%s-%d", subSlug, n%count+1)
 	p, ok := photos[name]

@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Categorias" };
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-/** Os departamentos e as categorias de cada um, e a criação de uma nova. */
+/** Os departamentos, as subcategorias e os tipos de cada um, e a criação de uma nova. */
 export default async function AdminCategories({ searchParams }: Props) {
   await requireAdmin("/admin/categorias");
   const [result, query] = await Promise.all([listCategories(), searchParams]);
@@ -50,17 +50,29 @@ export default async function AdminCategories({ searchParams }: Props) {
                     </Link>
                   </div>
                   {children.length > 0 ? (
-                    <ul className="flex flex-wrap gap-2">
-                      {children.map((c) => (
-                        <li key={c.id}>
-                          <Link
-                            href={`/categoria/${c.slug}`}
-                            className="bg-ink/6 hover:bg-ink/12 inline-flex min-h-9 items-center rounded-full px-3 text-sm"
-                          >
-                            {c.name}
-                          </Link>
-                        </li>
-                      ))}
+                    <ul className="space-y-2">
+                      {children.map((c) => {
+                        const types = all.filter((t) => t.parent_id === c.id);
+                        return (
+                          <li key={c.id} className="flex flex-wrap items-center gap-2">
+                            <Link
+                              href={`/categoria/${c.slug}`}
+                              className="bg-ink/12 hover:bg-ink/20 inline-flex min-h-9 items-center rounded-full px-3 text-sm font-medium"
+                            >
+                              {c.name}
+                            </Link>
+                            {types.map((t) => (
+                              <Link
+                                key={t.id}
+                                href={`/categoria/${t.slug}`}
+                                className="bg-ink/6 hover:bg-ink/12 inline-flex min-h-9 items-center rounded-full px-3 text-sm"
+                              >
+                                {t.name}
+                              </Link>
+                            ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <p className="text-ink-soft text-sm">Sem categorias dentro.</p>
@@ -74,7 +86,15 @@ export default async function AdminCategories({ searchParams }: Props) {
           <h2 id="nova" className="text-xl font-semibold tracking-tight">
             Nova categoria
           </h2>
-          <CategoryForm roots={roots.map(({ id, name }) => ({ id, name }))} />
+          <CategoryForm
+            parents={roots.flatMap((root) => [
+              { id: root.id, name: root.name },
+              // um tipo novo entra dentro de uma subcategoria (#210)
+              ...all
+                .filter((c) => c.parent_id === root.id)
+                .map((c) => ({ id: c.id, name: `${root.name} › ${c.name}` })),
+            ])}
+          />
         </section>
       </div>
     </div>

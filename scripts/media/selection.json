@@ -1,5 +1,5 @@
 {
- "tv": [
+ "smart-tvs": [
   "pixabay:3539656",
   "pixabay:2616543",
   "runway:9d982618-f639-4eb8-b663-81fb6a04bafb",
@@ -7,153 +7,210 @@
   "pixabay:1872192",
   "pixabay:8275673"
  ],
- "fones": [
-  "commons:171803874",
-  "commons:104271188",
-  "commons:92714351",
-  "commons:92714350",
-  "commons:130884021",
-  "commons:81953581",
-  "commons:181748445",
-  "commons:2797841",
-  "commons:115847308"
+ "projetores": [
+  "pixabay:20031",
+  "commons:46894444",
+  "commons:2205879"
  ],
- "caixas-de-som": [
-  "pixabay:5064088",
+ "fones-over-ear": [
+  "pixabay:2588056",
+  "commons:171803874",
+  "pixabay:1868612",
+  "pixabay:1971383",
+  "commons:81953581",
+  "pixabay:3683983",
+  "commons:81953566"
+ ],
+ "fones-sem-fio": [
+  "pixabay:5193970",
+  "pixabay:7559937",
+  "pixabay:5023660",
+  "pixabay:3789598",
+  "pixabay:6365870",
+  "pixabay:5278701",
+  "pixabay:3789632",
+  "pixabay:2854300"
+ ],
+ "headsets-gamer": [
+  "figma:cb54d0fb-20b1-4991-99b0-902cd8692e73",
+  "figma:4707c174-7ca9-4dc3-9d6b-b2253023ebcb",
+  "figma:f5ea50fd-8e09-42da-adf4-f7f9a1858152"
+ ],
+ "suportes-de-tv": [
+  "figma:1932f3a2-919e-435e-839d-bde82bb1e3fc",
+  "figma:a2370e6a-8d79-41a3-b3fd-1097d8172e63",
+  "figma:ab7d2281-8b44-4c86-a3de-f9c8a9fb7bd8"
+ ],
+ "caixas-bluetooth": [
+  "pixabay:5902204",
   "commons:131713125",
+  "pixabay:4109274",
+  "pixabay:2557528",
+  "pixabay:2573214",
+  "commons:149797173"
+ ],
+ "soundbars": [
   "commons:125855017",
   "commons:125855555",
-  "pixabay:5902204",
-  "pixabay:5615055",
-  "pixabay:2557528",
-  "pixabay:4623184",
-  "commons:194787069",
-  "commons:119898539",
-  "commons:149797173",
-  "commons:131099557"
+  "commons:55953553"
  ],
- "monitores": [
-  "pixabay:1868496",
-  "pixabay:606761",
-  "pixabay:1834328",
-  "pixabay:820389",
-  "pixabay:17894",
-  "commons:58856453",
-  "legado:monitores-1"
+ "smart-speakers": [
+  "pixabay:4758340",
+  "pixabay:5064088",
+  "pixabay:5615055"
  ],
- "perifericos": [
-  "pixabay:2210970",
-  "commons:86753808",
-  "commons:39981764",
-  "commons:75605790",
-  "pixabay:74533",
-  "pixabay:7386247",
-  "pixabay:1999471",
-  "commons:86116535",
-  "commons:94305595",
-  "commons:96050941",
-  "pixabay:6920467"
+ "tablets": [
+  "figma:affb6aea-d657-4e0f-be2f-057f412c5dbb",
+  "figma:b70fec89-d477-4d5b-96c5-af954d6ef32d",
+  "figma:2ae6e8ab-f551-4087-bd08-b8b09b1f3d80"
  ],
- "notebooks": [
-  "commons:146310518",
-  "commons:154095894",
-  "commons:157359371",
+ "notebooks-e-ultrabooks": [
   "pixabay:1282241",
   "pixabay:2425303",
-  "commons:120764257",
-  "commons:51440105",
-  "commons:51439338",
-  "commons:58803792",
-  "commons:69874699",
-  "pixabay:767781",
-  "pixabay:1846056"
+  "pixabay:1846277",
+  "commons:120764257"
  ],
- "geladeiras": [
+ "monitores-pc": [
+  "pixabay:820389",
+  "pixabay:1868496",
+  "pixabay:1834328",
+  "pixabay:606761"
+ ],
+ "mouses": [
+  "pixabay:74533",
+  "pixabay:2210970",
+  "pixabay:6920467",
+  "pixabay:7386247",
+  "pixabay:1999471",
+  "commons:127824590",
+  "commons:83718308",
+  "commons:39981764"
+ ],
+ "mousepads": [
+  "pixabay:6159550",
+  "pixabay:113100",
+  "figma:7891d65a-2d11-451e-ab8d-f65e3f57d17e"
+ ],
+ "cadeiras-gamer": [
+  "figma:dc8fc6f1-527a-42d5-bd21-5247a6a98c9e",
+  "figma:58dd1adb-bce2-4fb9-8858-6bc522ea76ed",
+  "figma:aefdfd7a-3e31-4dfc-b643-eeaf2c004d4a"
+ ],
+ "webcams": [
+  "pixabay:5095868",
+  "pixabay:1163880",
+  "commons:118942645",
+  "commons:126938851"
+ ],
+ "geladeiras-duplex": [
   "commons:72288150",
-  "commons:141843674",
-  "pixabay:3049084",
   "runway:30852464-fcae-485e-b776-0ae675b11d7b",
-  "runway:a136aa7e-94fa-43b8-836c-aa01f168ad47",
   "runway:1734513d-3edc-46ff-a783-194f3c62f2b4",
-  "runway:80641ae5-2748-41ff-b64f-99b00395b9a6",
   "runway:4566bf2f-cc94-4de1-bd40-8a112ace558b",
+  "runway:a136aa7e-94fa-43b8-836c-aa01f168ad47",
+  "runway:80641ae5-2748-41ff-b64f-99b00395b9a6",
   "runway:084ea52d-464f-4f53-8906-4fbd021a8cda",
+  "commons:141843674"
+ ],
+ "freezers": [
+  "figma:9a930571-ff4b-4bdf-b68b-10df131cce16",
+  "figma:06d9c433-1af9-433f-869a-2ddf6060de80",
+  "figma:13bb6fcc-fafc-4e0f-b5bb-d1b903166718"
+ ],
+ "frigobares": [
+  "pixabay:3049084",
+  "pixabay:3136855",
   "runway:de0ea5fd-2deb-4fef-a753-2e4d742c8309"
  ],
- "lavadoras": [
-  "commons:17803075",
-  "pixabay:902359",
-  "pixabay:1078918",
-  "runway:c8b731e1-79f0-4a54-a3be-d590f2b8afaf",
-  "runway:6e291571-59a6-4fb6-ad7d-93410a69fbb5",
-  "runway:d4c2dee8-5058-4b4c-a931-1d06cfe9c2c6",
-  "commons:67057296",
-  "commons:4865019"
- ],
- "fogoes": [
-  "commons:147077326",
-  "pixabay:7634556",
-  "pixabay:4763201",
-  "pixabay:7634554",
-  "pixabay:1776648",
-  "commons:169000053",
+ "fogoes-de-piso": [
   "commons:141552559",
   "pixabay:4994398",
   "commons:79942944",
   "pixabay:5139611",
   "pixabay:1690062"
  ],
- "sofas": [
+ "fornos-eletricos": [
+  "pixabay:5144884",
+  "pixabay:6914223",
+  "figma:81cfd599-c8d1-4d16-8672-a9c573a9b4d9"
+ ],
+ "cooktops": [
+  "pixabay:1776648",
+  "pixabay:4994398",
+  "commons:169000053",
+  "commons:147077326",
+  "pixabay:7634556",
+  "pixabay:4763201",
+  "pixabay:7634554"
+ ],
+ "lavadoras-de-roupa": [
+  "commons:17803075",
+  "runway:c8b731e1-79f0-4a54-a3be-d590f2b8afaf",
+  "runway:6e291571-59a6-4fb6-ad7d-93410a69fbb5",
+  "commons:67057296",
+  "commons:4865019"
+ ],
+ "lava-e-seca": [
+  "pixabay:902359",
+  "pixabay:1078918",
+  "commons:164118173",
+  "runway:d4c2dee8-5058-4b4c-a931-1d06cfe9c2c6"
+ ],
+ "sofas-retrateis": [
   "pixabay:447484",
   "pixabay:2593570",
+  "pixabay:186636",
   "pixabay:7224999",
   "pixabay:184555",
-  "pixabay:186636",
   "pixabay:184551",
-  "pixabay:1078931",
   "pixabay:3271762",
-  "pixabay:1693689",
-  "pixabay:3678955",
-  "pixabay:1091071"
+  "pixabay:1693689"
  ],
- "colchoes": [
+ "poltronas": [
+  "pixabay:1078931",
+  "figma:f62d0c1e-2758-4a10-b39c-708eb8d296cc",
+  "figma:bbdc8d62-5255-4f6a-acb4-eec876f7408d"
+ ],
+ "colchoes-de-molas": [
   "commons:22343070",
+  "commons:766160",
+  "figma:3ded8111-f3f7-4be1-9fe0-cabb608af63f"
+ ],
+ "camas-box": [
   "commons:197345534",
   "pixabay:5664221",
   "pixabay:8152531",
-  "commons:155567227",
-  "commons:766160",
   "pixabay:5772286",
   "pixabay:1839183",
   "pixabay:3475656",
   "pixabay:1575491",
-  "pixabay:4148891",
-  "pixabay:5054985"
+  "pixabay:4148891"
  ],
- "bicicletas": [
+ "bicicletas-urbanas": [
   "pixabay:1833921",
   "commons:70050197",
   "pixabay:1834265",
   "pixabay:407215",
   "pixabay:2280222",
   "pixabay:20964",
-  "pixabay:1531263",
   "commons:186337584",
-  "pixabay:9828774",
-  "pixabay:6744567",
-  "commons:151669500",
-  "commons:58284782"
+  "pixabay:9828774"
  ],
- "fitness": [
-  "commons:21102928",
-  "commons:7929863",
+ "halteres": [
   "pixabay:5013986",
-  "pixabay:5679666",
-  "commons:169463611",
-  "commons:590288",
-  "commons:64599035",
   "pixabay:595529",
   "pixabay:7392271",
   "pixabay:2253634"
+ ],
+ "kettlebells": [
+  "commons:21102928",
+  "pixabay:5679666",
+  "commons:590288",
+  "commons:64599035"
+ ],
+ "puffs": [
+  "figma:76f9a578-c943-491d-8a16-60324df0567b",
+  "figma:22ade7cd-5496-4ba5-970a-0e9b386348d5",
+  "figma:59f49244-2a85-4e80-8886-ebe66e484890"
  ]
 }
