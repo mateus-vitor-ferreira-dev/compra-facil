@@ -7,7 +7,8 @@ export function Breadcrumbs({ items }: { items: { href?: string; label: string }
     <nav aria-label="Você está em">
       <ol className="text-ink-soft flex flex-wrap items-center gap-1 text-sm">
         {items.map((item, i) => (
-          <li key={item.label} className="flex items-center gap-1">
+          // a posição na trilha é estável, e o nome sozinho repete (Monitores › Monitores: a subcategoria e o tipo)
+          <li key={`${i}-${item.label}`} className="flex items-center gap-1">
             {i > 0 && <ChevronRight aria-hidden="true" className="size-4" />}
             {item.href ? (
               <Link

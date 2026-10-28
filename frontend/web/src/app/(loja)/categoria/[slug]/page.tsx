@@ -134,7 +134,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         </nav>
       )}
 
-      {group && types.length > 0 && (
+      {/* com um tipo só (Monitores), os chips repetiriam a subcategoria */}
+      {group && types.length > 1 && (
         <nav aria-label={`Tipos de ${group.name}`}>
           <ul className="flex flex-wrap gap-2">
             <li>
