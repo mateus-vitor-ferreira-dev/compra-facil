@@ -41,10 +41,10 @@ MIN_SIZE = 600  # foto menor que isso não entra: ficaria borrada na página do 
 SIZE = 800  # das pranchas de escolha
 PER_SUB = 12  # o seed pede pelo menos 10 (minPhotosPerSubcategory)
 USER_AGENT = "compra-facil-seed/1.0 (https://github.com/mateus-vitor-ferreira-dev/compra-facil)"
-# CC BY e CC BY-SA pedem o crédito, que fica no CREDITOS.md (linkado no README); a licença do Pexels não
+# CC BY e CC BY-SA pedem o crédito, que fica no CREDITOS.md (linkado no README); a licença do Pixabay não
 # pede, mas o crédito fica lá do mesmo jeito
-LICENSES = ["cc0", "pd", "cc-by", "cc-by-sa", "pexels"]
-SOURCES = ["pexels", "commons", "openverse"]
+LICENSES = ["cc0", "pd", "cc-by", "cc-by-sa", "pixabay"]
+SOURCES = ["pixabay", "commons", "openverse"]
 
 # subcategoria do seed (backend/services/catalog/cmd/seed/catalog_data.go) -> o que é, para o curador,
 # e as buscas em inglês. Várias por subcategoria (#178): com uma só, não davam 10 fotos diferentes
@@ -95,7 +95,7 @@ def pedido(*anteriores):
             tem[sub] = tem.get(sub, 0) + len(dados["escolhidas"])
             fontes_usadas |= {f["fonte"] for f in dados["escolhidas"]}
     faltam = {sub: v for sub, v in SUBCATEGORIES.items() if tem.get(sub, 0) < PER_SUB}
-    fontes = [f for f in SOURCES if not anteriores or f == "pexels" or f not in fontes_usadas]
+    fontes = [f for f in SOURCES if not anteriores or f == "pixabay" or f not in fontes_usadas]
     out = CACHE / ("pedido.json" if not anteriores else "pedido-complemento.json")
     out.write_text(json.dumps({
         "projeto": "compra-facil",
@@ -190,12 +190,12 @@ def build():
     lines = [
         "# Créditos das fotos de produto",
         "",
-        "Fotos com licença livre, do [Pexels](https://www.pexels.com), do [Wikimedia Commons](https://commons.wikimedia.org)",
+        "Fotos com licença livre, do [Pixabay](https://pixabay.com), do [Wikimedia Commons](https://commons.wikimedia.org)",
         "e do [Openverse](https://openverse.org), escolhidas pelo agente de fotos (o Claude avalia cada candidata) e",
         "revisadas, e convertidas em variantes WebP quadradas (recorte central) por `scripts/media/product_images.py`.",
         "",
         "As fotos CC BY e CC BY-SA pedem o crédito abaixo (autor, licença e origem). As variantes WebP de uma foto",
-        "CC BY-SA são obras derivadas e ficam sob a mesma licença dela. A [licença do Pexels](https://www.pexels.com/license/)",
+        "CC BY-SA são obras derivadas e ficam sob a mesma licença dela. A [licença do Pixabay](https://pixabay.com/service/license-summary/)",
         "permite usar e editar sem atribuição; o crédito fica aqui do mesmo jeito. As marcas citadas nos nomes dos",
         "produtos do seed são só massa de teste: as fotos não mostram esses produtos nem têm relação com essas marcas.",
         "",
