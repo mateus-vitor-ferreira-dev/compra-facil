@@ -95,6 +95,18 @@ describe("filtros da URL", () => {
     expect(readFilters({ q: "tv" }).sort.value).toBe("relevancia");
   });
 
+  it("lê os tipos da faceta (#212), sem repetir, e eles contam como filtro", () => {
+    const f = readFilters({ tipo: ["mouses", "teclados", "mouses"], marca: "Logitech" });
+    expect(f.types).toEqual(["mouses", "teclados"]);
+    expect(activeFilterCount(f)).toBe(3);
+    expect(withoutRefinements("/categoria/perifericos", { tipo: ["mouses"], ordem: "menor-preco" })).toBe(
+      "/categoria/perifericos?ordem=menor-preco",
+    );
+    expect(withoutValue("/categoria/perifericos", { tipo: ["mouses", "teclados"] }, "tipo", "mouses")).toBe(
+      "/categoria/perifericos?tipo=teclados",
+    );
+  });
+
   it("conta os filtros ligados (a ordem não conta; a promoção fixa das ofertas também não)", () => {
     const f = readFilters({
       marca: ["Dell", "Acer"],

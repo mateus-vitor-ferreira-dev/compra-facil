@@ -21,6 +21,15 @@ export default async function Offers({ searchParams }: Props) {
   const params = await searchParams;
   const filters = readFilters(params);
   const { category } = filters;
+  const listing = {
+    onSale: true,
+    category,
+    brands: filters.brands,
+    minPriceCents: filters.minPriceCents,
+    maxPriceCents: filters.maxPriceCents,
+    sort: filters.sort.api,
+    page: filters.page,
+  };
   const [campaigns, categories] = await Promise.all([getActiveCampaigns(), getCategories()]);
   const roots = categories.ok ? categoryTree(categories.data) : [];
 
@@ -69,21 +78,13 @@ export default async function Offers({ searchParams }: Props) {
           params={params}
           filters={filters}
           keep={category ? { categoria: category } : {}}
-          category={category}
+          query={listing}
           onSaleFixed
         />
         <div className="min-w-0 space-y-4">
           <ActiveFilters path="/ofertas" params={params} filters={filters} onSaleFixed />
           <ProductListing
-            query={{
-              onSale: true,
-              category,
-              brands: filters.brands,
-              minPriceCents: filters.minPriceCents,
-              maxPriceCents: filters.maxPriceCents,
-              sort: filters.sort.api,
-              page: filters.page,
-            }}
+            query={listing}
             label="Ofertas"
             path={"/ofertas"}
             params={params}

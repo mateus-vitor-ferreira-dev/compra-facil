@@ -291,6 +291,33 @@ func (r *ProductRepository) Brands(ctx context.Context, f domain.ProductFilter, 
 	return out, nil
 }
 
+// CountByCategory conta os produtos que passam nos filtros por categoria: o serviço soma as de cada
+// tipo da faceta.
+func (r *ProductRepository) CountByCategory(ctx context.Context, f domain.ProductFilter) (map[uuid.UUID]int, error) {
+	q := applyFilters(r.baseQuery(ctx, f.Now), f).
+		Select("p.category_id AS category_id, count(*) AS count").
+		Group("p.category_id")
+	if len(f.Brands) > 0 { // a faceta de tipo respeita a marca escolhida
+		q = q.Where("lower(p.brand) IN ?", lowerAll(f.Brands))
+	}
+	search := strings.ToLower(strings.TrimSpace(f.Query))
+	if search != "" {
+		q = q.Where("f_unaccent(@q) <% p.search_text", map[string]any{"q": search})
+	}
+	var rows []struct {
+		CategoryID uuid.UUID
+		Count      int
+	}
+	if err := r.find(q, search != "", &rows); err != nil {
+		return nil, mapError(err)
+	}
+	out := make(map[uuid.UUID]int, len(rows))
+	for _, row := range rows {
+		out[row.CategoryID] = row.Count
+	}
+	return out, nil
+}
+
 // applyFilters aplica os filtros comuns à listagem e à faceta de marcas.
 func applyFilters(q *gorm.DB, f domain.ProductFilter) *gorm.DB {
 	if f.Status != nil {

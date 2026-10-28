@@ -65,7 +65,8 @@ test("no celular, a folha mostra quantos filtros estão ligados", async ({ brows
   const sheet = page.locator("summary").filter({ hasText: "Filtrar e ordenar" });
   await expect(sheet).toContainText("2 filtros ligados");
   await sheet.click();
-  await expect(page.getByRole("button", { name: "Ver resultados" })).toBeVisible();
+  // o botão da folha diz quantos produtos vai mostrar (Baymard), e fica preso no rodapé
+  await expect(page.getByRole("button", { name: /^Ver \d+ produtos?$/ })).toBeVisible();
   await context.close();
 });
 
@@ -91,4 +92,26 @@ test("os tipos da subcategoria filtram, e a subcategoria continua marcada (#210)
     "href",
     "/categoria/fones",
   );
+});
+
+test("a faceta de tipo combina tipos, com contagem, e as marcas acompanham (#212)", async ({ page }) => {
+  await page.goto(FONES);
+  const filters = page.getByRole("complementary", { name: "Filtrar e ordenar" });
+  const tipo = filters.getByRole("group", { name: "Tipo" });
+  await expect(tipo.getByRole("checkbox")).toHaveCount(2);
+
+  await tipo.getByRole("checkbox", { name: /^Headsets gamer/ }).check();
+  await expect(page).toHaveURL(/tipo=headsets-gamer/);
+  const grid = page.getByRole("list", { name: "Produtos em Fones de ouvido" });
+  await expect(grid.getByRole("listitem")).toHaveCount(1);
+  // a marca conta só o que sobrou no tipo
+  await expect(filters.getByRole("checkbox", { name: /^HyperX/ })).toBeVisible();
+  await expect(filters.getByRole("checkbox", { name: /^JBL/ })).toHaveCount(0);
+
+  await tipo.getByRole("checkbox", { name: /^Fones sem fio/ }).check();
+  await expect(grid.getByRole("listitem")).toHaveCount(2);
+  const active = page.getByRole("navigation", { name: "Filtros ligados" });
+  await active.getByRole("link", { name: "Headsets gamer (tirar o filtro)" }).click();
+  await expect(page).not.toHaveURL(/headsets-gamer/);
+  await expect(grid.getByRole("listitem")).toHaveCount(1);
 });

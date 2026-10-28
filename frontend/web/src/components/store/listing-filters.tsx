@@ -1,6 +1,6 @@
 import { SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
-import { listBrands } from "@/lib/catalog-api";
+import { listBrands, listCategoryCounts, listProducts, type ProductQuery } from "@/lib/catalog-api";
 import { formatMoney } from "@/lib/format";
 import {
   SORTS,
@@ -11,6 +11,7 @@ import {
   type Filters,
 } from "@/lib/storefront";
 import { FiltersForm, type FiltersFormProps } from "./filters-form";
+import { PER_PAGE } from "./product-listing";
 
 type Params = Record<string, string | string[] | undefined>;
 
@@ -20,26 +21,42 @@ type Props = {
   filters: Filters;
   /** parâmetros mantidos que não são filtro: a busca (q), o departamento das ofertas */
   keep: Record<string, string>;
-  /** a categoria da listagem, para as marcas contarem só os produtos dela */
-  category?: string;
+  /** a mesma consulta da grade: as facetas e o total contam pelos mesmos filtros */
+  query: ProductQuery;
+  /**
+   * o nome da faceta das categorias filhas da listagem ("Tipo" numa subcategoria, "Subcategoria" num
+   * departamento); sem ele, não há faceta (#212)
+   */
+  childrenFacet?: string;
   /** nas ofertas a promoção é fixa: some o filtro e a contagem */
   onSaleFixed?: boolean;
 };
 
 const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
+const numbers = new Intl.NumberFormat("pt-BR");
 
 /**
  * Os filtros da listagem: numa coluna no desktop e, no celular, numa folha "Filtrar e ordenar" com a
  * contagem dos que estão ligados. Um <details> nativo: abre e fecha sem JavaScript e pelo teclado.
  */
-export async function ListingFilters({ path, params, filters, keep, category, onSaleFixed = false }: Props) {
-  const brands = await listBrands({
-    q: filters.q,
-    category,
-    onSale: onSaleFixed || filters.onSale,
-    minPriceCents: filters.minPriceCents,
-    maxPriceCents: filters.maxPriceCents,
-  });
+export async function ListingFilters({
+  path,
+  params,
+  filters,
+  keep,
+  query,
+  childrenFacet,
+  onSaleFixed = false,
+}: Props) {
+  // a mesma chamada da grade (o Next a faz uma vez só): o total do botão da folha
+  const [brands, children, page] = await Promise.all([
+    listBrands({ ...query, brands: undefined }),
+    childrenFacet && query.category
+      ? listCategoryCounts({ ...query, category: query.category })
+      : Promise.resolve(undefined),
+    listProducts({ ...query, page: query.page ?? 1, limit: PER_PAGE }),
+  ]);
+  const total = page.ok ? page.data.total : undefined;
   const count = activeFilterCount(filters, { onSaleFixed });
   const form: Omit<FiltersFormProps, "idPrefix" | "submitLabel" | "className"> = {
     action: path,
@@ -51,6 +68,10 @@ export async function ListingFilters({ path, params, filters, keep, category, on
     sort: filters.sort.value,
     brands: brands.ok ? brands.data : [],
     selectedBrands: filters.brands,
+    children:
+      childrenFacet && children?.ok
+        ? { label: childrenFacet, options: children.data, selected: filters.types }
+        : undefined,
     minPrice: filters.minPriceCents,
     maxPrice: filters.maxPriceCents,
     onSale: onSaleFixed ? undefined : filters.onSale,
@@ -81,7 +102,18 @@ export async function ListingFilters({ path, params, filters, keep, category, on
           )}
         </summary>
         <div className="border-line border-t px-4 pb-4">
-          <FiltersForm key={key} {...form} idPrefix="folha" submitLabel="Ver resultados" className="pt-4" />
+          <FiltersForm
+            key={key}
+            {...form}
+            idPrefix="folha"
+            submitLabel={
+              total === undefined
+                ? "Ver resultados"
+                : `Ver ${numbers.format(total)} ${total === 1 ? "produto" : "produtos"}`
+            }
+            stickySubmit
+            className="pt-4"
+          />
         </div>
       </details>
     </>
@@ -96,15 +128,19 @@ export function ActiveFilters({
   path,
   params,
   filters,
+  typeNames = {},
   onSaleFixed = false,
 }: {
   path: string;
   params: Params;
   filters: Filters;
+  /** o nome de cada tipo da faceta, pelo slug da URL */
+  typeNames?: Record<string, string>;
   onSaleFixed?: boolean;
 }) {
-  const { brands, minPriceCents: min, maxPriceCents: max } = filters;
+  const { brands, types, minPriceCents: min, maxPriceCents: max } = filters;
   const chips: { label: string; href: string }[] = [
+    ...types.map((t) => ({ label: typeNames[t] ?? t, href: withoutValue(path, params, "tipo", t) })),
     ...brands.map((b) => ({ label: b, href: withoutValue(path, params, "marca", b) })),
   ];
   if (min !== undefined || max !== undefined) {

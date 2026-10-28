@@ -110,6 +110,11 @@ func (f *fakeReaders) ListBrands(context.Context, service.ListProductsInput) ([]
 	return f.brands, f.err
 }
 
+func (f *fakeReaders) ListCategoryCounts(context.Context, service.ListProductsInput) ([]domain.CategoryCount, error) {
+	f.listCalls.Add(1)
+	return []domain.CategoryCount{{Slug: "mouses", Name: "Mouses", Count: 1}}, f.err
+}
+
 func (f *fakeReaders) List(context.Context) ([]domain.Category, error) {
 	f.catCalls.Add(1)
 	return []domain.Category{{Name: "Eletrônicos", Slug: "eletronicos"}}, f.err

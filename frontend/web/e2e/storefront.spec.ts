@@ -23,13 +23,13 @@ test("a categoria mãe inclui as subcategorias, paginada por número", async ({ 
   const grid = page.getByRole("list", { name: "Produtos em Eletrônicos" });
   const pages = page.getByRole("navigation", { name: "Páginas de produtos" });
   await expect(grid.locator("article")).toHaveCount(24);
-  await expect(page.getByText("32 produtos, mostrando 1 a 24")).toBeVisible();
+  await expect(page.getByText("33 produtos, mostrando 1 a 24")).toBeVisible();
   await expect(pages.getByRole("link", { name: "Página 1" })).toHaveAttribute("aria-current", "page");
 
   await pages.getByRole("link", { name: "Próxima" }).click();
   await expect(page).toHaveURL(/\/categoria\/eletronicos\?pagina=2$/);
-  await expect(grid.locator("article")).toHaveCount(8);
-  await expect(page.getByText("32 produtos, mostrando 25 a 32")).toBeVisible();
+  await expect(grid.locator("article")).toHaveCount(9);
+  await expect(page.getByText("33 produtos, mostrando 25 a 33")).toBeVisible();
   await expect(pages.getByRole("link", { name: "Próxima" })).toHaveCount(0); // última página
 
   await pages.getByRole("link", { name: "Anterior" }).click();

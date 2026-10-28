@@ -95,6 +95,8 @@ const seed = [
 const fones = ["JBL", "Edifier", "Xiaomi"];
 for (let i = 1; i <= 30; i++)
   seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100, fones[i % 3]]);
+// um headset gamer no fim (os índices de cima são usados pelo estoque): a faceta de tipos tem dois
+seed.push(["Headset gamer 7.1", "headsets-gamer", 29990, 29990, "HyperX"]);
 
 const products = seed.map(([name, slug, price, effective, brand], i) => {
   const { id, name: categoryName } = bySlug[slug];
@@ -340,7 +342,13 @@ function filtered(url) {
   const q = url.searchParams.get("q")?.toLowerCase();
   const slug = url.searchParams.get("category");
   // a categoria e a subárvore dela, como o catalog (WITH RECURSIVE)
-  const family = slug ? subtree(bySlug[slug]?.id) : null;
+  let family = slug ? subtree(bySlug[slug]?.id) : null;
+  // os tipos (#212): a união das subárvores, só dentro da categoria
+  const types = (url.searchParams.get("type") ?? "").split(",").filter(Boolean);
+  if (types.length) {
+    const within = types.flatMap((t) => subtree(bySlug[t]?.id));
+    family = family ? within.filter((s) => family.includes(s)) : within;
+  }
   const min = Number(url.searchParams.get("min_price_cents") ?? 0);
   const max = Number(url.searchParams.get("max_price_cents") ?? Infinity);
   return products.filter(
@@ -376,6 +384,26 @@ function listProducts(url) {
 }
 
 /** GET /v1/brands: as marcas da listagem com a contagem, das mais frequentes para as menos. */
+/** A faceta de tipos: as filhas da categoria com quantos produtos (sem o filtro de tipo, com a marca). */
+function listCategoryCounts(url) {
+  const root = bySlug[url.searchParams.get("category")];
+  const noTypes = new URL(url);
+  noTypes.searchParams.delete("type");
+  const brands = (url.searchParams.get("brand") ?? "").toLowerCase().split(",").filter(Boolean);
+  const list = filtered(noTypes).filter((p) => !brands.length || brands.includes(p.brand.toLowerCase()));
+  return {
+    data: categories
+      .filter((c) => root && c.parent_id === root.id)
+      .map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        count: list.filter((p) => subtree(c.id).includes(p.category.slug)).length,
+      }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
 function listBrands(url) {
   const counts = new Map();
   for (const p of filtered(url)) counts.set(p.brand, (counts.get(p.brand) ?? 0) + 1);
@@ -622,6 +650,8 @@ createServer(async (req, res) => {
       return send(res, 200, listProducts(url));
     case "GET /catalog/v1/brands":
       return send(res, 200, listBrands(url));
+    case "GET /catalog/v1/category-counts":
+      return send(res, 200, listCategoryCounts(url));
     case "GET /inventory/v1/stock": {
       const ids = (url.searchParams.get("product_ids") ?? "").split(",").filter(Boolean);
       return send(res, 200, {

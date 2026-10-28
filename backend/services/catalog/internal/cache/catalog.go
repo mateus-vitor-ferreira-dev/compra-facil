@@ -33,6 +33,7 @@ const (
 type productReader interface {
 	ListPublic(ctx context.Context, in service.ListProductsInput) (domain.Page[domain.Product], error)
 	ListBrands(ctx context.Context, in service.ListProductsInput) ([]domain.BrandCount, error)
+	ListCategoryCounts(ctx context.Context, in service.ListProductsInput) ([]domain.CategoryCount, error)
 	GetPublic(ctx context.Context, id uuid.UUID) (domain.Product, error)
 }
 
@@ -100,6 +101,17 @@ func (c *Catalog) ListPublic(ctx context.Context, in service.ListProductsInput) 
 			return c.capTTL(ctx, c.opts.ListTTL, ends...)
 		},
 	)
+}
+
+// ListCategoryCounts guarda a faceta de tipos como a de marcas (mesmo TTL, pelo mesmo motivo).
+func (c *Catalog) ListCategoryCounts(ctx context.Context, in service.ListProductsInput) ([]domain.CategoryCount, error) {
+	return cached(ctx, c, "category_counts", "category-counts:"+hashKey(in),
+		func(ctx context.Context) ([]domain.CategoryCount, error) {
+			return c.products.ListCategoryCounts(ctx, in)
+		},
+		func(ctx context.Context, _ []domain.CategoryCount) time.Duration {
+			return c.capTTL(ctx, c.opts.ListTTL)
+		})
 }
 
 // ListBrands guarda a faceta de marcas como as listagens; o TTL vai até a próxima virada de campanha,
