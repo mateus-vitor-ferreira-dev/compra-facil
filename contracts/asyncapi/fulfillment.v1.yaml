@@ -1,0 +1,250 @@
+asyncapi: 3.1.0
+info:
+  title: CompraFácil — Fulfillment Events
+  version: 1.0.0
+  description: |
+    Eventos do serviço **fulfillment** (time de Processamento de compras, ASP.NET Core), dono da
+    integração com o fornecedor de dropshipping (ADR 0007).
+
+    Consome `OrderConfirmed`: o pedido pago entra numa fila e um despachante o envia ao fornecedor
+    (idempotente pelo número do pedido). O que o fornecedor responde e avisa por webhook vira evento,
+    sempre para a frente: `SupplierOrderPlaced` → `SupplierOrderShipped` (com o rastreio) →
+    `SupplierOrderDelivered`, ou `SupplierOrderFailed` (sem estoque, recusado, cancelado pelo
+    fornecedor ou fornecedor fora do ar depois de todas as tentativas).
+
+    Ainda ninguém consome estes eventos: a SAGA do pedido com o fornecedor (#219) é quem vai reagir
+    (estorno na falha, status do pedido, e-mails de envio e entrega).
+defaultContentType: application/json
+
+servers:
+  dev:
+    $ref: "./common/v1/common.yaml#/components/servers/dev"
+  dev-internal:
+    $ref: "./common/v1/common.yaml#/components/servers/dev-internal"
+
+channels:
+  supplierOrderEvents:
+    address: fulfillment.supplier-order.v1
+    title: Pedidos no fornecedor
+    description: O andamento de cada pedido no fornecedor. Chave = `order_id`.
+    messages:
+      SupplierOrderPlaced:
+        $ref: "#/components/messages/SupplierOrderPlaced"
+      SupplierOrderShipped:
+        $ref: "#/components/messages/SupplierOrderShipped"
+      SupplierOrderDelivered:
+        $ref: "#/components/messages/SupplierOrderDelivered"
+      SupplierOrderFailed:
+        $ref: "#/components/messages/SupplierOrderFailed"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: fulfillment.supplier-order.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+  # Canal de outro serviço que o fulfillment consome (definido no contrato do dono)
+  orderEvents:
+    $ref: "./orders.v1.yaml#/channels/orderEvents"
+
+operations:
+  publishSupplierOrderEvents:
+    action: send
+    channel:
+      $ref: "#/channels/supplierOrderEvents"
+    summary: Publica o andamento do pedido no fornecedor (outbox).
+    messages:
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderPlaced"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderShipped"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderDelivered"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
+
+  onOrderConfirmed:
+    action: receive
+    channel:
+      $ref: "#/channels/orderEvents"
+    summary: Põe o pedido pago na fila do fornecedor.
+    messages:
+      - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
+    bindings:
+      $ref: "#/components/operationBindings/FulfillmentGroup"
+
+components:
+  operationBindings:
+    FulfillmentGroup:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: fulfillment
+
+  messages:
+    SupplierOrderPlaced:
+      name: SupplierOrderPlaced
+      title: Pedido aceito pelo fornecedor
+      summary: O fornecedor aceitou o pedido; o envio vem depois.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierOrderPlaced
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, supplier, supplier_order_id, placed_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                    description: O pedido da loja (o número dele no fornecedor).
+                  supplier:
+                    type: string
+                    description: "Nome do fornecedor (ex.: `cj`)."
+                  supplier_order_id:
+                    type: string
+                    description: Id do pedido no fornecedor.
+                  placed_at:
+                    type: string
+                    format: date-time
+                    description: Quando o fornecedor aceitou.
+    SupplierOrderShipped:
+      name: SupplierOrderShipped
+      title: Pedido enviado
+      summary: O fornecedor despachou; traz o código de rastreio.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierOrderShipped
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, supplier, tracking_number, shipped_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                    description: O pedido da loja (o número dele no fornecedor).
+                  supplier:
+                    type: string
+                    description: "Nome do fornecedor (ex.: `cj`)."
+                  supplier_order_id:
+                    type: [string, "null"]
+                    description: Id do pedido no fornecedor.
+                  tracking_number:
+                    type: string
+                  tracking_provider:
+                    type: [string, "null"]
+                    description: "Transportadora (ex.: Correios)."
+                  tracking_url:
+                    type: [string, "null"]
+                    format: uri
+                    description: Página de rastreio.
+                  shipped_at:
+                    type: string
+                    format: date-time
+                    description: Quando o fornecedor avisou o envio.
+    SupplierOrderDelivered:
+      name: SupplierOrderDelivered
+      title: Pedido entregue
+      summary: O fornecedor avisou a entrega. Começam os 7 dias de arrependimento (CDC).
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierOrderDelivered
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, supplier, delivered_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                    description: O pedido da loja (o número dele no fornecedor).
+                  supplier:
+                    type: string
+                    description: "Nome do fornecedor (ex.: `cj`)."
+                  supplier_order_id:
+                    type: [string, "null"]
+                    description: Id do pedido no fornecedor.
+                  delivered_at:
+                    type: string
+                    format: date-time
+                    description: Quando o fornecedor avisou a entrega.
+    SupplierOrderFailed:
+      name: SupplierOrderFailed
+      title: Pedido não atendido
+      summary: O pedido não vai chegar pelo fornecedor; o cliente precisa ser estornado (#219).
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierOrderFailed
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, supplier, reason, failed_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                    description: O pedido da loja (o número dele no fornecedor).
+                  supplier:
+                    type: string
+                    description: "Nome do fornecedor (ex.: `cj`)."
+                  supplier_order_id:
+                    type: [string, "null"]
+                    description: Id do pedido no fornecedor.
+                  reason:
+                    type: string
+                    enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable]
+                    description: |
+                      `out_of_stock`: sem estoque no fornecedor · `rejected`: recusado na criação ·
+                      `supplier_cancelled`: aceito e depois cancelado pelo fornecedor · `supplier_unavailable`:
+                      fornecedor fora do ar depois de todas as tentativas.
+                  detail:
+                    type: [string, "null"]
+                    maxLength: 500
+                    description: A mensagem do fornecedor ou o último erro.
+                  failed_at:
+                    type: string
+                    format: date-time
+                    description: Quando o pedido foi dado como não atendido.

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Casos de uso do fulfillment: o pedido pago vai ao fornecedor, e o que o fornecedor conta vira evento. -->
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Fulfillment.Domain/CompraFacil.Fulfillment.Domain.csproj" />
+    <!-- IOutbox, IHandleEvent e as exceções que viram ProblemDetails -->
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,179 @@
+openapi: 3.1.0
+info:
+  title: CompraFácil — Fulfillment API
+  version: 1.0.0
+  summary: Webhook do fornecedor e operação.
+  description: |
+    API do serviço **fulfillment** (time de Processamento de compras, ASP.NET Core). Dono da integração
+    com o fornecedor de dropshipping (ADR 0007).
+
+    O pedido **não** vai ao fornecedor por HTTP desta API: o fulfillment consome `OrderConfirmed`, envia
+    o pedido ao fornecedor e publica o que acontece (`SupplierOrderPlaced`, `SupplierOrderShipped`,
+    `SupplierOrderDelivered`, `SupplierOrderFailed`). Esta API recebe as atualizações do fornecedor
+    (webhook) e serve à operação.
+servers:
+  - url: http://localhost:8007
+    description: Serviço direto (dev)
+  - url: http://localhost/fulfillment
+    description: Via gateway Traefik
+tags:
+  - name: webhooks
+    description: Chamadas do fornecedor.
+  - name: admin
+    description: Operação (role `admin`); dead letter topic em todos os serviços.
+
+paths:
+  /v1/webhooks/supplier:
+    post:
+      tags: [webhooks]
+      operationId: receiveSupplierWebhook
+      summary: Atualização de um pedido no fornecedor
+      description: |
+        O fornecedor avisa cada mudança de status de um pedido (aceito, enviado com o rastreio, entregue,
+        cancelado). A assinatura é um HMAC-SHA256 do corpo com o segredo combinado, no cabeçalho
+        `X-Sim-Signature` (`sha256=<hex>`; o nome do cabeçalho é configurável por fornecedor).
+
+        Idempotente por `messageId`: a mesma mensagem de novo responde 200 sem repetir o efeito. Uma
+        atualização atrasada não faz o pedido voltar (entregue não volta a enviado). Pedido desconhecido
+        também responde 200, para o fornecedor não insistir; fica no log.
+      parameters:
+        - name: X-Sim-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: "^sha256=[0-9a-f]{64}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierWebhook"
+      responses:
+        "200":
+          description: Recebida (aplicada, repetida, ignorada ou de pedido desconhecido).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierWebhookAck"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/dead-letters:
+    get:
+      tags: [admin]
+      operationId: listDeadLetters
+      summary: Mensagens pendentes na dead letter topic
+      description: |
+        Mensagens em `fulfillment.dlt` que chegaram depois do último reprocessamento: as que falharam em
+        todas as tentativas (no lugar e nos tópicos de retry) e as envenenadas (fora do contrato),
+        que vão direto para lá. Ver docs/adr/0003-retries-e-dead-letter-topics.md.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/dead-letters.yaml#/components/parameters/DeadLetterLimit"
+      responses:
+        "200":
+          description: Mensagens pendentes.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterList"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
+  /v1/admin/dead-letters/replay:
+    post:
+      tags: [admin]
+      operationId: replayDeadLetters
+      summary: Reprocessa as mensagens pendentes na dead letter topic
+      description: |
+        Devolve as pendentes para `fulfillment.retry-1`: só o fulfillment as consome de novo. Falhando outra
+        vez, voltam para a DLT. Evento já processado não repete o efeito (inbox). Use depois de
+        corrigir a causa.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Quantas mensagens foram devolvidas.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterReplay"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
+
+components:
+  schemas:
+    SupplierWebhook:
+      type: object
+      description: Formato do CJ Dropshipping (mensagens de pedido com `messageType` UPDATE).
+      required: [messageId, type, messageType, params]
+      properties:
+        messageId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        type:
+          type: string
+          description: "`ORDER`; outros tipos são ignorados."
+        messageType:
+          type: string
+          description: "`UPDATE`."
+        params:
+          type: object
+          required: [orderNumber, orderStatus]
+          properties:
+            orderId:
+              type: [string, "null"]
+              description: Id do pedido no fornecedor.
+            orderNumber:
+              type: string
+              format: uuid
+              description: Número do pedido na loja (order_id).
+            orderStatus:
+              type: string
+              description: "`CREATED`, `UNSHIPPED`, `SHIPPED`, `DELIVERED` ou `CANCELLED`."
+            subStatus:
+              type: [string, "null"]
+            trackNumber:
+              type: [string, "null"]
+            trackingProvider:
+              type: [string, "null"]
+            trackingUrl:
+              type: [string, "null"]
+            reason:
+              type: [string, "null"]
+            updateDate:
+              type: [string, "null"]
+              format: date-time
+    SupplierWebhookAck:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [applied, duplicate, ignored, unknown_order]
+          description: |
+            `applied`: o pedido mudou · `duplicate`: mensagem já recebida · `ignored`: nada a mudar
+            (atrasada ou repetida em outra mensagem) · `unknown_order`: não é pedido desta loja.
+
+  securitySchemes:
+    bearerAuth:
+      $ref: "./common/v1/common.yaml#/components/securitySchemes/bearerAuth"

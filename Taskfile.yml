@@ -26,7 +26,7 @@ tasks:
       - docker compose up -d --build --wait
 
   up:debug:
-    desc: Como o up, mas publicando as portas dos serviços no host (8001-8006, gRPC 9001) para depuração
+    desc: Como o up, mas publicando as portas dos serviços no host (8001-8007, gRPC 9001) para depuração
     cmds:
       - docker compose -f compose.yaml -f infra/compose/compose.debug.yaml up -d --build --wait
 

@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      SERVICE_DATABASES: &service-databases catalog,orders,inventory,payments,notifications,identity
+      SERVICE_DATABASES: &service-databases catalog,orders,inventory,payments,notifications,identity,fulfillment
       SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
     ports:
       - "${POSTGRES_PORT:-55432}:5432"
@@ -237,6 +237,8 @@ services:
         condition: service_started
       media:
         condition: service_started
+      fulfillment:
+        condition: service_started
 
   # só roda sob demanda (task load:catalog-cache): k6 dentro da rede, direto no catalog (sem o rate
   # limit do gateway, que mediria outra coisa)
@@ -385,6 +387,47 @@ services:
       # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
       Auth__Authority: http://identity:8006
       Auth__RequireHttpsMetadata: "false"
+
+  # o pedido pago vai ao fornecedor de dropshipping (ADR 0007); em dev, o fornecedor simulado
+  fulfillment:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: backend/services/dotnet.Dockerfile
+      args:
+        SERVICE: fulfillment
+        PROJECT: CompraFacil.Fulfillment.Api
+        PORT: 8007
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/fulfillment:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
+      Auth__Authority: http://identity:8006
+      Auth__RequireHttpsMetadata: "false"
+      Supplier__BaseUrl: http://supplier-sim:8090/api2.0/v1/
+      Supplier__WebhookSecret: ${SUPPLIER_SIM_WEBHOOK_SECRET:-sim-secret}
+      # ana+recusar@... no checkout faz o simulado recusar (ver backend/services/supplier-sim)
+      Supplier__ScenarioFromEmail: "true"
+
+  # o fornecedor de dropshipping simulado, no contrato do CJ (backend/services/supplier-sim); não vai à produção
+  supplier-sim:
+    build:
+      context: ../../backend/services/supplier-sim
+    image: compra-facil/supplier-sim:${VERSION:-dev}
+    environment:
+      SIM_WEBHOOK_URL: http://fulfillment:8007/v1/webhooks/supplier
+      SIM_WEBHOOK_SECRET: ${SUPPLIER_SIM_WEBHOOK_SECRET:-sim-secret}
+    ports:
+      - "127.0.0.1:${SUPPLIER_SIM_PORT:-8091}:8090"
+    healthcheck:
+      test: ["CMD", "/app/sim", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   notifications:
     <<: *dotnet-service

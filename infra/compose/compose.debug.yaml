@@ -15,3 +15,5 @@ services:
     ports: ["${NOTIFICATIONS_HTTP_PORT:-8005}:8005"]
   identity:
     ports: ["${IDENTITY_HTTP_PORT:-8006}:8006"]
+  fulfillment:
+    ports: ["${FULFILLMENT_HTTP_PORT:-8007}:8007"]

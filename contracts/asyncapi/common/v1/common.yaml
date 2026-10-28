@@ -52,7 +52,7 @@ components:
         producer:
           type: string
           description: Serviço dono do evento.
-          enum: [catalog, orders, inventory, payments, identity]
+          enum: [catalog, orders, inventory, payments, identity, fulfillment]
         correlation_id:
           type: string
           maxLength: 128

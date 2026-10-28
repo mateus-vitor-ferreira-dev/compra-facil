@@ -4,7 +4,7 @@ http:
   middlewares:
     strip-service-prefix:
       stripPrefixRegex:
-        regex: ["^/(catalog|orders|inventory|payments|identity|notifications|media)"]
+        regex: ["^/(catalog|orders|inventory|payments|identity|notifications|fulfillment|media)"]
 
     cors:
       headers:
