@@ -165,32 +165,47 @@ func prepare(ctx context.Context, tx pgx.Tx, reset bool) error {
 	return nil
 }
 
+// seededSub é um tipo de produto já gravado: é nele que os produtos ficam
 type seededSub struct {
-	subcategory
+	productType
 	id       uuid.UUID
 	rootSlug string
 }
 
+func insertCategory(ctx context.Context, tx pgx.Tx, id uuid.UUID, slug, name string, parent *uuid.UUID) error {
+	if _, err := tx.Exec(ctx, "INSERT INTO categories (id, slug, name, parent_id) VALUES ($1, $2, $3, $4)",
+		id, slug, name, parent); err != nil {
+		return fmt.Errorf("categoria %s: %w", slug, err)
+	}
+	return nil
+}
+
 func insertCategories(ctx context.Context, tx pgx.Tx, rng *rand.Rand) ([]seededSub, int, error) {
-	var subs []seededSub
+	var leaves []seededSub
 	count := 0
 	for _, root := range catalogTree {
 		rootID := newUUID(rng)
-		if _, err := tx.Exec(ctx, "INSERT INTO categories (id, slug, name) VALUES ($1, $2, $3)", rootID, root.slug, root.name); err != nil {
-			return nil, 0, fmt.Errorf("categoria %s: %w", root.slug, err)
+		if err := insertCategory(ctx, tx, rootID, root.slug, root.name, nil); err != nil {
+			return nil, 0, err
 		}
 		count++
 		for _, sub := range root.children {
-			id := newUUID(rng)
-			if _, err := tx.Exec(ctx, "INSERT INTO categories (id, slug, name, parent_id) VALUES ($1, $2, $3, $4)",
-				id, sub.slug, sub.name, rootID); err != nil {
-				return nil, 0, fmt.Errorf("categoria %s: %w", sub.slug, err)
+			subID := newUUID(rng)
+			if err := insertCategory(ctx, tx, subID, sub.slug, sub.name, &rootID); err != nil {
+				return nil, 0, err
 			}
 			count++
-			subs = append(subs, seededSub{subcategory: sub, id: id, rootSlug: root.slug})
+			for _, t := range sub.types {
+				id := newUUID(rng)
+				if err := insertCategory(ctx, tx, id, t.slug, t.name, &subID); err != nil {
+					return nil, 0, err
+				}
+				count++
+				leaves = append(leaves, seededSub{productType: t, id: id, rootSlug: root.slug})
+			}
 		}
 	}
-	return subs, count, nil
+	return leaves, count, nil
 }
 
 type seedProduct struct {
@@ -229,7 +244,7 @@ func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, me
 	}
 	out := make([]seedProduct, n)
 	for i := range out {
-		sub := subs[i%len(subs)] // distribuição uniforme entre subcategorias
+		sub := subs[i%len(subs)] // distribuição uniforme entre os tipos de produto
 		noun := pick(rng, sub.nouns)
 		brand := pick(rng, sub.brands)
 		attr := pick(rng, sub.attrs)

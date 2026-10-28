@@ -68,3 +68,27 @@ test("no celular, a folha mostra quantos filtros estão ligados", async ({ brows
   await expect(page.getByRole("button", { name: "Ver resultados" })).toBeVisible();
   await context.close();
 });
+
+test("os tipos da subcategoria filtram, e a subcategoria continua marcada (#210)", async ({ page }) => {
+  await page.goto(FONES);
+  const types = page.getByRole("navigation", { name: "Tipos de Fones de ouvido" });
+  await expect(types.getByRole("link", { name: "Tudo em Fones de ouvido" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+
+  await types.getByRole("link", { name: "Fones sem fio" }).click();
+  await expect(page).toHaveURL(/\/categoria\/fones-sem-fio$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fones sem fio");
+  const grid = page.getByRole("list", { name: "Produtos em Fones sem fio" });
+  await expect(grid.getByRole("listitem")).toHaveCount(1);
+  await expect(types.getByRole("link", { name: "Fones sem fio" })).toHaveAttribute("aria-current", "page");
+  // no nível de cima, a subcategoria do tipo segue destacada, e o caminho tem os três níveis
+  const subs = page.getByRole("navigation", { name: "Subcategorias de Eletrônicos" });
+  await expect(subs.getByRole("link", { name: "Fones de ouvido" })).toBeVisible();
+  const crumbs = page.getByRole("navigation", { name: "Você está em" });
+  await expect(crumbs.getByRole("link", { name: "Fones de ouvido" })).toHaveAttribute(
+    "href",
+    "/categoria/fones",
+  );
+});

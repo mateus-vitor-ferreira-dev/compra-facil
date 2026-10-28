@@ -10,6 +10,7 @@ import { CatalogErrorState } from "@/components/store/catalog-error";
 import { Countdown } from "@/components/store/countdown";
 import { ProductGrid } from "@/components/store/product-grid";
 import { getCategories, getProduct, listProducts } from "@/lib/catalog-api";
+import { categoryPath } from "@/lib/category-path";
 import { env } from "@/lib/env";
 import { discountPercent, formatMoney } from "@/lib/format";
 import { getAvailability } from "@/lib/inventory-api";
@@ -67,9 +68,8 @@ export default async function ProductPage({ params }: Props) {
   ]);
   const available = stock.ok ? stock.data[p.id] : undefined;
   const availability = availabilityText(available);
-  const parent = categories.ok
-    ? categories.data.find((c) => c.id === categories.data.find((x) => x.id === p.category.id)?.parent_id)
-    : undefined;
+  // departamento › subcategoria › tipo (#210); o último é a categoria do produto
+  const ancestors = categories.ok ? categoryPath(categories.data, p.category.id).slice(0, -1) : [];
   const more = related.ok ? related.data.data.filter((r) => r.id !== p.id).slice(0, 4) : [];
   const off = discountPercent(p.price, p.effective_price);
 
@@ -102,7 +102,7 @@ export default async function ProductPage({ params }: Props) {
       <Breadcrumbs
         items={[
           { href: "/", label: "Início" },
-          ...(parent ? [{ href: `/categoria/${parent.slug}`, label: parent.name }] : []),
+          ...ancestors.map((c) => ({ href: `/categoria/${c.slug}`, label: c.name })),
           { href: `/categoria/${p.category.slug}`, label: p.category.name },
           { label: p.name },
         ]}

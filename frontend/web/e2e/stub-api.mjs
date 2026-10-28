@@ -51,6 +51,19 @@ const categories = [
     name: "Fones de ouvido",
     parent_id: "0199f6a0-0000-7000-8000-0000000000a0",
   },
+  // os tipos de fones (#210): o terceiro nível
+  {
+    id: "0199f6a0-0000-7000-8000-0000000000ac",
+    slug: "fones-sem-fio",
+    name: "Fones sem fio",
+    parent_id: "0199f6a0-0000-7000-8000-0000000000ab",
+  },
+  {
+    id: "0199f6a0-0000-7000-8000-0000000000ad",
+    slug: "headsets-gamer",
+    name: "Headsets gamer",
+    parent_id: "0199f6a0-0000-7000-8000-0000000000ab",
+  },
   { id: "0199f6a0-0000-7000-8000-0000000000b0", slug: "informatica", name: "Informática", parent_id: null },
   {
     id: "0199f6a0-0000-7000-8000-0000000000bb",
@@ -75,7 +88,7 @@ const campaigns = [
 
 const seed = [
   ['Smart TV 55" QLED', "tv", 329990, 263992, "Samsung"],
-  ["Fone Bluetooth com cancelamento de ruído", "fones", 49990, 49990, "Sony"],
+  ["Fone Bluetooth com cancelamento de ruído", "fones-sem-fio", 49990, 49990, "Sony"],
   ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992, "Dell"],
 ];
 // 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"; três marcas
@@ -315,13 +328,19 @@ async function admin(req, res, url) {
   return problem(res, 404, "Recurso não encontrado");
 }
 
+/** Os slugs de uma categoria e de todas as descendentes. */
+function subtree(id) {
+  const root = categories.find((c) => c.id === id);
+  if (!root) return [];
+  return [root.slug, ...categories.filter((c) => c.parent_id === id).flatMap((c) => subtree(c.id))];
+}
+
 /** Os produtos que passam nos filtros da vitrine (sem a marca, para a faceta). */
 function filtered(url) {
   const q = url.searchParams.get("q")?.toLowerCase();
   const slug = url.searchParams.get("category");
-  const family = slug
-    ? categories.filter((c) => c.slug === slug || c.parent_id === bySlug[slug]?.id).map((c) => c.slug)
-    : null;
+  // a categoria e a subárvore dela, como o catalog (WITH RECURSIVE)
+  const family = slug ? subtree(bySlug[slug]?.id) : null;
   const min = Number(url.searchParams.get("min_price_cents") ?? 0);
   const max = Number(url.searchParams.get("max_price_cents") ?? Infinity);
   return products.filter(

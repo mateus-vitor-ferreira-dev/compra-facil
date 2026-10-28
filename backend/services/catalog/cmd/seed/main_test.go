@@ -25,7 +25,9 @@ func subsForTest() []seededSub {
 	var subs []seededSub
 	for _, root := range catalogTree {
 		for _, sub := range root.children {
-			subs = append(subs, seededSub{subcategory: sub, id: uuid.New(), rootSlug: root.slug})
+			for _, t := range sub.types {
+				subs = append(subs, seededSub{productType: t, id: uuid.New(), rootSlug: root.slug})
+			}
 		}
 	}
 	return subs
@@ -93,23 +95,21 @@ func TestPhotos_ExistForEverySubcategory(t *testing.T) {
 	}
 	photos, err := loadPhotos()
 	require.NoError(t, err)
-	for _, root := range catalogTree {
-		for _, sub := range root.children {
-			count := photoCount(photos, sub.slug)
-			assert.GreaterOrEqual(t, count, minPhotosPerSubcategory, "%s: fotos de menos, vizinhas repetiriam", sub.slug)
-			for n := 1; n <= count; n++ {
-				name := fmt.Sprintf("%s-%d", sub.slug, n)
-				p, ok := photos[name]
-				if !assert.True(t, ok, "falta %s no manifesto: rode scripts/media/product_images.py build", name) {
-					continue
-				}
-				assert.Equal(t, p.Width, p.Height, "%s: quadrada", name)
-				assert.GreaterOrEqual(t, p.Width, 600, "%s: pequena demais para a página do produto", name)
-				for i, v := range p.Variants {
-					assert.FileExists(t, filepath.Join(dir, "produtos", v.File))
-					if i > 0 {
-						assert.Greater(t, v.Width, p.Variants[i-1].Width, "%s: variantes em ordem crescente", name)
-					}
+	for _, sub := range subsForTest() {
+		count := photoCount(photos, sub.slug)
+		assert.GreaterOrEqual(t, count, minPhotosPerSubcategory, "%s: fotos de menos, vizinhas repetiriam", sub.slug)
+		for n := 1; n <= count; n++ {
+			name := fmt.Sprintf("%s-%d", sub.slug, n)
+			p, ok := photos[name]
+			if !assert.True(t, ok, "falta %s no manifesto: rode scripts/media/product_images.py build", name) {
+				continue
+			}
+			assert.Equal(t, p.Width, p.Height, "%s: quadrada", name)
+			assert.GreaterOrEqual(t, p.Width, 600, "%s: pequena demais para a página do produto", name)
+			for i, v := range p.Variants {
+				assert.FileExists(t, filepath.Join(dir, "produtos", v.File))
+				if i > 0 {
+					assert.Greater(t, v.Width, p.Variants[i-1].Width, "%s: variantes em ordem crescente", name)
 				}
 			}
 		}
