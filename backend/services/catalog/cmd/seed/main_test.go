@@ -52,7 +52,12 @@ func TestGenerateProducts_DeterministicAndValid(t *testing.T) {
 		assert.Equal(t, int64(90), p.price%100, "preço termina em ,90")
 		assert.Contains(t, []string{"active", "inactive", "draft"}, p.status)
 		assert.Equal(t, uuid.Version(4), p.id.Version())
-		assert.Regexp(t, `^http://localhost/media/produtos/[a-z-]+-[0-9]+\.[0-9a-f]{8}-[0-9]+\.webp$`, p.imageURL, "foto da subcategoria, sem barra dupla")
+		if p.image == nil { // tipo ainda sem fotos (#210): sem foto nenhuma, nem no evento
+			assert.Empty(t, p.imageURL)
+			assert.Nil(t, p.domain().ImageURL)
+			continue
+		}
+		assert.Regexp(t, `^http://localhost/media/produtos/[a-z-]+-[0-9]+\.[0-9a-f]{8}-[0-9]+\.webp$`, p.imageURL, "foto do tipo, sem barra dupla")
 		require.NotNil(t, p.image)
 		require.NotEmpty(t, p.image.Variants)
 		assert.Equal(t, p.imageURL, p.image.Variants[len(p.image.Variants)-1].URL, "image_url é a maior variante")
@@ -76,6 +81,9 @@ func TestGenerateProducts_NeighborsDoNotRepeatThePhoto(t *testing.T) {
 	for sub, list := range bySub {
 		sort.Slice(list, func(a, b int) bool { return list[a].createdAt.After(list[b].createdAt) })
 		window := photoCount(photos, sub)
+		if window == 0 {
+			continue // tipo ainda sem fotos
+		}
 		for i := range list {
 			seen := map[string]bool{}
 			for _, p := range list[i:min(i+window, len(list))] {
@@ -97,7 +105,9 @@ func TestPhotos_ExistForEverySubcategory(t *testing.T) {
 	require.NoError(t, err)
 	for _, sub := range subsForTest() {
 		count := photoCount(photos, sub.slug)
-		assert.GreaterOrEqual(t, count, minPhotosPerSubcategory, "%s: fotos de menos, vizinhas repetiriam", sub.slug)
+		if count > 0 { // sem fotos ainda é aceito (#210): a loja mostra o ícone
+			assert.GreaterOrEqual(t, count, minPhotosPerSubcategory, "%s: fotos de menos, vizinhas repetiriam", sub.slug)
+		}
 		for n := 1; n <= count; n++ {
 			name := fmt.Sprintf("%s-%d", sub.slug, n)
 			p, ok := photos[name]

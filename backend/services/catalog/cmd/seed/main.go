@@ -225,16 +225,25 @@ type seedProduct struct {
 
 // domain é o produto como o repositório o devolveria logo após o Create (versão 1).
 func (p seedProduct) domain() domain.Product {
+	var imageURL *string
+	if p.imageURL != "" {
+		imageURL = &p.imageURL
+	}
 	return domain.Product{
-		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, Brand: &p.brand, CategoryID: p.categoryID, ImageURL: &p.imageURL, Image: p.image,
+		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, Brand: &p.brand, CategoryID: p.categoryID, ImageURL: imageURL, Image: p.image,
 		PriceCents: p.price, Currency: "BRL",
 		Status: domain.ProductStatus(p.status), Version: 1, CreatedAt: p.createdAt, UpdatedAt: p.createdAt,
 	}
 }
 
 func (p seedProduct) row() []any {
-	image, _ := json.Marshal(p.image) // tipos simples: não falha
-	return []any{p.id, p.sku, p.name, p.desc, p.brand, p.categoryID, p.imageURL, image, p.price, "BRL", p.status, p.createdAt, p.createdAt}
+	// tipo ainda sem fotos: NULL nas duas colunas, como um produto cadastrado sem foto
+	var imageURL, image any
+	if p.image != nil {
+		imageURL = p.imageURL
+		image, _ = json.Marshal(p.image) // tipos simples: não falha
+	}
+	return []any{p.id, p.sku, p.name, p.desc, p.brand, p.categoryID, imageURL, image, p.price, "BRL", p.status, p.createdAt, p.createdAt}
 }
 
 func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, mediaURL string) []seedProduct {

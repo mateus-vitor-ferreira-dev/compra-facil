@@ -22,6 +22,8 @@ import hashlib
 import json
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -151,8 +153,15 @@ SUBCATEGORIES = {
 
 def get(url, timeout=60):
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read()
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read()
+        except urllib.error.HTTPError as e:
+            # o Pixabay limita downloads seguidos (429): espera e tenta de novo
+            if e.code != 429 or attempt == 4:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 10 * (attempt + 1)))
 
 
 def original(path):
@@ -216,13 +225,15 @@ def importar(*resultado_paths):
         sub, foto = item
         path = CACHE / sub / f"{safe(foto['id'])}.img"
         if not path.exists():
-            path.write_bytes(get(foto["url"]))
+            # a mesma foto pode já estar no cache de outra subcategoria (de uma seleção anterior)
+            antiga = next((p for p in CACHE.glob(f"*/{safe(foto['id'])}.img") if p.stat().st_size), None)
+            path.write_bytes(antiga.read_bytes() if antiga else get(foto["url"]))
         square(path)  # descarta o que não abre
         return foto
 
     for sub, dados in resultado["subcategorias"].items():
         (CACHE / sub).mkdir(parents=True, exist_ok=True)
-        with ThreadPoolExecutor(max_workers=4) as pool:
+        with ThreadPoolExecutor(max_workers=2) as pool:
             fotos = []
             for foto in pool.map(lambda f: _tenta(baixa, (sub, f)), dados["escolhidas"]):
                 if foto:
@@ -285,8 +296,9 @@ def build():
         "permite usar e editar sem atribuição; o crédito fica aqui do mesmo jeito. As marcas citadas nos nomes dos",
         "produtos do seed são só massa de teste: as fotos não mostram esses produtos nem têm relação com essas marcas.",
         "",
-        "Onde os acervos livres não tinham fotos de catálogo suficientes (geladeiras, lavadoras e TV), as que faltavam",
-        "foram geradas por IA (Runway), sem marca, e estão marcadas assim na tabela.",
+        "Onde os acervos livres não tinham fotos de catálogo suficientes, as que faltavam foram geradas por IA (Runway",
+        "e Figma), sem marca, e estão marcadas assim na tabela. Os tipos de produto ainda sem foto mostram o ícone da",
+        "categoria na loja.",
         "",
         "| Foto | Maior variante | Título | Autor | Licença | Origem |",
         "|---|---|---|---|---|---|",
