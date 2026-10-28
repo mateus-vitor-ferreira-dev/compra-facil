@@ -91,9 +91,9 @@ const seed = [
   ["Fone Bluetooth com cancelamento de ruído", "fones-sem-fio", 49990, 49990, "Sony"],
   ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992, "Dell"],
 ];
-// 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"; três marcas
+// 60 fones a mais: Eletrônicos passa de um lote (48) e exercita o "Carregar mais"; três marcas
 const fones = ["JBL", "Edifier", "Xiaomi"];
-for (let i = 1; i <= 30; i++)
+for (let i = 1; i <= 60; i++)
   seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100, fones[i % 3]]);
 // um headset gamer no fim (os índices de cima são usados pelo estoque): a faceta de tipos tem dois
 seed.push(["Headset gamer 7.1", "headsets-gamer", 29990, 29990, "HyperX"]);

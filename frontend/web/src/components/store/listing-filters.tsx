@@ -48,13 +48,13 @@ export async function ListingFilters({
   childrenFacet,
   onSaleFixed = false,
 }: Props) {
-  // a mesma chamada da grade (o Next a faz uma vez só): o total do botão da folha
+  // a mesma chamada do primeiro lote da grade (o Next a faz uma vez só): o total do botão da folha
   const [brands, children, page] = await Promise.all([
     listBrands({ ...query, brands: undefined }),
     childrenFacet && query.category
       ? listCategoryCounts({ ...query, category: query.category })
       : Promise.resolve(undefined),
-    listProducts({ ...query, page: query.page ?? 1, limit: PER_PAGE }),
+    listProducts({ ...query, page: 1, limit: PER_PAGE }),
   ]);
   const total = page.ok ? page.data.total : undefined;
   const count = activeFilterCount(filters, { onSaleFixed });
