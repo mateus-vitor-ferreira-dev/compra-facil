@@ -43,7 +43,13 @@ type ListProductsInput struct {
 	Sort   domain.ProductSort
 	Cursor string
 	Limit  int
+	// Page pagina por número (a partir de 1), com o total da listagem; alternativa ao Cursor.
+	Page int
 }
+
+// MaxPage é a última página que a listagem por número aceita: o OFFSET cresce com ela, e ninguém
+// percorre centenas de páginas de vitrine (a busca e os filtros servem para isso).
+const MaxPage = 200
 
 // maxBrandFilters é o máximo de marcas num filtro (contrato: brand, maxItems).
 const maxBrandFilters = 20
@@ -59,7 +65,7 @@ func (s *ProductService) ListPublic(ctx context.Context, in ListProductsInput) (
 
 // ListBrands conta as marcas dos produtos ativos da listagem (os mesmos filtros, sem o de marca).
 func (s *ProductService) ListBrands(ctx context.Context, in ListProductsInput) ([]domain.BrandCount, error) {
-	in.Brands, in.Sort, in.Cursor, in.Limit = nil, "", "", 0
+	in.Brands, in.Sort, in.Cursor, in.Limit, in.Page = nil, "", "", 0, 0
 	filter, found, err := s.publicFilter(ctx, in)
 	if err != nil || !found {
 		return []domain.BrandCount{}, err
@@ -91,6 +97,7 @@ func (s *ProductService) publicFilter(ctx context.Context, in ListProductsInput)
 		Now:           s.now(),
 		Cursor:        in.Cursor,
 		Limit:         in.Limit,
+		Page:          in.Page,
 	}
 
 	if in.CategorySlug != "" {
@@ -122,6 +129,12 @@ func validateListInput(query string, in ListProductsInput) error {
 	}
 	if in.MinPriceCents != nil && in.MaxPriceCents != nil && *in.MinPriceCents > *in.MaxPriceCents {
 		fields = append(fields, domain.FieldError{Field: "max_price_cents", Message: "deve ser maior ou igual a min_price_cents"})
+	}
+	if in.Page < 0 || in.Page > MaxPage {
+		fields = append(fields, domain.FieldError{Field: "page", Message: fmt.Sprintf("de 1 a %d", MaxPage)})
+	}
+	if in.Page > 0 && in.Cursor != "" {
+		fields = append(fields, domain.FieldError{Field: "cursor", Message: "use cursor ou page, não os dois"})
 	}
 	if in.Sort != "" && !in.Sort.Valid() {
 		fields = append(fields, domain.FieldError{Field: "sort", Message: "use relevance, price_asc, price_desc, discount ou newest"})

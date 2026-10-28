@@ -68,6 +68,8 @@ export type ProductQuery = {
   maxPriceCents?: number;
   sort?: ProductSort;
   cursor?: string;
+  /** paginação por número (com o total); alternativa ao cursor */
+  page?: number;
   limit?: number;
 };
 
@@ -93,6 +95,7 @@ export function listProducts(query: ProductQuery): Promise<Result<ProductPage>> 
             brand: query.brands?.length ? query.brands : undefined,
             sort: query.sort,
             cursor: query.cursor || undefined,
+            page: query.page,
             limit: query.limit ?? 24,
           },
         },

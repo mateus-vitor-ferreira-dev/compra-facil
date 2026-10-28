@@ -52,7 +52,7 @@ notifications ficaram com uma réplica o tempo todo.
 - **Sem OpenTelemetry no cluster:** os serviços sobem sem `OTEL_EXPORTER_OTLP_ENDPOINT`, então não exportam
   nada. A observabilidade completa continua no compose.
 - **Segredos de desenvolvimento** (senhas e o JWT de dev) ficam nos values, porque o cluster é local. Em
-  produção viriam de Secrets, e as dependências de serviços gerenciados ou operators.
+  produção vêm das variáveis do Coolify ([ADR 0006](../../docs/adr/0006-producao-no-coolify-e-cloudflare.md)).
 
 > As fotos dos produtos (`/media`, #147) não sobem no k3d: o objetivo do cluster local é o HPA do catálogo.
-> Em produção elas vão para o Object Storage com a CDN na frente (F9).
+> Em produção elas ficam no Cloudflare R2, com a CDN na frente (F9, [ADR 0006](../../docs/adr/0006-producao-no-coolify-e-cloudflare.md)).

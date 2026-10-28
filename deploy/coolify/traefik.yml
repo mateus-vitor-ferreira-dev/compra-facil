@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://www.schemastore.org/traefik-v3.json
+# O gateway em produção: a mesma configuração do local (infra/gateway/traefik/traefik.yml), com duas
+# diferenças. Ele fica atrás do proxy do Coolify, que termina o HTTPS: os X-Forwarded-* que chegam da
+# rede do Docker são confiáveis (de fora ninguém chega aqui direto, o gateway não publica porta). E sem
+# o dashboard. Rotas e middlewares: os mesmos arquivos de infra/gateway/traefik/dynamic.
+entryPoints:
+  web:
+    address: ":80"
+    forwardedHeaders:
+      trustedIPs: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+    http:
+      aliasHeadersStrategy: delete
+      encodedCharacters:
+        allowEncodedSlash: false
+        allowEncodedBackSlash: false
+        allowEncodedNullCharacter: false
+        allowEncodedSemicolon: false
+        allowEncodedPercent: false
+        allowEncodedQuestionMark: false
+        allowEncodedHash: false
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: false
+
+ping: {}
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      names:
+        X-Request-Id: keep
+        User-Agent: keep
+
+tracing:
+  serviceName: gateway
+  otlp:
+    grpc:
+      endpoint: otel-collector:4317
+      insecure: true
+
+metrics:
+  otlp:
+    serviceName: gateway
+    # por rota também: o 503 de um serviço sem nenhum contêiner de pé só aparece no router (a métrica do
+    # serviço não conta o que não chegou a ele), e é dele que saem os alertas de 5xx e de catálogo fora (#162)
+    addRoutersLabels: true
+    grpc:
+      endpoint: otel-collector:4317
+      insecure: true

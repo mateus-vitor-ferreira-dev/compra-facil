@@ -55,6 +55,9 @@ tracing:
 metrics:
   otlp:
     serviceName: gateway
+    # por rota também: o 503 de um serviço sem nenhum contêiner de pé só aparece no router (a métrica do
+    # serviço não conta o que não chegou a ele), e é dele que saem os alertas de 5xx e de catálogo fora (#162)
+    addRoutersLabels: true
     grpc:
       endpoint: otel-collector:4317
       insecure: true

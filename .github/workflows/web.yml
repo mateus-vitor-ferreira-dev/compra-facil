@@ -61,3 +61,59 @@ jobs:
           retention-days: 7
       - name: Lighthouse CI (performance, acessibilidade, SEO e boas práticas ≥ 90)
         run: npm run lhci
+      # os mesmos testes contra o Worker da produção (OpenNext no workerd): o que roda no Next e não no
+      # Workers (um pacote de Node no middleware, por exemplo) quebra aqui, e não em produção
+      - name: Build do Worker (OpenNext)
+        run: npx opennextjs-cloudflare build
+      - name: Testes de navegador contra o Worker
+        run: npm run e2e
+        env:
+          E2E_WORKER: "1"
+      - uses: actions/upload-artifact@v7.0.2
+        if: failure()
+        with:
+          name: playwright-report-worker
+          path: frontend/web/playwright-report
+          retention-days: 7
+
+  # Publica a loja no Cloudflare Workers (ADR 0006) depois dos testes, a partir da main. Enquanto a
+  # variável CLOUDFLARE_ACCOUNT_ID não existir no repositório, o job é pulado.
+  deploy:
+    name: loja no Cloudflare Workers
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-loja
+      cancel-in-progress: false
+    environment:
+      name: producao
+      url: ${{ vars.URL_LOJA }}
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      URL_LOJA: ${{ vars.URL_LOJA }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: frontend/web/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/web/package-lock.json
+      - run: npm ci
+      - name: Build e publicação (OpenNext + Wrangler)
+        run: npm run deploy
+      # de fora, pelo domínio da loja: a página e o caminho até a API (a vitrine vem do BFF)
+      - name: Responde de fora
+        run: |
+          for path in /robots.txt / /ofertas; do
+            for i in $(seq 12); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL_LOJA$path" || true)
+              [ "$code" = 200 ] && break
+              sleep 5
+            done
+            [ "$code" = 200 ] || { echo "::error title=A loja não responde::$URL_LOJA$path deu $code"; exit 1; }
+            echo "ok  $path"
+          done

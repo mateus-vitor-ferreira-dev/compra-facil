@@ -8,6 +8,8 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,12 +50,38 @@ func TestGenerateProducts_DeterministicAndValid(t *testing.T) {
 		assert.Equal(t, int64(90), p.price%100, "preço termina em ,90")
 		assert.Contains(t, []string{"active", "inactive", "draft"}, p.status)
 		assert.Equal(t, uuid.Version(4), p.id.Version())
-		assert.Regexp(t, `^http://localhost/media/produtos/[a-z-]+-[1-4]\.[0-9a-f]{8}-[0-9]+\.webp$`, p.imageURL, "foto da subcategoria, sem barra dupla")
+		assert.Regexp(t, `^http://localhost/media/produtos/[a-z-]+-[0-9]+\.[0-9a-f]{8}-[0-9]+\.webp$`, p.imageURL, "foto da subcategoria, sem barra dupla")
 		require.NotNil(t, p.image)
 		require.NotEmpty(t, p.image.Variants)
 		assert.Equal(t, p.imageURL, p.image.Variants[len(p.image.Variants)-1].URL, "image_url é a maior variante")
 		assert.Equal(t, p.image.Width, p.image.Variants[len(p.image.Variants)-1].Width)
 		assert.Equal(t, p.imageURL, *p.domain().ImageURL, "o evento leva a mesma foto")
+	}
+}
+
+// na ordem da vitrine (os mais novos primeiro), produtos vizinhos da mesma subcategoria não repetem a
+// foto: dentro de cada janela do tamanho da quantidade de fotos, todas são diferentes (#178)
+func TestGenerateProducts_NeighborsDoNotRepeatThePhoto(t *testing.T) {
+	now := time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC)
+	products := generateProducts(rand.New(rand.NewPCG(1, 2)), subsForTest(), 2000, now, "http://localhost/media/")
+	photos, err := loadPhotos()
+	require.NoError(t, err)
+
+	bySub := map[string][]seedProduct{}
+	for _, p := range products {
+		bySub[p.subSlug] = append(bySub[p.subSlug], p)
+	}
+	for sub, list := range bySub {
+		sort.Slice(list, func(a, b int) bool { return list[a].createdAt.After(list[b].createdAt) })
+		window := photoCount(photos, sub)
+		for i := range list {
+			seen := map[string]bool{}
+			for _, p := range list[i:min(i+window, len(list))] {
+				name := strings.SplitN(filepath.Base(p.imageURL), ".", 2)[0]
+				assert.False(t, seen[name], "%s: %s repetida a menos de %d produtos", sub, name, window)
+				seen[name] = true
+			}
+		}
 	}
 }
 
@@ -67,7 +95,9 @@ func TestPhotos_ExistForEverySubcategory(t *testing.T) {
 	require.NoError(t, err)
 	for _, root := range catalogTree {
 		for _, sub := range root.children {
-			for n := 1; n <= photosPerSubcategory; n++ {
+			count := photoCount(photos, sub.slug)
+			assert.GreaterOrEqual(t, count, minPhotosPerSubcategory, "%s: fotos de menos, vizinhas repetiriam", sub.slug)
+			for n := 1; n <= count; n++ {
 				name := fmt.Sprintf("%s-%d", sub.slug, n)
 				p, ok := photos[name]
 				if !assert.True(t, ok, "falta %s no manifesto: rode scripts/media/product_images.py build", name) {

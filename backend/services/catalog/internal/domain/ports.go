@@ -25,12 +25,18 @@ type ProductFilter struct {
 	Now    time.Time
 	Cursor string
 	Limit  int
+	// Page (a partir de 1) pagina por número, com o total; alternativa ao Cursor.
+	Page int
 }
 
 // Page é uma página de resultados paginada por cursor opaco.
 type Page[T any] struct {
 	Items      []T
 	NextCursor string // vazio quando não há próxima página
+	// Total e More só na paginação por número de página: quantos itens a listagem tem e se há outra
+	// página depois desta (sem cursor).
+	Total *int
+	More  bool
 }
 
 type ProductRepository interface {
