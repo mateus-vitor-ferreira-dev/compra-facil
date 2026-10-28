@@ -1,0 +1,40 @@
+# Publica no Grafana Cloud os dashboards e os alertas da produção (#162) quando mudam na main. O script
+# e a configuração estão em deploy/grafana (README de lá).
+#
+# Enquanto a variável GRAFANA_CLOUD_URL não existir no repositório, nada roda.
+name: grafana
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - deploy/grafana/**
+      - infra/grafana/dashboards/**
+      - .github/workflows/grafana.yml
+  workflow_dispatch:
+
+concurrency:
+  group: grafana-cloud
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    name: Dashboards e alertas
+    if: vars.GRAFANA_CLOUD_URL != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GRAFANA_URL: ${{ vars.GRAFANA_CLOUD_URL }}
+      GRAFANA_TOKEN: ${{ secrets.GRAFANA_CLOUD_TOKEN }}
+      ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: |
+            deploy/grafana
+            infra/grafana/dashboards
+      # o pipx (já no runner) instala o PyYAML que o cabeçalho do script pede, num ambiente à parte
+      - run: pipx run deploy/grafana/publicar.py

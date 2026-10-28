@@ -26,6 +26,13 @@ processors:
     traces:
       span:
         - 'attributes["url.path"] == "/health" or attributes["url.path"] == "/ready" or attributes["url.path"] == "/ping"'
+  # os dashboards e os alertas filtram por service_name, como o Prometheus local (promote_resource_attributes).
+  # No Grafana Cloud o service.name do recurso vira o job ("compra-facil/<serviço>"); aqui ele vai também
+  # para cada ponto
+  transform/service_name:
+    error_mode: ignore
+    metric_statements:
+      - set(datapoint.attributes["service_name"], resource.attributes["service.name"])
   resource/ambiente:
     attributes:
       - { key: deployment.environment.name, value: producao, action: upsert }
@@ -52,7 +59,7 @@ service:
       exporters: [otlphttp/grafana-cloud]
     metrics:
       receivers: [otlp, kafka_metrics]
-      processors: [memory_limiter, resource/ambiente, batch]
+      processors: [memory_limiter, transform/service_name, resource/ambiente, batch]
       exporters: [otlphttp/grafana-cloud]
     logs:
       receivers: [otlp]

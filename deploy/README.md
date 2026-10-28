@@ -11,7 +11,7 @@ Este guia é o da API. A loja tem o dela em [`frontend/web`](../frontend/web/REA
 | Imagens | GHCR (`ghcr.io/mateus-vitor-ferreira-dev/compra-facil-*`), geradas pelo CI, públicas. O VPS não compila nada |
 | HTTPS | O proxy do Coolify, no domínio da API (`api.<domínio>`) |
 | Backup | `pg-backup`: um `pg_dump` de cada banco por dia no R2, 14 dias |
-| Observabilidade | Grafana Cloud (plano gratuito), pelo Collector |
+| Observabilidade | Grafana Cloud (plano gratuito), pelo Collector. Dashboards e alertas por e-mail em [`grafana/`](grafana/README.md) |
 
 ## A stack
 
@@ -167,6 +167,7 @@ Os dois casos foram ensaiados com este compose, com um S3 local no lugar do R2.
 
 ## Quando algo dá errado
 
+- **Alertas**: chegam por e-mail ([`grafana/README.md`](grafana/README.md)), com o que olhar em cada um.
 - **Logs**: no Grafana Cloud (Explore → Loki, por `service_name`) ou na aba Logs de cada serviço no Coolify.
 - **Um serviço não sobe**: o healthcheck dele reprova, e o Coolify mostra o contêiner como *unhealthy*.
   Faltar variável aparece no começo do deploy.
