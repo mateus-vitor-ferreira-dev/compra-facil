@@ -11,6 +11,7 @@ Este guia é o da API. A loja tem o dela em [`frontend/web`](../frontend/web/REA
 | Imagens | GHCR (`ghcr.io/mateus-vitor-ferreira-dev/compra-facil-*`), geradas pelo CI, públicas. O VPS não compila nada |
 | HTTPS | O proxy do Coolify, no domínio da API (`api.<domínio>`) |
 | Backup | `pg-backup`: um `pg_dump` de cada banco por dia no R2, 14 dias |
+| Fotos dos produtos | R2, bucket `compra-facil-media` em `media.<domínio>`, com a CDN da Cloudflare ([abaixo](#fotos-dos-produtos)) |
 | Observabilidade | Grafana Cloud (plano gratuito), pelo Collector. Dashboards e alertas por e-mail em [`grafana/`](grafana/README.md) |
 
 ## A stack
@@ -88,6 +89,9 @@ curl -s https://api.<domínio>/catalog/health
 curl -s https://api.<domínio>/identity/.well-known/jwks.json
 ```
 
+Antes do seed, as fotos no R2 ([Fotos dos produtos](#fotos-dos-produtos)): o catálogo guarda a URL de
+cada uma, e uma foto que ainda não está lá aparece quebrada na loja.
+
 Os produtos vêm do seed do catalog, uma vez, pelo SSH do VPS, na rede da stack (`docker network ls`: o
 nome tem o uuid do recurso):
 
@@ -99,6 +103,38 @@ docker run --rm --network <rede da stack> \
 ```
 
 Depois disso, os deploys são do CI.
+
+## Fotos dos produtos
+
+No local, as fotos saem do Caddy do compose (`/media` no gateway). Em produção a rota `/media` do gateway
+fica desligada (`GATEWAY_MEDIA=off`), e elas saem do R2 pela CDN da Cloudflare.
+
+Uma vez, na Cloudflare:
+
+1. **R2 → Create bucket**: `compra-facil-media`.
+2. No bucket, **Settings → Public access → Custom Domains**: `media.<domínio>` (a zona já na
+   Cloudflare). O endereço `r2.dev` fica **desligado**: ele não passa pela CDN e tem limite de uso.
+3. **R2 → Manage API tokens**: um token com *Object Read & Write* só nesse bucket (não o do backup).
+
+Para enviar as fotos (da máquina, depois de cada `product_images.py build` que mudar alguma):
+
+```bash
+MEDIA_S3_ENDPOINT=https://<account id>.r2.cloudflarestorage.com \
+MEDIA_S3_ACCESS_KEY_ID=... MEDIA_S3_SECRET_ACCESS_KEY=... \
+  scripts/media/publicar_r2.sh            # --dry-run lista o que iria, sem enviar
+```
+
+O nome de cada arquivo leva o hash do conteúdo: o script só envia o que ainda não está no bucket, nunca
+apaga (um catálogo já semeado pode usar as antigas) e põe `Cache-Control: public, max-age=31536000,
+immutable` e `Content-Type: image/webp` em cada uma. Conferir:
+
+```bash
+curl -sI https://media.<domínio>/produtos/<arquivo>.webp | grep -iE 'cache-control|content-type|cf-cache-status'
+# na segunda vez, cf-cache-status: HIT
+```
+
+As fotos são CC0 ou domínio público; os créditos ficam em
+[`infra/media/CREDITOS.md`](../infra/media/CREDITOS.md), linkado no README do projeto.
 
 ## Deploy pelo CI
 
