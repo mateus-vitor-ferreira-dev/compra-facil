@@ -117,6 +117,34 @@ func TestProductRepository_BrandFilterAndFacet(t *testing.T) {
 	})
 }
 
+// a contagem por categoria da faceta de tipos (#212): pelos filtros, com a marca escolhida, sem os
+// inativos
+func TestProductRepository_CountByCategory(t *testing.T) {
+	resetDB(t)
+	repo := NewProductRepository(testDB)
+	per := mustCategory(t, "perifericos", nil)
+	mouses := mustCategory(t, "mouses", &per.ID)
+	teclados := mustCategory(t, "teclados", &per.ID)
+	promo := mustProduct(t, "MOU-1", mouses.ID, withBrand("Logitech"))
+	mustProduct(t, "MOU-2", mouses.ID, withBrand("Razer"))
+	mustProduct(t, "TEC-1", teclados.ID, withBrand("Logitech"))
+	mustCampaign(t, "bf", 10, now.Add(-time.Hour), now.Add(time.Hour), promo.ID)
+	active := domain.ProductActive
+	all := []uuid.UUID{per.ID, mouses.ID, teclados.ID}
+
+	got, err := repo.CountByCategory(ctx, domain.ProductFilter{Now: now, Status: &active, CategoryIDs: all})
+	require.NoError(t, err)
+	assert.Equal(t, map[uuid.UUID]int{mouses.ID: 2, teclados.ID: 1}, got)
+
+	got, err = repo.CountByCategory(ctx, domain.ProductFilter{Now: now, Status: &active, CategoryIDs: all, Brands: []string{"logitech"}})
+	require.NoError(t, err)
+	assert.Equal(t, map[uuid.UUID]int{mouses.ID: 1, teclados.ID: 1}, got, "respeita a marca")
+
+	got, err = repo.CountByCategory(ctx, domain.ProductFilter{Now: now, Status: &active, CategoryIDs: all, OnSale: true})
+	require.NoError(t, err)
+	assert.Equal(t, map[uuid.UUID]int{mouses.ID: 1}, got, "e os outros filtros")
+}
+
 func TestProductRepository_NumberedPages_WithTheTotal(t *testing.T) {
 	resetDB(t)
 	repo := NewProductRepository(testDB)

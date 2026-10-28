@@ -43,6 +43,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/category-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Subcategorias de uma categoria, com a contagem
+         * @description As categorias filhas diretas de `category` (os tipos de produto de uma subcategoria, ou as
+         *     subcategorias de um departamento), cada uma com quantos produtos `active` dela e das
+         *     descendentes passam nos mesmos filtros da listagem (sem o próprio `type`). Só as que têm
+         *     produto, em ordem alfabética. O front monta o filtro de tipo com elas.
+         */
+        get: operations["listCategoryCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/products/{product_id}": {
         parameters: {
             query?: never;
@@ -331,6 +354,11 @@ export interface components {
             name: string;
             count: number;
         };
+        CategoryCount: {
+            slug: string;
+            name: string;
+            count: number;
+        };
         ProductPage: {
             data: components["schemas"]["Product"][];
             page: components["schemas"]["PageInfo"];
@@ -550,6 +578,12 @@ export interface components {
     parameters: {
         /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
         Brand: string[];
+        /**
+         * @description Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+         *     a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+         *     de tipos sai de `/v1/category-counts`.
+         */
+        Type: string[];
         ProductId: string;
         CampaignId: string;
         /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
@@ -592,6 +626,12 @@ export interface operations {
                 on_sale?: boolean;
                 /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
                 brand?: components["parameters"]["Brand"];
+                /**
+                 * @description Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+                 *     a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+                 *     de tipos sai de `/v1/category-counts`.
+                 */
+                type?: components["parameters"]["Type"];
                 /**
                  * @description Paginação por número (a partir de 1), com o `total` da listagem na resposta: a vitrine mostra
                  *     os números das páginas. Alternativa ao `cursor` (os dois juntos dão 422). Até a página 200.
@@ -636,6 +676,12 @@ export interface operations {
                 min_price_cents?: number;
                 max_price_cents?: number;
                 on_sale?: boolean;
+                /**
+                 * @description Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+                 *     a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+                 *     de tipos sai de `/v1/category-counts`.
+                 */
+                type?: components["parameters"]["Type"];
             };
             header?: {
                 /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
@@ -654,6 +700,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BrandCount"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listCategoryCounts: {
+        parameters: {
+            query: {
+                category: string;
+                q?: string;
+                min_price_cents?: number;
+                max_price_cents?: number;
+                on_sale?: boolean;
+                /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
+                brand?: components["parameters"]["Brand"];
+            };
+            header?: {
+                /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categorias filhas com a quantidade de produtos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CategoryCount"][];
                     };
                 };
             };

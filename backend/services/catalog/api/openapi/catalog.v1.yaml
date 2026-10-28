@@ -73,6 +73,7 @@ paths:
           schema:
             type: boolean
         - $ref: "#/components/parameters/Brand"
+        - $ref: "#/components/parameters/Type"
         - name: page
           in: query
           description: |
@@ -144,6 +145,7 @@ paths:
           in: query
           schema:
             type: boolean
+        - $ref: "#/components/parameters/Type"
       responses:
         "200":
           description: Marcas com a quantidade de produtos.
@@ -157,6 +159,68 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/BrandCount"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/category-counts:
+    get:
+      tags: [products]
+      operationId: listCategoryCounts
+      summary: Subcategorias de uma categoria, com a contagem
+      description: |
+        As categorias filhas diretas de `category` (os tipos de produto de uma subcategoria, ou as
+        subcategorias de um departamento), cada uma com quantos produtos `active` dela e das
+        descendentes passam nos mesmos filtros da listagem (sem o próprio `type`). Só as que têm
+        produto, em ordem alfabética. O front monta o filtro de tipo com elas.
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: min_price_cents
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: max_price_cents
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: on_sale
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/Brand"
+      responses:
+        "200":
+          description: Categorias filhas com a quantidade de produtos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CategoryCount"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "422":
@@ -680,6 +744,22 @@ components:
           type: string
           minLength: 1
           maxLength: 80
+    Type:
+      name: type
+      in: query
+      description: |
+        Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+        a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+        de tipos sai de `/v1/category-counts`.
+      style: form
+      explode: false
+      schema:
+        type: array
+        maxItems: 20
+        items:
+          type: string
+          minLength: 1
+          maxLength: 80
     ProductId:
       name: product_id
       in: path
@@ -844,6 +924,18 @@ components:
       type: object
       required: [name, count]
       properties:
+        name:
+          type: string
+        count:
+          type: integer
+          minimum: 1
+
+    CategoryCount:
+      type: object
+      required: [slug, name, count]
+      properties:
+        slug:
+          type: string
         name:
           type: string
         count:

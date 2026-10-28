@@ -38,6 +38,7 @@ async function findCategory(slug: string) {
     group,
     subcategories: all.filter((c) => c.parent_id === root.id),
     types: group ? all.filter((c) => c.parent_id === group.id) : [],
+    children: all.filter((c) => c.parent_id === category.id),
   } as const;
 }
 
@@ -72,10 +73,20 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     );
   }
   if (!found.category) notFound();
-  const { category, path: chain, root, group, subcategories, types } = found;
+  const { category, path: chain, root, group, subcategories, types, children } = found;
 
   const filters = readFilters(query);
   const { onSale } = filters;
+  const listing = {
+    category: slug,
+    types: filters.types,
+    onSale,
+    brands: filters.brands,
+    minPriceCents: filters.minPriceCents,
+    maxPriceCents: filters.maxPriceCents,
+    sort: filters.sort.api,
+    page: filters.page,
+  };
   const filtered = activeFilterCount(filters) > 0;
 
   return (
@@ -151,19 +162,25 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
-        <ListingFilters path={path} params={query} filters={filters} keep={{}} category={slug} />
+        <ListingFilters
+          path={path}
+          params={query}
+          filters={filters}
+          keep={{}}
+          query={listing}
+          // as filhas desta categoria como faceta combinável: os tipos numa subcategoria, as
+          // subcategorias num departamento (#212)
+          childrenFacet={children.length > 1 ? (chain.length === 1 ? "Subcategoria" : "Tipo") : undefined}
+        />
         <div className="min-w-0 space-y-4">
-          <ActiveFilters path={path} params={query} filters={filters} />
+          <ActiveFilters
+            path={path}
+            params={query}
+            filters={filters}
+            typeNames={Object.fromEntries(children.map((c) => [c.slug, c.name]))}
+          />
           <ProductListing
-            query={{
-              category: slug,
-              onSale,
-              brands: filters.brands,
-              minPriceCents: filters.minPriceCents,
-              maxPriceCents: filters.maxPriceCents,
-              sort: filters.sort.api,
-              page: filters.page,
-            }}
+            query={listing}
             label={`Produtos em ${category.name}`}
             path={path}
             params={query}
@@ -171,7 +188,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               filtered
                 ? {
                     title: `Nenhum produto em ${category.name} com esses filtros`,
-                    description: "Tire uma marca, amplie a faixa de preço ou limpe os filtros.",
+                    description: "Tire um tipo ou uma marca, amplie a faixa de preço ou limpe os filtros.",
                     action: (
                       <Link
                         href={withoutRefinements(path, query)}

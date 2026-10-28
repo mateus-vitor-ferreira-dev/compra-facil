@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -39,6 +40,8 @@ type ListProductsInput struct {
 	OnSale        bool
 	// Brands: uma ou mais marcas (contrato: brand, separadas por vírgula).
 	Brands []string
+	// Types: um ou mais tipos de produto (slugs de categorias dentro de CategorySlug; contrato: type).
+	Types []string
 	// Sort: vazio é o padrão (relevância com Query, mais novos sem).
 	Sort   domain.ProductSort
 	Cursor string
@@ -51,7 +54,7 @@ type ListProductsInput struct {
 // percorre centenas de páginas de vitrine (a busca e os filtros servem para isso).
 const MaxPage = 200
 
-// maxBrandFilters é o máximo de marcas num filtro (contrato: brand, maxItems).
+// maxBrandFilters é o máximo de marcas num filtro (contrato: brand, maxItems); vale também para type.
 const maxBrandFilters = 20
 
 // ListPublic lista só produtos ativos, como o cliente vê.
@@ -75,6 +78,60 @@ func (s *ProductService) ListBrands(ctx context.Context, in ListProductsInput) (
 		return nil, fmt.Errorf("contando marcas: %w", err)
 	}
 	return brands, nil
+}
+
+// ListCategoryCounts conta, para cada categoria filha direta de in.CategorySlug, os produtos ativos
+// dela e das descendentes que passam nos filtros da listagem (sem o de tipo): a faceta de tipo.
+func (s *ProductService) ListCategoryCounts(ctx context.Context, in ListProductsInput) ([]domain.CategoryCount, error) {
+	if strings.TrimSpace(in.CategorySlug) == "" {
+		return nil, &domain.ValidationError{Fields: []domain.FieldError{{Field: "category", Message: "obrigatório"}}}
+	}
+	in.Types, in.Sort, in.Cursor, in.Limit, in.Page = nil, "", "", 0, 0
+	filter, found, err := s.publicFilter(ctx, in)
+	if err != nil || !found {
+		return []domain.CategoryCount{}, err
+	}
+	counts, err := s.products.CountByCategory(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("contando por categoria: %w", err)
+	}
+	all, err := s.categories.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("categorias: %w", err)
+	}
+	parent := make(map[uuid.UUID]uuid.UUID, len(all))
+	var root uuid.UUID
+	for _, c := range all {
+		if c.ParentID != nil {
+			parent[c.ID] = *c.ParentID
+		}
+		if c.Slug == in.CategorySlug {
+			root = c.ID
+		}
+	}
+	// cada categoria com produto soma na filha direta da raiz que é ancestral dela
+	byChild := map[uuid.UUID]int{}
+	for id, n := range counts {
+		for c, depth := id, 0; depth < 16; depth++ {
+			p, ok := parent[c]
+			if !ok {
+				break
+			}
+			if p == root {
+				byChild[c] += n
+				break
+			}
+			c = p
+		}
+	}
+	out := []domain.CategoryCount{}
+	for _, c := range all {
+		if n := byChild[c.ID]; n > 0 && c.ParentID != nil && *c.ParentID == root {
+			out = append(out, domain.CategoryCount{Slug: c.Slug, Name: c.Name, Count: n})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
 }
 
 // publicFilter valida a entrada e monta o filtro dos produtos ativos. found é false quando a categoria
@@ -110,6 +167,16 @@ func (s *ProductService) publicFilter(ctx context.Context, in ListProductsInput)
 		}
 		filter.CategoryIDs = ids
 	}
+	if len(in.Types) > 0 {
+		ids, err := s.typesSubtree(ctx, in.Types, filter.CategoryIDs)
+		if err != nil {
+			return filter, false, err
+		}
+		if len(ids) == 0 { // nenhum tipo existe dentro da categoria: listagem vazia
+			return filter, false, nil
+		}
+		filter.CategoryIDs = ids
+	}
 	return filter, true, nil
 }
 
@@ -142,6 +209,15 @@ func validateListInput(query string, in ListProductsInput) error {
 	if len(in.Brands) > maxBrandFilters {
 		fields = append(fields, domain.FieldError{Field: "brand", Message: fmt.Sprintf("no máximo %d marcas", maxBrandFilters)})
 	}
+	if len(in.Types) > maxBrandFilters {
+		fields = append(fields, domain.FieldError{Field: "type", Message: fmt.Sprintf("no máximo %d tipos", maxBrandFilters)})
+	}
+	for _, t := range in.Types {
+		if n := utf8.RuneCountInString(strings.TrimSpace(t)); n < 1 || n > 80 {
+			fields = append(fields, domain.FieldError{Field: "type", Message: "cada tipo tem de 1 a 80 caracteres"})
+			break
+		}
+	}
 	for _, b := range in.Brands {
 		if n := utf8.RuneCountInString(strings.TrimSpace(b)); n < 1 || n > domain.MaxBrandLength {
 			fields = append(fields, domain.FieldError{Field: "brand", Message: fmt.Sprintf("cada marca tem de 1 a %d caracteres", domain.MaxBrandLength)})
@@ -152,6 +228,33 @@ func validateListInput(query string, in ListProductsInput) error {
 		return &domain.ValidationError{Fields: fields}
 	}
 	return nil
+}
+
+// typesSubtree junta as subárvores dos tipos, só com o que fica dentro de within (a categoria da
+// listagem), quando há uma. Tipo que não existe é ignorado.
+func (s *ProductService) typesSubtree(ctx context.Context, types []string, within []uuid.UUID) ([]uuid.UUID, error) {
+	allowed := map[uuid.UUID]bool{}
+	for _, id := range within {
+		allowed[id] = true
+	}
+	seen := map[uuid.UUID]bool{}
+	var out []uuid.UUID
+	for _, slug := range types {
+		ids, err := s.categorySubtree(ctx, strings.TrimSpace(slug))
+		if errors.Is(err, domain.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			if !seen[id] && (len(within) == 0 || allowed[id]) {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	return out, nil
 }
 
 func (s *ProductService) categorySubtree(ctx context.Context, slug string) ([]uuid.UUID, error) {

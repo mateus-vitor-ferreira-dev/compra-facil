@@ -50,6 +50,8 @@ type ProductRepository interface {
 	// Brands conta as marcas dos produtos que passam no filtro (sem o filtro de marca), das mais
 	// frequentes para as menos, até limit.
 	Brands(ctx context.Context, f ProductFilter, limit int) ([]BrandCount, error)
+	// CountByCategory conta os produtos que passam no filtro por categoria (a do próprio produto).
+	CountByCategory(ctx context.Context, f ProductFilter) (map[uuid.UUID]int, error)
 }
 
 type CategoryRepository interface {
@@ -101,6 +103,14 @@ func (s ProductSort) Valid() bool {
 
 // BrandCount é uma marca e quantos produtos da listagem a têm (a faceta do filtro de marca).
 type BrandCount struct {
+	Name  string
+	Count int
+}
+
+// CategoryCount é uma categoria filha com quantos produtos dela e das descendentes passam no filtro: a
+// faceta de tipo da listagem (#212).
+type CategoryCount struct {
+	Slug  string
 	Name  string
 	Count int
 }

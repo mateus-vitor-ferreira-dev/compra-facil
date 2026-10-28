@@ -50,6 +50,11 @@ func (m *productRepoMock) Brands(ctx context.Context, f domain.ProductFilter, li
 	return args.Get(0).([]domain.BrandCount), args.Error(1)
 }
 
+func (m *productRepoMock) CountByCategory(ctx context.Context, f domain.ProductFilter) (map[uuid.UUID]int, error) {
+	args := m.Called(ctx, f)
+	return args.Get(0).(map[uuid.UUID]int), args.Error(1)
+}
+
 type categoryRepoMock struct{ mock.Mock }
 
 func (m *categoryRepoMock) Create(ctx context.Context, c *domain.Category) error {

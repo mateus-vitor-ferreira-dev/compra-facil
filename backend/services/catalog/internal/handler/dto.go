@@ -186,3 +186,15 @@ type brandCountDTO struct {
 type brandsDTO struct {
 	Data []brandCountDTO `json:"data"`
 }
+
+// categoryCountDTO é o CategoryCount do contrato: uma categoria filha e quantos produtos da listagem
+// ela tem (com as descendentes).
+type categoryCountDTO struct {
+	Slug  string `json:"slug"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type categoryCountsDTO struct {
+	Data []categoryCountDTO `json:"data"`
+}

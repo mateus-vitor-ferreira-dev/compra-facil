@@ -74,6 +74,74 @@ func TestProductService_ListBrands_SameFiltersWithoutBrandAndPaging(t *testing.T
 	products.AssertExpectations(t)
 }
 
+// a faceta de tipos (#212): cada produto soma na filha direta da categoria que é ancestral dele, sem o
+// filtro de tipo; filha sem produto fica de fora, e a ordem é alfabética
+func TestProductService_ListCategoryCounts(t *testing.T) {
+	svc, products, categories := newProductService()
+	per, mouses, teclados, webcams, gamer := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	categories.On("GetBySlug", anyArg, "perifericos").Return(domain.Category{ID: per, Slug: "perifericos"}, nil)
+	categories.On("SubtreeIDs", anyArg, per).Return([]uuid.UUID{per, mouses, teclados, webcams, gamer}, nil)
+	categories.On("List", anyArg).Return([]domain.Category{
+		{ID: per, Slug: "perifericos", Name: "Periféricos"},
+		{ID: teclados, Slug: "teclados", Name: "Teclados", ParentID: &per},
+		{ID: mouses, Slug: "mouses", Name: "Mouses", ParentID: &per},
+		{ID: webcams, Slug: "webcams", Name: "Webcams", ParentID: &per},
+		{ID: gamer, Slug: "mouses-gamer", Name: "Mouses gamer", ParentID: &mouses}, // neto: soma em Mouses
+	}, nil)
+	products.On("CountByCategory", anyArg, mock.MatchedBy(func(f domain.ProductFilter) bool {
+		return len(f.CategoryIDs) == 5 && assert.ObjectsAreEqual([]string{"Logitech"}, f.Brands)
+	})).Return(map[uuid.UUID]int{mouses: 3, gamer: 2, teclados: 4}, nil)
+
+	got, err := svc.ListCategoryCounts(ctx, ListProductsInput{
+		CategorySlug: "perifericos", Brands: []string{"Logitech"}, Types: []string{"mouses"}, Page: 3,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, []domain.CategoryCount{{Slug: "mouses", Name: "Mouses", Count: 5}, {Slug: "teclados", Name: "Teclados", Count: 4}}, got)
+}
+
+func TestProductService_ListCategoryCounts_NeedsCategory(t *testing.T) {
+	svc, _, _ := newProductService()
+	_, err := svc.ListCategoryCounts(ctx, ListProductsInput{})
+	assert.Equal(t, []string{"category"}, validationFields(t, err))
+}
+
+// os tipos ficam com a união das subárvores deles, só dentro da categoria da listagem
+func TestProductService_ListPublic_Types(t *testing.T) {
+	svc, products, categories := newProductService()
+	per, mouses, teclados, fora := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	categories.On("GetBySlug", anyArg, "perifericos").Return(domain.Category{ID: per}, nil)
+	categories.On("SubtreeIDs", anyArg, per).Return([]uuid.UUID{per, mouses, teclados}, nil)
+	categories.On("GetBySlug", anyArg, "mouses").Return(domain.Category{ID: mouses}, nil)
+	categories.On("SubtreeIDs", anyArg, mouses).Return([]uuid.UUID{mouses}, nil)
+	categories.On("GetBySlug", anyArg, "panelas").Return(domain.Category{ID: fora}, nil) // de outro departamento
+	categories.On("SubtreeIDs", anyArg, fora).Return([]uuid.UUID{fora}, nil)
+	categories.On("GetBySlug", anyArg, "nao-existe").Return(domain.Category{}, domain.ErrNotFound)
+	products.On("List", anyArg, mock.MatchedBy(func(f domain.ProductFilter) bool {
+		return assert.ObjectsAreEqual([]uuid.UUID{mouses}, f.CategoryIDs)
+	})).Return(domain.Page[domain.Product]{}, nil)
+
+	_, err := svc.ListPublic(ctx, ListProductsInput{CategorySlug: "perifericos", Types: []string{"mouses", "panelas", "nao-existe"}})
+
+	require.NoError(t, err)
+	products.AssertExpectations(t)
+}
+
+func TestProductService_ListPublic_TypesOutsideCategoryIsEmpty(t *testing.T) {
+	svc, products, categories := newProductService()
+	per, fora := uuid.New(), uuid.New()
+	categories.On("GetBySlug", anyArg, "perifericos").Return(domain.Category{ID: per}, nil)
+	categories.On("SubtreeIDs", anyArg, per).Return([]uuid.UUID{per}, nil)
+	categories.On("GetBySlug", anyArg, "panelas").Return(domain.Category{ID: fora}, nil)
+	categories.On("SubtreeIDs", anyArg, fora).Return([]uuid.UUID{fora}, nil)
+
+	page, err := svc.ListPublic(ctx, ListProductsInput{CategorySlug: "perifericos", Types: []string{"panelas"}})
+
+	require.NoError(t, err)
+	assert.Empty(t, page.Items)
+	products.AssertNotCalled(t, "List", anyArg, anyArg)
+}
+
 func TestProductService_ListPublic_UnknownCategoryIsEmpty(t *testing.T) {
 	svc, products, categories := newProductService()
 	categories.On("GetBySlug", anyArg, "nao-existe").Return(domain.Category{}, domain.ErrNotFound)
@@ -102,6 +170,8 @@ func TestProductService_ListPublic_Validation(t *testing.T) {
 		{"página e cursor juntos", ListProductsInput{Page: 2, Cursor: "abc"}, []string{"cursor"}},
 		{"marca vazia", ListProductsInput{Brands: []string{"Dell", " "}}, []string{"brand"}},
 		{"marcas demais", ListProductsInput{Brands: slices.Repeat([]string{"Dell"}, 21)}, []string{"brand"}},
+		{"tipos demais", ListProductsInput{Types: slices.Repeat([]string{"mouses"}, 21)}, []string{"type"}},
+		{"tipo vazio", ListProductsInput{Types: []string{"mouses", ""}}, []string{"type"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
