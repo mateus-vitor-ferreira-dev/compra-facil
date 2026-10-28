@@ -9,7 +9,7 @@ test("marca, ordem e preço aplicam na hora e ficam na URL", async ({ page }) =>
   await filters.getByRole("checkbox", { name: /^JBL/ }).check();
   await expect(page).toHaveURL(/marca=JBL/);
   const grid = page.getByRole("list", { name: "Produtos em Fones de ouvido" });
-  await expect(grid.getByRole("listitem")).toHaveCount(10);
+  await expect(grid.getByRole("listitem")).toHaveCount(20);
 
   await filters.getByRole("radio", { name: "Menor preço" }).check();
   await expect(page).toHaveURL(/ordem=menor-preco/);
@@ -39,7 +39,7 @@ test("a marca mostra quantos produtos tem, e filtro sem resultado oferece limpar
   ).toBeVisible();
   await page.getByRole("main").getByRole("link", { name: "Limpar filtros" }).last().click();
   const filters = page.getByRole("complementary", { name: "Filtrar e ordenar" });
-  await expect(filters.getByRole("checkbox", { name: "Edifier 10 produtos" })).toBeVisible();
+  await expect(filters.getByRole("checkbox", { name: "Edifier 20 produtos" })).toBeVisible();
 });
 
 test("sem JavaScript, o formulário aplica pelo botão", async ({ browser }) => {
@@ -54,7 +54,7 @@ test("sem JavaScript, o formulário aplica pelo botão", async ({ browser }) => 
   await expect(page).toHaveURL(/ordem=maior-preco/);
   await expect(
     page.getByRole("list", { name: "Produtos em Fones de ouvido" }).getByRole("heading").first(),
-  ).toHaveText("Fone de ouvido modelo 29");
+  ).toHaveText("Fone de ouvido modelo 59");
   await context.close();
 });
 

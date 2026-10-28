@@ -10,6 +10,7 @@ export function ProductGrid({
   products,
   label,
   priorityCount = 0,
+  batchSize,
   children,
   className,
 }: {
@@ -17,6 +18,8 @@ export function ProductGrid({
   label: string;
   /** quantos cards da primeira dobra carregam a foto com prioridade */
   priorityCount?: number;
+  /** o tamanho de cada lote do "Carregar mais": o primeiro card de cada lote fica marcado (o foco vai nele) */
+  batchSize?: number;
   /** cards a mais no fim da lista (o "ver mais" acrescenta aqui) */
   children?: ReactNode;
   className?: string;
@@ -24,7 +27,7 @@ export function ProductGrid({
   return (
     <ul aria-label={label} className={cn(grid, className)}>
       {products.map((p, i) => (
-        <li key={p.id}>
+        <li key={p.id} data-lote={batchSize && i % batchSize === 0 ? i / batchSize + 1 : undefined}>
           <ProductCard product={p} priority={i < priorityCount} />
         </li>
       ))}
