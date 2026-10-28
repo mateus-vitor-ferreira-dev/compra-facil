@@ -61,7 +61,8 @@ deploy` uma vez da máquina (`npx wrangler login` antes) ou deixe o CI criar e l
    npx wrangler secret put GOOGLE_CLIENT_SECRET   # e GOOGLE_CLIENT_ID em vars, se houver login com o Google
    ```
 
-4. **Workers & Pages → Observability**: um destino OTLP para o Grafana Cloud (traces e logs do Worker).
+4. **Workers & Pages → Observability**: os destinos OTLP para o Grafana Cloud (traces e logs do Worker),
+   como em [`deploy/grafana/README.md`](../../deploy/grafana/README.md#a-loja-cloudflare-workers).
 
 No GitHub (**Settings → Secrets and variables → Actions**):
 

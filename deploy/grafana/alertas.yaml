@@ -1,0 +1,121 @@
+# Os alertas da produção (#162), no Grafana Cloud. Quem publica é o publicar.py (README desta pasta),
+# pela API de provisionamento: no painel eles aparecem travados, e a mudança é por aqui.
+#
+# Cada regra é uma consulta PromQL que só devolve série, e com valor acima de zero, quando há problema:
+# a condição é "A > limiar", e o limiar é 0 se a regra não diz outro. Sem série a regra fica normal
+# (noData: OK), salvo onde o silêncio é o próprio problema.
+# O datasource "prometheus" é trocado pelo do Grafana Cloud na publicação.
+
+pasta: CompraFácil
+grupo: producao
+intervalo: 1m
+contato:
+  nome: compra-facil-email
+  # ALERT_EMAIL, na publicação
+
+regras:
+  - uid: cf-gateway-5xx
+    titulo: Gateway respondendo 5xx
+    severidade: critica
+    para: 2m
+    # a partir de 5 erros e 5% das respostas em 5 minutos, por rota do gateway: um 500 isolado não acorda
+    # ninguém. A métrica é a do router, que conta também o 503 de um serviço sem contêiner de pé
+    expr: |
+      (sum by (router) (increase(traefik_router_requests_total{code=~"5.."}[5m])) >= 5)
+      and
+      (sum by (router) (rate(traefik_router_requests_total{code=~"5.."}[5m]))
+        / sum by (router) (rate(traefik_router_requests_total[5m])) > 0.05)
+    resumo: "{{ $labels.router }}: 5xx em mais de 5% das respostas"
+    descricao: >-
+      O gateway devolveu 5xx em mais de 5% das respostas da rota {{ $labels.router }} nos últimos 5
+      minutos. Ver o dashboard "Serviços (RED)" e os traces com erro no Tempo.
+
+  - uid: cf-catalog-fora
+    titulo: Catálogo fora
+    severidade: critica
+    para: 2m
+    # 502/503/504 do gateway nas rotas do catalog (a da loja e a do BFF), ou o catalog parou de mandar
+    # métricas. O max junta os dois num alerta só
+    expr: |
+      max(
+        (sum(increase(traefik_router_requests_total{router=~"catalog(-bff)?@file", code=~"502|503|504"}[5m])) > 0)
+        or
+        absent(http_server_request_duration_seconds_count{service_name="catalog"})
+      )
+    resumo: O catálogo não responde
+    descricao: >-
+      O gateway não alcança o catalog (502/503/504), ou ele parou de mandar telemetria. Sem o catálogo
+      a loja não lista produtos, e os pedidos usam o último preço conhecido. Ver o contêiner catalog no
+      Coolify.
+
+  - uid: cf-servico-fora
+    titulo: Serviço sem telemetria
+    severidade: critica
+    para: 1m
+    # os contadores HTTP vão ao Collector a cada exportação, com ou sem tráfego: sumir é o serviço fora.
+    # A série some da consulta 5 minutos depois da última exportação, então o aviso leva uns 7 minutos
+    # (o catalog tem a regra dele)
+    expr: |
+      group by (service_name) (max_over_time(http_server_request_duration_seconds_count{service_name=~"orders|inventory|payments|notifications|identity|gateway"}[6h]))
+      unless on (service_name)
+      group by (service_name) (http_server_request_duration_seconds_count)
+    resumo: "{{ $labels.service_name }} parou de mandar telemetria"
+    descricao: >-
+      O {{ $labels.service_name }} mandava métricas até há pouco e parou: o contêiner caiu, reinicia em
+      laço ou perdeu o Collector. Ver o estado dele no Coolify.
+
+  - uid: cf-consumer-lag
+    titulo: Consumer parado
+    severidade: alta
+    para: 0s
+    # com o tráfego de uma loja de demonstração o lag volta a zero em segundos: 15 minutos sem zerar é
+    # consumer travado. Os grupos de reprocessamento da DLT só andam à mão e ficam de fora.
+    expr: |
+      min_over_time((sum by (group) (kafka_consumer_group_lag_sum_ratio{group!~".*\\.dlt-replay"}))[15m:1m]) > 0
+    resumo: "O consumer {{ $labels.group }} não zera o lag há 15 minutos"
+    descricao: >-
+      O grupo {{ $labels.group }} tem mensagens esperando há pelo menos 15 minutos (agora: {{ $values.A }}).
+      Ver o dashboard "SAGA de compra" e os logs do serviço.
+
+  - uid: cf-dlt
+    titulo: Mensagem na DLT
+    severidade: alta
+    para: 0s
+    # o increase não vê o primeiro valor de um contador que acaba de nascer: a série nova também conta
+    expr: |
+      (sum by (service_name, topic) (increase(compra_facil_messaging_consumed_total{result="dead_lettered"}[10m])) > 0)
+      or
+      (count by (service_name, topic) (compra_facil_messaging_consumed_total{result="dead_lettered"})
+        unless count by (service_name, topic) (compra_facil_messaging_consumed_total{result="dead_lettered"} offset 10m))
+    resumo: "{{ $labels.service_name }} mandou mensagem de {{ $labels.topic }} para a DLT"
+    descricao: >-
+      Uma mensagem de {{ $labels.topic }} esgotou as tentativas no {{ $labels.service_name }} ou está fora
+      do contrato. Ver e reprocessar no painel da loja, em /admin/falhas.
+
+  - uid: cf-backup-atrasado
+    titulo: Backup atrasado
+    severidade: alta
+    para: 0s
+    # o pg-backup manda a métrica uma vez por dia: sem o max_over_time ela some da consulta em 5 minutos.
+    # Esta consulta sempre devolve a idade do backup, com limiar próprio, porque o silêncio aqui é
+    # alarme: nada em 3 dias também é atraso (noData: Alerting)
+    expr: |
+      time() - max_over_time(compra_facil_backup_last_success_seconds[3d])
+    limiar: 93600 # 26 horas
+    sem_dados: Alerting
+    resumo: O último backup inteiro tem mais de 26 horas
+    descricao: >-
+      O pg-backup roda às 3h (Brasília). Mais de 26 horas sem um backup inteiro: ver os logs do
+      contêiner pg-backup e o bucket no R2. Um backup na hora: deploy/README.md, "Backup e restauração".
+
+  - uid: cf-backup-falhou
+    titulo: Backup falhou
+    severidade: alta
+    para: 0s
+    # 1 quando a última rodada falhou (o == bool devolve 0 ou 1, e o limiar é o "> 0" de todas)
+    expr: |
+      last_over_time(compra_facil_backup_last_run_ok_ratio[2d]) == bool 0
+    resumo: A última rodada do backup falhou
+    descricao: >-
+      A última rodada do pg-backup terminou com erro (o backup do dia anterior continua no bucket). Ver
+      os logs do contêiner pg-backup.
