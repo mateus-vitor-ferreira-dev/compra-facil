@@ -152,6 +152,10 @@ jobs:
     permissions:
       contents: read
       packages: read
+    # sem checkout: o working-directory do workflow (backend/services/catalog) não existe neste runner
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: docker/login-action@v4.6.0
         with:
