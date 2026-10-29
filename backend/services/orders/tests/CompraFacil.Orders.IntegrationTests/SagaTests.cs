@@ -233,8 +233,8 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         var e = EventEnvelope.TryParse((await OutcomeEventsAsync(order)).Single(m => m.EventType == OrderEvents.OrderCancelled).Payload)!;
         Assert.Equal("supplier_failed", e.Data.GetProperty("reason").GetString());
 
-        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid()));
-        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid())); // repetido
+        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), true));
+        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), true)); // repetido
 
         var refunded = await GetOrderAsync(order);
         Assert.Equal(JsonValueKind.String, refunded.GetProperty("refunded_at").ValueKind);
@@ -258,5 +258,37 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
 
         Assert.Equal("delivered", (await GetOrderAsync(order)).GetProperty("status").GetString());
         Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderShipped, OrderEvents.OrderDelivered], await EventTypesAsync(order));
+    }
+
+    [Fact]
+    public async Task PaymentPending_ShowsThePix_OnTheOrder()
+    {
+        var order = await PlaceOrderAsync();
+        var expires = DateTimeOffset.UtcNow.AddMinutes(30);
+
+        await HandleAsync<PaymentPendingData, OnPaymentPending>(
+            new PaymentPendingData(order, Guid.NewGuid(), new PixData("00020126SIM", "iVBORw0KGgo=", "http://sim/pix/1", expires)));
+        await HandleAsync<PaymentPendingData, OnPaymentPending>( // repetido
+            new PaymentPendingData(order, Guid.NewGuid(), new PixData("OUTRO", "x", null, expires)));
+
+        var json = await GetOrderAsync(order);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json.GetRawText());
+        Assert.Equal("pending", json.GetProperty("status").GetString());
+        var pix = json.GetProperty("payment").GetProperty("pix");
+        Assert.Equal(("00020126SIM", "http://sim/pix/1"), (pix.GetProperty("qr_code").GetString(), pix.GetProperty("ticket_url").GetString()));
+        Assert.Empty(await OutcomeEventsAsync(order)); // não publica
+    }
+
+    [Fact]
+    public async Task PartialRefund_DoesNotMarkTheOrderAsRefunded()
+    {
+        var order = await PaidOrderAsync();
+        await HandleAsync<SupplierOrderFailedData, OnSupplierOrderFailed>(new SupplierOrderFailedData(order, "out_of_stock"));
+
+        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), false));
+        Assert.Equal(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("refunded_at").ValueKind);
+
+        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), true));
+        Assert.Equal(JsonValueKind.String, (await GetOrderAsync(order)).GetProperty("refunded_at").ValueKind);
     }
 }

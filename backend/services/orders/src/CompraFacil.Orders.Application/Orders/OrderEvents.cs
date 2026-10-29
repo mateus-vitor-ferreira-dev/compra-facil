@@ -14,6 +14,7 @@ public static class OrderEvents
 
     public const string ReservationsTopic = "inventory.reservation.v1";
     public const string PaymentsTopic = "payments.payment.v1";
+    public const string PaymentPending = nameof(PaymentPending);
     public const string FulfillmentTopic = "fulfillment.supplier-order.v1";
 }
 
@@ -24,13 +25,18 @@ public sealed record OrderItemData(
     public static OrderItemData From(OrderItem i) => new(i.ProductId, i.Sku, i.Name, i.Quantity, i.UnitPrice, i.LineTotal, i.CampaignId);
 }
 
-/// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor).</summary>
-public sealed record OrderPlacedData(Guid OrderId, Guid CustomerId, IReadOnlyList<OrderItemData> Items, Money Total)
+/// <summary>Como pagar, para o payments: o token do cartão (de uso único) só passa por aqui, não fica no pedido.</summary>
+public sealed record OrderPaymentData(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
+
+/// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor e como cobrar).</summary>
+public sealed record OrderPlacedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, OrderPaymentData Payment)
 {
-    public static OrderPlacedData From(Order order)
+    public static OrderPlacedData From(Order order, string? cardToken = null, string? cardBrand = null)
     {
         ArgumentNullException.ThrowIfNull(order);
-        return new(order.Id, order.CustomerId, [.. order.Items.Select(OrderItemData.From)], order.Total);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, [.. order.Items.Select(OrderItemData.From)], order.Total,
+            new OrderPaymentData(order.PaymentMethod, order.Installments, cardToken, cardBrand));
     }
 }
 
@@ -87,7 +93,11 @@ public sealed record PaymentApprovedData(Guid OrderId, Guid PaymentId);
 
 public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, string FailureReason);
 
-public sealed record PaymentRefundedData(Guid OrderId, Guid PaymentId);
+public sealed record PaymentRefundedData(Guid OrderId, Guid PaymentId, bool? Full);
+
+public sealed record PixData(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
+
+public sealed record PaymentPendingData(Guid OrderId, Guid PaymentId, PixData Pix);
 
 public sealed record SupplierOrderPlacedData(Guid OrderId);
 

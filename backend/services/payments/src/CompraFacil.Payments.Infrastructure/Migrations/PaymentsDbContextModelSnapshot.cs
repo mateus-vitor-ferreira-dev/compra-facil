@@ -120,6 +120,16 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("cancelled");
 
+                    b.Property<string>("CardBrand")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("card_brand");
+
+                    b.Property<string>("CardToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("card_token");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -129,9 +139,24 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasColumnType("character varying(3)")
                         .HasColumnName("currency");
 
+                    b.Property<string>("CustomerEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("customer_email");
+
                     b.Property<Guid?>("CustomerId")
                         .HasColumnType("uuid")
                         .HasColumnName("customer_id");
+
+                    b.Property<int>("Installments")
+                        .HasColumnType("integer")
+                        .HasColumnName("installments");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("method");
 
                     b.Property<Guid?>("PaymentId")
                         .HasColumnType("uuid")
@@ -163,6 +188,15 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<DateTimeOffset?>("CapturedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("captured_at");
+
+                    b.Property<string>("CardLastFour")
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)")
+                        .HasColumnName("card_last_four");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -171,6 +205,20 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("failure_reason");
+
+                    b.Property<long>("FeeCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fee_cents");
+
+                    b.Property<int>("Installments")
+                        .HasColumnType("integer")
+                        .HasColumnName("installments");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("method");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid")
@@ -196,6 +244,10 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("refunded_at");
 
+                    b.Property<long>("RefundedCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("refunded_cents");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -205,6 +257,12 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Amount", "CompraFacil.Payments.Domain.Payment.Amount#Money", b1 =>
                         {
@@ -221,13 +279,77 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                                 .HasColumnName("currency");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Pix", "CompraFacil.Payments.Domain.Payment.Pix#PixCharge", b1 =>
+                        {
+                            b1.Property<DateTimeOffset>("ExpiresAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("pix_expires_at");
+
+                            b1.Property<string>("QrCode")
+                                .IsRequired()
+                                .HasMaxLength(512)
+                                .HasColumnType("character varying(512)")
+                                .HasColumnName("pix_qr_code");
+
+                            b1.Property<string>("QrCodeBase64")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("pix_qr_code_base64");
+
+                            b1.Property<string>("TicketUrl")
+                                .HasMaxLength(512)
+                                .HasColumnType("character varying(512)")
+                                .HasColumnName("pix_ticket_url");
+                        });
+
                     b.HasKey("Id")
                         .HasName("pk_payments");
 
                     b.HasIndex("OrderId")
                         .HasDatabaseName("ix_payments_order_id");
 
+                    b.HasIndex("Provider", "ProviderReference")
+                        .IsUnique()
+                        .HasDatabaseName("ix_payments_provider_provider_reference")
+                        .HasFilter("provider_reference IS NOT NULL");
+
                     b.ToTable("payments", (string)null);
+                });
+
+            modelBuilder.Entity("CompraFacil.Payments.Domain.Payment", b =>
+                {
+                    b.OwnsMany("CompraFacil.Payments.Domain.RefundEntry", "Refunds", b1 =>
+                        {
+                            b1.Property<Guid>("PaymentId");
+
+                            b1.Property<int>("__synthesizedOrdinal")
+                                .ValueGeneratedOnAdd();
+
+                            b1.Property<long>("AmountCents");
+
+                            b1.Property<DateTimeOffset>("At");
+
+                            b1.Property<string>("Key")
+                                .IsRequired();
+
+                            b1.Property<string>("Reference")
+                                .IsRequired();
+
+                            b1.HasKey("PaymentId", "__synthesizedOrdinal")
+                                .HasName("pk_payments");
+
+                            b1.ToTable("payments");
+
+                            b1
+                                .ToJson("refunds")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("PaymentId")
+                                .HasConstraintName("fk_payments_payments_payment_id");
+                        });
+
+                    b.Navigation("Refunds");
                 });
 #pragma warning restore 612, 618
         }

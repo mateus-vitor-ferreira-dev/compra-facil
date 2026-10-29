@@ -135,6 +135,7 @@ function uuid() {
 export function buy(data) {
   const res = http.post(`${ORDERS_URL}/v1/orders`, JSON.stringify({
     items: [{ product_id: pick(data.hot), quantity: 1 }],
+    payment: { method: 'pix' }, // a carga mede o aceite; o PIX fica pendente até expirar
   }), {
     headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid(), Authorization: `Bearer ${pick(data.customers)}` },
     tags: { name: 'order' },

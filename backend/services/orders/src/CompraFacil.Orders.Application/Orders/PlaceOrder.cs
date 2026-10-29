@@ -12,7 +12,12 @@ namespace CompraFacil.Orders.Application.Orders;
 
 public sealed record PlaceOrderItem(Guid ProductId, int Quantity, long? ExpectedUnitPriceCents);
 
-public sealed record PlaceOrderCommand(Guid CustomerId, string CustomerEmail, IReadOnlyList<PlaceOrderItem> Items, string IdempotencyKey);
+/// <summary>Como pagar (#220): PIX, ou cartão com o token do provedor, a bandeira e as parcelas.</summary>
+public sealed record PlaceOrderPayment(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
+
+/// <summary>O pedido a criar; Payment nulo é PIX.</summary>
+public sealed record PlaceOrderCommand(
+    Guid CustomerId, string CustomerEmail, IReadOnlyList<PlaceOrderItem> Items, string IdempotencyKey, PlaceOrderPayment? Payment = null);
 
 /// <param name="Order">O pedido (novo ou o já criado com a mesma Idempotency-Key).</param>
 /// <param name="Created">false quando a chave já tinha sido usada com o mesmo corpo.</param>
@@ -36,6 +41,16 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
             item.RuleFor(i => i.Quantity).InclusiveBetween(OrderItem.MinQuantity, OrderItem.MaxQuantity);
             item.RuleFor(i => i.ExpectedUnitPriceCents).GreaterThanOrEqualTo(1).When(i => i.ExpectedUnitPriceCents.HasValue);
         });
+        RuleFor(c => c.Payment!).ChildRules(p =>
+        {
+            p.RuleFor(x => x.Method).IsInEnum();
+            p.RuleFor(x => x.CardToken).NotEmpty().MaximumLength(128).When(x => x.Method == PaymentMethod.Card)
+                .WithMessage("o cartão precisa do card_token do provedor");
+            p.RuleFor(x => x.CardBrand).NotEmpty().MaximumLength(16).When(x => x.Method == PaymentMethod.Card);
+            p.RuleFor(x => x.CardToken).Null().When(x => x.Method == PaymentMethod.Pix).WithMessage("PIX não leva card_token");
+            p.RuleFor(x => x.Installments).InclusiveBetween(1, 12).When(x => x.Method == PaymentMethod.Card);
+            p.RuleFor(x => x.Installments).Equal(1).When(x => x.Method == PaymentMethod.Pix).WithMessage("PIX é à vista");
+        }).When(c => c.Payment is not null).OverridePropertyName("payment");
     }
 }
 
@@ -67,12 +82,14 @@ public sealed class PlaceOrder(
             [.. command.Items.Select(i => new ItemToPrice(i.ProductId, i.Quantity, i.ExpectedUnitPriceCents))], ct);
         EnsureAllSellable(priced);
 
+        var payment = command.Payment ?? new PlaceOrderPayment(PaymentMethod.Pix, 1, null, null);
         var order = Order.Place(
             Guid.CreateVersion7(), command.CustomerId, command.CustomerEmail.Trim(),
             [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId))],
-            command.IdempotencyKey, requestHash, clock.GetUtcNow());
+            command.IdempotencyKey, requestHash, clock.GetUtcNow(), payment.Method, payment.Installments);
         orders.Add(order);
-        outbox.Add(OrderEvents.Topic, order.Id.ToString(), OrderEvents.OrderPlaced, OrderPlacedData.From(order));
+        outbox.Add(OrderEvents.Topic, order.Id.ToString(), OrderEvents.OrderPlaced,
+            OrderPlacedData.From(order, payment.CardToken, payment.CardBrand));
 
         try
         {
@@ -125,6 +142,8 @@ public sealed class PlaceOrder(
             c.CustomerId,
             Email = c.CustomerEmail.Trim().ToUpperInvariant(),
             Items = c.Items.OrderBy(i => i.ProductId).Select(i => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents }),
+            // o meio, não o token: o token é de uso único, e o retry do cliente pode trazer outro
+            Payment = c.Payment is { } p ? new { p.Method, p.Installments } : null,
         });
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }

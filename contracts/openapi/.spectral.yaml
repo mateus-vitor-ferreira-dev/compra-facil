@@ -73,3 +73,8 @@ overrides:
   - files: ["fulfillment.v1.yaml#/components/schemas/SupplierWebhook"]
     rules:
       compra-facil-properties-snake-case: off
+
+  # a notificação é o formato do provedor de pagamento (Mercado Pago: ?data.id=): a loja só recebe
+  - files: ["payments.v1.yaml#/paths/~1v1~1webhooks~1payments"]
+    rules:
+      compra-facil-query-params-snake-case: off

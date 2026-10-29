@@ -84,12 +84,14 @@ public static partial class EmailComposer
             "Tente outro cartão ou um valor menor."),
         ("payment_failed", "card_declined") => ("o cartão foi recusado pelo emissor.",
             "Confira os dados do cartão ou tente outro."),
+        ("payment_failed", "pix_expired") => ("o PIX não foi pago até a validade.",
+            "Nada foi cobrado. Se ainda quiser os produtos, faça o pedido de novo e pague o PIX dentro do prazo."),
         ("payment_failed", "gateway_error") => ("houve uma falha ao processar o pagamento.",
             "Nada foi cobrado. Tente de novo em alguns minutos."),
         ("payment_failed", _) => ("o pagamento não foi aprovado.",
             "Entre em contato com o seu banco ou tente outra forma de pagamento."),
         ("supplier_failed", _) => ("o fornecedor não conseguiu atender o pedido.",
-            "O valor pago foi estornado por inteiro, pelo mesmo meio de pagamento."),
+            "Nada fica cobrado: o pagamento foi cancelado ou estornado por inteiro, pelo mesmo meio."),
         _ => ("o pedido não pôde ser concluído.", "Nada foi cobrado."),
     };
 

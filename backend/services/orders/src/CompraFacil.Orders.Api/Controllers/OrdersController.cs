@@ -38,7 +38,10 @@ public sealed class OrdersController(PlaceOrder placeOrder, OrderQueries queries
             customerId,
             User.FindFirstValue("email") ?? "",
             [.. (body.Items ?? []).Select(i => new PlaceOrderItem(i.ProductId ?? Guid.Empty, i.Quantity ?? 0, i.ExpectedUnitPriceCents))],
-            idempotencyKey), ct);
+            idempotencyKey,
+            body.Payment is { } p
+                ? new PlaceOrderPayment(p.Method ?? (PaymentMethod)(-1), p.Installments ?? 1, p.CardToken, p.CardBrand)
+                : null), ct);
 
         var order = result.Order;
         return Accepted($"/v1/orders/{order.Id}", OrderResponse.From(order));

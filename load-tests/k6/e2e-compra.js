@@ -2,15 +2,18 @@
 //
 // Quatro cenários, cada um com o próprio produto criado pelo admin do catálogo (o teste não depende
 // do seed nem do estoque que outros testes consumiram):
-//   1. compra confirmada: reserva → cobrança aprovada → pedido confirmed, reserva committed, e-mail; e
-//      segue o fornecedor simulado até delivered, com o rastreio;
+//   1. compra confirmada no cartão (titular APRO no payment-sim): reserva → cartão autorizado → pedido
+//      confirmed, reserva committed, e-mail; segue o fornecedor simulado até delivered, com o rastreio, e o
+//      cartão é capturado quando o fornecedor aceita;
 //   2. estoque insuficiente: estoque zerado pelo admin do inventory → cancelled (out_of_stock);
-//   3. pagamento recusado: produto acima do limite do gateway fake (Payments:Fake:MaxApprovedAmountCents)
-//      → cancelled (payment_failed), cobrança failed (insufficient_funds) e a reserva devolvida ao estoque;
-//   4. fornecedor recusa: cliente "+recusar" (o fulfillment repassa o cenário ao simulado) → pago,
-//      cancelled (supplier_failed), cobrança refunded, refunded_at no pedido e o e-mail do cancelamento;
+//   3. pagamento recusado: cartão do titular FUND → cancelled (payment_failed), cobrança failed
+//      (insufficient_funds) e a reserva devolvida ao estoque;
+//   4. fornecedor recusa: cliente "+recusar" (o fulfillment repassa o cenário ao simulado) → autorizado,
+//      cancelled (supplier_failed), a autorização cancelada (voided: nada cobrado), refunded_at no pedido e o
+//      e-mail do cancelamento;
 //   5. acabou no fornecedor: um produto do feed do simulado esgota lá → o webhook de estoque zera o
-//      espelho do inventory em segundos, e o pedido é recusado (out_of_stock) antes de qualquer cobrança.
+//      espelho do inventory em segundos, e o pedido é recusado (out_of_stock) antes de qualquer cobrança;
+//   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
 //
@@ -31,8 +34,9 @@ const IDENTITY = `${GATEWAY}/identity`;
 const SUPPLIER_SIM = __ENV.SUPPLIER_SIM_URL || 'http://supplier-sim:8090';
 // uma variante do feed do simulado (Wireless Optical Mouse), importada pelo catalog
 const SUPPLIER_VID = 'SIM-V-007';
-// acima do limite aprovado pelo gateway fake (R$ 50.000,00 por padrão): cobrança recusada
-const ABOVE_FAKE_LIMIT_CENTS = 6000000;
+// o provedor de pagamento simulado (Mercado Pago), pela rede do compose
+const PAYMENT_SIM = __ENV.PAYMENT_SIM_URL || 'http://payment-sim:8090';
+const PAYMENT_SIM_PUBLIC_KEY = __ENV.PAYMENT_SIM_PUBLIC_KEY || 'TEST-sim-public-key';
 const SAGA_TIMEOUT_S = 60;
 
 export const options = {
@@ -93,7 +97,8 @@ export function setup() {
   const products = {
     happy: createProduct(token, categoryId, 'ok'),
     noStock: createProduct(token, categoryId, 'sem-estoque'),
-    declined: createProduct(token, categoryId, 'recusado', ABOVE_FAKE_LIMIT_CENTS),
+    declined: createProduct(token, categoryId, 'recusado'),
+    pix: createProduct(token, categoryId, 'pix'),
     supplierRejected: createProduct(token, categoryId, 'fornecedor-recusa'),
     // o produto que o catalog importou do feed do fornecedor (o fulfillment lê o feed ao subir)
     fromSupplier: eventually(`produto ${SUPPLIER_VID} importado do fornecedor`, () => {
@@ -114,8 +119,18 @@ export function setup() {
   return products;
 }
 
-function placeOrder(productId, customer) {
-  const res = http.post(`${GATEWAY}/orders/v1/orders`, json({ items: [{ product_id: productId, quantity: 1 }] }), {
+// o cartão tokenizado no provedor (como o checkout faz); o titular decide o resultado no payment-sim
+function card(holder) {
+  const res = http.post(`${PAYMENT_SIM}/v1/card_tokens?public_key=${PAYMENT_SIM_PUBLIC_KEY}`, json({
+    card_number: '4235647728025682', security_code: '123', expiration_month: 12, expiration_year: 2030,
+    cardholder: { name: holder },
+  }), { headers: { 'Content-Type': 'application/json' }, tags: { name: 'card-token' } });
+  if (res.status !== 201) fail(`token do cartão: ${res.status} ${res.body}`);
+  return { method: 'card', card_token: res.json('id'), card_brand: res.json('payment_method_id'), installments: 1 };
+}
+
+function placeOrder(productId, customer, payment = card('APRO')) {
+  const res = http.post(`${GATEWAY}/orders/v1/orders`, json({ items: [{ product_id: productId, quantity: 1 }], payment }), {
     headers: { ...auth(customer.token), 'Idempotency-Key': uuid() }, tags: { name: 'order' },
   });
   check(res, { 'pedido aceito (202 pending)': (r) => r.status === 202 && r.json('status') === 'pending' });
@@ -138,11 +153,14 @@ function orderReaching(orderId, customer, status) {
   });
 }
 
-function paymentOf(orderId) {
-  return eventually(`pagamento do pedido ${orderId}`, () => {
+// o pagamento do pedido, esperando chegar a um dos status (sem status: qualquer desfecho)
+function paymentOf(orderId, ...statuses) {
+  return eventually(`pagamento do pedido ${orderId} ${statuses.join('/')}`, () => {
     const res = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { tags: { name: 'payments' } });
     const data = res.status === 200 ? res.json('data') : [];
-    return data.length > 0 && data[0].status !== 'processing' ? data[0] : null;
+    const p = data.length > 0 ? data[0] : null;
+    if (!p || p.status === 'processing') return null;
+    return statuses.length === 0 || statuses.includes(p.status) ? p : null;
   });
 }
 
@@ -164,7 +182,7 @@ export default function (products) {
     const orderId = placeOrder(products.happy, customer);
     const order = finalOrder(orderId, customer);
     check(order, { 'pedido confirmed': (o) => o.status === 'confirmed' });
-    check(paymentOf(orderId), { 'cobrança approved': (p) => p.status === 'approved' });
+    check(paymentOf(orderId, 'authorized', 'approved'), { 'cartão autorizado': (p) => p.method === 'card' });
     check(eventually('reserva committed', () => {
       const r = reservationOf(orderId);
       return r && r.status === 'committed' ? r : null;
@@ -181,6 +199,8 @@ export default function (products) {
       'com o rastreio': (o) => !!(o.tracking && o.tracking.number),
       'aceito pelo fornecedor antes do envio': (o) => !!o.sent_to_supplier_at && o.sent_to_supplier_at <= o.shipped_at,
     });
+    // o fornecedor aceitou: a autorização foi capturada
+    check(paymentOf(orderId, 'approved'), { 'cartão capturado': (p) => !!p.captured_at });
 
     const mine = http.get(`${GATEWAY}/orders/v1/me/orders`, { headers: auth(customer.token), tags: { name: 'my-orders' } });
     check(mine, { 'pedido em Meus pedidos': (r) => r.status === 200 && r.json('data').some((o) => o.id === orderId) });
@@ -204,7 +224,7 @@ export default function (products) {
   group('3. pagamento recusado', () => {
     const before = stockOf(products.declined).available;
     const customer = newCustomer(IDENTITY, 'e2e-recusado');
-    const orderId = placeOrder(products.declined, customer);
+    const orderId = placeOrder(products.declined, customer, card('FUND'));
     const order = finalOrder(orderId, customer);
     check(order, {
       'pedido cancelled': (o) => o.status === 'cancelled',
@@ -238,7 +258,8 @@ export default function (products) {
       'pedido cancelled': (o) => o.status === 'cancelled',
       'motivo supplier_failed': (o) => o.cancellation_reason === 'supplier_failed',
     });
-    check(paymentOf(orderId), { 'cobrança refunded': (p) => p.status === 'refunded' && !!p.refund_reference });
+    // o cartão só estava autorizado: a autorização é cancelada, nada chega a ser cobrado
+    check(paymentOf(orderId, 'voided'), { 'autorização cancelada': (p) => p.status === 'voided' });
     check(eventually('e-mail do cancelamento', () => emailsTo(customer.email, 'cancelado')), { 'e-mail do cancelamento': (n) => n >= 1 });
   });
 
@@ -268,5 +289,24 @@ export default function (products) {
     const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`).json('data');
     check(charges, { 'recusado antes de cobrar': (d) => d.length === 0 });
     set(50); // devolve o estoque para a próxima rodada
+  });
+
+  group('6. PIX', () => {
+    const customer = newCustomer(IDENTITY, 'e2e-pix');
+    const orderId = placeOrder(products.pix, customer, { method: 'pix' });
+    const pending = eventually('o QR do PIX no pedido', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('payment.pix') ? res.json() : null;
+    });
+    check(pending, {
+      'pedido pending com o QR': (o) => o.status === 'pending' && o.payment.pix.qr_code.startsWith('000201'),
+      'PIX com validade': (o) => Date.parse(o.payment.pix.expires_at) > Date.now(),
+    });
+    const payment = paymentOf(orderId, 'pending');
+    // o "banco" do cliente paga o QR (a página do ticket_url faz o mesmo)
+    const paid = http.post(`${PAYMENT_SIM}/sim/payments/${payment.provider_reference}/pay`, null, { tags: { name: 'sim-pay' } });
+    check(paid, { 'PIX pago no banco': (r) => r.status === 200 });
+    check(finalOrder(orderId, customer), { 'pedido confirmed': (o) => o.status === 'confirmed' });
+    check(paymentOf(orderId, 'approved'), { 'cobrança approved': (p) => p.method === 'pix' && p.fee_cents > 0 });
   });
 }

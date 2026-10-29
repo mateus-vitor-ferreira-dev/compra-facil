@@ -37,6 +37,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhooks/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Notificação do provedor (uma cobrança mudou)
+         * @description No formato do Mercado Pago: `?data.id=<id>&type=payment` e os headers `x-request-id` e
+         *     `x-signature: ts=<ts>,v1=<hex>`, com `v1 = HMAC-SHA256(segredo, "id:<data.id>;request-id:<x-request-id>;ts:<ts>;")`.
+         *     O corpo não é usado: a cobrança é consultada no provedor. Cobrança desconhecida também responde
+         *     200, para o provedor não insistir.
+         */
+        post: operations["receivePaymentNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/payments/{payment_id}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Estorna parte ou o resto de um pagamento aprovado
+         * @description Devolução parcial (um item devolvido, #223) ou do que falta. Idempotente pelo `Idempotency-Key`:
+         *     a mesma chave não estorna duas vezes. Publica `PaymentRefunded`.
+         */
+        post: operations["refundPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/dead-letters": {
         parameters: {
             query?: never;
@@ -86,12 +130,33 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description `processing`: enviado ao gateway · `approved` · `failed` · `refunded`: aprovado e devolvido ao cliente.
+         * @description `processing`: enviado ao provedor (ou o cartão em análise) · `pending`: PIX esperando o pagamento ·
+         *     `authorized`: cartão com o valor garantido, a captura vem quando o fornecedor aceita · `approved`:
+         *     pago ou capturado (pode ter estorno parcial, `refunded_cents`) · `failed` · `voided`: autorização
+         *     cancelada, nada cobrado · `refunded`: tudo devolvido.
          * @enum {string}
          */
-        PaymentStatus: "processing" | "approved" | "failed" | "refunded";
+        PaymentStatus: "processing" | "pending" | "authorized" | "approved" | "failed" | "voided" | "refunded";
         /** @enum {string} */
-        FailureReason: "card_declined" | "insufficient_funds" | "fraud_suspected" | "gateway_error";
+        PaymentMethod: "pix" | "card";
+        /**
+         * @description `pix_expired`: o PIX não foi pago até a validade.
+         * @enum {string}
+         */
+        FailureReason: "card_declined" | "insufficient_funds" | "fraud_suspected" | "gateway_error" | "pix_expired";
+        Pix: {
+            /** @description O "copia e cola" (BR Code). */
+            qr_code: string;
+            /** @description O QR em PNG, em base64. */
+            qr_code_base64: string;
+            /**
+             * Format: uri
+             * @description A página de pagamento do provedor.
+             */
+            ticket_url?: string | null;
+            /** Format: date-time */
+            expires_at: string;
+        };
         Payment: {
             /** Format: uuid */
             id: string;
@@ -100,12 +165,23 @@ export interface components {
             amount: components["schemas"]["Money"];
             status: components["schemas"]["PaymentStatus"];
             failure_reason?: components["schemas"]["FailureReason"] | null;
+            method: components["schemas"]["PaymentMethod"];
+            installments: number;
             /** @enum {string} */
-            provider: "fake" | "stripe";
-            /** @description ID da cobrança no gateway (ex.: `pi_...` no Stripe). */
+            provider: "mercadopago";
+            /** @description ID da cobrança no provedor. */
             provider_reference?: string | null;
-            /** @description ID do estorno no gateway, no `refunded`. */
-            refund_reference?: string | null;
+            card_last_four?: string | null;
+            pix?: components["schemas"]["Pix"] | null;
+            /**
+             * Format: int64
+             * @description A taxa do provedor (Payments:Fees), para a margem real do pedido.
+             */
+            fee_cents: number;
+            /** Format: int64 */
+            refunded_cents: number;
+            /** Format: date-time */
+            captured_at?: string | null;
             /** Format: date-time */
             refunded_at?: string | null;
             /** Format: date-time */
@@ -252,6 +328,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Conflito com o estado atual (duplicidade ou versão desatualizada). */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Kafka fora do ar; tente de novo. */
         KafkaUnavailable: {
             headers: {
@@ -263,6 +348,11 @@ export interface components {
         };
     };
     parameters: {
+        /**
+         * @description Chave única por operação (UUID recomendado). Repetir a mesma chave com o mesmo corpo devolve
+         *     a resposta original; com corpo diferente, responde 422.
+         */
+        IdempotencyKey: string;
         /** @description Máximo de mensagens devolvidas. */
         DeadLetterLimit: number;
     };
@@ -321,6 +411,94 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    receivePaymentNotification: {
+        parameters: {
+            query: {
+                "data.id": string;
+                type?: string;
+            };
+            header: {
+                "x-signature": string;
+                "x-request-id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Recebida. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        result: "applied" | "ignored" | "unknown_payment";
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    refundPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Chave única por operação (UUID recomendado). Repetir a mesma chave com o mesmo corpo devolve
+                 *     a resposta original; com corpo diferente, responde 422.
+                 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: int64
+                     * @description Nulo estorna o que falta.
+                     */
+                    amount_cents?: number | null;
+                };
+            };
+        };
+        responses: {
+            /** @description O pagamento depois do estorno. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+            /** @description O provedor não respondeu; nada foi estornado, tente de novo com a mesma chave. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listDeadLetters: {

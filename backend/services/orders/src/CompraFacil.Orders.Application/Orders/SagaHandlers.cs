@@ -204,12 +204,26 @@ public sealed class OnSupplierOrderFailed(OrderProgress progress) : IHandleEvent
     }
 }
 
+/// <summary>PaymentPending → o PIX foi gerado: o pedido mostra o QR ao cliente (ao vivo). Não publica.</summary>
+public sealed class OnPaymentPending(OrderProgress progress) : IHandleEvent<PaymentPendingData>
+{
+    public Task HandleAsync(PaymentPendingData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var pix = new OrderPix(data.Pix.QrCode, data.Pix.QrCodeBase64, data.Pix.TicketUrl, data.Pix.ExpiresAt);
+        return progress.ApplyAsync(data.OrderId, "PaymentPending", (order, now) => order.AwaitPix(pix, now), _ => null, ct);
+    }
+}
+
 /// <summary>PaymentRefunded → o estorno do pedido cancelado depois de pago voltou ao cliente.</summary>
 public sealed class OnPaymentRefunded(OrderProgress progress) : IHandleEvent<PaymentRefundedData>
 {
     public Task HandleAsync(PaymentRefundedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return progress.ApplyAsync(data.OrderId, "PaymentRefunded", (order, now) => order.MarkRefunded(now), _ => null, ct);
+        // estorno parcial (devolução de um item, pelo painel) não é o estorno do pedido cancelado
+        return data.Full == false
+            ? Task.CompletedTask
+            : progress.ApplyAsync(data.OrderId, "PaymentRefunded", (order, now) => order.MarkRefunded(now), _ => null, ct);
     }
 }

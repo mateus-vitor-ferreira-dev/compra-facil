@@ -38,6 +38,7 @@ public static class DependencyInjection
             .Handle<PaymentApprovedData, OnPaymentApproved>(OrderEvents.PaymentsTopic, "PaymentApproved")
             .Handle<PaymentFailedData, OnPaymentFailed>(OrderEvents.PaymentsTopic, "PaymentFailed")
             .Handle<PaymentRefundedData, OnPaymentRefunded>(OrderEvents.PaymentsTopic, "PaymentRefunded")
+            .Handle<PaymentPendingData, OnPaymentPending>(OrderEvents.PaymentsTopic, OrderEvents.PaymentPending)
             .Handle<SupplierOrderPlacedData, OnSupplierOrderPlaced>(OrderEvents.FulfillmentTopic, "SupplierOrderPlaced")
             .Handle<SupplierOrderShippedData, OnSupplierOrderShipped>(OrderEvents.FulfillmentTopic, "SupplierOrderShipped")
             .Handle<SupplierOrderDeliveredData, OnSupplierOrderDelivered>(OrderEvents.FulfillmentTopic, "SupplierOrderDelivered")

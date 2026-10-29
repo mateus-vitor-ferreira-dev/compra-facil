@@ -27,6 +27,16 @@ public enum CancellationReason
     SupplierFailed,
 }
 
+/// <summary>Como o cliente paga (#220).</summary>
+public enum PaymentMethod
+{
+    Pix,
+    Card,
+}
+
+/// <summary>O PIX do pedido, para o cliente pagar: o copia-e-cola, o QR (PNG em base64) e a validade.</summary>
+public sealed record OrderPix(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
+
 /// <summary>Rastreio do envio, como o fornecedor mandou.</summary>
 public sealed record Tracking(string Number, string? Provider, string? Url);
 
@@ -62,6 +72,12 @@ public sealed class Order
 
     public Guid? PaymentId { get; private set; }
 
+    public PaymentMethod PaymentMethod { get; private set; }
+    public int Installments { get; private set; } = 1;
+
+    /// <summary>O PIX a pagar, depois que o payments o gera (o pedido segue pendente até o pagamento).</summary>
+    public OrderPix? Pix { get; private set; }
+
     /// <summary>Quando o inventory reservou o estoque (nulo: ainda não reservou, ou recusou).</summary>
     public DateTimeOffset? StockReservedAt { get; private set; }
 
@@ -93,8 +109,12 @@ public sealed class Order
     /// <summary>Cria o pedido pendente com itens já validados e precificados pelo catálogo.</summary>
     public static Order Place(
         Guid id, Guid customerId, string customerEmail, IReadOnlyList<OrderItem> items,
-        string idempotencyKey, string requestHash, DateTimeOffset now)
+        string idempotencyKey, string requestHash, DateTimeOffset now, PaymentMethod paymentMethod = PaymentMethod.Pix, int installments = 1)
     {
+        if (installments is < 1 or > 12 || (paymentMethod == PaymentMethod.Pix && installments != 1))
+        {
+            throw new DomainException($"parcelas inválidas para {paymentMethod}: {installments}");
+        }
         ArgumentNullException.ThrowIfNull(items);
         if (items.Count is 0 or > MaxItems)
         {
@@ -115,6 +135,8 @@ public sealed class Order
             CustomerId = customerId,
             CustomerEmail = customerEmail,
             Status = OrderStatus.Pending,
+            PaymentMethod = paymentMethod,
+            Installments = installments,
             IdempotencyKey = idempotencyKey,
             RequestHash = requestHash,
             CreatedAt = now,
@@ -136,6 +158,20 @@ public sealed class Order
             return false;
         }
         StockReservedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>O PIX foi gerado: o cliente paga pelo QR. False se nada mudou (pedido que já terminou, repetido).</summary>
+    public bool AwaitPix(OrderPix pix, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(pix);
+        if (Status != OrderStatus.Pending || Pix is not null)
+        {
+            return false;
+        }
+        Pix = pix;
+        StockReservedAt ??= now; // o payments só gera o PIX com o estoque reservado
         UpdatedAt = now;
         return true;
     }

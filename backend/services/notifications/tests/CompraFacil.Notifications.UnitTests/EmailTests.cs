@@ -19,6 +19,7 @@ public sealed class EmailTests
     [InlineData("supplier_failed", null, "fornecedor")]
     [InlineData("payment_failed", "insufficient_funds", "limite insuficiente")]
     [InlineData("payment_failed", "card_declined", "cartão foi recusado")]
+    [InlineData("payment_failed", "pix_expired", "PIX não foi pago")]
     [InlineData("payment_failed", "fraud_suspected", "não foi aprovado")] // sem expor a suspeita de fraude
     public void Cancellation_IsExplainedInCustomerLanguage(string reason, string? payment, string expected) =>
         Assert.Contains(expected, EmailComposer.Explain(reason, payment).Reason, StringComparison.Ordinal);

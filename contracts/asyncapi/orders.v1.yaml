@@ -9,7 +9,8 @@ info:
     1. `POST /v1/orders` grava o pedido `pending` e o `OrderPlaced` na mesma transação (outbox);
     2. `StockReserved` → o pedido segue `pending`, agora na etapa da cobrança (`stock_reserved_at`, para
        o acompanhamento ao vivo); não publica nada;
-    3. `PaymentApproved` → pedido `confirmed` → `OrderConfirmed`;
+    3. `PaymentPending` (PIX gerado) → o pedido mostra o QR, ainda `pending`; `PaymentApproved` (PIX
+       pago, ou cartão autorizado) → pedido `confirmed` → `OrderConfirmed`;
     4. `StockReservationFailed` → `cancelled` (`out_of_stock`) → `OrderCancelled`;
     5. `PaymentFailed` → `cancelled` (`payment_failed`) → `OrderCancelled`, que faz o inventory
        liberar a reserva (compensação).
@@ -98,6 +99,7 @@ operations:
       $ref: "#/channels/paymentEvents"
     summary: Confirma (aprovado) ou cancela (recusado) o pedido; marca o estorno do cancelado depois de pago.
     messages:
+      - $ref: "#/channels/paymentEvents/messages/PaymentPending"
       - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
       - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
@@ -172,12 +174,29 @@ components:
                 const: orders
               data:
                 type: object
-                required: [order_id, customer_id, items, total]
+                required: [order_id, customer_id, customer_email, items, total, payment]
                 properties:
                   order_id:
                     $ref: "#/components/schemas/OrderId"
                   customer_id:
                     $ref: "#/components/schemas/CustomerId"
+                  customer_email:
+                    $ref: "#/components/schemas/CustomerEmail"
+                  payment:
+                    type: object
+                    description: Como o payments cobra. O `card_token` é de uso único e não fica no pedido.
+                    required: [method, installments]
+                    properties:
+                      method:
+                        $ref: "../openapi/payments.v1.yaml#/components/schemas/PaymentMethod"
+                      installments:
+                        type: integer
+                        minimum: 1
+                        maximum: 12
+                      card_token:
+                        type: [string, "null"]
+                      card_brand:
+                        type: [string, "null"]
                   items:
                     type: array
                     minItems: 1
