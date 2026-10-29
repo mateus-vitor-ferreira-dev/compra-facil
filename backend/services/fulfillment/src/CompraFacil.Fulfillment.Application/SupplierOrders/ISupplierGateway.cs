@@ -3,7 +3,7 @@ using CompraFacil.Fulfillment.Domain;
 namespace CompraFacil.Fulfillment.Application.SupplierOrders;
 
 /// <summary>O pedido como vai ao fornecedor. O número do pedido é a chave de idempotência dele.</summary>
-public sealed record SupplierOrderRequest(Guid OrderNumber, string CustomerEmail, IReadOnlyList<SupplierOrderItem> Items);
+public sealed record SupplierOrderRequest(Guid OrderNumber, string CustomerEmail, IReadOnlyList<SupplierOrderItem> Items, ShipTo? ShipTo);
 
 /// <summary>Resposta da criação: aceito (com o id no fornecedor) ou recusado por regra de negócio.</summary>
 public abstract record SupplierPlacement

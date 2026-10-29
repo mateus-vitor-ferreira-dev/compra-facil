@@ -226,6 +226,71 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                                 .HasColumnName("pix_ticket_url");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Recipient", "CompraFacil.Orders.Domain.Order.Recipient#Recipient", b1 =>
+                        {
+                            b1.Property<string>("Cpf")
+                                .IsRequired()
+                                .HasMaxLength(11)
+                                .HasColumnType("character varying(11)")
+                                .HasColumnName("recipient_cpf");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("recipient_name");
+
+                            b1.Property<string>("Phone")
+                                .IsRequired()
+                                .HasMaxLength(11)
+                                .HasColumnType("character varying(11)")
+                                .HasColumnName("recipient_phone");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "ShippingAddress", "CompraFacil.Orders.Domain.Order.ShippingAddress#ShippingAddress", b1 =>
+                        {
+                            b1.Property<string>("City")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("shipping_city");
+
+                            b1.Property<string>("Complement")
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("shipping_complement");
+
+                            b1.Property<string>("District")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("shipping_district");
+
+                            b1.Property<string>("Number")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("shipping_number");
+
+                            b1.Property<string>("State")
+                                .IsRequired()
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)")
+                                .HasColumnName("shipping_state");
+
+                            b1.Property<string>("Street")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("shipping_street");
+
+                            b1.Property<string>("ZipCode")
+                                .IsRequired()
+                                .HasMaxLength(8)
+                                .HasColumnType("character varying(8)")
+                                .HasColumnName("shipping_zip_code");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Total", "CompraFacil.Orders.Domain.Order.Total#Money", b1 =>
                         {
                             b1.IsRequired();

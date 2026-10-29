@@ -23,6 +23,7 @@
 import http from 'k6/http';
 import { check, fail, group, sleep } from 'k6';
 import { login, newCustomer } from './identity.js';
+import { DELIVERY } from './delivery.js';
 
 const GATEWAY = __ENV.GATEWAY_URL || 'http://gateway';
 const MAILPIT = __ENV.MAILPIT_URL || 'http://mailpit:8025';
@@ -130,7 +131,7 @@ function card(holder) {
 }
 
 function placeOrder(productId, customer, payment = card('APRO')) {
-  const res = http.post(`${GATEWAY}/orders/v1/orders`, json({ items: [{ product_id: productId, quantity: 1 }], payment }), {
+  const res = http.post(`${GATEWAY}/orders/v1/orders`, json({ items: [{ product_id: productId, quantity: 1 }], payment, ...DELIVERY }), {
     headers: { ...auth(customer.token), 'Idempotency-Key': uuid() }, tags: { name: 'order' },
   });
   check(res, { 'pedido aceito (202 pending)': (r) => r.status === 202 && r.json('status') === 'pending' });

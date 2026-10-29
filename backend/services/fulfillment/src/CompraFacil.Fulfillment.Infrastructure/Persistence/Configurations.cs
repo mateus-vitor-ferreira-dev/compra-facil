@@ -29,6 +29,8 @@ internal sealed class SupplierOrderConfiguration : IEntityTypeConfiguration<Supp
         // os itens como o fornecedor recebe: só leitura depois de criados, em jsonb
         builder.OwnsMany(o => o.Items, items => items.ToJson("items"));
         builder.Navigation(o => o.Items).UsePropertyAccessMode(PropertyAccessMode.Field);
+        // para quem e para onde: escrito uma vez, lido a cada tentativa (#221)
+        builder.OwnsOne(o => o.ShipTo, t => t.ToJson("ship_to"));
         builder.OwnsOne(o => o.Tracking, t =>
         {
             t.Property(x => x.Number).HasColumnName("tracking_number").HasMaxLength(64);

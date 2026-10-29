@@ -40,15 +40,19 @@ public sealed record OrderPlacedData(
     }
 }
 
-/// <summary>data do OrderConfirmed: fim feliz (inventory dá baixa, notifications avisa o cliente).</summary>
+/// <summary>
+/// data do OrderConfirmed: pago (inventory dá baixa, notifications avisa o cliente, fulfillment leva ao
+/// fornecedor). Quem recebe e o endereço vão à nota e ao fornecedor (#221).
+/// </summary>
 public sealed record OrderConfirmedData(
-    Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total)
+    Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total,
+    Recipient? Recipient, ShippingAddress? ShippingAddress)
 {
     public static OrderConfirmedData From(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.PaymentId!.Value,
-            [.. order.Items.Select(OrderItemData.From)], order.Total);
+            [.. order.Items.Select(OrderItemData.From)], order.Total, order.Recipient, order.ShippingAddress);
     }
 }
 

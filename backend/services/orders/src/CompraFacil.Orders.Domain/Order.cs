@@ -72,6 +72,10 @@ public sealed class Order
 
     public Guid? PaymentId { get; private set; }
 
+    /// <summary>Quem recebe e onde (#221); nulos só nos pedidos de antes de o checkout pedir o endereço.</summary>
+    public Recipient? Recipient { get; private set; }
+    public ShippingAddress? ShippingAddress { get; private set; }
+
     public PaymentMethod PaymentMethod { get; private set; }
     public int Installments { get; private set; } = 1;
 
@@ -109,8 +113,16 @@ public sealed class Order
     /// <summary>Cria o pedido pendente com itens já validados e precificados pelo catálogo.</summary>
     public static Order Place(
         Guid id, Guid customerId, string customerEmail, IReadOnlyList<OrderItem> items,
-        string idempotencyKey, string requestHash, DateTimeOffset now, PaymentMethod paymentMethod = PaymentMethod.Pix, int installments = 1)
+        string idempotencyKey, string requestHash, DateTimeOffset now, Recipient recipient, ShippingAddress shippingAddress,
+        PaymentMethod paymentMethod = PaymentMethod.Pix, int installments = 1)
     {
+        ArgumentNullException.ThrowIfNull(recipient);
+        ArgumentNullException.ThrowIfNull(shippingAddress);
+        if (!BrazilianDocuments.IsValidCpf(recipient.Cpf) || !BrazilianDocuments.IsValidZipCode(shippingAddress.ZipCode)
+            || !BrazilianDocuments.States.Contains(shippingAddress.State))
+        {
+            throw new DomainException("CPF, CEP ou UF inválidos");
+        }
         if (installments is < 1 or > 12 || (paymentMethod == PaymentMethod.Pix && installments != 1))
         {
             throw new DomainException($"parcelas inválidas para {paymentMethod}: {installments}");
@@ -134,6 +146,8 @@ public sealed class Order
             Id = id,
             CustomerId = customerId,
             CustomerEmail = customerEmail,
+            Recipient = recipient,
+            ShippingAddress = shippingAddress,
             Status = OrderStatus.Pending,
             PaymentMethod = paymentMethod,
             Installments = installments,

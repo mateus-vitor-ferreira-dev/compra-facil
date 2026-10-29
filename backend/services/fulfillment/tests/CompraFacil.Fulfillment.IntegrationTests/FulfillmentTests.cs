@@ -93,7 +93,9 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
             ? ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider)
             : ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider, cutoff);
         var item = new OrderItem(Guid.NewGuid(), "MOU-000001", "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
-        await handler.HandleAsync(new OrderConfirmedData(orderId, Guid.NewGuid(), email, [item], new Money(19980, "BRL")),
+        await handler.HandleAsync(new OrderConfirmedData(orderId, Guid.NewGuid(), email, [item], new Money(19980, "BRL"),
+                new Recipient("Ana Souza", "52998224725", "11987654321"),
+                new ShippingAddress("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP")),
             new EventContext(Guid.NewGuid(), FulfillmentEvents.OrderConfirmed, FulfillmentEvents.OrdersTopic, "req", confirmedAt ?? DateTimeOffset.UtcNow), Ct);
         await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
     }
@@ -167,6 +169,10 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(SupplierOrderStatus.Placed, placed.Status);
         var call = Assert.Single(fx.Supplier.Calls, c => c.OrderNumber == id);
         Assert.Equal("MOU-000001", Assert.Single(call.Items).Sku);
+        // para quem e para onde, guardado com o pedido (#221): vale também para as novas tentativas
+        Assert.Equal(new ShipTo("Ana Souza", "52998224725", "11987654321", "01310100", "Avenida Paulista", "1000", "Apto 12",
+            "Bela Vista", "São Paulo", "SP"), call.ShipTo);
+        Assert.Equal(call.ShipTo, placed.ShipTo);
 
         Assert.Equal(HttpStatusCode.OK, (await WebhookAsync(Update(id, "UNSHIPPED"))).Status);
         var shipped = Update(id, "SHIPPED", "BR123456789CJ", messageId: "msg-enviado-" + id);

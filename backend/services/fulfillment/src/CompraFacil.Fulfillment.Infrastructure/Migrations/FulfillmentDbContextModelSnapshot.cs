@@ -294,6 +294,52 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
 
             modelBuilder.Entity("CompraFacil.Fulfillment.Domain.SupplierOrder", b =>
                 {
+                    b.OwnsOne("CompraFacil.Fulfillment.Domain.ShipTo", "ShipTo", b1 =>
+                        {
+                            b1.Property<Guid>("SupplierOrderId");
+
+                            b1.Property<string>("City")
+                                .IsRequired();
+
+                            b1.Property<string>("Complement");
+
+                            b1.Property<string>("Cpf")
+                                .IsRequired();
+
+                            b1.Property<string>("District")
+                                .IsRequired();
+
+                            b1.Property<string>("Name")
+                                .IsRequired();
+
+                            b1.Property<string>("Number")
+                                .IsRequired();
+
+                            b1.Property<string>("Phone")
+                                .IsRequired();
+
+                            b1.Property<string>("State")
+                                .IsRequired();
+
+                            b1.Property<string>("Street")
+                                .IsRequired();
+
+                            b1.Property<string>("ZipCode")
+                                .IsRequired();
+
+                            b1.HasKey("SupplierOrderId");
+
+                            b1.ToTable("supplier_orders");
+
+                            b1
+                                .ToJson("ship_to")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SupplierOrderId")
+                                .HasConstraintName("fk_supplier_orders_supplier_orders_id");
+                        });
+
                     b.OwnsMany("CompraFacil.Fulfillment.Domain.SupplierOrderItem", "Items", b1 =>
                         {
                             b1.Property<Guid>("SupplierOrderId");
@@ -355,6 +401,8 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         });
 
                     b.Navigation("Items");
+
+                    b.Navigation("ShipTo");
 
                     b.Navigation("Tracking");
                 });

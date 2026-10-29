@@ -96,8 +96,14 @@ func createBody(number, remark string, items ...any) map[string]any {
 	return map[string]any{
 		"orderNumber": number, "shippingCountryCode": "BR", "shippingCustomerName": "Fulano",
 		"shippingAddress": "Rua A, 1", "shippingZip": "01001000", "shippingPhone": "11999999999",
+		"shippingProvince": "SP", "shippingCity": "São Paulo", "consigneeID": "52998224725",
 		"email": "fulano@example.com", "remark": remark, "products": products,
 	}
+}
+
+func without(body map[string]any, field string) map[string]any {
+	delete(body, field)
+	return body
 }
 
 var slow = order.Delays{Accept: time.Hour, Ship: time.Hour, Deliver: time.Hour}
@@ -205,9 +211,7 @@ func TestSimChangesTheStock_AndNotifies(t *testing.T) {
 	assert.Zero(t, stock[0].StorageNum)
 
 	// pedido do vid esgotado é recusado pelo fornecedor
-	_, env = e.do(http.MethodPost, "/api2.0/v1/shopping/order/createOrderV2", map[string]any{
-		"orderNumber": "pedido-esgotado", "shippingCountryCode": "BR", "products": []map[string]any{{"vid": "SIM-V-003", "quantity": 1}},
-	}, true)
+	_, env = e.do(http.MethodPost, "/api2.0/v1/shopping/order/createOrderV2", createBody("pedido-esgotado", "", "SIM-V-003", 1), true)
 	assert.Equal(t, CodeOutOfStock, env.Code)
 
 	_, env = e.do(http.MethodPut, "/sim/products/SIM-V-003/stock", map[string]int{"stock": -1}, false)
@@ -259,6 +263,8 @@ func TestCreateRejections(t *testing.T) {
 		{"recusar", createBody("R-3", "cliente chato [recusar]", "SIM-V-001", 1), CodeRejected, "Order rejected by supplier"},
 		{"sem produtos", createBody("R-4", ""), CodeInvalidParams, "Invalid params"},
 		{"sem orderNumber", createBody("", "", "SIM-V-001", 1), CodeInvalidParams, "Invalid params"},
+		{"sem CPF no Brasil", without(createBody("R-5", "", "SIM-V-001", 1), "consigneeID"), CodeInvalidParams, "Invalid params"},
+		{"sem CEP", without(createBody("R-6", "", "SIM-V-001", 1), "shippingZip"), CodeInvalidParams, "Invalid params"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

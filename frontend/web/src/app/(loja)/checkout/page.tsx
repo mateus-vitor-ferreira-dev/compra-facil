@@ -8,8 +8,10 @@ import { requireAccount } from "@/lib/auth/current";
 import { readCart } from "@/lib/cart";
 import { loadCartLines } from "@/lib/cart-lines";
 import { summarize } from "@/lib/cart-rules";
+import { EMPTY_DELIVERY, fromOrder } from "@/lib/delivery";
 import { env } from "@/lib/env";
 import { formatMoney } from "@/lib/format";
+import { listMyOrders } from "@/lib/orders-api";
 import { CheckoutForm } from "./checkout-form";
 
 export const metadata: Metadata = { title: "Pagamento", robots: { index: false } };
@@ -23,13 +25,16 @@ const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL
  */
 export default async function CheckoutPage() {
   await connection();
-  const { account } = await requireAccount("/checkout");
+  const { account, token } = await requireAccount("/checkout");
   const cart = await readCart();
   if (cart.items.length === 0) redirect("/carrinho");
 
   const { lines, unreachable } = await loadCartLines(cart);
   const summary = summarize(lines);
   if (!summary.canCheckout || unreachable) redirect("/carrinho");
+  // a entrega do último pedido: quem compra de novo só confere (sem ela, ou com o orders fora, começa vazia)
+  const previous = await listMyOrders(token);
+  const remembered = previous.ok ? previous.data.data.map(fromOrder).find((d) => d !== undefined) : undefined;
 
   return (
     <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
@@ -41,6 +46,8 @@ export default async function CheckoutPage() {
         total={brl(summary.total)}
         totalCents={summary.total}
         provider={{ url: env.PAYMENT_PROVIDER_URL, publicKey: env.PAYMENT_PUBLIC_KEY }}
+        initialDelivery={remembered ?? { ...EMPTY_DELIVERY, name: account.name }}
+        remembered={remembered !== undefined}
         review={
           <>
             <section aria-labelledby="produtos">

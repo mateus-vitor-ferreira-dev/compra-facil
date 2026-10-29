@@ -17,7 +17,10 @@ import (
 )
 
 func req(number, remark string) CreateRequest {
-	r := CreateRequest{OrderNumber: number, Remark: remark}
+	r := CreateRequest{OrderNumber: number, Remark: remark, Shipping: Shipping{
+		ShippingCountryCode: "BR", ShippingCustomerName: "Ana Souza", ShippingAddress: "Avenida Paulista, 1000",
+		ShippingZip: "01310100", ShippingPhone: "11987654321", ConsigneeID: "52998224725",
+	}}
 	r.Products = append(r.Products, struct {
 		VID      string `json:"vid"`
 		Quantity int    `json:"quantity"`

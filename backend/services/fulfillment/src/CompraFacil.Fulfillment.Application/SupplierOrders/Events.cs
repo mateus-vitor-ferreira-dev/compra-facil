@@ -19,8 +19,20 @@ public sealed record Money(long AmountCents, string Currency);
 
 public sealed record OrderItem(Guid ProductId, string Sku, string Name, int Quantity, Money UnitPrice, Money LineTotal);
 
-/// <summary>data do OrderConfirmed (só os campos usados): o pedido pago que vai ao fornecedor.</summary>
-public sealed record OrderConfirmedData(Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItem> Items, Money Total);
+public sealed record Recipient(string Name, string Cpf, string Phone);
+
+public sealed record ShippingAddress(string ZipCode, string Street, string Number, string? Complement, string District, string City, string State);
+
+/// <summary>data do OrderConfirmed (só os campos usados): o pedido pago que vai ao fornecedor, para quem e para onde.</summary>
+public sealed record OrderConfirmedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItem> Items, Money Total,
+    Recipient? Recipient = null, ShippingAddress? ShippingAddress = null)
+{
+    /// <summary>O destino do envio; nulo no pedido de antes do #221 (sem endereço).</summary>
+    public ShipTo? ShipTo => Recipient is { } r && ShippingAddress is { } a
+        ? new ShipTo(r.Name, r.Cpf, r.Phone, a.ZipCode, a.Street, a.Number, a.Complement, a.District, a.City, a.State)
+        : null;
+}
 
 public sealed record SupplierOrderPlacedData(Guid OrderId, string Supplier, string SupplierOrderId, DateTimeOffset PlacedAt);
 

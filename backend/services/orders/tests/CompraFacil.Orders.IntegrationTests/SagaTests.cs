@@ -25,6 +25,8 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
             {
                 items = new[] { new { product_id = product, quantity = 2 } },
                 payment = new { method = "pix" },
+                recipient = new { name = "Ana Souza", cpf = "52998224725", phone = "11987654321" },
+                shipping_address = new { zip_code = "01310100", street = "Avenida Paulista", number = "1000", district = "Bela Vista", city = "São Paulo", state = "SP" },
             }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
@@ -67,8 +69,12 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         var json = await GetOrderAsync(order);
         Assert.Equal("confirmed", json.GetProperty("status").GetString());
         Assert.Equal(payment, json.GetProperty("payment_id").GetGuid());
-        var confirmed = EventEnvelope.TryParse(Assert.Single(await OutcomeEventsAsync(order)).Payload)!.DataAs<OrderConfirmedData>();
+        var outbox = Assert.Single(await OutcomeEventsAsync(order));
+        ContractAssert.AssertEvent("orders.v1.yaml", OrderEvents.OrderConfirmed, outbox.Payload);
+        var confirmed = EventEnvelope.TryParse(outbox.Payload)!.DataAs<OrderConfirmedData>();
         Assert.Equal(("ana@exemplo.com", payment, 5000L), (confirmed.CustomerEmail, confirmed.PaymentId, confirmed.Total.AmountCents));
+        // quem recebe e onde vão ao fornecedor e à nota (#221)
+        Assert.Equal(("52998224725", "01310100"), (confirmed.Recipient!.Cpf, confirmed.ShippingAddress!.ZipCode));
     }
 
     [Fact]

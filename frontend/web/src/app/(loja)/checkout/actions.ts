@@ -8,10 +8,19 @@ import { accessToken } from "@/lib/auth/current";
 import { loginHref } from "@/lib/auth/return-to";
 import { readCart, writeCart } from "@/lib/cart";
 import { emptyCart } from "@/lib/cart-rules";
+import {
+  checkDelivery,
+  DELIVERY_FIELDS,
+  toOrderDelivery,
+  type DeliveryErrors,
+  type DeliveryInput,
+} from "@/lib/delivery";
 import { env } from "@/lib/env";
 import { placeOrder, type PlaceOrderPayment } from "@/lib/orders-api";
 
 export type CheckoutState = {
+  /** a entrega recusada: os erros por campo e o que o cliente digitou (sem JavaScript, a página recarrega) */
+  delivery?: { errors: DeliveryErrors; values: DeliveryInput };
   error?: {
     title: string;
     message: string;
@@ -70,6 +79,16 @@ export async function confirmOrder(_: CheckoutState, form: FormData): Promise<Ch
       },
     };
   }
+  const values = Object.fromEntries(
+    DELIVERY_FIELDS.map((f) => [f, String(form.get(f) ?? "")]),
+  ) as DeliveryInput;
+  const deliveryErrors = checkDelivery(values);
+  if (Object.keys(deliveryErrors).length > 0) {
+    return {
+      delivery: { errors: deliveryErrors, values },
+      error: { title: "O pedido não foi feito", message: "Confira os dados de entrega marcados." },
+    };
+  }
   const payment = readPayment(form);
   if (!("method" in payment)) return payment;
   const token = await accessToken();
@@ -86,6 +105,7 @@ export async function confirmOrder(_: CheckoutState, form: FormData): Promise<Ch
     token,
     cart.items.map((i) => ({ product_id: i.id, quantity: i.qty, expected_unit_price_cents: i.seen })),
     payment,
+    toOrderDelivery(values),
     key.data,
   );
 

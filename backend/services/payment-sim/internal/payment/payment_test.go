@@ -190,3 +190,16 @@ func TestCRC16_MatchesTheBRCodeReference(t *testing.T) {
 	// valor de referência do CRC-16/CCITT-FALSE para "123456789"
 	assert.Equal(t, uint16(0x29B1), crc16("123456789"))
 }
+
+// O simulador guarda tudo em memória: reiniciado, não pode repetir o id de um pagamento que a loja já
+// gravou (o payments tem índice único no id do provedor).
+func TestIDs_DoNotRepeatAfterARestart(t *testing.T) {
+	first, _ := newProvider(t, Options{})
+	before, err := first.Create("k1", pixRequest(1000))
+	require.NoError(t, err)
+	time.Sleep(2 * time.Millisecond)
+	restarted, _ := newProvider(t, Options{})
+	after, err := restarted.Create("k1", pixRequest(1000))
+	require.NoError(t, err)
+	assert.Greater(t, after.ID, before.ID)
+}

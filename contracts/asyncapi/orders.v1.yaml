@@ -210,7 +210,9 @@ components:
     OrderConfirmed:
       name: OrderConfirmed
       title: Pedido confirmado
-      summary: Fim feliz da SAGA. O inventory efetiva a reserva e o notifications envia o e-mail.
+      summary: |
+        Pago. O inventory efetiva a reserva, o notifications envia o e-mail e o fulfillment leva o pedido
+        ao fornecedor, com quem recebe e o endereço (que também vão na nota fiscal, #221).
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -245,6 +247,15 @@ components:
                       $ref: "../openapi/orders.v1.yaml#/components/schemas/OrderItem"
                   total:
                     $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  recipient:
+                    description: Nulo só nos pedidos de antes do #221.
+                    oneOf:
+                      - $ref: "../openapi/orders.v1.yaml#/components/schemas/Recipient"
+                      - type: "null"
+                  shipping_address:
+                    oneOf:
+                      - $ref: "../openapi/orders.v1.yaml#/components/schemas/ShippingAddress"
+                      - type: "null"
 
     OrderCancelled:
       name: OrderCancelled

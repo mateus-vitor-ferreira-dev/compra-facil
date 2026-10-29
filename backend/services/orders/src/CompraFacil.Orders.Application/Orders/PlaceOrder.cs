@@ -15,9 +15,13 @@ public sealed record PlaceOrderItem(Guid ProductId, int Quantity, long? Expected
 /// <summary>Como pagar (#220): PIX, ou cartão com o token do provedor, a bandeira e as parcelas.</summary>
 public sealed record PlaceOrderPayment(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
 
-/// <summary>O pedido a criar; Payment é obrigatório (nulo só chega da requisição sem ele, e a validação recusa).</summary>
+/// <summary>
+/// O pedido a criar. Payment, Recipient e ShippingAddress são obrigatórios (nulos só chegam da requisição
+/// sem eles, e a validação recusa); o CPF, o CEP e o telefone chegam só com os dígitos.
+/// </summary>
 public sealed record PlaceOrderCommand(
-    Guid CustomerId, string CustomerEmail, IReadOnlyList<PlaceOrderItem> Items, string IdempotencyKey, PlaceOrderPayment? Payment);
+    Guid CustomerId, string CustomerEmail, IReadOnlyList<PlaceOrderItem> Items, string IdempotencyKey, PlaceOrderPayment? Payment,
+    Recipient? Recipient, ShippingAddress? ShippingAddress);
 
 /// <param name="Order">O pedido (novo ou o já criado com a mesma Idempotency-Key).</param>
 /// <param name="Created">false quando a chave já tinha sido usada com o mesmo corpo.</param>
@@ -41,6 +45,26 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
             item.RuleFor(i => i.Quantity).InclusiveBetween(OrderItem.MinQuantity, OrderItem.MaxQuantity);
             item.RuleFor(i => i.ExpectedUnitPriceCents).GreaterThanOrEqualTo(1).When(i => i.ExpectedUnitPriceCents.HasValue);
         });
+        // o que a NF-e exige (#221), nos tamanhos dela (60 caracteres por campo de endereço)
+        RuleFor(c => c.Recipient).NotNull().OverridePropertyName("recipient").WithMessage("informe quem recebe o pedido");
+        RuleFor(c => c.Recipient!).ChildRules(r =>
+        {
+            r.RuleFor(x => x.Name).NotEmpty().MinimumLength(3).MaximumLength(60).OverridePropertyName("name");
+            r.RuleFor(x => x.Cpf).Must(BrazilianDocuments.IsValidCpf).OverridePropertyName("cpf").WithMessage("CPF inválido");
+            r.RuleFor(x => x.Phone).Matches("^[0-9]{10,11}$").OverridePropertyName("phone")
+                .WithMessage("telefone com DDD: 10 ou 11 dígitos");
+        }).When(c => c.Recipient is not null).OverridePropertyName("recipient");
+        RuleFor(c => c.ShippingAddress).NotNull().OverridePropertyName("shipping_address").WithMessage("informe o endereço de entrega");
+        RuleFor(c => c.ShippingAddress!).ChildRules(a =>
+        {
+            a.RuleFor(x => x.ZipCode).Must(BrazilianDocuments.IsValidZipCode).OverridePropertyName("zip_code").WithMessage("CEP com 8 dígitos");
+            a.RuleFor(x => x.Street).NotEmpty().MaximumLength(60).OverridePropertyName("street");
+            a.RuleFor(x => x.Number).NotEmpty().MaximumLength(60).OverridePropertyName("number");
+            a.RuleFor(x => x.Complement).MaximumLength(60).OverridePropertyName("complement");
+            a.RuleFor(x => x.District).NotEmpty().MaximumLength(60).OverridePropertyName("district");
+            a.RuleFor(x => x.City).NotEmpty().MaximumLength(60).OverridePropertyName("city");
+            a.RuleFor(x => x.State).Must(BrazilianDocuments.States.Contains).OverridePropertyName("state").WithMessage("UF inválida");
+        }).When(c => c.ShippingAddress is not null).OverridePropertyName("shipping_address");
         RuleFor(c => c.Payment).NotNull().WithName("payment").OverridePropertyName("payment")
             .WithMessage("escolha como pagar: pix ou card");
         RuleFor(c => c.Payment!).ChildRules(p =>
@@ -88,7 +112,8 @@ public sealed class PlaceOrder(
         var order = Order.Place(
             Guid.CreateVersion7(), command.CustomerId, command.CustomerEmail.Trim(),
             [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId))],
-            command.IdempotencyKey, requestHash, clock.GetUtcNow(), payment.Method, payment.Installments);
+            command.IdempotencyKey, requestHash, clock.GetUtcNow(), command.Recipient!, command.ShippingAddress!,
+            payment.Method, payment.Installments);
         orders.Add(order);
         outbox.Add(OrderEvents.Topic, order.Id.ToString(), OrderEvents.OrderPlaced,
             OrderPlacedData.From(order, payment.CardToken, payment.CardBrand));
@@ -146,6 +171,8 @@ public sealed class PlaceOrder(
             Items = c.Items.OrderBy(i => i.ProductId).Select(i => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents }),
             // o meio, não o token: o token é de uso único, e o retry do cliente pode trazer outro
             Payment = c.Payment is { } p ? new { p.Method, p.Installments } : null,
+            c.Recipient,
+            c.ShippingAddress,
         });
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
