@@ -8,7 +8,9 @@
 //   3. pagamento recusado: produto acima do limite do gateway fake (Payments:Fake:MaxApprovedAmountCents)
 //      → cancelled (payment_failed), cobrança failed (insufficient_funds) e a reserva devolvida ao estoque;
 //   4. fornecedor recusa: cliente "+recusar" (o fulfillment repassa o cenário ao simulado) → pago,
-//      cancelled (supplier_failed), cobrança refunded, refunded_at no pedido e o e-mail do cancelamento.
+//      cancelled (supplier_failed), cobrança refunded, refunded_at no pedido e o e-mail do cancelamento;
+//   5. acabou no fornecedor: um produto do feed do simulado esgota lá → o webhook de estoque zera o
+//      espelho do inventory em segundos, e o pedido é recusado (out_of_stock) antes de qualquer cobrança.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
 //
@@ -25,6 +27,10 @@ const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@comprafacil.local';
 const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || 'admin-compra-facil';
 
 const IDENTITY = `${GATEWAY}/identity`;
+// o fornecedor simulado, pela rede do compose (as rotas /sim não passam pelo gateway)
+const SUPPLIER_SIM = __ENV.SUPPLIER_SIM_URL || 'http://supplier-sim:8090';
+// uma variante do feed do simulado (Wireless Optical Mouse), importada pelo catalog
+const SUPPLIER_VID = 'SIM-V-007';
 // acima do limite aprovado pelo gateway fake (R$ 50.000,00 por padrão): cobrança recusada
 const ABOVE_FAKE_LIMIT_CENTS = 6000000;
 const SAGA_TIMEOUT_S = 60;
@@ -89,6 +95,12 @@ export function setup() {
     noStock: createProduct(token, categoryId, 'sem-estoque'),
     declined: createProduct(token, categoryId, 'recusado', ABOVE_FAKE_LIMIT_CENTS),
     supplierRejected: createProduct(token, categoryId, 'fornecedor-recusa'),
+    // o produto que o catalog importou do feed do fornecedor (o fulfillment lê o feed ao subir)
+    fromSupplier: eventually(`produto ${SUPPLIER_VID} importado do fornecedor`, () => {
+      const res = http.get(`${GATEWAY}/catalog/v1/admin/products?sku=${SUPPLIER_VID}`, { headers: auth(token) });
+      const found = res.status === 200 ? res.json('data') : [];
+      return found.length > 0 && found[0].status === 'active' ? found[0].id : null;
+    }, 120),
   };
 
   // zera o estoque do produto do cenário 2
@@ -228,5 +240,33 @@ export default function (products) {
     });
     check(paymentOf(orderId), { 'cobrança refunded': (p) => p.status === 'refunded' && !!p.refund_reference });
     check(eventually('e-mail do cancelamento', () => emailsTo(customer.email, 'cancelado')), { 'e-mail do cancelamento': (n) => n >= 1 });
+  });
+
+  group('5. acabou no fornecedor', () => {
+    const product = products.fromSupplier;
+    const set = (n) => http.put(`${SUPPLIER_SIM}/sim/products/${SUPPLIER_VID}/stock`, json({ stock: n }), {
+      headers: { 'Content-Type': 'application/json' }, tags: { name: 'sim-stock' },
+    });
+    check(eventually('espelho com estoque', () => {
+      const s = stockOf(product);
+      return s && s.available > 0 ? s : null;
+    }), { 'produto do fornecedor à venda': (s) => s.available > 0 });
+
+    check(set(0), { 'fornecedor esgotou': (r) => r.status === 200 });
+    // o webhook de estoque → SupplierStockChanged → o espelho do inventory zera
+    check(eventually('espelho zerado', () => {
+      const s = stockOf(product);
+      return s && s.available === 0 ? s : null;
+    }, 30), { 'some da venda em segundos': (s) => s.available === 0 });
+
+    const customer = newCustomer(IDENTITY, 'e2e-esgotado-fornecedor');
+    const orderId = placeOrder(product, customer);
+    check(finalOrder(orderId, customer), {
+      'pedido cancelled': (o) => o.status === 'cancelled',
+      'motivo out_of_stock': (o) => o.cancellation_reason === 'out_of_stock',
+    });
+    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`).json('data');
+    check(charges, { 'recusado antes de cobrar': (d) => d.length === 0 });
+    set(50); // devolve o estoque para a próxima rodada
   });
 }

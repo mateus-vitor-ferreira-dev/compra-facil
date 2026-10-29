@@ -389,3 +389,16 @@ components:
         updated_at:
           type: string
           format: date-time
+        supplier:
+          description: |
+            De que variante de que fornecedor o produto vem (#217); nulo no produto da loja. O inventory a
+            usa para espelhar a disponibilidade do fornecedor (#218). O custo não vai no evento.
+          oneOf:
+            - type: object
+              required: [name, vid]
+              properties:
+                name:
+                  type: string
+                vid:
+                  type: string
+            - type: "null"

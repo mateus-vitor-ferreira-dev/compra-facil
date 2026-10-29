@@ -362,6 +362,8 @@ services:
         APP_VERSION: ${VERSION:-dev}
     image: compra-facil/inventory:${VERSION:-dev}
     environment:
+      # a conferência ao vivo no fornecedor antes de reservar (#218), pela rede dos serviços
+      Fulfillment__BaseUrl: http://fulfillment:8007/
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317

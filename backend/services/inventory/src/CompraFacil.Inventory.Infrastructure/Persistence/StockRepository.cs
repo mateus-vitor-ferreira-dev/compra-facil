@@ -19,6 +19,14 @@ internal sealed class StockRepository(InventoryDbContext db) : IStockRepository
 
     public void Add(StockItem item) => db.Stock.Add(item);
 
+    public Task<List<StockItem>> GetLinkedForUpdateAsync(string supplier, string vid, CancellationToken ct) =>
+        db.Stock.Where(s => s.Supplier == supplier && s.SupplierVid == vid).OrderBy(s => s.ProductId).ToListAsync(ct);
+
+    public Task<List<SupplierStockLevel>> GetSupplierLevelsAsync(string supplier, IReadOnlyCollection<string> vids, CancellationToken ct) =>
+        db.SupplierStock.Where(l => l.Supplier == supplier && vids.Contains(l.Vid)).ToListAsync(ct);
+
+    public void Add(SupplierStockLevel level) => db.SupplierStock.Add(level);
+
     public Task<Reservation?> GetReservationAsync(Guid orderId, bool forUpdate, CancellationToken ct) =>
         (forUpdate ? db.Reservations : db.Reservations.AsNoTracking()).SingleOrDefaultAsync(r => r.OrderId == orderId, ct);
 

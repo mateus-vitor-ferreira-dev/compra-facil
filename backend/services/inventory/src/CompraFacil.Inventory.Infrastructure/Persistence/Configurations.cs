@@ -20,7 +20,24 @@ internal sealed class StockItemConfiguration : IEntityTypeConfiguration<StockIte
         builder.HasKey(s => s.ProductId);
         builder.Property(s => s.ProductId).ValueGeneratedNever();
         builder.Ignore(s => s.Available);
+        builder.Ignore(s => s.IsMirrored);
+        builder.Property(s => s.Supplier).HasMaxLength(32);
+        builder.Property(s => s.SupplierVid).HasMaxLength(64);
         builder.Property(s => s.Version).IsRowVersion(); // xmin
+        // o SupplierStockChanged acha os saldos da variante
+        builder.HasIndex(s => new { s.Supplier, s.SupplierVid }).HasFilter("supplier_vid IS NOT NULL");
+    }
+}
+
+/// <summary>A última leitura do estoque de cada variante do fornecedor (#218).</summary>
+internal sealed class SupplierStockLevelConfiguration : IEntityTypeConfiguration<SupplierStockLevel>
+{
+    public void Configure(EntityTypeBuilder<SupplierStockLevel> builder)
+    {
+        builder.ToTable("supplier_stock", t => t.HasCheckConstraint("ck_supplier_stock_non_negative", "available >= 0"));
+        builder.HasKey(l => new { l.Supplier, l.Vid });
+        builder.Property(l => l.Supplier).HasMaxLength(32);
+        builder.Property(l => l.Vid).HasMaxLength(64);
     }
 }
 

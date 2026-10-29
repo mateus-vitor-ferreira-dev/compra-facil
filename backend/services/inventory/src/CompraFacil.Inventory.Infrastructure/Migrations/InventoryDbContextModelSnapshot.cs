@@ -216,6 +216,16 @@ namespace CompraFacil.Inventory.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("reserved");
 
+                    b.Property<string>("Supplier")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("supplier");
+
+                    b.Property<string>("SupplierVid")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("supplier_vid");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -229,9 +239,42 @@ namespace CompraFacil.Inventory.Infrastructure.Migrations
                     b.HasKey("ProductId")
                         .HasName("pk_stock_items");
 
+                    b.HasIndex("Supplier", "SupplierVid")
+                        .HasDatabaseName("ix_stock_items_supplier_supplier_vid")
+                        .HasFilter("supplier_vid IS NOT NULL");
+
                     b.ToTable("stock_items", null, t =>
                         {
                             t.HasCheckConstraint("ck_stock_items_non_negative", "on_hand >= 0 AND reserved >= 0 AND reserved <= on_hand");
+                        });
+                });
+
+            modelBuilder.Entity("CompraFacil.Inventory.Domain.SupplierStockLevel", b =>
+                {
+                    b.Property<string>("Supplier")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("supplier");
+
+                    b.Property<string>("Vid")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("vid");
+
+                    b.Property<int>("Available")
+                        .HasColumnType("integer")
+                        .HasColumnName("available");
+
+                    b.Property<DateTimeOffset>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
+                    b.HasKey("Supplier", "Vid")
+                        .HasName("pk_supplier_stock");
+
+                    b.ToTable("supplier_stock", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_supplier_stock_non_negative", "available >= 0");
                         });
                 });
 #pragma warning restore 612, 618
