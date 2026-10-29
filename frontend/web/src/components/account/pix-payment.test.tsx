@@ -38,8 +38,9 @@ describe("PixPayment", () => {
     const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     render(<PixPayment pix={pix} amount="R$ 10,00" startedAt={START.toISOString()} />);
     await user.click(screen.getByRole("button", { name: "Copiar o código" }));
+    // a cópia é assíncrona: o botão muda quando a área de transferência responde
+    expect(await screen.findByRole("button", { name: "Código copiado" })).toBeVisible();
     expect(write).toHaveBeenCalledWith(pix.qr_code);
-    expect(screen.getByRole("button", { name: "Código copiado" })).toBeVisible();
     expect(screen.getByText("Código copiado.")).toHaveClass("sr-only");
   });
 
