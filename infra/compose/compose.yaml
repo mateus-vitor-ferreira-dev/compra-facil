@@ -270,6 +270,10 @@ services:
       CATALOG_EVENTS_BROKERS: redpanda:9092
       # rotas /v1/admin/*: tokens do identity, validados pelo JWKS dele
       CATALOG_AUTH_AUTHORITY: http://identity:8006
+      # o feed do fornecedor simulado (#217): as 5 categorias dele nas da loja, e o produto novo já à venda
+      # (na produção ele nasce rascunho, para a equipe traduzir e revisar)
+      CATALOG_SUPPLIER_CATEGORIES: "Headphones=fones-over-ear;Mouse=mouses;Keyboard=teclados;Lipstick=batons;Frying Pan=frigideiras"
+      CATALOG_SUPPLIER_PUBLISH_NEW: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:

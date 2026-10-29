@@ -8,10 +8,11 @@ import "embed"
 
 //go:generate cp ../../../../../contracts/openapi/catalog.v1.yaml catalog.v1.yaml
 //go:generate cp ../../../../../contracts/openapi/common/v1/common.yaml common/v1/common.yaml
+//go:generate cp ../../../../../contracts/openapi/common/v1/dead-letters.yaml common/v1/dead-letters.yaml
 
-// Files contém catalog.v1.yaml e common/v1/common.yaml, com os mesmos caminhos relativos do $ref.
+// Files contém catalog.v1.yaml e os comuns que ele referencia, com os mesmos caminhos relativos do $ref.
 //
-//go:embed catalog.v1.yaml common/v1/common.yaml
+//go:embed catalog.v1.yaml common/v1/common.yaml common/v1/dead-letters.yaml
 var Files embed.FS
 
 const Spec = "catalog.v1.yaml"

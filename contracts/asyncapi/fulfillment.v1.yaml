@@ -49,8 +49,8 @@ channels:
     title: Catálogo do fornecedor
     description: |
       O feed do fornecedor, lido de tempos em tempos (e pelo botão do painel): só o que mudou desde a
-      leitura anterior. Chave = `vid`. O catalog aplica a regra de margem e cria, reprecifica ou tira de
-      venda o produto da loja.
+      leitura anterior. Chave = `vid`. O catalog (consumer group `catalog`) aplica a regra de margem e
+      cria, reprecifica ou tira de venda o produto da loja.
     messages:
       SupplierProductUpdated:
         $ref: "#/components/messages/SupplierProductUpdated"

@@ -38,6 +38,7 @@ const (
 
 	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.price_cents,
 		p.currency, p.status, p.version, p.created_at, p.updated_at,
+		p.supplier, p.supplier_vid, p.cost_cents, p.cost_currency, p.supplier_synced_at, p.supplier_removed_at,
 		cat.slug AS category_slug, cat.name AS category_name,
 		ac.id AS campaign_id, ac.name AS campaign_name,
 		ac.discount_percent AS campaign_discount, ac.ends_at AS campaign_ends_at`
@@ -146,6 +147,84 @@ func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return enqueue(tx, msg)
 	})
 	return mapError(err)
+}
+
+// FindBySupplier lê o produto de uma variante do fornecedor travando a linha (o evento seguinte do
+// mesmo produto espera). ErrNotFound se não existe; ErrDeleted se a equipe o removeu.
+func (r *ProductRepository) FindBySupplier(ctx context.Context, supplier, vid string, now time.Time) (domain.Product, error) {
+	var found productRecord
+	err := r.db.WithContext(ctx).Unscoped().Clauses(lockForUpdate).Select("id", "deleted_at").
+		Where("supplier = ? AND supplier_vid = ?", supplier, vid).Take(&found).Error
+	if err != nil {
+		return domain.Product{}, mapError(err)
+	}
+	if found.DeletedAt.Valid {
+		return domain.Product{}, domain.ErrDeleted
+	}
+	return r.GetByID(ctx, found.ID, now)
+}
+
+// UpdateFromSupplier grava o que o feed muda num produto do fornecedor (custo, preço pela margem,
+// status e a marca da sincronização) sem tocar no que é da loja (nome, descrição, foto, categoria).
+// Mesmos eventos do Update: ProductUpdated e, se o preço mudou, ProductPriceChanged.
+func (r *ProductRepository) UpdateFromSupplier(ctx context.Context, p *domain.Product, expectedVersion int) error {
+	if p.Supplier == nil {
+		return errors.New("produto sem fornecedor")
+	}
+	rec := productToRecord(p)
+	now := r.db.NowFunc()
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var before productRecord
+		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency").
+			Where("id = ?", p.ID).Take(&before).Error; err != nil {
+			return err
+		}
+		res := tx.Model(&productRecord{}).
+			Where("id = ? AND version = ?", p.ID, expectedVersion).
+			Updates(map[string]any{
+				"price_cents":         rec.PriceCents,
+				"status":              rec.Status,
+				"cost_cents":          rec.CostCents,
+				"cost_currency":       rec.CostCurrency,
+				"supplier_synced_at":  rec.SupplierSyncedAt,
+				"supplier_removed_at": rec.SupplierRemovedAt,
+				"version":             gorm.Expr("version + 1"),
+				"updated_at":          now,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.ErrVersionConflict
+		}
+		p.Version, p.UpdatedAt = expectedVersion+1, now
+		builders := []func() (events.Message, error){
+			func() (events.Message, error) { return events.ProductUpdated(ctx, *p, now) },
+		}
+		if before.PriceCents != rec.PriceCents || before.Currency != rec.Currency {
+			builders = append(builders, func() (events.Message, error) {
+				return events.ProductPriceChanged(ctx, *p, before.PriceCents, before.Currency, now)
+			})
+		}
+		msgs, err := buildAll(builders...)
+		if err != nil {
+			return err
+		}
+		return enqueue(tx, msgs...)
+	})
+	return mapError(err)
+}
+
+// ListFromSuppliers devolve os produtos de fornecedor depois de after (ordem de id), até limit: a
+// reprecificação percorre todos em lotes.
+func (r *ProductRepository) ListFromSuppliers(ctx context.Context, after uuid.UUID, limit int) ([]domain.Product, error) {
+	var rows []productRow
+	err := r.baseQuery(ctx, time.Time{}).Where("p.supplier IS NOT NULL AND p.id > ?", after).
+		Order("p.id").Limit(limit).Find(&rows).Error
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return toProducts(rows), nil
 }
 
 func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID, now time.Time) (domain.Product, error) {

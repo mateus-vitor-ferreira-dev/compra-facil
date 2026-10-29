@@ -38,6 +38,13 @@ type productRecord struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   gorm.DeletedAt
+	// do fornecedor de dropshipping (#217); todos nulos no produto cadastrado pela loja
+	Supplier          *string
+	SupplierVID       *string `gorm:"column:supplier_vid"`
+	CostCents         *int64
+	CostCurrency      *string
+	SupplierSyncedAt  *time.Time
+	SupplierRemovedAt *time.Time
 }
 
 func (productRecord) TableName() string { return "products" }
@@ -105,6 +112,12 @@ func (row productRow) toDomain() domain.Product {
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}
+	if r.Supplier != nil && r.SupplierVID != nil && r.CostCents != nil && r.CostCurrency != nil && r.SupplierSyncedAt != nil {
+		p.Supplier = &domain.SupplierInfo{
+			Name: *r.Supplier, VID: *r.SupplierVID, CostCents: *r.CostCents, CostCurrency: *r.CostCurrency,
+			SyncedAt: *r.SupplierSyncedAt, RemovedAt: r.SupplierRemovedAt,
+		}
+	}
 	if row.CampaignID != nil {
 		p.ActiveCampaign = &domain.CampaignRef{
 			ID:              *row.CampaignID,
@@ -121,7 +134,7 @@ func productToRecord(p *domain.Product) productRecord {
 	if currency == "" {
 		currency = domain.DefaultCurrency
 	}
-	return productRecord{
+	rec := productRecord{
 		ID:          p.ID,
 		SKU:         p.SKU,
 		Name:        p.Name,
@@ -135,6 +148,11 @@ func productToRecord(p *domain.Product) productRecord {
 		Status:      string(p.Status),
 		Version:     p.Version,
 	}
+	if s := p.Supplier; s != nil {
+		rec.Supplier, rec.SupplierVID, rec.CostCents, rec.CostCurrency = &s.Name, &s.VID, &s.CostCents, &s.CostCurrency
+		rec.SupplierSyncedAt, rec.SupplierRemovedAt = &s.SyncedAt, s.RemovedAt
+	}
+	return rec
 }
 
 func (r categoryRecord) toDomain() domain.Category {
