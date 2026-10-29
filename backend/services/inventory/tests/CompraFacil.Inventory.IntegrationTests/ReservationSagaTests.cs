@@ -161,8 +161,8 @@ public sealed class ReservationSagaTests(InventoryFixture fx) : IClassFixture<In
     {
         var product = Guid.NewGuid();
 
-        await fx.HandleAsync<ProductCreatedData, ProductCreated>(new ProductCreatedData(product));
-        await fx.HandleAsync<ProductCreatedData, ProductCreated>(new ProductCreatedData(product)); // repetido
+        await fx.HandleAsync<ProductCreatedData, ProductCreated>(new ProductCreatedData(product, null));
+        await fx.HandleAsync<ProductCreatedData, ProductCreated>(new ProductCreatedData(product, null)); // repetido
 
         Assert.Equal(7, (await StockAsync(product)).OnHand);
     }

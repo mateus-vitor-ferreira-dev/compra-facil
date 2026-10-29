@@ -4,6 +4,7 @@ import createClient, { type Middleware } from "openapi-fetch";
 import { env } from "@/lib/env";
 import { gatewayHeaders } from "./gateway-headers";
 import type { paths as catalog } from "./schema/catalog";
+import type { paths as fulfillment } from "./schema/fulfillment";
 import type { paths as identity } from "./schema/identity";
 import type { paths as inventory } from "./schema/inventory";
 import type { paths as notifications } from "./schema/notifications";
@@ -58,6 +59,7 @@ function client<Paths extends object>(service: string, options: CallOptions = {}
 
 export const api = {
   catalog: (options?: CallOptions) => client<catalog>("catalog", options),
+  fulfillment: (options?: CallOptions) => client<fulfillment>("fulfillment", options),
   identity: (options?: CallOptions) => client<identity>("identity", options),
   inventory: (options?: CallOptions) => client<inventory>("inventory", options),
   notifications: (options?: CallOptions) => client<notifications>("notifications", options),
@@ -66,5 +68,6 @@ export const api = {
 };
 
 export type { components as CatalogSchemas } from "./schema/catalog";
+export type { components as FulfillmentSchemas } from "./schema/fulfillment";
 export type { components as IdentitySchemas } from "./schema/identity";
 export type { components as OrdersSchemas } from "./schema/orders";

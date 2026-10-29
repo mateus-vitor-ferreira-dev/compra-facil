@@ -8,6 +8,7 @@ import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
 import { requireAccount } from "@/lib/auth/current";
+import { addressLines } from "@/lib/delivery";
 import { formatMoney } from "@/lib/format";
 import { orderNumber } from "@/lib/order-status";
 import { getOrder } from "@/lib/orders-api";
@@ -96,6 +97,22 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <p className="font-condensed text-3xl leading-none font-extrabold">{formatMoney(order.total)}</p>
         </div>
       </section>
+
+      {order.recipient && order.shipping_address && (
+        <section aria-labelledby="entrega" className="mt-10 space-y-1">
+          <h2 id="entrega" className="text-xl font-semibold tracking-tight">
+            Entrega
+          </h2>
+          <p className="font-medium">{order.recipient.name}</p>
+          <address className="text-ink-soft not-italic">
+            {addressLines(order.shipping_address).map((line) => (
+              <span key={line} className="block">
+                {line}
+              </span>
+            ))}
+          </address>
+        </section>
+      )}
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Link href="/" className={buttonVariants({ variant: "secondary" })}>

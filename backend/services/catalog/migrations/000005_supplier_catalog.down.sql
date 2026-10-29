@@ -1,0 +1,11 @@
+DROP TABLE inbox_messages;
+DROP TABLE pricing_rules;
+DROP INDEX products_supplier_vid_idx;
+ALTER TABLE products
+    DROP CONSTRAINT products_supplier_complete,
+    DROP COLUMN supplier_removed_at,
+    DROP COLUMN supplier_synced_at,
+    DROP COLUMN cost_currency,
+    DROP COLUMN cost_cents,
+    DROP COLUMN supplier_vid,
+    DROP COLUMN supplier;

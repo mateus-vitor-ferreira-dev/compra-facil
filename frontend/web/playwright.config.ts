@@ -2,13 +2,16 @@ import { defineConfig, devices } from "@playwright/test";
 
 const STUB = "http://localhost:4010";
 
-// o servidor do front, contra a API falsa: o Google também é o stub (e2e/google.spec.ts)
+// o servidor do front, contra a API falsa: o Google e o provedor de pagamento também são o stub
 const FRONT_ENV = {
   API_URL: STUB,
   GOOGLE_CLIENT_ID: "loja-de-teste",
   GOOGLE_CLIENT_SECRET: "segredo-de-teste",
   GOOGLE_AUTH_URL: `${STUB}/google/authorize`,
   GOOGLE_TOKEN_URL: `${STUB}/google/token`,
+  // o cartão é tokenizado pelo navegador direto no provedor: aqui, o stub
+  PAYMENT_PROVIDER_URL: STUB,
+  CEP_LOOKUP_URL: `${STUB}/cep`,
 };
 
 // E2E_WORKER=1: os mesmos testes contra o Worker da produção (o build do OpenNext no workerd, depois de

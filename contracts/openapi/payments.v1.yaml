@@ -2,15 +2,16 @@ openapi: 3.1.0
 info:
   title: CompraFácil — Payments API
   version: 1.0.0
-  summary: Consulta de pagamentos.
+  summary: Consulta de pagamentos, notificações do provedor e estornos.
   description: |
     API do serviço **payments** (time de Processamento de compras, ASP.NET Core).
 
-    A cobrança **não** é iniciada por HTTP: o payments consome `StockReserved`, cobra no gateway de
-    pagamento (fake em dev; Stripe em modo teste, opcional) e publica `PaymentApproved` ou
-    `PaymentFailed`. Cada pedido é cobrado no máximo uma vez (idempotência por `order_id`).
+    A cobrança **não** é iniciada por HTTP: o payments consome `OrderPlaced` (com o meio de pagamento) e
+    `StockReserved` e cobra no provedor (ADR 0007, #220: o Mercado Pago; em dev e no CI, o `payment-sim`).
+    PIX gera o QR e espera o cliente pagar; cartão é autorizado e capturado quando o fornecedor aceita o
+    pedido. Ver `contracts/asyncapi/payments.v1.yaml`. Cada pedido é cobrado no máximo uma vez.
 
-    Esta API serve para consulta e suporte.
+    Esta API serve para consulta, para as notificações do provedor e para o estorno pelo painel.
 servers:
   - url: http://localhost:8004
     description: Serviço direto (dev)
@@ -19,8 +20,10 @@ servers:
 tags:
   - name: payments
     description: Pagamentos de pedidos.
+  - name: webhooks
+    description: Chamadas do provedor de pagamento.
   - name: admin
-    description: Operação (role `admin`); dead letter topic em todos os serviços.
+    description: "Operação (role `admin`): estorno; dead letter topic em todos os serviços."
 
 paths:
   /v1/payments:
@@ -79,6 +82,113 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/NotFound"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/webhooks/payments:
+    post:
+      tags: [webhooks]
+      operationId: receivePaymentNotification
+      summary: Notificação do provedor (uma cobrança mudou)
+      description: |
+        No formato do Mercado Pago: `?data.id=<id>&type=payment` e os headers `x-request-id` e
+        `x-signature: ts=<ts>,v1=<hex>`, com `v1 = HMAC-SHA256(segredo, "id:<data.id>;request-id:<x-request-id>;ts:<ts>;")`.
+        O corpo não é usado: a cobrança é consultada no provedor. Cobrança desconhecida também responde
+        200, para o provedor não insistir.
+      parameters:
+        - name: data.id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: x-signature
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: x-request-id
+          in: header
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Recebida.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result]
+                properties:
+                  result:
+                    type: string
+                    enum: [applied, ignored, unknown_payment]
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/payments/{payment_id}/refunds:
+    post:
+      tags: [admin]
+      operationId: refundPayment
+      summary: Estorna parte ou o resto de um pagamento aprovado
+      description: |
+        Devolução parcial (um item devolvido, #223) ou do que falta. Idempotente pelo `Idempotency-Key`:
+        a mesma chave não estorna duas vezes. Publica `PaymentRefunded`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "./common/v1/common.yaml#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount_cents:
+                  type: [integer, "null"]
+                  format: int64
+                  minimum: 1
+                  description: Nulo estorna o que falta.
+      responses:
+        "200":
+          description: O pagamento depois do estorno.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O provedor não respondeu; nada foi estornado, tente de novo com a mesma chave.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
 
   /v1/admin/dead-letters:
     get:
@@ -141,16 +251,43 @@ components:
   schemas:
     PaymentStatus:
       type: string
-      description: "`processing`: enviado ao gateway · `approved` · `failed`."
-      enum: [processing, approved, failed]
+      description: |
+        `processing`: enviado ao provedor (ou o cartão em análise) · `pending`: PIX esperando o pagamento ·
+        `authorized`: cartão com o valor garantido, a captura vem quando o fornecedor aceita · `approved`:
+        pago ou capturado (pode ter estorno parcial, `refunded_cents`) · `failed` · `voided`: autorização
+        cancelada, nada cobrado · `refunded`: tudo devolvido.
+      enum: [processing, pending, authorized, approved, failed, voided, refunded]
+
+    PaymentMethod:
+      type: string
+      enum: [pix, card]
 
     FailureReason:
       type: string
-      enum: [card_declined, insufficient_funds, fraud_suspected, gateway_error]
+      description: "`pix_expired`: o PIX não foi pago até a validade."
+      enum: [card_declined, insufficient_funds, fraud_suspected, gateway_error, pix_expired]
+
+    Pix:
+      type: object
+      required: [qr_code, qr_code_base64, expires_at]
+      properties:
+        qr_code:
+          type: string
+          description: O "copia e cola" (BR Code).
+        qr_code_base64:
+          type: string
+          description: O QR em PNG, em base64.
+        ticket_url:
+          type: [string, "null"]
+          format: uri
+          description: A página de pagamento do provedor.
+        expires_at:
+          type: string
+          format: date-time
 
     Payment:
       type: object
-      required: [id, order_id, amount, status, provider, created_at, updated_at]
+      required: [id, order_id, amount, status, method, installments, provider, fee_cents, refunded_cents, created_at, updated_at]
       properties:
         id:
           type: string
@@ -166,12 +303,39 @@ components:
           oneOf:
             - $ref: "#/components/schemas/FailureReason"
             - type: "null"
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        installments:
+          type: integer
+          minimum: 1
+          maximum: 12
         provider:
           type: string
-          enum: [fake, stripe]
+          enum: [mercadopago]
         provider_reference:
           type: [string, "null"]
-          description: "ID da cobrança no gateway (ex.: `pi_...` no Stripe)."
+          description: ID da cobrança no provedor.
+        card_last_four:
+          type: [string, "null"]
+        pix:
+          oneOf:
+            - $ref: "#/components/schemas/Pix"
+            - type: "null"
+        fee_cents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: A taxa do provedor (Payments:Fees), para a margem real do pedido.
+        refunded_cents:
+          type: integer
+          format: int64
+          minimum: 0
+        captured_at:
+          type: [string, "null"]
+          format: date-time
+        refunded_at:
+          type: [string, "null"]
+          format: date-time
         created_at:
           type: string
           format: date-time

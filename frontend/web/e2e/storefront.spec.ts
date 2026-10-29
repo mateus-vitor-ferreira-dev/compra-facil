@@ -13,7 +13,7 @@ test("a home destaca a campanha vigente e lista o que está em promoção", asyn
   await expect(onSale).toContainText("de R$ 3.299,90 por R$ 2.639,92, 20% de desconto");
 });
 
-test("a categoria mãe inclui as subcategorias, paginada por número", async ({ page }) => {
+test("a categoria mãe inclui as subcategorias, com Carregar mais (#212)", async ({ page }) => {
   await page.goto("/categoria/eletronicos");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Eletrônicos");
   await expect(page.getByRole("navigation", { name: "Subcategorias de Eletrônicos" })).toContainText(
@@ -21,22 +21,25 @@ test("a categoria mãe inclui as subcategorias, paginada por número", async ({ 
   );
 
   const grid = page.getByRole("list", { name: "Produtos em Eletrônicos" });
-  const pages = page.getByRole("navigation", { name: "Páginas de produtos" });
-  await expect(grid.locator("article")).toHaveCount(24);
-  await expect(page.getByText("32 produtos, mostrando 1 a 24")).toBeVisible();
-  await expect(pages.getByRole("link", { name: "Página 1" })).toHaveAttribute("aria-current", "page");
+  await expect(grid.locator("article")).toHaveCount(48);
+  await expect(page.getByText("Você viu 48 de 63 produtos")).toBeVisible();
 
-  await pages.getByRole("link", { name: "Próxima" }).click();
+  // o lote novo entra na mesma tela, a URL acompanha e o foco vai ao primeiro card novo
+  await page.getByRole("link", { name: "Carregar mais 15 produtos" }).click();
   await expect(page).toHaveURL(/\/categoria\/eletronicos\?pagina=2$/);
-  await expect(grid.locator("article")).toHaveCount(8);
-  await expect(page.getByText("32 produtos, mostrando 25 a 32")).toBeVisible();
-  await expect(pages.getByRole("link", { name: "Próxima" })).toHaveCount(0); // última página
+  await expect(grid.locator("article")).toHaveCount(63);
+  await expect(page.getByText("Você viu 63 de 63 produtos")).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Carregar mais/ })).toHaveCount(0); // acabou
+  await expect(page.locator('[data-lote="2"] a').first()).toBeFocused();
 
-  await pages.getByRole("link", { name: "Anterior" }).click();
-  await expect(page).toHaveURL(/\/categoria\/eletronicos$/);
+  // o Voltar da página do produto devolve à lista com os dois lotes
+  await page.locator('[data-lote="2"] a').first().click();
+  await expect(page).toHaveURL(/\/produto\//);
+  await page.goBack();
+  await expect(page).toHaveURL(/\?pagina=2$/);
+  await expect(grid.locator("article")).toHaveCount(63);
 
-  // trocar um filtro volta à primeira página
-  await page.goto("/categoria/eletronicos?pagina=2");
+  // trocar um filtro volta ao primeiro lote
   await page
     .getByRole("complementary", { name: "Filtrar e ordenar" })
     .getByRole("radio", { name: "Menor preço" })
@@ -45,10 +48,22 @@ test("a categoria mãe inclui as subcategorias, paginada por número", async ({ 
   await expect(page).not.toHaveURL(/pagina=/);
 });
 
-test("página além do fim explica e leva à primeira", async ({ page }) => {
-  await page.goto("/categoria/eletronicos?pagina=9");
-  await expect(page.getByRole("heading", { name: "Esta listagem tem 2 páginas" })).toBeVisible();
-  await page.getByRole("link", { name: "Ir para a primeira página" }).click();
+test("Carregar mais funciona sem JavaScript, pelo link", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto("/categoria/eletronicos");
+  await page.getByRole("link", { name: "Carregar mais 15 produtos" }).click();
+  await expect(page).toHaveURL(/\?pagina=2$/);
+  await expect(page.getByRole("list", { name: "Produtos em Eletrônicos" }).locator("article")).toHaveCount(
+    63,
+  );
+  await context.close();
+});
+
+test("um ponto da lista que não existe mais explica e volta ao começo", async ({ page }) => {
+  await page.goto("/categoria/eletronicos?pagina=20");
+  await expect(page.getByRole("heading", { name: "Esta listagem tem 63 produtos" })).toBeVisible();
+  await page.getByRole("link", { name: "Ver desde o começo" }).click();
   await expect(page).toHaveURL(/\/categoria\/eletronicos$/);
 });
 

@@ -9,8 +9,12 @@ public sealed class OrderTests
     private static OrderItem Item(int quantity = 2, long cents = 1990, Guid? productId = null) =>
         new(productId ?? Guid.NewGuid(), "SKU-1", "Fone", quantity, new Money(cents, "BRL"), CampaignId: null);
 
+    private static readonly Recipient s_recipient = new("Ana Souza", "52998224725", "11987654321");
+    private static readonly ShippingAddress s_address = new("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP");
+
     private static Order Pending(params OrderItem[] items) =>
-        Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", items.Length == 0 ? [Item()] : items, "chave-123", "hash", s_now);
+        Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", items.Length == 0 ? [Item()] : items, "chave-123", "hash", s_now,
+            s_recipient, s_address);
 
     [Fact]
     public void Place_StartsPending_WithTotalOfLines()
@@ -28,9 +32,30 @@ public sealed class OrderTests
     public void Place_RejectsEmptyTooManyAndRepeated()
     {
         var p = Guid.NewGuid();
-        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [], "k", "h", s_now));
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [], "k", "h", s_now, s_recipient, s_address));
         Assert.Throws<DomainException>(() => Pending([.. Enumerable.Range(0, Order.MaxItems + 1).Select(_ => Item())]));
         Assert.Throws<DomainException>(() => Pending(Item(productId: p), Item(productId: p)));
+    }
+
+    [Theory]
+    [InlineData("52998224725", true)]
+    [InlineData("529.982.247-25", true)]
+    [InlineData("52998224724", false)]  // verificador errado
+    [InlineData("11111111111", false)]  // todos iguais
+    [InlineData("5299822472", false)]   // 10 dígitos
+    public void Cpf_ChecksTheVerifierDigits(string cpf, bool valid) =>
+        Assert.Equal(valid, BrazilianDocuments.IsValidCpf(cpf));
+
+    [Fact]
+    public void Place_KeepsWhoReceivesAndWhere_AndRejectsAnInvalidCpfOrState()
+    {
+        var order = Pending();
+        Assert.Equal(s_recipient, order.Recipient);
+        Assert.Equal(s_address, order.ShippingAddress);
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
+            s_recipient with { Cpf = "52998224724" }, s_address));
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
+            s_recipient, s_address with { State = "XX" }));
     }
 
     [Theory]
@@ -140,5 +165,94 @@ public sealed class OrderTests
         Assert.Throws<DomainException>(() => cancelled.Confirm(Guid.NewGuid(), s_now));
         Assert.Equal(OrderStatus.Confirmed, confirmed.Status);
         Assert.Equal(OrderStatus.Cancelled, cancelled.Status);
+    }
+
+    private static Order Paid()
+    {
+        var order = Pending();
+        order.Confirm(Guid.NewGuid(), s_now.AddMinutes(1));
+        return order;
+    }
+
+    private static readonly Tracking s_tracking = new("BR1", "Correios", null);
+
+    [Fact]
+    public void Supplier_TakesThePaidOrderToDelivered()
+    {
+        var order = Paid();
+
+        Assert.True(order.MarkSentToSupplier(s_now.AddMinutes(2)));
+        Assert.False(order.MarkSentToSupplier(s_now.AddMinutes(3)));
+        Assert.True(order.Ship(s_tracking, s_now.AddDays(1)));
+        Assert.True(order.Deliver(s_now.AddDays(3)));
+
+        Assert.Equal(OrderStatus.Delivered, order.Status);
+        Assert.Equal((s_now.AddMinutes(2), s_now.AddDays(1), s_now.AddDays(3)), (order.SentToSupplierAt, order.ShippedAt, order.DeliveredAt));
+        Assert.Equal(s_tracking, order.Tracking);
+    }
+
+    [Fact]
+    public void Supplier_DeliveredWithoutShipping_FillsTheSteps()
+    {
+        var order = Paid();
+
+        Assert.True(order.Deliver(s_now.AddDays(2)));
+
+        Assert.Equal((s_now.AddDays(2), s_now.AddDays(2)), (order.SentToSupplierAt, order.ShippedAt));
+    }
+
+    [Fact]
+    public void Supplier_IgnoresPendingAndFinishedOrders()
+    {
+        var pending = Pending();
+        Assert.False(pending.MarkSentToSupplier(s_now));
+        Assert.False(pending.Ship(s_tracking, s_now));
+        Assert.False(pending.Deliver(s_now));
+        Assert.False(pending.FailAtSupplier(s_now));
+
+        var delivered = Paid();
+        delivered.Deliver(s_now);
+        Assert.False(delivered.Ship(s_tracking, s_now));
+        Assert.False(delivered.FailAtSupplier(s_now));
+        Assert.Equal(OrderStatus.Delivered, delivered.Status);
+    }
+
+    [Fact]
+    public void SupplierFailure_CancelsThePaidOrder_UntilRefunded()
+    {
+        var order = Paid();
+
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1)));
+        Assert.Equal((OrderStatus.Cancelled, CancellationReason.SupplierFailed), (order.Status, order.CancellationReason));
+        Assert.True(order.AwaitingRefund);
+
+        Assert.True(order.MarkRefunded(s_now.AddHours(2)));
+        Assert.False(order.MarkRefunded(s_now.AddHours(3)));
+        Assert.Equal(s_now.AddHours(2), order.RefundedAt);
+        Assert.False(order.AwaitingRefund);
+    }
+
+    [Fact]
+    public void SupplierFailure_AfterShipping_IsIgnored()
+    {
+        var order = Paid();
+        order.Ship(s_tracking, s_now);
+
+        Assert.False(order.FailAtSupplier(s_now));
+        Assert.Equal(OrderStatus.Shipped, order.Status);
+    }
+
+    [Fact]
+    public void PendingOrder_CannotBeCancelledBySupplier() =>
+        Assert.Throws<DomainException>(() => Pending().Cancel(CancellationReason.SupplierFailed, s_now));
+
+    [Fact]
+    public void Refund_OnlyForTheOrderCancelledAfterPayment()
+    {
+        var order = Pending();
+        order.Cancel(CancellationReason.OutOfStock, s_now);
+
+        Assert.False(order.MarkRefunded(s_now));
+        Assert.Null(order.RefundedAt);
     }
 }

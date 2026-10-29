@@ -79,7 +79,7 @@ export interface paths {
         /**
          * O pedido ao vivo (Server-Sent Events)
          * @description Stream `text/event-stream` com o estado atual do pedido e cada mudança da SAGA, até o estado final
-         *     (`confirmed` ou `cancelled`), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
+         *     (`delivered`, ou `cancelled` sem estorno pendente), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
          *
          *     - Cada evento é `event: order`, com `id` (muda a cada transição) e `data` com o `Order` em JSON.
          *     - Linhas `: keep-alive` a cada 15 s, sem dado: mantêm a conexão aberta no gateway e em proxies.
@@ -148,16 +148,93 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @enum {string} */
-        OrderStatus: "pending" | "confirmed" | "cancelled";
         /**
-         * @description `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança.
+         * @description `pending`: reservando o estoque e cobrando · `confirmed`: pago, com o fornecedor ·
+         *     `shipped`: despachado, com o rastreio · `delivered`: entregue · `cancelled`: não concluído
+         *     (ver `cancellation_reason`).
          * @enum {string}
          */
-        CancellationReason: "out_of_stock" | "payment_failed";
+        OrderStatus: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+        /**
+         * @description `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
+         *     `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
+         *     (`refunded_at`).
+         * @enum {string}
+         */
+        CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed";
+        /**
+         * @description Quem recebe o pedido (#221): o nome e o CPF vão na nota fiscal; o telefone, à transportadora. O
+         *     CPF e o telefone podem ir com máscara; o pedido guarda só os dígitos.
+         */
+        Recipient: {
+            name: string;
+            /**
+             * @description Com os dígitos verificadores certos.
+             * @example 52998224725
+             */
+            cpf: string;
+            /**
+             * @description Com DDD, 10 ou 11 dígitos.
+             * @example 11987654321
+             */
+            phone: string;
+        };
+        /** @description Onde entregar, nos tamanhos da NF-e (60 caracteres por campo). */
+        ShippingAddress: {
+            /**
+             * @description CEP; o pedido guarda os 8 dígitos.
+             * @example 01310100
+             */
+            zip_code: string;
+            street: string;
+            /** @description Texto ("S/N" vale). */
+            number: string;
+            complement?: string | null;
+            district: string;
+            city: string;
+            /** @description UF. */
+            state: string;
+        };
+        Tracking: {
+            /** @description Código de rastreio. */
+            number: string;
+            /** @description Transportadora. */
+            provider?: string | null;
+            /**
+             * Format: uri
+             * @description Onde acompanhar a entrega.
+             */
+            url?: string | null;
+        };
         PlaceOrderRequest: {
+            recipient: components["schemas"]["Recipient"];
+            shipping_address: components["schemas"]["ShippingAddress"];
+            payment: components["schemas"]["PlaceOrderPayment"];
             /** @description Um item por produto (sem repetir `product_id`). */
             items: components["schemas"]["PlaceOrderItem"][];
+        };
+        /**
+         * @description Como pagar (#220). PIX: o QR aparece no pedido, para pagar em 30 minutos. Cartão: o
+         *     `card_token` do provedor (o cartão é tokenizado no checkout; os dados dele não passam pela loja),
+         *     a bandeira e as parcelas.
+         */
+        PlaceOrderPayment: {
+            method: components["schemas"]["PaymentMethod"];
+            /** @description Obrigatório no cartão; de uso único. */
+            card_token?: string;
+            /** @description Bandeira, como o provedor devolveu na tokenização (ex.: `visa`). */
+            card_brand?: string;
+            /**
+             * @description Parcelas no cartão; PIX é à vista.
+             * @default 1
+             */
+            installments: number;
+        };
+        OrderPayment: {
+            method: components["schemas"]["PaymentMethod"];
+            installments: number;
+            /** @description O PIX a pagar, depois que o payments o gera; nulo no cartão e antes disso. */
+            pix: components["schemas"]["Pix"] | null;
         };
         PlaceOrderItem: {
             /** Format: uuid */
@@ -184,12 +261,34 @@ export interface components {
              * @description Preenchido quando o payments processa a cobrança.
              */
             payment_id?: string | null;
+            payment: components["schemas"]["OrderPayment"];
             /**
              * Format: date-time
              * @description Quando o inventory reservou o estoque. Com o pedido `pending`, nulo é a etapa da reserva e
              *     preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
              */
             stock_reserved_at?: string | null;
+            /** @description Quem recebe; nulo só nos pedidos de antes de o checkout pedir o endereço (#221). */
+            recipient?: components["schemas"]["Recipient"] | null;
+            /** @description Onde entregar; nulo só nos pedidos de antes do */
+            shipping_address?: components["schemas"]["ShippingAddress"] | null;
+            /**
+             * Format: date-time
+             * @description Quando o fornecedor aceitou o pedido pago (`confirmed`, antes de `shipped`).
+             */
+            sent_to_supplier_at?: string | null;
+            /** @description Rastreio do envio; nulo antes de `shipped`. */
+            tracking?: components["schemas"]["Tracking"] | null;
+            /** Format: date-time */
+            shipped_at?: string | null;
+            /** Format: date-time */
+            delivered_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`. Nulo nesse
+             *     pedido é o estorno em andamento.
+             */
+            refunded_at?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -208,6 +307,8 @@ export interface components {
             /** Format: uuid */
             campaign_id?: string | null;
         };
+        /** @enum {string} */
+        PaymentMethod: "pix" | "card";
         /** @description Valor monetário em centavos, para evitar erro de ponto flutuante. */
         Money: {
             /**
@@ -221,6 +322,19 @@ export interface components {
              * @example BRL
              */
             currency: string;
+        };
+        Pix: {
+            /** @description O "copia e cola" (BR Code). */
+            qr_code: string;
+            /** @description O QR em PNG, em base64. */
+            qr_code_base64: string;
+            /**
+             * Format: uri
+             * @description A página de pagamento do provedor.
+             */
+            ticket_url?: string | null;
+            /** Format: date-time */
+            expires_at: string;
         };
         /** @description Erro no formato ProblemDetails (RFC 9457), servido como `application/problem+json`. */
         Problem: {

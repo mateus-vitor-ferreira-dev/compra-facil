@@ -1,6 +1,6 @@
 import "server-only";
 import { updateTag } from "next/cache";
-import { api, type CatalogSchemas } from "@/lib/api/client";
+import { api, type CatalogSchemas, type FulfillmentSchemas } from "@/lib/api/client";
 import type { components as InventorySchemas } from "@/lib/api/schema/inventory";
 
 /**
@@ -9,6 +9,9 @@ import type { components as InventorySchemas } from "@/lib/api/schema/inventory"
  */
 
 export type AdminProduct = CatalogSchemas["schemas"]["AdminProduct"];
+export type PricingSettings = CatalogSchemas["schemas"]["PricingSettings"];
+export type PricingRuleInput = CatalogSchemas["schemas"]["PricingRuleInput"];
+export type CatalogSyncResult = FulfillmentSchemas["schemas"]["CatalogSyncResult"];
 export type ProductInput = CatalogSchemas["schemas"]["ProductInput"];
 export type Category = CatalogSchemas["schemas"]["Category"];
 export type CategoryInput = CatalogSchemas["schemas"]["CategoryInput"];
@@ -231,9 +234,15 @@ export type DeadLetter = InventorySchemas["schemas"]["DeadLetter"];
 
 /** Os serviços que consomem eventos, cada um com a própria dead letter topic (ADR 0003). */
 export const DLT_SERVICES = [
-  { key: "orders", label: "Pedidos", consumes: "estoque reservado e resultado do pagamento" },
+  {
+    key: "orders",
+    label: "Pedidos",
+    consumes: "estoque reservado, resultado do pagamento, estorno e o andamento no fornecedor",
+  },
   { key: "inventory", label: "Estoque", consumes: "pedidos feitos, confirmados e cancelados" },
-  { key: "payments", label: "Pagamentos", consumes: "pedidos feitos e estoque reservado" },
+  { key: "payments", label: "Pagamentos", consumes: "pedidos feitos e cancelados, estoque reservado" },
+  { key: "fulfillment", label: "Fornecedor", consumes: "pedidos confirmados" },
+  { key: "catalog", label: "Catálogo", consumes: "o feed do fornecedor" },
   {
     key: "notifications",
     label: "Avisos por e-mail",
@@ -242,7 +251,7 @@ export const DLT_SERVICES = [
 ] as const;
 export type DltService = (typeof DLT_SERVICES)[number]["key"];
 
-// os quatro expõem as mesmas rotas (BuildingBlocks: MapDeadLetters); o tipo é o do inventory
+// todos expõem as mesmas rotas (BuildingBlocks: MapDeadLetters); o tipo é o do inventory
 function dltClient(token: string, service: DltService) {
   return api[service]({ token }) as unknown as ReturnType<typeof api.inventory>;
 }
@@ -259,4 +268,59 @@ export function deadLetters(token: string, service: DltService) {
 /** Devolve as pendentes ao primeiro tópico de retry do serviço; falhando de novo, voltam para a DLT. */
 export function replayDeadLetters(token: string, service: DltService) {
   return run(() => dltClient(token, service).POST("/v1/admin/dead-letters/replay", {}));
+}
+
+// ---------- pedidos atrasados no fornecedor ----------
+
+export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"];
+
+/**
+ * Os pedidos parados além do prazo do fornecedor (despacho ou entrega), os mais atrasados primeiro, e o
+ * momento da leitura (de quando o atraso é contado).
+ */
+export async function overdueOrders(token: string) {
+  const result = await run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/supplier-orders/overdue", {
+      params: { query: { limit: 200 } },
+      cache: "no-store",
+    }),
+  );
+  return { result, readAt: Date.now() };
+}
+
+// ---------- catálogo do fornecedor (#217) ----------
+
+/** As regras de margem em vigor e o câmbio. */
+export function pricingSettings(token: string) {
+  return run(() => api.catalog({ token }).GET("/v1/admin/pricing-rules", { cache: "no-store" }));
+}
+
+/** Grava a regra (sem categoria: a padrão); o catalog reprecifica os produtos de fornecedor na hora. */
+export async function setPricingRule(token: string, categoryId: string | null, body: PricingRuleInput) {
+  const client = api.catalog({ token });
+  const result = await run(() =>
+    categoryId
+      ? client.PUT("/v1/admin/pricing-rules/categories/{category_id}", {
+          params: { path: { category_id: categoryId } },
+          body,
+        })
+      : client.PUT("/v1/admin/pricing-rules/default", { body }),
+  );
+  if (result.ok && result.data.repriced > 0) refreshStorefront();
+  return result;
+}
+
+export async function deletePricingRule(token: string, categoryId: string) {
+  const result = await run(() =>
+    api.catalog({ token }).DELETE("/v1/admin/pricing-rules/categories/{category_id}", {
+      params: { path: { category_id: categoryId } },
+    }),
+  );
+  if (result.ok && result.data.repriced > 0) refreshStorefront();
+  return result;
+}
+
+/** Lê o feed do fornecedor agora; o que mudou chega ao catálogo pelos eventos, em segundos. */
+export function syncSupplierCatalog(token: string) {
+  return run(() => api.fulfillment({ token }).POST("/v1/admin/supplier-catalog/sync", {}));
 }

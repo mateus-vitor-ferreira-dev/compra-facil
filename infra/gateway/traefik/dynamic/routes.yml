@@ -35,6 +35,20 @@ http:
       entryPoints: [web]
       service: notifications
       middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
+{{- if ne (env "GATEWAY_FULFILLMENT") "off" }}
+    # do fulfillment (ADR 0007), só o webhook do fornecedor (assinado) e a operação; a produção liga
+    # quando houver fornecedor de verdade
+    fulfillment-webhooks:
+      rule: PathPrefix(`/fulfillment/v1/webhooks`)
+      entryPoints: [web]
+      service: fulfillment
+      middlewares: [security-headers, strip-bff-key, strip-service-prefix]
+    fulfillment-admin:
+      rule: PathPrefix(`/fulfillment/v1/admin`)
+      entryPoints: [web]
+      service: fulfillment
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
+{{- end }}
 {{- if ne (env "GATEWAY_MEDIA") "off" }}
     # as fotos dos produtos no ambiente local; em produção elas saem do R2, com domínio próprio
     media:
@@ -87,6 +101,12 @@ http:
       loadBalancer:
         servers: [{ url: "http://notifications:8005" }]
         healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+{{- if ne (env "GATEWAY_FULFILLMENT") "off" }}
+    fulfillment:
+      loadBalancer:
+        servers: [{ url: "http://fulfillment:8007" }]
+        healthCheck: { path: /ready, interval: 5s, timeout: 2s }
+{{- end }}
 {{- if ne (env "GATEWAY_MEDIA") "off" }}
     media:
       loadBalancer:

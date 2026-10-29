@@ -7,15 +7,25 @@ info:
 
     Junta dois eventos do mesmo pedido antes de cobrar:
 
-    - `OrderPlaced` → grava uma cobrança pendente com `customer_id` e `total`;
+    - `OrderPlaced` → grava a cobrança pendente com `customer_id`, `total` e o meio de pagamento (`payment`);
     - `StockReserved` → marca o estoque como garantido.
 
-    Quando os dois chegaram, **em qualquer ordem** (são tópicos diferentes), cobra o `total` no gateway
-    de pagamento (fake em dev; Stripe em modo teste, opcional) e publica `PaymentApproved` ou
-    `PaymentFailed`. `OrderCancelled` antes da cobrança descarta a pendência (caso da reserva recusada).
+    Quando os dois chegaram, **em qualquer ordem** (são tópicos diferentes), cobra no provedor de pagamento
+    (ADR 0007, #220: o Mercado Pago; em dev e no CI, o `payment-sim`):
 
-    Cada pedido é cobrado no máximo uma vez: evento repetido para o mesmo `order_id` não gera nova
-    cobrança.
+    - **PIX**: gera o QR e publica `PaymentPending`; o cliente paga, o provedor avisa (webhook) e sai
+      `PaymentApproved`; se o PIX expira sem pagamento, `PaymentFailed` (`pix_expired`), e a reserva é
+      liberada.
+    - **Cartão**: autoriza sem capturar e publica `PaymentApproved` (`captured: false`): o valor está
+      garantido e o pedido segue. A captura acontece quando o fornecedor aceita o pedido
+      (`SupplierOrderPlaced`). Recusado, `PaymentFailed`.
+
+    `OrderCancelled` antes da cobrança descarta a pendência. Depois (o fornecedor não atendeu,
+    `supplier_failed`), o dinheiro volta: a autorização do cartão é cancelada (nada chega a ser cobrado) ou o
+    valor pago é estornado, e sai `PaymentRefunded`. O painel também estorna parte de um pagamento.
+
+    Cada pedido é cobrado no máximo uma vez, e cada estorno acontece uma vez: as chamadas ao provedor levam
+    chave de idempotência.
 defaultContentType: application/json
 
 servers:
@@ -30,10 +40,14 @@ channels:
     title: Pagamentos
     description: Resultado da cobrança de cada pedido. Chave = `order_id`.
     messages:
+      PaymentPending:
+        $ref: "#/components/messages/PaymentPending"
       PaymentApproved:
         $ref: "#/components/messages/PaymentApproved"
       PaymentFailed:
         $ref: "#/components/messages/PaymentFailed"
+      PaymentRefunded:
+        $ref: "#/components/messages/PaymentRefunded"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -47,22 +61,28 @@ channels:
     $ref: "./orders.v1.yaml#/channels/orderEvents"
   reservationEvents:
     $ref: "./inventory.v1.yaml#/channels/reservationEvents"
+  supplierOrderEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/supplierOrderEvents"
 
 operations:
   publishPaymentEvents:
     action: send
     channel:
       $ref: "#/channels/paymentEvents"
-    summary: Publica o resultado da cobrança (outbox).
+    summary: Publica o andamento da cobrança (outbox).
     messages:
+      - $ref: "#/channels/paymentEvents/messages/PaymentPending"
       - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
+      - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
 
   onOrderEvents:
     action: receive
     channel:
       $ref: "#/channels/orderEvents"
-    summary: Grava a cobrança pendente (placed) ou a descarta se ainda não foi feita (cancelled).
+    summary: |
+      Grava a cobrança pendente (placed); no cancelled, a descarta se ainda não foi feita, ou devolve o
+      dinheiro (cancela a autorização ou estorna).
     messages:
       - $ref: "#/channels/orderEvents/messages/OrderPlaced"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
@@ -79,6 +99,16 @@ operations:
     bindings:
       $ref: "#/components/operationBindings/PaymentsGroup"
 
+  onSupplierOrderPlaced:
+    action: receive
+    channel:
+      $ref: "#/channels/supplierOrderEvents"
+    summary: O fornecedor aceitou o pedido; a autorização do cartão é capturada.
+    messages:
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderPlaced"
+    bindings:
+      $ref: "#/components/operationBindings/PaymentsGroup"
+
 components:
   operationBindings:
     PaymentsGroup:
@@ -89,10 +119,50 @@ components:
           const: payments
 
   messages:
+    PaymentPending:
+      name: PaymentPending
+      title: PIX gerado
+      summary: O PIX do pedido está pronto; o cliente paga pelo QR até `expires_at`. O orders o mostra no pedido.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PaymentPending
+              event_version:
+                const: 1
+              producer:
+                const: payments
+              data:
+                type: object
+                required: [order_id, payment_id, amount, provider, method, pix]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  payment_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  provider:
+                    $ref: "#/components/schemas/Provider"
+                  method:
+                    const: pix
+                  pix:
+                    $ref: "../openapi/payments.v1.yaml#/components/schemas/Pix"
+
     PaymentApproved:
       name: PaymentApproved
       title: Pagamento aprovado
-      summary: Cobrança aprovada. O orders confirma o pedido.
+      summary: |
+        PIX pago, ou cartão autorizado (`captured: false`, o valor garantido; a captura vem quando o
+        fornecedor aceita). O orders confirma o pedido.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -110,7 +180,7 @@ components:
                 const: payments
               data:
                 type: object
-                required: [order_id, payment_id, amount, provider]
+                required: [order_id, payment_id, amount, provider, method, installments, captured]
                 properties:
                   order_id:
                     type: string
@@ -124,12 +194,21 @@ components:
                     $ref: "#/components/schemas/Provider"
                   provider_reference:
                     type: [string, "null"]
-                    description: "ID da cobrança no gateway (ex.: `pi_...` no Stripe)."
+                    description: ID da cobrança no provedor.
+                  method:
+                    $ref: "../openapi/payments.v1.yaml#/components/schemas/PaymentMethod"
+                  installments:
+                    type: integer
+                    minimum: 1
+                    maximum: 12
+                  captured:
+                    type: boolean
+                    description: Falso no cartão só autorizado.
 
     PaymentFailed:
       name: PaymentFailed
       title: Pagamento recusado
-      summary: Cobrança recusada. O orders cancela o pedido, o que libera a reserva de estoque.
+      summary: Cartão recusado ou PIX expirado. O orders cancela o pedido, o que libera a reserva de estoque.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -162,7 +241,61 @@ components:
                   failure_reason:
                     $ref: "../openapi/payments.v1.yaml#/components/schemas/FailureReason"
 
+    PaymentRefunded:
+      name: PaymentRefunded
+      title: Dinheiro devolvido
+      summary: |
+        `kind: void`: a autorização do cartão foi cancelada (nada chegou a ser cobrado). `kind: refund`: um
+        estorno do que foi pago, total ou parte (o painel). `full`: o pedido inteiro voltou ao cliente; o
+        orders marca o estorno.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PaymentRefunded
+              event_version:
+                const: 1
+              producer:
+                const: payments
+              data:
+                type: object
+                required: [order_id, payment_id, amount, total_refunded_cents, provider, refunded_at, kind, full]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  payment_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    description: O que voltou nesta vez.
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  total_refunded_cents:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    description: O estornado até agora (no void, zero).
+                  provider:
+                    $ref: "#/components/schemas/Provider"
+                  refund_reference:
+                    type: [string, "null"]
+                    description: ID do estorno no provedor (nulo no void).
+                  refunded_at:
+                    type: string
+                    format: date-time
+                  kind:
+                    type: string
+                    enum: [refund, void]
+                  full:
+                    type: boolean
+
   schemas:
     Provider:
       type: string
-      enum: [fake, stripe]
+      enum: [mercadopago]

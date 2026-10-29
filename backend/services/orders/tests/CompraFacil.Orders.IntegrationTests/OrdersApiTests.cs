@@ -20,11 +20,34 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     /// <summary>Corpo do pedido (só itens) e o cliente cujo token vai junto.</summary>
     private sealed record PlaceBody(Guid Customer, object Json);
 
-    private static PlaceBody Body(Guid customerId, params object[] items) => new(customerId, new { items });
+    private static object Pix => new { method = "pix" };
 
-    private async Task<HttpResponseMessage> PlaceAsync(PlaceBody body, string? key = null, string? requestId = null, string? token = null)
+    private static PlaceBody Body(Guid customerId, params object[] items) => new(customerId, new { items, payment = Pix });
+
+    /// <summary>Quem recebe e onde (#221): o PlaceAsync os põe no corpo que não os traz.</summary>
+    private static object Recipient => new { name = "Ana Souza", cpf = "529.982.247-25", phone = "(11) 98765-4321" };
+
+    private static object Address => new
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders") { Content = JsonContent.Create(body.Json) };
+        zip_code = "01310-100",
+        street = "Avenida Paulista",
+        number = "1000",
+        complement = "Apto 12",
+        district = "Bela Vista",
+        city = "São Paulo",
+        state = "sp",
+    };
+
+    private async Task<HttpResponseMessage> PlaceAsync(
+        PlaceBody body, string? key = null, string? requestId = null, string? token = null, bool withDelivery = true)
+    {
+        var json = JsonSerializer.SerializeToNode(body.Json)!.AsObject();
+        if (withDelivery)
+        {
+            json.TryAdd("recipient", JsonSerializer.SerializeToNode(Recipient));
+            json.TryAdd("shipping_address", JsonSerializer.SerializeToNode(Address));
+        }
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders") { Content = JsonContent.Create(json) };
         request.Headers.Authorization = new("Bearer", token ?? fx.Identity.CustomerToken(body.Customer));
         if (key != "<sem>")
         {
@@ -52,6 +75,91 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
 
     private static async Task<JsonElement> JsonOf(HttpResponseMessage response) =>
         await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+
+    [Fact]
+    public async Task Place_WithCard_SendsTheTokenToThePayments_WithoutKeepingIt()
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("PAY-1", "Mouse", 9990));
+        var customer = Guid.NewGuid();
+        using var response = await PlaceAsync(new PlaceBody(customer, new
+        {
+            items = new[] { new { product_id = item, quantity = 1 } },
+            payment = new { method = "card", card_token = "tok_123", card_brand = "visa", installments = 3 },
+        }));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        Assert.DoesNotContain("tok_123", json, StringComparison.Ordinal);
+        var order = JsonDocument.Parse(json).RootElement;
+        Assert.Equal(("card", 3), (order.GetProperty("payment").GetProperty("method").GetString(), order.GetProperty("payment").GetProperty("installments").GetInt32()));
+
+        var placed = EventEnvelope.TryParse(Assert.Single(await OutboxForAsync(order.GetProperty("id").GetGuid())).Payload)!;
+        var payment = placed.Data.GetProperty("payment");
+        Assert.Equal(("tok_123", "visa"), (payment.GetProperty("card_token").GetString(), payment.GetProperty("card_brand").GetString()));
+        Assert.Equal("ana@exemplo.com", placed.Data.GetProperty("customer_email").GetString());
+    }
+
+    [Fact]
+    public async Task Place_KeepsWhoReceivesAndWhere_Normalized_AndSendsThemWithTheConfirmation()
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("ADDR-1", "Mouse", 9990));
+        using var response = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = item, quantity = 1 }));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        var order = JsonDocument.Parse(json).RootElement;
+        var recipient = order.GetProperty("recipient");
+        Assert.Equal(("Ana Souza", "52998224725", "11987654321"),
+            (recipient.GetProperty("name").GetString(), recipient.GetProperty("cpf").GetString(), recipient.GetProperty("phone").GetString()));
+        var address = order.GetProperty("shipping_address");
+        Assert.Equal(("01310100", "SP", "Apto 12"),
+            (address.GetProperty("zip_code").GetString(), address.GetProperty("state").GetString(), address.GetProperty("complement").GetString()));
+    }
+
+    [Fact]
+    public async Task Place_WithoutWhoReceivesOrWithAnInvalidCpf_Is422_WithTheFields()
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("ADDR-2", "Mouse", 9990));
+        using var missing = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = item, quantity = 1 }), withDelivery: false);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, missing.StatusCode);
+        Assert.Superset(new HashSet<string?> { "recipient", "shipping_address" }, await FieldsOf(missing));
+
+        using var invalid = await PlaceAsync(new PlaceBody(Guid.NewGuid(), new
+        {
+            items = new[] { new { product_id = item, quantity = 1 } },
+            payment = Pix,
+            recipient = new { name = "Ana", cpf = "529.982.247-24", phone = "123" },
+            shipping_address = new { zip_code = "0131", street = "", number = "1", district = "Centro", city = "São Paulo", state = "XX" },
+        }));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, invalid.StatusCode);
+        Assert.Superset(new HashSet<string?>
+        {
+            "recipient.cpf", "recipient.phone", "shipping_address.zip_code", "shipping_address.street", "shipping_address.state",
+        }, await FieldsOf(invalid));
+    }
+
+    private static async Task<HashSet<string?>> FieldsOf(HttpResponseMessage response) =>
+        JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("errors").EnumerateArray()
+            .Select(e => e.GetProperty("field").GetString()).ToHashSet();
+
+    [Theory]
+    [InlineData("card", null, 1)]       // cartão sem token
+    [InlineData("card", "tok", 13)]     // até 12x
+    [InlineData("pix", null, 2)]        // PIX é à vista
+    [InlineData("boleto", null, 1)]     // meio que não existe
+    public async Task Place_RejectsAnInvalidPayment(string method, string? token, int installments)
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("PAY-2", "Mouse", 9990));
+        using var response = await PlaceAsync(new PlaceBody(Guid.NewGuid(), new
+        {
+            items = new[] { new { product_id = item, quantity = 1 } },
+            payment = new { method, card_token = token, card_brand = "visa", installments },
+        }));
+
+        Assert.True(response.StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.BadRequest, response.StatusCode.ToString());
+    }
 
     [Fact]
     public async Task Place_Returns202Pending_FreezesPrices_AndPublishesOrderPlaced()
@@ -167,7 +275,8 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/ValidationProblem", problem);
         var fields = JsonDocument.Parse(problem).RootElement.GetProperty("errors").EnumerateArray()
             .Select(e => e.GetProperty("field").GetString()).ToHashSet();
-        Assert.Superset(new HashSet<string?> { "items", "items[0].quantity", "items[1].expected_unit_price_cents" }, fields);
+        // sem o meio de pagamento também (#220): o checkout sempre escolhe PIX ou cartão
+        Assert.Superset(new HashSet<string?> { "items", "items[0].quantity", "items[1].expected_unit_price_cents", "payment" }, fields);
         Assert.Equal(calls, fx.Catalog.Calls);
     }
 
@@ -305,7 +414,7 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
 
         // cliente antigo ainda mandando customer_id/customer_email: valem os do token
         using var response = await PlaceAsync(
-            new PlaceBody(customer, new { customer_id = someoneElse, customer_email = "outro@exemplo.com", items = new[] { new { product_id = product, quantity = 1 } } }),
+            new PlaceBody(customer, new { customer_id = someoneElse, customer_email = "outro@exemplo.com", items = new[] { new { product_id = product, quantity = 1 } }, payment = Pix }),
             token: fx.Identity.CustomerToken(customer, "bia@exemplo.com"));
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);

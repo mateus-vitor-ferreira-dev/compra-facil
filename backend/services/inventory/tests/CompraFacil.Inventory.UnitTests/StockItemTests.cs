@@ -88,4 +88,29 @@ public sealed class StockItemTests
         Assert.Throws<DomainException>(() => reservation.Commit(s_now));
         Assert.Throws<DomainException>(() => Reservation.Create(Guid.NewGuid(), [], s_now));
     }
+
+    [Fact]
+    public void Mirror_MakesAvailableTheSupplierStock_KeepingTheReservations()
+    {
+        var item = StockItem.Create(Guid.NewGuid(), 0, s_now);
+        Assert.Throws<DomainException>(() => item.Mirror(5, s_now)); // estoque próprio não espelha
+        item.LinkToSupplier("cj", "V-1", s_now);
+
+        Assert.True(item.Mirror(5, s_now));
+        item.Reserve(2, s_now);
+        Assert.Equal(3, item.Available);
+        Assert.True(item.Mirror(4, s_now)); // o fornecedor tem 4: as 2 reservadas daqui ainda não chegaram lá
+        Assert.Equal((6, 2, 4), (item.OnHand, item.Reserved, item.Available));
+        Assert.False(item.Mirror(4, s_now));
+        Assert.Throws<DomainException>(() => item.Adjust(1, s_now));
+    }
+
+    [Fact]
+    public void SupplierLevel_IgnoresAnOlderReading()
+    {
+        var level = SupplierStockLevel.Create("cj", "V-1", 5, s_now);
+        Assert.False(level.Apply(9, s_now.AddMinutes(-1)));
+        Assert.True(level.Apply(0, s_now.AddMinutes(1)));
+        Assert.Equal(0, level.Available);
+    }
 }

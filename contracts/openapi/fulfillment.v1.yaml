@@ -1,0 +1,405 @@
+openapi: 3.1.0
+info:
+  title: CompraFácil — Fulfillment API
+  version: 1.0.0
+  summary: Webhook do fornecedor e operação.
+  description: |
+    API do serviço **fulfillment** (time de Processamento de compras, ASP.NET Core). Dono da integração
+    com o fornecedor de dropshipping (ADR 0007).
+
+    O pedido **não** vai ao fornecedor por HTTP desta API: o fulfillment consome `OrderConfirmed`, envia
+    o pedido ao fornecedor e publica o que acontece (`SupplierOrderPlaced`, `SupplierOrderShipped`,
+    `SupplierOrderDelivered`, `SupplierOrderFailed`). Esta API recebe as atualizações do fornecedor
+    (webhook) e serve à operação.
+servers:
+  - url: http://localhost:8007
+    description: Serviço direto (dev)
+  - url: http://localhost/fulfillment
+    description: Via gateway Traefik
+tags:
+  - name: webhooks
+    description: Chamadas do fornecedor.
+  - name: internal
+    description: Chamadas entre serviços, fora do gateway.
+  - name: admin
+    description: "Operação (role `admin`): pedidos parados no fornecedor; dead letter topic em todos os serviços."
+
+paths:
+  /v1/webhooks/supplier:
+    post:
+      tags: [webhooks]
+      operationId: receiveSupplierWebhook
+      summary: Atualização de um pedido no fornecedor
+      description: |
+        O fornecedor avisa cada mudança de status de um pedido (aceito, enviado com o rastreio, entregue,
+        cancelado). A assinatura é um HMAC-SHA256 do corpo com o segredo combinado, no cabeçalho
+        `X-Sim-Signature` (`sha256=<hex>`; o nome do cabeçalho é configurável por fornecedor).
+
+        Idempotente por `messageId`: a mesma mensagem de novo responde 200 sem repetir o efeito. Uma
+        atualização atrasada não faz o pedido voltar (entregue não volta a enviado). Pedido desconhecido
+        também responde 200, para o fornecedor não insistir; fica no log.
+      parameters:
+        - name: X-Sim-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: "^sha256=[0-9a-f]{64}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierWebhook"
+      responses:
+        "200":
+          description: Recebida (aplicada, repetida, ignorada ou de pedido desconhecido).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierWebhookAck"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/internal/supplier-stock/check:
+    post:
+      tags: [internal]
+      operationId: checkSupplierStock
+      summary: Confere no fornecedor, agora, a disponibilidade das variantes de um pedido
+      description: |
+        Usada pelo inventory antes de reservar e cobrar um pedido com produtos de fornecedor (#218). A
+        leitura também atualiza o espelho (`SupplierStockChanged`). **Interna**: o gateway não a expõe, só
+        a rede dos serviços chega nela.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [vid, quantity]
+                    properties:
+                      vid:
+                        type: string
+                        minLength: 1
+                      quantity:
+                        type: integer
+                        minimum: 1
+      responses:
+        "200":
+          description: A disponibilidade de cada variante.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [vid, available, known]
+                      properties:
+                        vid:
+                          type: string
+                        available:
+                          type: integer
+                          minimum: 0
+                        known:
+                          type: boolean
+                          description: Falso se a variante não está no feed do fornecedor.
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não respondeu; o inventory decide pelo espelho.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+  /v1/admin/supplier-orders/overdue:
+    get:
+      tags: [admin]
+      operationId: listOverdueSupplierOrders
+      summary: Pedidos parados além do prazo do fornecedor
+      description: |
+        Os pedidos pagos que o fornecedor não despachou dentro do prazo de separação
+        (`Supplier:Deadlines:ShipWithin`, padrão 3 dias, contado do pedido pago) e os enviados que não
+        chegaram dentro do prazo de transporte (`Supplier:Deadlines:DeliverWithin`, padrão 15 dias,
+        contado do envio). Os mais atrasados primeiro. Para a equipe cobrar o fornecedor e avisar o
+        cliente: a loja responde pelo prazo que prometeu.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Pedidos atrasados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OverdueSupplierOrder"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-catalog/sync:
+    post:
+      tags: [admin]
+      operationId: syncSupplierCatalog
+      summary: Lê o feed do fornecedor agora
+      description: |
+        A mesma leitura que o fulfillment faz de tempos em tempos (`Supplier:CatalogSyncInterval`): o que
+        mudou desde a anterior vira `SupplierProductUpdated` ou `SupplierProductRemoved`, e o catalog
+        atualiza a loja. Feed vazio ou com erro não tira nada de venda (503).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: O que a leitura encontrou.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogSyncResult"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "409":
+          description: Outra leitura do feed está rodando (o job ou outro operador).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não respondeu, ou devolveu o feed vazio; nada mudou.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+  /v1/admin/dead-letters:
+    get:
+      tags: [admin]
+      operationId: listDeadLetters
+      summary: Mensagens pendentes na dead letter topic
+      description: |
+        Mensagens em `fulfillment.dlt` que chegaram depois do último reprocessamento: as que falharam em
+        todas as tentativas (no lugar e nos tópicos de retry) e as envenenadas (fora do contrato),
+        que vão direto para lá. Ver docs/adr/0003-retries-e-dead-letter-topics.md.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/dead-letters.yaml#/components/parameters/DeadLetterLimit"
+      responses:
+        "200":
+          description: Mensagens pendentes.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterList"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
+  /v1/admin/dead-letters/replay:
+    post:
+      tags: [admin]
+      operationId: replayDeadLetters
+      summary: Reprocessa as mensagens pendentes na dead letter topic
+      description: |
+        Devolve as pendentes para `fulfillment.retry-1`: só o fulfillment as consome de novo. Falhando outra
+        vez, voltam para a DLT. Evento já processado não repete o efeito (inbox). Use depois de
+        corrigir a causa.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Quantas mensagens foram devolvidas.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterReplay"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
+
+components:
+  schemas:
+    CatalogSyncResult:
+      type: object
+      required: [created, updated, removed, unchanged]
+      properties:
+        created:
+          type: integer
+          minimum: 0
+          description: Produtos novos no feed.
+        updated:
+          type: integer
+          minimum: 0
+          description: Alterados ou de volta ao feed.
+        removed:
+          type: integer
+          minimum: 0
+          description: Saíram do feed.
+        unchanged:
+          type: integer
+          minimum: 0
+
+    OverdueSupplierOrder:
+      type: object
+      required: [order_id, status, stage, due_at, supplier, customer_email, attempts, created_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+          description: O pedido da loja (o mesmo `order_id` do orders).
+        status:
+          type: string
+          description: |
+            `pending`: na fila para o fornecedor (ou esperando nova tentativa) · `placing`: sendo enviado ·
+            `placed`: aceito e não despachado · `shipped`: despachado e não entregue.
+          enum: [pending, placing, placed, shipped]
+        stage:
+          type: string
+          description: "`shipping`: o fornecedor não despachou no prazo · `delivery`: o envio não chegou no prazo."
+          enum: [shipping, delivery]
+        due_at:
+          type: string
+          format: date-time
+          description: Quando o prazo da etapa venceu.
+        supplier:
+          type: string
+        supplier_order_id:
+          type: [string, "null"]
+          description: O pedido no fornecedor, depois de aceito.
+        customer_email:
+          type: string
+          format: email
+        attempts:
+          type: integer
+          minimum: 0
+          description: Tentativas de envio ao fornecedor que falharam (fornecedor fora, timeout).
+        last_error:
+          type: [string, "null"]
+          description: O erro da última tentativa.
+        tracking:
+          description: Rastreio, no `shipped`.
+          oneOf:
+            - $ref: "./orders.v1.yaml#/components/schemas/Tracking"
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+          description: Quando o pedido pago chegou ao fulfillment.
+        placed_at:
+          type: [string, "null"]
+          format: date-time
+        shipped_at:
+          type: [string, "null"]
+          format: date-time
+
+    SupplierWebhook:
+      type: object
+      description: |
+        Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido) ou `STOCK` (a
+        disponibilidade de uma variante, #218).
+      required: [messageId, type, messageType, params]
+      properties:
+        messageId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        type:
+          type: string
+          description: "`ORDER` ou `STOCK`; outros tipos são ignorados."
+        messageType:
+          type: string
+          description: "`UPDATE`."
+        params:
+          type: object
+          description: "`ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios."
+          properties:
+            vid:
+              type: string
+              description: "`STOCK`: a variante."
+            storageNum:
+              type: integer
+              minimum: 0
+              description: "`STOCK`: unidades disponíveis agora."
+            orderId:
+              type: [string, "null"]
+              description: Id do pedido no fornecedor.
+            orderNumber:
+              type: string
+              format: uuid
+              description: Número do pedido na loja (order_id).
+            orderStatus:
+              type: string
+              description: "`CREATED`, `UNSHIPPED`, `SHIPPED`, `DELIVERED` ou `CANCELLED`."
+            subStatus:
+              type: [string, "null"]
+            trackNumber:
+              type: [string, "null"]
+            trackingProvider:
+              type: [string, "null"]
+            trackingUrl:
+              type: [string, "null"]
+            reason:
+              type: [string, "null"]
+            updateDate:
+              type: [string, "null"]
+              format: date-time
+    SupplierWebhookAck:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [applied, duplicate, ignored, unknown_order]
+          description: |
+            `applied`: o pedido mudou · `duplicate`: mensagem já recebida · `ignored`: nada a mudar
+            (atrasada ou repetida em outra mensagem) · `unknown_order`: não é pedido desta loja.
+
+  securitySchemes:
+    bearerAuth:
+      $ref: "./common/v1/common.yaml#/components/securitySchemes/bearerAuth"

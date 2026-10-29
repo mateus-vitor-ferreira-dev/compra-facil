@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { FormError } from "./form-error";
 
 /** Nova categoria: na raiz ou dentro de um departamento. O endereço sai do nome se ficar vazio. */
-export function CategoryForm({ roots }: { roots: { id: string; name: string }[] }) {
+export function CategoryForm({ parents }: { parents: { id: string; name: string }[] }) {
   const [state, action] = useActionState<FormState, FormData>(saveCategory, {});
   const v = state.values ?? {};
   const err = state.fields ?? {};
@@ -35,7 +35,7 @@ export function CategoryForm({ roots }: { roots: { id: string; name: string }[] 
           className="bg-surface border-ink/25 h-11 w-full rounded-md border px-3"
         >
           <option value="">Nenhum (é um departamento)</option>
-          {roots.map((r) => (
+          {parents.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
             </option>

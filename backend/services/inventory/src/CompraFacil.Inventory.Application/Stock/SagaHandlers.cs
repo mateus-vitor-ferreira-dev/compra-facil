@@ -6,15 +6,26 @@ namespace CompraFacil.Inventory.Application.Stock;
 
 /// <summary>
 /// OrderPlaced → reserva todos os itens ou nenhum → StockReserved ou StockReservationFailed.
-/// Roda na transação do consumer (inbox): reserva, evento e marca de processado entram juntos.
+/// Roda na transação do consumer (inbox): reserva, evento e marca de processado entram juntos. Os itens
+/// de fornecedor são conferidos nele, ao vivo, antes (#218): o que acabou lá recusa o pedido antes de cobrar.
 /// </summary>
-public sealed class ReserveStock(IStockRepository stock, IOutbox outbox, TimeProvider clock) : IHandleEvent<OrderPlacedData>
+public sealed class ReserveStock(IStockRepository stock, IOutbox outbox, LiveSupplierCheck live, TimeProvider clock) : IHandleEvent<OrderPlacedData>
 {
-    public Task HandleAsync(OrderPlacedData data, EventContext context, CancellationToken ct)
+    public async Task HandleAsync(OrderPlacedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return OptimisticConcurrency.RetryAsync(stock.Reset, () => AttemptAsync(data, ct));
+        if (await stock.GetReservationAsync(data.OrderId, forUpdate: false, ct) is not null)
+        {
+            return; // já reservado (evento repetido com outro event_id): nem confere de novo
+        }
+        await live.RefreshAsync(Lines(data), ct);
+        await OptimisticConcurrency.RetryAsync(stock.Reset, () => AttemptAsync(data, ct));
     }
+
+    private static List<ReservedItem> Lines(OrderPlacedData data) =>
+        [.. data.Items.GroupBy(i => i.ProductId)
+            .Select(g => new ReservedItem(g.Key, g.Sum(i => i.Quantity)))
+            .OrderBy(i => i.ProductId)]; // ordem fixa: duas reservas não travam uma à outra
 
     private async Task<bool> AttemptAsync(OrderPlacedData data, CancellationToken ct)
     {
@@ -22,10 +33,7 @@ public sealed class ReserveStock(IStockRepository stock, IOutbox outbox, TimePro
         {
             return true; // já reservado (evento repetido com outro event_id): nada a fazer
         }
-        var lines = data.Items.GroupBy(i => i.ProductId)
-            .Select(g => new ReservedItem(g.Key, g.Sum(i => i.Quantity)))
-            .OrderBy(i => i.ProductId) // ordem fixa: duas reservas não travam uma à outra
-            .ToList();
+        var lines = Lines(data);
         var items = (await stock.GetForUpdateAsync([.. lines.Select(l => l.ProductId)], ct)).ToDictionary(s => s.ProductId);
 
         var unavailable = lines

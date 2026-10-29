@@ -29,14 +29,20 @@ public static class DependencyInjection
             .ConfigureChannel(c => c.ThrowOperationCanceledOnCancellation = true);
         builder.Services.AddCatalogPricing();
 
-        // contracts/asyncapi/orders.v1.yaml: publica orders.order.v1; consome o resultado da SAGA e o
-        // catálogo (snapshot)
+        // contracts/asyncapi/orders.v1.yaml: publica orders.order.v1; consome o resultado da SAGA, o
+        // andamento no fornecedor, o estorno e o catálogo (snapshot)
         builder.AddMessaging<OrdersDbContext>("orders", m => m
             .Produces(OrderEvents.Topic)
             .Handle<StockReservedData, OnStockReserved>(OrderEvents.ReservationsTopic, "StockReserved")
             .Handle<StockReservationFailedData, OnStockReservationFailed>(OrderEvents.ReservationsTopic, "StockReservationFailed")
             .Handle<PaymentApprovedData, OnPaymentApproved>(OrderEvents.PaymentsTopic, "PaymentApproved")
             .Handle<PaymentFailedData, OnPaymentFailed>(OrderEvents.PaymentsTopic, "PaymentFailed")
+            .Handle<PaymentRefundedData, OnPaymentRefunded>(OrderEvents.PaymentsTopic, "PaymentRefunded")
+            .Handle<PaymentPendingData, OnPaymentPending>(OrderEvents.PaymentsTopic, OrderEvents.PaymentPending)
+            .Handle<SupplierOrderPlacedData, OnSupplierOrderPlaced>(OrderEvents.FulfillmentTopic, "SupplierOrderPlaced")
+            .Handle<SupplierOrderShippedData, OnSupplierOrderShipped>(OrderEvents.FulfillmentTopic, "SupplierOrderShipped")
+            .Handle<SupplierOrderDeliveredData, OnSupplierOrderDelivered>(OrderEvents.FulfillmentTopic, "SupplierOrderDelivered")
+            .Handle<SupplierOrderFailedData, OnSupplierOrderFailed>(OrderEvents.FulfillmentTopic, "SupplierOrderFailed")
             .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductCreated")
             .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductUpdated")
             .Handle<ProductDeletedData, ProductDeleted>(CatalogEvents.ProductsTopic, "ProductDeleted")

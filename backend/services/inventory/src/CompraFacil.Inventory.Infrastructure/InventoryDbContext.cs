@@ -9,6 +9,7 @@ namespace CompraFacil.Inventory.Infrastructure;
 public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options) : DbContext(options)
 {
     public DbSet<StockItem> Stock => Set<StockItem>();
+    public DbSet<SupplierStockLevel> SupplierStock => Set<SupplierStockLevel>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<StockAdjustmentRecord> Adjustments => Set<StockAdjustmentRecord>();
 

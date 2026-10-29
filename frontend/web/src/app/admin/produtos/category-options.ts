@@ -1,7 +1,7 @@
 import "server-only";
 import { listCategories } from "@/lib/admin-api";
 
-/** As categorias para o formulário: as raízes e as filhas de cada uma. */
+/** As categorias para o formulário: as raízes e, dentro de cada uma, as subcategorias e os tipos delas (#210). */
 export async function categoryOptions() {
   const result = await listCategories();
   if (!result.ok) return [];
@@ -11,6 +11,13 @@ export async function categoryOptions() {
     .map((root) => ({
       id: root.id,
       name: root.name,
-      children: all.filter((c) => c.parent_id === root.id).map(({ id, name }) => ({ id, name })),
+      children: all
+        .filter((c) => c.parent_id === root.id)
+        .flatMap((sub) => [
+          { id: sub.id, name: sub.name },
+          ...all
+            .filter((c) => c.parent_id === sub.id)
+            .map((t) => ({ id: t.id, name: `${sub.name} › ${t.name}` })),
+        ]),
     }));
 }

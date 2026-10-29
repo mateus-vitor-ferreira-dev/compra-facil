@@ -69,6 +69,16 @@ type adminProductDTO struct {
 	productDTO
 	Status  domain.ProductStatus `json:"status"`
 	Version int                  `json:"version"`
+	// Supplier: o produto vem do feed de um fornecedor (nulo: cadastrado pela loja)
+	Supplier *supplierDTO `json:"supplier"`
+}
+
+type supplierDTO struct {
+	Name      string     `json:"name"`
+	VID       string     `json:"vid"`
+	Cost      moneyDTO   `json:"cost"`
+	SyncedAt  time.Time  `json:"synced_at"`
+	RemovedAt *time.Time `json:"removed_at"`
 }
 
 type adminProductPageDTO struct {
@@ -144,7 +154,12 @@ func toProductPageDTO(page domain.Page[domain.Product]) productPageDTO {
 }
 
 func toAdminProductDTO(p domain.Product) adminProductDTO {
-	return adminProductDTO{productDTO: toProductDTO(p), Status: p.Status, Version: p.Version}
+	dto := adminProductDTO{productDTO: toProductDTO(p), Status: p.Status, Version: p.Version}
+	if s := p.Supplier; s != nil {
+		dto.Supplier = &supplierDTO{Name: s.Name, VID: s.VID, Cost: moneyDTO{AmountCents: s.CostCents, Currency: s.CostCurrency},
+			SyncedAt: s.SyncedAt, RemovedAt: s.RemovedAt}
+	}
+	return dto
 }
 
 func toAdminProductPageDTO(page domain.Page[domain.Product]) adminProductPageDTO {
@@ -185,4 +200,16 @@ type brandCountDTO struct {
 
 type brandsDTO struct {
 	Data []brandCountDTO `json:"data"`
+}
+
+// categoryCountDTO é o CategoryCount do contrato: uma categoria filha e quantos produtos da listagem
+// ela tem (com as descendentes).
+type categoryCountDTO struct {
+	Slug  string `json:"slug"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type categoryCountsDTO struct {
+	Data []categoryCountDTO `json:"data"`
 }

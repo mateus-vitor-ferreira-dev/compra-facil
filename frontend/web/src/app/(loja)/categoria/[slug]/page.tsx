@@ -9,6 +9,7 @@ import { ActiveFilters, ListingFilters } from "@/components/store/listing-filter
 import { ProductListing } from "@/components/store/product-listing";
 import { brand } from "@/lib/brand";
 import { getCategories, type Category } from "@/lib/catalog-api";
+import { categoryPath } from "@/lib/category-path";
 import { activeFilterCount, readFilters, withoutRefinements } from "@/lib/storefront";
 
 type Props = {
@@ -16,22 +17,36 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-/** A categoria, a mãe dela (se for subcategoria) e as irmãs ou filhas, para os links de subcategoria. */
+/**
+ * A categoria e a cadeia até o departamento, as subcategorias do departamento e, dentro de uma
+ * subcategoria, os tipos dela (#210): os dois níveis de chips da página.
+ */
 async function findCategory(slug: string) {
   const categories = await getCategories();
   if (!categories.ok) return { ok: false, error: categories.error } as const;
   const all = categories.data;
   const category = all.find((c) => c.slug === slug);
   if (!category) return { ok: true, category: undefined } as const;
-  const parent = category.parent_id ? all.find((c) => c.id === category.parent_id) : undefined;
-  const root: Category = parent ?? category;
+  const path = categoryPath(all, category.id);
+  const root: Category = path[0] ?? category;
+  const group: Category | undefined = path[1];
   return {
     ok: true,
     category,
-    parent,
+    path,
     root,
+    group,
     subcategories: all.filter((c) => c.parent_id === root.id),
+    types: group ? all.filter((c) => c.parent_id === group.id) : [],
+    children: all.filter((c) => c.parent_id === category.id),
   } as const;
+}
+
+/** O chip de um tipo: mais leve que o da subcategoria, para os dois níveis não competirem. */
+function chip(active: boolean) {
+  return active
+    ? "bg-ink text-paper inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium"
+    : "bg-ink/6 hover:bg-ink/12 text-ink inline-flex min-h-11 items-center rounded-full px-4 text-sm";
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -58,10 +73,20 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     );
   }
   if (!found.category) notFound();
-  const { category, parent, root, subcategories } = found;
+  const { category, path: chain, root, group, subcategories, types, children } = found;
 
   const filters = readFilters(query);
   const { onSale } = filters;
+  const listing = {
+    category: slug,
+    types: filters.types,
+    onSale,
+    brands: filters.brands,
+    minPriceCents: filters.minPriceCents,
+    maxPriceCents: filters.maxPriceCents,
+    sort: filters.sort.api,
+    page: filters.page,
+  };
   const filtered = activeFilterCount(filters) > 0;
 
   return (
@@ -69,7 +94,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       <Breadcrumbs
         items={[
           { href: "/", label: "Início" },
-          ...(parent ? [{ href: `/categoria/${parent.slug}`, label: parent.name }] : []),
+          ...chain.slice(0, -1).map((c) => ({ href: `/categoria/${c.slug}`, label: c.name })),
           { label: category.name },
         ]}
       />
@@ -96,7 +121,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                   href={`/categoria/${c.slug}`}
                   aria-current={c.id === category.id ? "page" : undefined}
                   className={buttonVariants({
-                    variant: c.id === category.id ? "primary" : "secondary",
+                    // num tipo, a subcategoria dele continua marcada
+                    variant: c.id === group?.id ? "primary" : "secondary",
                     size: "sm",
                   })}
                 >
@@ -108,20 +134,54 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         </nav>
       )}
 
+      {/* com um tipo só (Monitores), os chips repetiriam a subcategoria */}
+      {group && types.length > 1 && (
+        <nav aria-label={`Tipos de ${group.name}`}>
+          <ul className="flex flex-wrap gap-2">
+            <li>
+              <Link
+                href={`/categoria/${group.slug}`}
+                aria-current={category.id === group.id ? "page" : undefined}
+                className={chip(category.id === group.id)}
+              >
+                Tudo em {group.name}
+              </Link>
+            </li>
+            {types.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/categoria/${c.slug}`}
+                  aria-current={c.id === category.id ? "page" : undefined}
+                  className={chip(c.id === category.id)}
+                >
+                  {c.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
-        <ListingFilters path={path} params={query} filters={filters} keep={{}} category={slug} />
+        <ListingFilters
+          path={path}
+          params={query}
+          filters={filters}
+          keep={{}}
+          query={listing}
+          // as filhas desta categoria como faceta combinável: os tipos numa subcategoria, as
+          // subcategorias num departamento (#212)
+          childrenFacet={children.length > 1 ? (chain.length === 1 ? "Subcategoria" : "Tipo") : undefined}
+        />
         <div className="min-w-0 space-y-4">
-          <ActiveFilters path={path} params={query} filters={filters} />
+          <ActiveFilters
+            path={path}
+            params={query}
+            filters={filters}
+            typeNames={Object.fromEntries(children.map((c) => [c.slug, c.name]))}
+          />
           <ProductListing
-            query={{
-              category: slug,
-              onSale,
-              brands: filters.brands,
-              minPriceCents: filters.minPriceCents,
-              maxPriceCents: filters.maxPriceCents,
-              sort: filters.sort.api,
-              page: filters.page,
-            }}
+            query={listing}
             label={`Produtos em ${category.name}`}
             path={path}
             params={query}
@@ -129,7 +189,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               filtered
                 ? {
                     title: `Nenhum produto em ${category.name} com esses filtros`,
-                    description: "Tire uma marca, amplie a faixa de preço ou limpe os filtros.",
+                    description: "Tire um tipo ou uma marca, amplie a faixa de preço ou limpe os filtros.",
                     action: (
                       <Link
                         href={withoutRefinements(path, query)}

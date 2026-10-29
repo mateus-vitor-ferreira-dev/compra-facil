@@ -78,7 +78,7 @@ const reais = (v: string | string[] | undefined) => {
 };
 
 /**
- * Os filtros das listagens, lidos da URL: ?q=, ?categoria=, ?promocao=1, ?marca= (uma ou mais),
+ * Os filtros das listagens, lidos da URL: ?q=, ?categoria=, ?promocao=1, ?marca= e ?tipo= (um ou mais),
  * ?preco-min= e ?preco-max= (em reais), ?ordem= e ?pagina=. A ordem padrão é relevância na busca e
  * novidades no resto.
  */
@@ -92,6 +92,8 @@ export function readFilters(params: Params) {
     category: first(params.categoria),
     onSale: first(params.promocao) === "1",
     brands: [...new Set(all(params.marca))].slice(0, 20),
+    // os tipos de produto marcados na faceta (#212): slugs das categorias filhas
+    types: [...new Set(all(params.tipo))].slice(0, 20),
     minPriceCents: reais(params["preco-min"]),
     maxPriceCents: reais(params["preco-max"]),
     sort: (sort ?? SORTS.find((s) => s.value === (q ? "relevancia" : "novidades")))!,
@@ -107,6 +109,7 @@ export type Filters = ReturnType<typeof readFilters>;
 export function activeFilterCount(f: Filters, { onSaleFixed = false } = {}): number {
   return (
     f.brands.length +
+    f.types.length +
     (f.minPriceCents !== undefined || f.maxPriceCents !== undefined ? 1 : 0) +
     (f.onSale && !onSaleFixed ? 1 : 0)
   );
@@ -114,7 +117,7 @@ export function activeFilterCount(f: Filters, { onSaleFixed = false } = {}): num
 
 /**
  * Os parâmetros da URL sem a página (trocar filtro volta à primeira) nem o cursor de antes da paginação
- * numerada, preservando os que têm vários valores (?marca=).
+ * numerada, preservando os que têm vários valores (?marca=, ?tipo=).
  */
 function carry(params: Params, skip: (key: string, value: string) => boolean): URLSearchParams {
   const next = new URLSearchParams();
@@ -142,9 +145,11 @@ export function withoutValue(path: string, params: Params, key: string, value: s
   );
 }
 
-/** A URL sem nenhum dos filtros de refinamento (marca, preço, promoção), mantendo busca e ordem. */
+/** A URL sem nenhum dos filtros de refinamento (tipo, marca, preço, promoção), mantendo busca e ordem. */
 export function withoutRefinements(path: string, params: Params, keep: string[] = []): string {
-  const refinements = ["marca", "preco-min", "preco-max", "promocao"].filter((k) => !keep.includes(k));
+  const refinements = ["tipo", "marca", "preco-min", "preco-max", "promocao"].filter(
+    (k) => !keep.includes(k),
+  );
   return href(
     path,
     carry(params, (k) => refinements.includes(k)),

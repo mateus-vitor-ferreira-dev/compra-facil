@@ -11,6 +11,12 @@ info:
       por falta de estoque), não há o que devolver e nada é publicado.
 
     O inventory não lida com valores: o payments obtém o `total` do próprio `OrderPlaced`.
+
+    **Produto de dropshipping** (#218): o saldo espelha o do fornecedor (`SupplierStockChanged`, ligado à
+    variante pelo `supplier` do `ProductCreated`), e não muda por ajuste manual. No `OrderPlaced`, os
+    itens de fornecedor são conferidos nele, ao vivo, antes de reservar (`POST /v1/internal/supplier-stock/check`
+    do fulfillment): o que acabou lá vira `StockReservationFailed`, antes de qualquer cobrança. Se a
+    conferência não responde, vale o espelho. O estoque próprio da loja segue como sempre.
 defaultContentType: application/json
 
 servers:
@@ -44,6 +50,8 @@ channels:
     $ref: "./orders.v1.yaml#/channels/orderEvents"
   productEvents:
     $ref: "./catalog.v1.yaml#/channels/productEvents"
+  supplierProductEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/supplierProductEvents"
 
 operations:
   publishReservationEvents:
@@ -72,10 +80,23 @@ operations:
     action: receive
     channel:
       $ref: "#/channels/productEvents"
-    summary: Cria o saldo zerado do produto novo; produto removido não aceita mais reserva.
+    summary: |
+      Cria o saldo do produto novo (o de fornecedor, espelhado); liga ao fornecedor, no ProductUpdated, o
+      que ainda não estava ligado; produto removido não aceita mais reserva.
     messages:
       - $ref: "#/channels/productEvents/messages/ProductCreated"
+      - $ref: "#/channels/productEvents/messages/ProductUpdated"
       - $ref: "#/channels/productEvents/messages/ProductDeleted"
+    bindings:
+      $ref: "#/components/operationBindings/InventoryGroup"
+
+  onSupplierStock:
+    action: receive
+    channel:
+      $ref: "#/channels/supplierProductEvents"
+    summary: Espelha a disponibilidade do fornecedor no saldo dos produtos ligados à variante.
+    messages:
+      - $ref: "#/channels/supplierProductEvents/messages/SupplierStockChanged"
     bindings:
       $ref: "#/components/operationBindings/InventoryGroup"
 

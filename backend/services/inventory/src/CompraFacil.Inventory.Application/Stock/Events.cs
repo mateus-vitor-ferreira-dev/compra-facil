@@ -11,6 +11,7 @@ public static class InventoryEvents
     public const string StockReleased = nameof(StockReleased);
 
     public const string OrdersTopic = "orders.order.v1";
+    public const string SupplierProductsTopic = "fulfillment.supplier-product.v1";
     public const string ProductsTopic = "catalog.product.v1";
 }
 
@@ -24,7 +25,13 @@ public sealed record OrderConfirmedData(Guid OrderId);
 
 public sealed record OrderCancelledData(Guid OrderId, string Reason);
 
-public sealed record ProductCreatedData(Guid ProductId);
+/// <summary>Supplier: a variante do fornecedor (nulo no produto da loja, #218).</summary>
+public sealed record ProductCreatedData(Guid ProductId, SupplierRefData? Supplier);
+
+public sealed record SupplierRefData(string Name, string Vid);
+
+/// <summary>SupplierStockChanged do fulfillment: quanto o fornecedor tem de uma variante agora.</summary>
+public sealed record SupplierStockChangedData(string Supplier, string Vid, int Available, DateTimeOffset CheckedAt);
 
 public sealed record ProductDeletedData(Guid ProductId);
 

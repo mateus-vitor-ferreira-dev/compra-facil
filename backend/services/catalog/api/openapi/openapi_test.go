@@ -15,7 +15,7 @@ func TestEmbeddedContractInSync(t *testing.T) {
 	if _, err := os.Stat(contractsDir); os.IsNotExist(err) {
 		t.Skip("contracts/ fora do contexto (ex.: build da imagem)")
 	}
-	for _, name := range []string{Spec, "common/v1/common.yaml"} {
+	for _, name := range []string{Spec, "common/v1/common.yaml", "common/v1/dead-letters.yaml"} {
 		embedded, err := Files.ReadFile(name)
 		require.NoError(t, err)
 		source, err := os.ReadFile(filepath.Join(contractsDir, name))

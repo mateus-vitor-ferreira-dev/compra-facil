@@ -9,9 +9,13 @@ public static class OrderEvents
     public const string OrderPlaced = nameof(OrderPlaced);
     public const string OrderConfirmed = nameof(OrderConfirmed);
     public const string OrderCancelled = nameof(OrderCancelled);
+    public const string OrderShipped = nameof(OrderShipped);
+    public const string OrderDelivered = nameof(OrderDelivered);
 
     public const string ReservationsTopic = "inventory.reservation.v1";
     public const string PaymentsTopic = "payments.payment.v1";
+    public const string PaymentPending = nameof(PaymentPending);
+    public const string FulfillmentTopic = "fulfillment.supplier-order.v1";
 }
 
 /// <summary>Item do pedido nos eventos (OrderItem do contrato REST).</summary>
@@ -21,25 +25,34 @@ public sealed record OrderItemData(
     public static OrderItemData From(OrderItem i) => new(i.ProductId, i.Sku, i.Name, i.Quantity, i.UnitPrice, i.LineTotal, i.CampaignId);
 }
 
-/// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor).</summary>
-public sealed record OrderPlacedData(Guid OrderId, Guid CustomerId, IReadOnlyList<OrderItemData> Items, Money Total)
+/// <summary>Como pagar, para o payments: o token do cartão (de uso único) só passa por aqui, não fica no pedido.</summary>
+public sealed record OrderPaymentData(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
+
+/// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor e como cobrar).</summary>
+public sealed record OrderPlacedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, OrderPaymentData Payment)
 {
-    public static OrderPlacedData From(Order order)
+    public static OrderPlacedData From(Order order, string? cardToken = null, string? cardBrand = null)
     {
         ArgumentNullException.ThrowIfNull(order);
-        return new(order.Id, order.CustomerId, [.. order.Items.Select(OrderItemData.From)], order.Total);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, [.. order.Items.Select(OrderItemData.From)], order.Total,
+            new OrderPaymentData(order.PaymentMethod, order.Installments, cardToken, cardBrand));
     }
 }
 
-/// <summary>data do OrderConfirmed: fim feliz (inventory dá baixa, notifications avisa o cliente).</summary>
+/// <summary>
+/// data do OrderConfirmed: pago (inventory dá baixa, notifications avisa o cliente, fulfillment leva ao
+/// fornecedor). Quem recebe e o endereço vão à nota e ao fornecedor (#221).
+/// </summary>
 public sealed record OrderConfirmedData(
-    Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total)
+    Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total,
+    Recipient? Recipient, ShippingAddress? ShippingAddress)
 {
     public static OrderConfirmedData From(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.PaymentId!.Value,
-            [.. order.Items.Select(OrderItemData.From)], order.Total);
+            [.. order.Items.Select(OrderItemData.From)], order.Total, order.Recipient, order.ShippingAddress);
     }
 }
 
@@ -54,6 +67,26 @@ public sealed record OrderCancelledData(
     }
 }
 
+/// <summary>data do OrderShipped: o fornecedor despachou (o cliente acompanha pelo rastreio).</summary>
+public sealed record OrderShippedData(Guid OrderId, Guid CustomerId, string CustomerEmail, Tracking Tracking, DateTimeOffset ShippedAt)
+{
+    public static OrderShippedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.Tracking!, order.ShippedAt!.Value);
+    }
+}
+
+/// <summary>data do OrderDelivered: chegou ao cliente.</summary>
+public sealed record OrderDeliveredData(Guid OrderId, Guid CustomerId, string CustomerEmail, DateTimeOffset DeliveredAt)
+{
+    public static OrderDeliveredData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.DeliveredAt!.Value);
+    }
+}
+
 // ---- consumidos dos outros serviços (só os campos usados) ----
 
 public sealed record StockReservedData(Guid OrderId);
@@ -64,3 +97,16 @@ public sealed record PaymentApprovedData(Guid OrderId, Guid PaymentId);
 
 public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, string FailureReason);
 
+public sealed record PaymentRefundedData(Guid OrderId, Guid PaymentId, bool? Full);
+
+public sealed record PixData(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
+
+public sealed record PaymentPendingData(Guid OrderId, Guid PaymentId, PixData Pix);
+
+public sealed record SupplierOrderPlacedData(Guid OrderId);
+
+public sealed record SupplierOrderShippedData(Guid OrderId, string TrackingNumber, string? TrackingProvider, string? TrackingUrl);
+
+public sealed record SupplierOrderDeliveredData(Guid OrderId);
+
+public sealed record SupplierOrderFailedData(Guid OrderId, string Reason);

@@ -1,9 +1,10 @@
 "use client";
 
 import Form from "next/form";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import type { BrandCount } from "@/lib/catalog-api";
+import type { BrandCount, CategoryCount } from "@/lib/catalog-api";
+import { normalize } from "@/lib/storefront";
 import { cn } from "@/lib/utils";
 
 type Option = { value: string; label: string };
@@ -19,13 +20,22 @@ export type FiltersFormProps = {
   sort: string;
   brands: BrandCount[];
   selectedBrands: string[];
+  /** a faceta das categorias filhas (tipos de uma subcategoria, #212) */
+  children?: { label: string; options: CategoryCount[]; selected: string[] };
   minPrice?: number;
   maxPrice?: number;
   /** "Só em promoção" (não aparece nas ofertas, que já são só promoção) */
   onSale?: boolean;
   submitLabel: string;
+  /** na folha do celular o botão fica preso no rodapé, com o total ("Ver 128 produtos") */
+  stickySubmit?: boolean;
   className?: string;
 };
+
+/** marcas à vista; as outras ficam em "Ver todas" (Baymard: valores demais escondem os úteis) */
+const VISIBLE_BRANDS = 8;
+/** a partir daqui, a lista completa ganha uma busca */
+const SEARCHABLE_BRANDS = 15;
 
 /**
  * Ordem, marca, faixa de preço e promoção num formulário GET para a própria listagem: funciona sem
@@ -39,12 +49,15 @@ export function FiltersForm({
   sort,
   brands,
   selectedBrands,
+  children,
   minPrice,
   maxPrice,
   onSale,
   submitLabel,
+  stickySubmit = false,
   className,
 }: FiltersFormProps) {
+  const [brandSearch, setBrandSearch] = useState("");
   const id = (name: string) => `${idPrefix}-${name}`;
   // as marcas escolhidas continuam na lista mesmo sem produto nos outros filtros: dá para desmarcar
   const options = [
@@ -54,6 +67,23 @@ export function FiltersForm({
       .map((name) => ({ name, count: 0 })),
   ];
   const chosen = new Set(selectedBrands.map((b) => b.toLowerCase()));
+  // as marcas marcadas sobem para as visíveis: o que está ligado nunca fica escondido em "Ver todas"
+  const ordered = [
+    ...options.filter((b) => chosen.has(b.name.toLowerCase())),
+    ...options.filter((b) => !chosen.has(b.name.toLowerCase())),
+  ];
+  const visible = ordered.slice(0, VISIBLE_BRANDS);
+  const hidden = ordered.slice(VISIBLE_BRANDS);
+  const typeOptions = children
+    ? [
+        ...children.options,
+        // tipo marcado sem produto nos outros filtros continua na lista, para desmarcar
+        ...children.selected
+          .filter((slug) => !children.options.some((o) => o.slug === slug))
+          .map((slug) => ({ slug, name: slug, count: 0 })),
+      ]
+    : [];
+  const chosenTypes = new Set(children?.selected ?? []);
 
   // campos vazios não vão para a URL (?preco-min=&preco-max=)
   function dropEmpty(event: FormEvent<HTMLFormElement>) {
@@ -73,9 +103,8 @@ export function FiltersForm({
   }
 
   const legend = "text-base font-semibold";
-  const choice =
-    "flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-ink/5 sm:min-h-9 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus";
-  const input = "accent-ink size-4 shrink-0 cursor-pointer focus-visible:outline-none";
+  const choice = choiceClass;
+  const input = inputClass;
 
   return (
     <Form
@@ -116,27 +145,67 @@ export function FiltersForm({
         </div>
       )}
 
+      {children && typeOptions.length > 1 && (
+        <div role="group" aria-labelledby={id("tipo")} className="space-y-1 py-5">
+          <p id={id("tipo")} className={cn(legend, "mb-2")}>
+            {children.label}
+          </p>
+          {typeOptions.map((t) => (
+            <label key={t.slug} className={choice}>
+              <input
+                type="checkbox"
+                name="tipo"
+                value={t.slug}
+                defaultChecked={chosenTypes.has(t.slug)}
+                className={input}
+              />
+              <span className="min-w-0 flex-1 truncate">{t.name}</span>
+              <Count n={t.count} />
+            </label>
+          ))}
+        </div>
+      )}
+
       {options.length > 0 && (
         <div role="group" aria-labelledby={id("marca")} className="space-y-1 py-5">
           <p id={id("marca")} className={cn(legend, "mb-2")}>
             Marca
           </p>
-          {options.map((b) => (
-            <label key={b.name} className={choice}>
-              <input
-                type="checkbox"
-                name="marca"
-                value={b.name}
-                defaultChecked={chosen.has(b.name.toLowerCase())}
-                className={input}
-              />
-              <span className="min-w-0 flex-1 truncate">{b.name}</span>
-              <span className="text-ink-soft text-sm tabular-nums">
-                {b.count > 0 ? b.count : "–"}
-                <span className="sr-only"> {b.count === 1 ? "produto" : "produtos"}</span>
-              </span>
-            </label>
+          {visible.map((b) => (
+            <BrandOption key={b.name} brand={b} checked={chosen.has(b.name.toLowerCase())} />
           ))}
+          {hidden.length > 0 && (
+            <details className="group/marcas">
+              <summary className="text-ink flex min-h-11 cursor-pointer list-none items-center px-2 text-sm font-semibold underline underline-offset-4 sm:min-h-9 [&::-webkit-details-marker]:hidden">
+                <span className="group-open/marcas:hidden">Ver todas as {options.length} marcas</span>
+                <span className="hidden group-open/marcas:inline">Ver menos marcas</span>
+              </summary>
+              {options.length > SEARCHABLE_BRANDS && (
+                <div className="px-2 pt-1 pb-2">
+                  <label htmlFor={id("busca-marca")} className="sr-only">
+                    Buscar marca
+                  </label>
+                  <input
+                    id={id("busca-marca")}
+                    type="search"
+                    // sem name: não vai para a URL
+                    value={brandSearch}
+                    onChange={(e) => setBrandSearch(e.target.value)}
+                    placeholder="Buscar marca"
+                    autoComplete="off"
+                    className="border-ink/25 bg-surface focus:border-ink h-10 w-full rounded-md border px-3 text-sm outline-none"
+                  />
+                </div>
+              )}
+              {hidden
+                .filter(
+                  (b) => !brandSearch.trim() || normalize(b.name).includes(normalize(brandSearch.trim())),
+                )
+                .map((b) => (
+                  <BrandOption key={b.name} brand={b} checked={chosen.has(b.name.toLowerCase())} />
+                ))}
+            </details>
+          )}
         </div>
       )}
 
@@ -176,11 +245,46 @@ export function FiltersForm({
         </div>
       </div>
 
-      <div className="pt-5">
-        <Button type="submit" variant="secondary" className="w-full">
+      <div
+        className={cn(
+          "pt-5",
+          // na folha: preso no rodapé da tela enquanto rola a lista de filtros
+          stickySubmit && "bg-paper sticky bottom-0 -mx-4 px-4 pb-4 shadow-[0_-1px_0_var(--color-line)]",
+        )}
+      >
+        <Button type="submit" variant={stickySubmit ? "primary" : "secondary"} className="w-full">
           {submitLabel}
         </Button>
       </div>
     </Form>
+  );
+}
+
+const choiceClass =
+  "flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-ink/5 sm:min-h-9 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus";
+const inputClass = "accent-ink size-4 shrink-0 cursor-pointer focus-visible:outline-none";
+
+function Count({ n }: { n: number }) {
+  return (
+    <span className="text-ink-soft text-sm tabular-nums">
+      {n > 0 ? n : "–"}
+      <span className="sr-only"> {n === 1 ? "produto" : "produtos"}</span>
+    </span>
+  );
+}
+
+function BrandOption({ brand, checked }: { brand: BrandCount; checked: boolean }) {
+  return (
+    <label className={choiceClass}>
+      <input
+        type="checkbox"
+        name="marca"
+        value={brand.name}
+        defaultChecked={checked}
+        className={inputClass}
+      />
+      <span className="min-w-0 flex-1 truncate">{brand.name}</span>
+      <Count n={brand.count} />
+    </label>
   );
 }

@@ -57,6 +57,7 @@ export function getProduct(id: string): Promise<Result<Product>> {
 }
 
 export type BrandCount = components["schemas"]["BrandCount"];
+export type CategoryCount = components["schemas"]["CategoryCount"];
 export type ProductSort = components["schemas"]["ProductSort"];
 
 export type ProductQuery = {
@@ -64,6 +65,8 @@ export type ProductQuery = {
   category?: string;
   onSale?: boolean;
   brands?: string[];
+  /** tipos de produto (slugs de categorias dentro de `category`), #212 */
+  types?: string[];
   minPriceCents?: number;
   maxPriceCents?: number;
   sort?: ProductSort;
@@ -81,6 +84,7 @@ function filterParams(query: ProductQuery) {
     on_sale: query.onSale || undefined,
     min_price_cents: query.minPriceCents,
     max_price_cents: query.maxPriceCents,
+    type: query.types?.length ? query.types : undefined,
   };
 }
 
@@ -110,6 +114,29 @@ export function listBrands(query: ProductQuery): Promise<Result<BrandCount[]>> {
     const r = await api
       .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
       .GET("/v1/brands", { params: { query: filterParams(query) } });
+    return { data: r.data?.data, response: r.response };
+  });
+}
+
+/**
+ * As categorias filhas da listagem com a contagem (a faceta de tipo, #212), pelos mesmos filtros, sem o
+ * de tipo.
+ */
+export function listCategoryCounts(
+  query: ProductQuery & { category: string },
+): Promise<Result<CategoryCount[]>> {
+  return call(async () => {
+    const r = await api
+      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
+      .GET("/v1/category-counts", {
+        params: {
+          query: {
+            ...filterParams({ ...query, types: undefined }),
+            category: query.category,
+            brand: query.brands?.length ? query.brands : undefined,
+          },
+        },
+      });
     return { data: r.data?.data, response: r.response };
   });
 }

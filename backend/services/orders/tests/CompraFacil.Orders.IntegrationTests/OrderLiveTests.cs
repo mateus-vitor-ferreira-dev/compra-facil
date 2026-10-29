@@ -25,7 +25,13 @@ public sealed class LiveClient(OrdersFixture fx)
         var customer = Guid.NewGuid();
         using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders")
         {
-            Content = JsonContent.Create(new { items = new[] { new { product_id = product, quantity = 1 } } }),
+            Content = JsonContent.Create(new
+            {
+                items = new[] { new { product_id = product, quantity = 1 } },
+                payment = new { method = "pix" },
+                recipient = new { name = "Ana Souza", cpf = "52998224725", phone = "11987654321" },
+                shipping_address = new { zip_code = "01310100", street = "Avenida Paulista", number = "1000", district = "Bela Vista", city = "São Paulo", state = "SP" }
+            }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
         request.Headers.Authorization = new("Bearer", fx.Identity.CustomerToken(customer));
@@ -54,6 +60,16 @@ public sealed class LiveClient(OrdersFixture fx)
         var handler = ActivatorUtilities.CreateInstance<OnPaymentApproved>(scope.ServiceProvider);
         await handler.HandleAsync(new PaymentApprovedData(order, Guid.NewGuid()),
             new EventContext(Guid.NewGuid(), "PaymentApproved", "t", "c", DateTimeOffset.UtcNow), Ct);
+        await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().SaveChangesAsync(Ct);
+    }
+
+    /// <summary>O fornecedor entregou: o estado final do pedido pago.</summary>
+    public async Task DeliverAsync(Guid order)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var handler = ActivatorUtilities.CreateInstance<OnSupplierOrderDelivered>(scope.ServiceProvider);
+        await handler.HandleAsync(new SupplierOrderDeliveredData(order),
+            new EventContext(Guid.NewGuid(), "SupplierOrderDelivered", "t", "c", DateTimeOffset.UtcNow), Ct);
         await scope.ServiceProvider.GetRequiredService<OrdersDbContext>().SaveChangesAsync(Ct);
     }
 
@@ -131,7 +147,7 @@ public sealed class OrderLiveTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     private static List<SseEvent> Orders(List<SseEvent> events) => [.. events.Where(e => e.Event == "order")];
 
     [Fact]
-    public async Task Stream_SendsTheCurrentState_ThenTheConfirmation_AndCloses()
+    public async Task Stream_SendsTheCurrentState_ThenEachChange_AndClosesWhenDelivered()
     {
         var (order, customer) = await _live.PlaceAsync();
         using var response = await _live.OpenAsync(order, fx.Identity.CustomerToken(customer));
@@ -141,10 +157,12 @@ public sealed class OrderLiveTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         var reading = LiveClient.ReadAsync(response, TimeSpan.FromSeconds(10));
         await Task.Delay(300, LiveClient.Ct);
         await _live.ConfirmAsync(order);
+        await Task.Delay(300, LiveClient.Ct);
+        await _live.DeliverAsync(order);
         var events = Orders(await reading); // o servidor fecha sozinho no estado final
 
-        Assert.Equal(["pending", "confirmed"], events.Select(LiveClient.Status));
-        Assert.NotEqual(events[0].Id, events[1].Id);
+        Assert.Equal(["pending", "confirmed", "delivered"], events.Select(LiveClient.Status));
+        Assert.Equal(3, events.Select(e => e.Id).Distinct().Count());
         foreach (var e in events)
         {
             ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", e.Data!);
@@ -166,11 +184,13 @@ public sealed class OrderLiveTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         var reading = LiveClient.ReadAsync(again, TimeSpan.FromSeconds(10));
         await Task.Delay(300, LiveClient.Ct);
         await _live.ConfirmAsync(order);
+        await Task.Delay(300, LiveClient.Ct);
+        await _live.DeliverAsync(order);
         var events = Orders(await reading);
 
-        var confirmed = Assert.Single(events); // o pending que o cliente já tinha não volta
-        Assert.Equal("confirmed", LiveClient.Status(confirmed));
-        using var afterTheEnd = await _live.OpenAsync(order, token, lastEventId: confirmed.Id);
+        // o pending que o cliente já tinha não volta
+        Assert.Equal(["confirmed", "delivered"], events.Select(LiveClient.Status));
+        using var afterTheEnd = await _live.OpenAsync(order, token, lastEventId: events[^1].Id);
         Assert.Equal(HttpStatusCode.NoContent, afterTheEnd.StatusCode);
     }
 
@@ -228,12 +248,16 @@ public sealed class OrderLiveNotificationTests(SlowPollOrdersFixture fx) : IClas
 {
     private readonly LiveClient _live = new(fx);
 
+    // confirmado não é o fim (o pedido segue o fornecedor): o teste para de ler ali
+    private static bool UntilConfirmed(List<SseEvent> events) =>
+        events.LastOrDefault(e => e.Event == "order") is { } last && LiveClient.Status(last) == "confirmed";
+
     [Fact]
     public async Task Notification_PushesTheChangeRightAway()
     {
         var (order, customer) = await _live.PlaceAsync();
         using var response = await _live.OpenAsync(order, fx.Identity.CustomerToken(customer));
-        var reading = LiveClient.ReadAsync(response, TimeSpan.FromSeconds(10));
+        var reading = LiveClient.ReadAsync(response, TimeSpan.FromSeconds(10), UntilConfirmed);
         await Task.Delay(300, LiveClient.Ct);
 
         await _live.ConfirmAsync(order);
@@ -250,7 +274,7 @@ public sealed class OrderLiveNotificationTests(SlowPollOrdersFixture fx) : IClas
     {
         var (order, customer) = await _live.PlaceAsync();
         using var response = await _live.OpenAsync(order, fx.Identity.CustomerToken(customer));
-        var reading = LiveClient.ReadAsync(response, TimeSpan.FromSeconds(10));
+        var reading = LiveClient.ReadAsync(response, TimeSpan.FromSeconds(10), UntilConfirmed);
         await Task.Delay(300, LiveClient.Ct);
         var started = DateTimeOffset.UtcNow;
 

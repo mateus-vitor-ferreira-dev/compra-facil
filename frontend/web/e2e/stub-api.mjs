@@ -10,6 +10,20 @@ const stats = { refresh: 0, revoke: 0, ordersPlaced: 0, ordersByKey: {} };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
 
+// a entrega dos pedidos da Ana (#221): o checkout dela já vem preenchido com ela
+const ANA_DELIVERY = {
+  recipient: { name: "Ana Souza", cpf: "52998224725", phone: "11987654321" },
+  shipping_address: {
+    zip_code: "01310100",
+    street: "Avenida Paulista",
+    number: "1000",
+    complement: "Apto 12",
+    district: "Bela Vista",
+    city: "São Paulo",
+    state: "SP",
+  },
+};
+
 // pedidos da Ana: um confirmado e um cancelado por falta de estoque
 const orderOf = (id, status, reason, qty, unit) => ({
   id,
@@ -29,6 +43,8 @@ const orderOf = (id, status, reason, qty, unit) => ({
   ],
   total: { amount_cents: unit * qty, currency: "BRL" },
   payment_id: null,
+  payment: { method: "card", installments: 1, pix: null },
+  ...ANA_DELIVERY,
   created_at: "2026-10-20T15:00:00Z",
   updated_at: "2026-10-20T15:01:00Z",
 });
@@ -50,6 +66,19 @@ const categories = [
     slug: "fones",
     name: "Fones de ouvido",
     parent_id: "0199f6a0-0000-7000-8000-0000000000a0",
+  },
+  // os tipos de fones (#210): o terceiro nível
+  {
+    id: "0199f6a0-0000-7000-8000-0000000000ac",
+    slug: "fones-sem-fio",
+    name: "Fones sem fio",
+    parent_id: "0199f6a0-0000-7000-8000-0000000000ab",
+  },
+  {
+    id: "0199f6a0-0000-7000-8000-0000000000ad",
+    slug: "headsets-gamer",
+    name: "Headsets gamer",
+    parent_id: "0199f6a0-0000-7000-8000-0000000000ab",
   },
   { id: "0199f6a0-0000-7000-8000-0000000000b0", slug: "informatica", name: "Informática", parent_id: null },
   {
@@ -75,13 +104,15 @@ const campaigns = [
 
 const seed = [
   ['Smart TV 55" QLED', "tv", 329990, 263992, "Samsung"],
-  ["Fone Bluetooth com cancelamento de ruído", "fones", 49990, 49990, "Sony"],
+  ["Fone Bluetooth com cancelamento de ruído", "fones-sem-fio", 49990, 49990, "Sony"],
   ["Notebook Core i7 16GB SSD 512GB", "notebooks", 549990, 439992, "Dell"],
 ];
-// 30 fones a mais: a categoria passa de uma página (24) e exercita o "Ver mais"; três marcas
+// 60 fones a mais: Eletrônicos passa de um lote (48) e exercita o "Carregar mais"; três marcas
 const fones = ["JBL", "Edifier", "Xiaomi"];
-for (let i = 1; i <= 30; i++)
+for (let i = 1; i <= 60; i++)
   seed.push([`Fone de ouvido modelo ${i}`, "fones", 9990 + i * 100, 9990 + i * 100, fones[i % 3]]);
+// um headset gamer no fim (os índices de cima são usados pelo estoque): a faceta de tipos tem dois
+seed.push(["Headset gamer 7.1", "headsets-gamer", 29990, 29990, "HyperX"]);
 
 const products = seed.map(([name, slug, price, effective, brand], i) => {
   const { id, name: categoryName } = bySlug[slug];
@@ -110,7 +141,17 @@ const adjustments = new Map();
 const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
 
 // o painel: situação e versão de cada produto (a versão é o ETag)
-for (const p of products) Object.assign(p, { status: "active", version: 1 });
+for (const p of products) Object.assign(p, { status: "active", version: 1, supplier: null });
+// o headset vem do fornecedor de dropshipping (#217)
+products.at(-1).supplier = {
+  name: "cj",
+  vid: "SIM-V-004",
+  cost: { amount_cents: 1890, currency: "USD" },
+  synced_at: "2026-10-29T12:00:00Z",
+  removed_at: null,
+};
+// regras de margem do painel (#217): a padrão começa como a da configuração (updated_at nulo)
+const pricing = { default: { margin_percent: 80, min_price_cents: 1990, updated_at: null }, rules: [] };
 const adminKeys = new Set(); // Idempotency-Key dos ajustes de estoque
 const adminCampaigns = [];
 // dead letter topics: o inventory com duas mensagens; orders e notifications vazios
@@ -137,6 +178,8 @@ const deadLetterQueues = {
   ],
   orders: [],
   notifications: [],
+  fulfillment: [],
+  catalog: [],
 }; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
@@ -315,13 +358,25 @@ async function admin(req, res, url) {
   return problem(res, 404, "Recurso não encontrado");
 }
 
+/** Os slugs de uma categoria e de todas as descendentes. */
+function subtree(id) {
+  const root = categories.find((c) => c.id === id);
+  if (!root) return [];
+  return [root.slug, ...categories.filter((c) => c.parent_id === id).flatMap((c) => subtree(c.id))];
+}
+
 /** Os produtos que passam nos filtros da vitrine (sem a marca, para a faceta). */
 function filtered(url) {
   const q = url.searchParams.get("q")?.toLowerCase();
   const slug = url.searchParams.get("category");
-  const family = slug
-    ? categories.filter((c) => c.slug === slug || c.parent_id === bySlug[slug]?.id).map((c) => c.slug)
-    : null;
+  // a categoria e a subárvore dela, como o catalog (WITH RECURSIVE)
+  let family = slug ? subtree(bySlug[slug]?.id) : null;
+  // os tipos (#212): a união das subárvores, só dentro da categoria
+  const types = (url.searchParams.get("type") ?? "").split(",").filter(Boolean);
+  if (types.length) {
+    const within = types.flatMap((t) => subtree(bySlug[t]?.id));
+    family = family ? within.filter((s) => family.includes(s)) : within;
+  }
   const min = Number(url.searchParams.get("min_price_cents") ?? 0);
   const max = Number(url.searchParams.get("max_price_cents") ?? Infinity);
   return products.filter(
@@ -357,6 +412,26 @@ function listProducts(url) {
 }
 
 /** GET /v1/brands: as marcas da listagem com a contagem, das mais frequentes para as menos. */
+/** A faceta de tipos: as filhas da categoria com quantos produtos (sem o filtro de tipo, com a marca). */
+function listCategoryCounts(url) {
+  const root = bySlug[url.searchParams.get("category")];
+  const noTypes = new URL(url);
+  noTypes.searchParams.delete("type");
+  const brands = (url.searchParams.get("brand") ?? "").toLowerCase().split(",").filter(Boolean);
+  const list = filtered(noTypes).filter((p) => !brands.length || brands.includes(p.brand.toLowerCase()));
+  return {
+    data: categories
+      .filter((c) => root && c.parent_id === root.id)
+      .map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        count: list.filter((p) => subtree(c.id).includes(p.category.slug)).length,
+      }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
 function listBrands(url) {
   const counts = new Map();
   for (const p of filtered(url)) counts.set(p.brand, (counts.get(p.brand) ?? 0) + 1);
@@ -373,13 +448,42 @@ const byKey = new Map(); // `${email}:${Idempotency-Key}` -> id
 const TRACE = "4bf92f3577b34da6a3ce929d0e0e4736";
 const ANA = "0199f6a0-0000-7000-8000-000000000a1a";
 
-/** O pedido no instante `now`: reservando, cobrando e, no fim, confirmado ou cancelado. */
+/**
+ * O pedido no instante `now`: reservando, cobrando e, no fim, confirmado ou cancelado. No PIX, a cobrança
+ * gera o código e espera: o teste paga (POST /__pix/{id}/pay) ou deixa vencer.
+ */
 function orderAt(entry, now = Date.now()) {
   const { order, reserveAt, endAt, outcome } = entry;
   if (outcome === "out_of_stock" && now >= reserveAt) {
     return { ...order, status: "cancelled", cancellation_reason: "out_of_stock", updated_at: iso(reserveAt) };
   }
   const reserved = now >= reserveAt ? { stock_reserved_at: iso(reserveAt), updated_at: iso(reserveAt) } : {};
+  if (order.payment.method === "pix" && now >= endAt) {
+    const pix = {
+      qr_code: `00020101021226820014br.gov.bcb.pix2560pix.example/qr/${order.id}5204000053039865802BR6304ABCD`,
+      qr_code_base64: QR_PNG,
+      ticket_url: `http://localhost:${port}/sim/pix/${order.id}`,
+      expires_at: iso(endAt + entry.pixMs),
+    };
+    const waiting = { ...order, ...reserved, payment: { ...order.payment, pix }, updated_at: iso(endAt) };
+    if (entry.paidAt) {
+      return {
+        ...waiting,
+        status: "confirmed",
+        payment_id: crypto.randomUUID(),
+        updated_at: iso(entry.paidAt),
+      };
+    }
+    if (now >= endAt + entry.pixMs) {
+      return {
+        ...waiting,
+        status: "cancelled",
+        cancellation_reason: "payment_failed",
+        updated_at: iso(endAt + entry.pixMs),
+      };
+    }
+    return waiting;
+  }
   if (now < endAt) return { ...order, ...reserved };
   return outcome === "payment_failed"
     ? {
@@ -392,14 +496,93 @@ function orderAt(entry, now = Date.now()) {
     : { ...order, ...reserved, status: "confirmed", payment_id: crypto.randomUUID(), updated_at: iso(endAt) };
 }
 const iso = (ms) => new Date(ms).toISOString();
+// um PNG de 1×1: o teste confere que o QR aparece, não que ele é lido
+const QR_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+// ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
+const cardTokens = new Map(); // token -> titular
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+async function tokenize(req, res, url) {
+  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
+  if (req.method === "OPTIONS") return res.writeHead(204).end();
+  if (url.searchParams.get("public_key") !== "TEST-sim-public-key")
+    return send(res, 401, { message: "invalid public key" });
+  const { card_number: number, cardholder } = await json(req);
+  if (!/^4\d{15}$|^5\d{15}$/.test(String(number))) {
+    return send(res, 400, { message: "invalid card: número", error: "invalid_card" });
+  }
+  const id = crypto.randomUUID().replace(/-/g, "");
+  cardTokens.set(id, String(cardholder?.name ?? "").toUpperCase());
+  return send(res, 201, {
+    id,
+    payment_method_id: number.startsWith("4") ? "visa" : "master",
+    last_four_digits: number.slice(-4),
+  });
+}
+
+// os pedidos atrasados no fornecedor (#219): um preso no fornecedor e um envio que não chegou
+function overdueOrders() {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  return [
+    {
+      order_id: "5b8e1f20-0000-7000-8000-000000000001",
+      status: "placed",
+      stage: "shipping",
+      due_at: iso(now - 4 * day),
+      supplier: "cj",
+      supplier_order_id: "CJ2410290001",
+      customer_email: "bia@exemplo.com",
+      attempts: 0,
+      last_error: null,
+      tracking: null,
+      created_at: iso(now - 7 * day),
+      placed_at: iso(now - 7 * day),
+      shipped_at: null,
+    },
+    {
+      order_id: "9d2c7a40-0000-7000-8000-000000000002",
+      status: "shipped",
+      stage: "delivery",
+      due_at: iso(now - 5 * 60 * 60 * 1000),
+      supplier: "cj",
+      supplier_order_id: "CJ2410100002",
+      customer_email: "caio@exemplo.com",
+      attempts: 0,
+      last_error: null,
+      tracking: {
+        number: "BR123456789CJ",
+        provider: "Correios",
+        url: "https://t.17track.net/en#nums=BR123456789CJ",
+      },
+      created_at: iso(now - 20 * day),
+      placed_at: iso(now - 20 * day),
+      shipped_at: iso(now - 15 * day - 5 * 60 * 60 * 1000),
+    },
+  ];
+}
 const eventId = (o) => String(Date.parse(o.updated_at));
 
 async function placeOrder(req, res, email) {
   const key = req.headers["idempotency-key"];
   if (!key) return problem(res, 400, "Requisição malformada");
   const existing = byKey.get(`${email}:${key}`);
-  const { items } = await json(req);
+  const { items, payment, recipient, shipping_address } = await json(req);
   if (existing) return send(res, 202, orderAt(placed.get(existing)));
+  // como o orders: cartão sem o token do provedor (ou com um token já usado) é recusado
+  if (
+    !payment ||
+    !recipient?.cpf ||
+    !/^\d{8}$/.test(shipping_address?.zip_code ?? "") ||
+    (payment.method === "card" && !cardTokens.has(payment.card_token))
+  ) {
+    return problem(res, 422, "Dados inválidos");
+  }
   // "instavel@..." pega o catálogo fora e sem cópia local: 503 com Retry-After e o trace para o suporte
   if (email.startsWith("instavel@")) {
     res.setHeader("Retry-After", "7");
@@ -441,28 +624,38 @@ async function placeOrder(req, res, email) {
     items: orderItems,
     total: { amount_cents: total, currency: "BRL" },
     payment_id: null,
+    payment: { method: payment.method, installments: payment.installments ?? 1, pix: null },
+    recipient,
+    shipping_address,
     stock_reserved_at: null,
     created_at: iso(now),
     updated_at: iso(now),
   };
-  // o gateway falso recusa acima de R$ 50.000,00; o inventory, acima do saldo
+  // o titular decide o cartão, como no provedor (FUND: sem saldo); o inventory recusa acima do saldo
+  const holder = payment.method === "card" ? cardTokens.get(payment.card_token) : "";
+  cardTokens.delete(payment.card_token);
   const outcome = lines.some((l) => l.quantity > stock(l.product.id))
     ? "out_of_stock"
-    : total > 5_000_000
+    : holder === "FUND"
       ? "payment_failed"
       : "confirmed";
-  placed.set(id, { order, owner: email, reserveAt: now + 800, endAt: now + 1600, outcome });
+  // "pix-curto@...": o PIX vence em segundos, para o teste ver o prazo acabar
+  const pixMs = email.startsWith("pix-curto@") ? 4_000 : 30 * 60_000;
+  placed.set(id, { order, owner: email, reserveAt: now + 800, endAt: now + 1600, outcome, pixMs });
   byKey.set(`${email}:${key}`, id);
   stats.ordersPlaced++;
   stats.ordersByKey[key] = (stats.ordersByKey[key] ?? 0) + 1;
   return send(res, 202, order);
 }
 
+// como o orders: pago não é o fim (o pedido segue o fornecedor); o stub não passa do confirmado
+const isFinal = (o) => o.status === "delivered" || o.status === "cancelled";
+
 /** GET .../events: o estado atual e cada mudança, em Server-Sent Events, até o estado final. */
 function streamOrder(req, res, entry) {
   const last = req.headers["last-event-id"];
   let current = orderAt(entry);
-  if (current.status !== "pending" && last === eventId(current)) return res.writeHead(204).end();
+  if (isFinal(current) && last === eventId(current)) return res.writeHead(204).end();
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
   res.write("retry: 3000\n\n");
   const emit = (o) => res.write(`id: ${eventId(o)}\nevent: order\ndata: ${JSON.stringify(o)}\n\n`);
@@ -473,7 +666,7 @@ function streamOrder(req, res, entry) {
       current = next;
       emit(current);
     }
-    if (current.status !== "pending") {
+    if (isFinal(current)) {
       clearInterval(timer);
       res.end();
     }
@@ -556,7 +749,7 @@ createServer(async (req, res) => {
     return send(res, 200, { id_token: fakeJwt({ ...grant, email_verified: true }), token_type: "Bearer" });
   }
   const dlt = url.pathname.match(
-    /^\/(orders|inventory|payments|notifications)\/v1\/admin\/dead-letters(\/replay)?$/,
+    /^\/(orders|inventory|payments|notifications|fulfillment|catalog)\/v1\/admin\/dead-letters(\/replay)?$/,
   );
   if (dlt) {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
@@ -567,8 +760,59 @@ createServer(async (req, res) => {
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
   }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/overdue") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, { data: overdueOrders() });
+  }
+  if (url.pathname.startsWith("/catalog/v1/admin/pricing-rules")) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    if (req.method === "GET") {
+      return send(res, 200, { ...pricing, exchange_rates: { USD: "5.40" } });
+    }
+    const category = url.pathname.match(/\/categories\/([0-9a-f-]{36})$/)?.[1];
+    if (req.method === "DELETE") {
+      const before = pricing.rules.length;
+      pricing.rules = pricing.rules.filter((r) => r.category_id !== category);
+      return before === pricing.rules.length
+        ? problem(res, 404, "Recurso não encontrado")
+        : send(res, 200, { repriced: 1 });
+    }
+    const body = await json(req);
+    const rule = { ...body, updated_at: new Date().toISOString() };
+    if (category) {
+      pricing.rules = [
+        ...pricing.rules.filter((r) => r.category_id !== category),
+        { category_id: category, ...rule },
+      ];
+    } else {
+      pricing.default = rule;
+    }
+    return send(res, 200, { rule: category ? { category_id: category, ...rule } : rule, repriced: 1 });
+  }
+  if (req.method === "POST" && url.pathname === "/fulfillment/v1/admin/supplier-catalog/sync") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, { created: 2, updated: 1, removed: 0, unchanged: 27 });
+  }
   if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
     return admin(req, res, url);
+  }
+  if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  // o ViaCEP: um CEP da Paulista, um de cidade pequena (sem rua) e o resto não existe
+  const cep = url.pathname.match(/^\/cep\/(\d{8})\/json\/$/);
+  if (req.method === "GET" && cep) {
+    const known = {
+      "01310100": { logradouro: "Avenida Paulista", bairro: "Bela Vista", localidade: "São Paulo", uf: "SP" },
+      37200000: { logradouro: "", bairro: "", localidade: "Lavras", uf: "MG" },
+    }[cep[1]];
+    return send(res, 200, known ?? { erro: "true" });
+  }
+  // o banco do cliente pagando o PIX
+  const pixPay = url.pathname.match(/^\/__pix\/([0-9a-f-]{36})\/pay$/);
+  if (req.method === "POST" && pixPay) {
+    const entry = placed.get(pixPay[1]);
+    if (!entry || entry.order.payment.method !== "pix") return problem(res, 404, "Recurso não encontrado");
+    entry.paidAt = Date.now();
+    return res.writeHead(204).end();
   }
   const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})(\/events)?$/);
   if (req.method === "GET" && order) {
@@ -603,6 +847,8 @@ createServer(async (req, res) => {
       return send(res, 200, listProducts(url));
     case "GET /catalog/v1/brands":
       return send(res, 200, listBrands(url));
+    case "GET /catalog/v1/category-counts":
+      return send(res, 200, listCategoryCounts(url));
     case "GET /inventory/v1/stock": {
       const ids = (url.searchParams.get("product_ids") ?? "").split(",").filter(Boolean);
       return send(res, 200, {

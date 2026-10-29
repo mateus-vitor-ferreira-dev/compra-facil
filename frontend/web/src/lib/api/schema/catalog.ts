@@ -43,6 +43,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/category-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Subcategorias de uma categoria, com a contagem
+         * @description As categorias filhas diretas de `category` (os tipos de produto de uma subcategoria, ou as
+         *     subcategorias de um departamento), cada uma com quantos produtos `active` dela e das
+         *     descendentes passam nos mesmos filtros da listagem (sem o próprio `type`). Só as que têm
+         *     produto, em ordem alfabética. O front monta o filtro de tipo com elas.
+         */
+        get: operations["listCategoryCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/products/{product_id}": {
         parameters: {
             query?: never;
@@ -236,6 +259,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/pricing-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Regras de margem e câmbio do catálogo do fornecedor
+         * @description Como o custo do fornecedor vira preço de venda (#217): convertido para reais pelo câmbio, mais a
+         *     margem da regra, arredondado para cima até terminar em ,90 e nunca abaixo do mínimo. Vale a regra
+         *     da categoria do produto ou, sem ela, a do ancestral mais próximo; sem nenhuma, a padrão. O câmbio
+         *     fica na configuração do serviço.
+         */
+        get: operations["getPricingRules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/pricing-rules/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Grava a regra padrão e reprecifica os produtos de fornecedor */
+        put: operations["setDefaultPricingRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/pricing-rules/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Grava a regra da categoria (e das descendentes sem regra própria) e reprecifica */
+        put: operations["setCategoryPricingRule"];
+        post?: never;
+        /** Tira a regra da categoria (passa a valer a do ancestral ou a padrão) e reprecifica */
+        delete: operations["deleteCategoryPricingRule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/dead-letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mensagens pendentes na dead letter topic
+         * @description Mensagens em `catalog.dlt` (o consumo do feed do fornecedor) que chegaram depois do último
+         *     reprocessamento, como nos serviços .NET (docs/adr/0003-retries-e-dead-letter-topics.md). Uma
+         *     categoria do fornecedor sem categoria da loja na configuração para aqui: configure e reprocesse.
+         */
+        get: operations["listDeadLetters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/dead-letters/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reprocessa as mensagens pendentes na dead letter topic
+         * @description Devolve as pendentes para `catalog.retry-1`. Falhando outra vez, voltam para a DLT. Evento já
+         *     processado não repete o efeito (inbox).
+         */
+        post: operations["replayDeadLetters"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -311,6 +437,66 @@ export interface components {
             status: components["schemas"]["ProductStatus"];
             /** @description Incrementa a cada alteração; é o valor do ETag. */
             version: number;
+            /**
+             * @description De onde vem o produto de dropshipping (#217); nulo no cadastrado pela loja. O preço de venda
+             *     sai do custo pela regra de margem e muda quando o custo muda no fornecedor.
+             */
+            supplier?: components["schemas"]["ProductSupplier"] | null;
+        };
+        ProductSupplier: {
+            /** @description Fornecedor (ex.: `cj`). */
+            name: string;
+            /** @description Variante no fornecedor; é também o SKU do produto na loja. */
+            vid: string;
+            /** @description Custo unitário, na moeda do fornecedor. */
+            cost: components["schemas"]["Money"];
+            /**
+             * Format: date-time
+             * @description A última atualização do fornecedor aplicada.
+             */
+            synced_at: string;
+            /**
+             * Format: date-time
+             * @description Quando saiu do feed (o produto fica inativo); nulo enquanto o fornecedor vende.
+             */
+            removed_at: string | null;
+        };
+        PricingRuleInput: {
+            /** @description Sobre o custo já em reais (80 = custo + 80%). */
+            margin_percent: number;
+            /**
+             * Format: int64
+             * @description Preço mínimo de venda, em centavos.
+             */
+            min_price_cents: number;
+        };
+        PricingRule: {
+            /**
+             * Format: uuid
+             * @description Ausente na regra padrão.
+             */
+            category_id?: string;
+            margin_percent: number;
+            /** Format: int64 */
+            min_price_cents: number;
+            /**
+             * Format: date-time
+             * @description Nulo na padrão da configuração, ainda não gravada pelo painel.
+             */
+            updated_at: string | null;
+        };
+        PricingSettings: {
+            default: components["schemas"]["PricingRule"];
+            rules: components["schemas"]["PricingRule"][];
+            /** @description Reais por unidade de cada moeda dos fornecedores (ex.: `{"USD": "5.40"}`). */
+            exchange_rates: {
+                [key: string]: string;
+            };
+        };
+        PricingRuleResult: {
+            rule: components["schemas"]["PricingRule"];
+            /** @description Produtos de fornecedor que mudaram de preço. */
+            repriced: number;
         };
         ProductInput: {
             sku: components["schemas"]["Sku"];
@@ -328,6 +514,11 @@ export interface components {
         /** @enum {string} */
         ProductSort: "relevance" | "price_asc" | "price_desc" | "discount" | "newest";
         BrandCount: {
+            name: string;
+            count: number;
+        };
+        CategoryCount: {
+            slug: string;
             name: string;
             count: number;
         };
@@ -452,6 +643,35 @@ export interface components {
                 message: string;
             }[];
         };
+        DeadLetter: {
+            /**
+             * Format: uuid
+             * @description Nulo quando a mensagem nem é um envelope válido.
+             */
+            event_id: string | null;
+            event_type: string | null;
+            /** @description Tópico de origem (ex.: orders.order.v1). */
+            topic: string;
+            /** @description Partição no tópico de origem. */
+            partition: number | null;
+            /**
+             * Format: int64
+             * @description Offset no tópico de origem.
+             */
+            offset: number | null;
+            /** @description Estágios em que a mensagem falhou (origem e cada nível de retry). */
+            attempts: number;
+            /** @description Última falha (tipo e mensagem da exceção). */
+            error: string | null;
+            /** Format: date-time */
+            failed_at: string | null;
+        };
+        DeadLetterList: {
+            items: components["schemas"]["DeadLetter"][];
+        };
+        DeadLetterReplay: {
+            replayed: number;
+        };
     };
     responses: {
         /** @description Requisição malformada (JSON inválido, parâmetro com tipo errado). */
@@ -546,10 +766,25 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Kafka fora do ar; tente de novo. */
+        KafkaUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
         /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
         Brand: string[];
+        /**
+         * @description Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+         *     a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+         *     de tipos sai de `/v1/category-counts`.
+         */
+        Type: string[];
         ProductId: string;
         CampaignId: string;
         /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
@@ -560,6 +795,8 @@ export interface components {
         Limit: number;
         /** @description ETag da última leitura do recurso (concorrência otimista). */
         IfMatch: string;
+        /** @description Máximo de mensagens devolvidas. */
+        DeadLetterLimit: number;
     };
     requestBodies: never;
     headers: {
@@ -592,6 +829,12 @@ export interface operations {
                 on_sale?: boolean;
                 /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
                 brand?: components["parameters"]["Brand"];
+                /**
+                 * @description Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+                 *     a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+                 *     de tipos sai de `/v1/category-counts`.
+                 */
+                type?: components["parameters"]["Type"];
                 /**
                  * @description Paginação por número (a partir de 1), com o `total` da listagem na resposta: a vitrine mostra
                  *     os números das páginas. Alternativa ao `cursor` (os dois juntos dão 422). Até a página 200.
@@ -636,6 +879,12 @@ export interface operations {
                 min_price_cents?: number;
                 max_price_cents?: number;
                 on_sale?: boolean;
+                /**
+                 * @description Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+                 *     a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+                 *     de tipos sai de `/v1/category-counts`.
+                 */
+                type?: components["parameters"]["Type"];
             };
             header?: {
                 /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
@@ -654,6 +903,43 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["BrandCount"][];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listCategoryCounts: {
+        parameters: {
+            query: {
+                category: string;
+                q?: string;
+                min_price_cents?: number;
+                max_price_cents?: number;
+                on_sale?: boolean;
+                /** @description Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas). */
+                brand?: components["parameters"]["Brand"];
+            };
+            header?: {
+                /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categorias filhas com a quantidade de produtos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CategoryCount"][];
                     };
                 };
             };
@@ -1133,6 +1419,170 @@ export interface operations {
             409: components["responses"]["Conflict"];
             422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    getPricingRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As regras em vigor. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingSettings"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    setDefaultPricingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleInput"];
+            };
+        };
+        responses: {
+            /** @description A regra gravada e quantos produtos mudaram de preço. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingRuleResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    setCategoryPricingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleInput"];
+            };
+        };
+        responses: {
+            /** @description A regra gravada e quantos produtos mudaram de preço. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingRuleResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deleteCategoryPricingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quantos produtos mudaram de preço. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        repriced: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listDeadLetters: {
+        parameters: {
+            query?: {
+                /** @description Máximo de mensagens devolvidas. */
+                limit?: components["parameters"]["DeadLetterLimit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mensagens pendentes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeadLetterList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["KafkaUnavailable"];
+        };
+    };
+    replayDeadLetters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quantas mensagens foram devolvidas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeadLetterReplay"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["KafkaUnavailable"];
         };
     };
 }

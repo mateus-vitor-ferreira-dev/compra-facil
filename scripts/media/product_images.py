@@ -22,6 +22,8 @@ import hashlib
 import json
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -39,36 +41,127 @@ MANIFEST = ROOT / "infra" / "media" / "manifest.json"
 VARIANT_WIDTHS = (320, 480, 640, 960, 1200)
 MIN_SIZE = 600  # foto menor que isso não entra: ficaria borrada na página do produto
 SIZE = 800  # das pranchas de escolha
-PER_SUB = 12  # o seed pede pelo menos 10 (minPhotosPerSubcategory)
+PER_SUB = 8  # por tipo; o seed pede pelo menos minPhotosPerSubcategory
 USER_AGENT = "compra-facil-seed/1.0 (https://github.com/mateus-vitor-ferreira-dev/compra-facil)"
 # CC BY e CC BY-SA pedem o crédito, que fica no CREDITOS.md (linkado no README); a licença do Pixabay não
 # pede, mas o crédito fica lá do mesmo jeito
 LICENSES = ["cc0", "pd", "cc-by", "cc-by-sa", "pixabay"]
 SOURCES = ["pixabay", "commons", "openverse"]
 
-# subcategoria do seed (backend/services/catalog/cmd/seed/catalog_data.go) -> o que é, para o curador,
-# e as buscas em inglês. Várias por subcategoria (#178): com uma só, não davam 10 fotos diferentes
+# tipo de produto do seed (o último nível de backend/services/catalog/cmd/seed/catalog_data.go, #210) -> o
+# que é, para o curador, e as buscas em inglês. As fotos são por tipo: o filtro "Cadeira gamer" não pode
+# mostrar foto de mouse
 SUBCATEGORIES = {
-    "tv": ("televisores de tela plana (smart TV)", ["flat screen tv", "smart tv", "tv living room", "led television", "television wall mounted"]),
-    "fones": ("fones de ouvido, headphones, earbuds e headsets", ["headphones", "wireless earbuds", "headset"]),
-    "caixas-de-som": ("caixas de som e soundbars", ["speaker", "bluetooth speaker", "soundbar", "loudspeaker"]),
-    "notebooks": ("notebooks (laptops)", ["laptop", "notebook computer", "laptop desk"]),
-    "monitores": ("monitores de computador", ["computer monitor", "desktop computer screen", "monitor desk", "desk setup monitor"]),
-    "perifericos": ("periféricos: teclado, mouse e webcam", ["computer keyboard", "computer mouse", "webcam", "mechanical keyboard"]),
-    "geladeiras": ("geladeiras (refrigeradores domésticos)", ["refrigerator", "fridge kitchen", "refrigerator door"]),
-    "fogoes": ("fogões e cooktops domésticos", ["stove", "cooktop", "gas stove kitchen", "kitchen range"]),
-    "lavadoras": ("máquinas de lavar roupa", ["washing machine", "laundry machine", "front load washer"]),
-    "sofas": ("sofás e poltronas", ["sofa", "couch living room", "armchair"]),
-    "colchoes": ("colchões e camas box", ["bed", "mattress", "bedroom bed"]),
-    "bicicletas": ("bicicletas", ["bicycle", "mountain bike", "road bike"]),
-    "fitness": ("equipamentos de academia: halteres, esteira, kettlebell", ["dumbbell", "treadmill", "kettlebell", "exercise bike"]),
+    # Eletrônicos
+    "smart-tvs": ("smart TVs de tela plana, o aparelho inteiro", ["flat screen tv", "smart tv", "tv living room", "led television"]),
+    "projetores": ("projetores de vídeo domésticos", ["video projector", "home projector", "projector"]),
+    "suportes-de-tv": ("suportes de parede e pedestais para TV", ["tv wall mount", "tv stand", "tv bracket"]),
+    "fones-over-ear": ("fones de ouvido grandes (headphones over-ear)", ["headphones", "over ear headphones", "wireless headphones"]),
+    "fones-sem-fio": ("fones intra-auriculares sem fio (earbuds)", ["wireless earbuds", "earbuds case", "true wireless earphones"]),
+    "headsets-gamer": ("headsets gamer com microfone", ["gaming headset", "headset microphone", "gamer headphones"]),
+    "caixas-bluetooth": ("caixas de som portáteis bluetooth", ["bluetooth speaker", "portable speaker", "wireless speaker"]),
+    "soundbars": ("soundbars para TV", ["soundbar", "sound bar tv", "home theater soundbar"]),
+    "smart-speakers": ("caixas de som inteligentes (assistente de voz)", ["smart speaker", "voice assistant speaker", "smart home speaker"]),
+    # Informática
+    "notebooks-e-ultrabooks": ("notebooks (laptops)", ["laptop", "notebook computer", "laptop desk"]),
+    "tablets": ("tablets", ["tablet computer", "tablet device", "tablet stylus"]),
+    "monitores-pc": ("monitores de computador", ["computer monitor", "monitor desk", "desktop monitor"]),
+    "mouses": ("mouses de computador", ["computer mouse", "wireless mouse", "gaming mouse"]),
+    "teclados": ("teclados de computador", ["computer keyboard", "mechanical keyboard", "wireless keyboard"]),
+    "mousepads": ("mousepads", ["mousepad", "mouse pad desk", "gaming mouse pad"]),
+    "cadeiras-gamer": ("cadeiras gamer e de escritório", ["gaming chair", "office chair", "ergonomic chair"]),
+    "webcams": ("webcams", ["webcam", "web camera", "usb camera computer"]),
+    # Eletrodomésticos
+    "geladeiras-duplex": ("geladeiras domésticas fechadas", ["refrigerator", "fridge kitchen", "stainless steel refrigerator"]),
+    "freezers": ("freezers horizontais e verticais", ["chest freezer", "upright freezer", "freezer appliance"]),
+    "frigobares": ("frigobares (geladeiras pequenas)", ["mini fridge", "compact refrigerator", "small fridge"]),
+    "fogoes-de-piso": ("fogões de piso com forno", ["stove oven", "gas range", "kitchen stove"]),
+    "cooktops": ("cooktops de embutir (gás ou indução)", ["cooktop", "induction cooktop", "gas hob"]),
+    "fornos-eletricos": ("fornos elétricos e micro-ondas", ["electric oven", "microwave oven", "toaster oven"]),
+    "lavadoras-de-roupa": ("máquinas de lavar roupa", ["washing machine", "front load washer", "laundry machine"]),
+    "lava-e-seca": ("lava e seca e secadoras de roupa", ["washer dryer", "clothes dryer", "tumble dryer"]),
+    # Casa e móveis
+    "sofas-retrateis": ("sofás", ["sofa", "couch living room", "modern sofa"]),
+    "poltronas": ("poltronas", ["armchair", "accent chair", "lounge chair"]),
+    "puffs": ("puffs e banquetas estofadas", ["pouf", "ottoman", "footstool"]),
+    "colchoes-de-molas": ("colchões", ["mattress", "mattress bedroom", "foam mattress"]),
+    "camas-box": ("camas box e camas de casal", ["bed bedroom", "double bed", "box spring bed"]),
+    "travesseiros": ("travesseiros", ["pillow", "bed pillows", "white pillow"]),
+    # Esporte e lazer
+    "bicicletas-urbanas": ("bicicletas", ["bicycle", "city bike", "mountain bike"]),
+    "bicicletas-eletricas": ("bicicletas elétricas", ["electric bicycle", "e-bike", "electric bike"]),
+    "capacetes": ("capacetes de ciclismo", ["bicycle helmet", "cycling helmet", "bike helmet"]),
+    "halteres": ("halteres e anilhas", ["dumbbell", "dumbbells gym", "weight plates"]),
+    "esteiras": ("esteiras ergométricas", ["treadmill", "treadmill gym", "running machine"]),
+    "kettlebells": ("kettlebells", ["kettlebell", "kettlebell workout", "kettlebells gym"]),
+    "tapetes-de-yoga": ("tapetes de yoga", ["yoga mat", "exercise mat", "rolled yoga mat"]),
+    "bicicletas-ergometricas": ("bicicletas ergométricas e spinning", ["exercise bike", "stationary bike", "spin bike"]),
+    # Beleza e cuidados
+    "batons": ("batons", ["lipstick", "lipsticks", "lipstick makeup"]),
+    "bases-e-corretivos": ("bases e corretivos de maquiagem", ["foundation makeup bottle", "liquid foundation", "concealer makeup"]),
+    "paletas-de-sombra": ("paletas de sombra", ["eyeshadow palette", "eye shadow", "makeup palette"]),
+    "mascaras-de-cilios": ("máscaras de cílios (rímel)", ["mascara", "mascara wand", "mascara makeup"]),
+    "hidratantes": ("hidratantes faciais e corporais", ["face cream jar", "moisturizer", "body lotion bottle"]),
+    "protetores-solares": ("protetores solares", ["sunscreen bottle", "sunscreen", "sun cream"]),
+    "sabonetes-faciais": ("sabonetes e limpadores faciais", ["facial cleanser", "face wash", "soap bar"]),
+    "perfumes": ("perfumes (frascos)", ["perfume bottle", "perfume", "fragrance bottle"]),
+    "shampoos": ("shampoos e condicionadores", ["shampoo bottle", "shampoo", "hair conditioner"]),
+    "secadores-de-cabelo": ("secadores de cabelo", ["hair dryer", "hairdryer", "blow dryer"]),
+    "chapinhas": ("chapinhas e babyliss", ["hair straightener", "flat iron hair", "curling iron"]),
+    "barbeadores": ("barbeadores e lâminas", ["razor", "shaving razor", "safety razor"]),
+    "aparadores": ("aparadores e máquinas de cortar cabelo", ["beard trimmer", "hair clipper", "electric trimmer"]),
+    # Moda e acessórios
+    "tenis": ("tênis", ["sneakers", "running shoes", "white sneakers"]),
+    "botas": ("botas", ["boots", "leather boots", "ankle boots"]),
+    "sandalias": ("sandálias e chinelos", ["sandals", "flip flops", "summer sandals"]),
+    "mochilas": ("mochilas", ["backpack", "laptop backpack", "travel backpack"]),
+    "bolsas": ("bolsas", ["handbag", "leather bag", "tote bag"]),
+    "malas-de-viagem": ("malas de viagem", ["suitcase", "luggage", "travel suitcase"]),
+    "relogios-analogicos": ("relógios de pulso", ["wrist watch", "analog watch", "watch on wrist"]),
+    "smartwatches": ("smartwatches", ["smartwatch", "smart watch wrist", "fitness tracker"]),
+    "oculos-de-sol": ("óculos de sol", ["sunglasses", "sunglasses fashion", "aviator sunglasses"]),
+    "bones": ("bonés", ["baseball cap", "cap hat", "snapback cap"]),
+    "carteiras": ("carteiras", ["wallet", "leather wallet", "mens wallet"]),
+    "cintos": ("cintos", ["belt", "leather belt", "belt buckle"]),
+    # Casa e cozinha
+    "panelas": ("panelas e jogos de panelas", ["cooking pot", "cookware set", "saucepan"]),
+    "frigideiras": ("frigideiras", ["frying pan", "skillet", "non stick pan"]),
+    "air-fryers": ("air fryers (fritadeiras elétricas)", ["air fryer", "airfryer", "air fryer kitchen"]),
+    "cafeteiras": ("cafeteiras e máquinas de café", ["coffee maker", "espresso machine", "coffee machine"]),
+    "liquidificadores": ("liquidificadores", ["blender", "kitchen blender", "smoothie blender"]),
+    "batedeiras": ("batedeiras", ["stand mixer", "kitchen mixer", "hand mixer"]),
+    "sanduicheiras": ("sanduicheiras e grills", ["sandwich maker", "panini press", "toaster"]),
+    "facas": ("facas de cozinha", ["kitchen knife", "chef knife", "knife set"]),
+    "tabuas": ("tábuas de corte", ["cutting board", "wooden cutting board", "chopping board"]),
+    "potes": ("potes e organizadores de cozinha", ["food storage containers", "glass jars kitchen", "kitchen containers"]),
+    # Games
+    "consoles": ("consoles de videogame", ["video game console", "game console", "gaming console"]),
+    "controles": ("controles de videogame", ["game controller", "gamepad", "video game controller"]),
+    "volantes-e-acessorios": ("volantes e acessórios gamer", ["racing wheel gaming", "gaming accessories", "steering wheel controller"]),
+    # Brinquedos
+    "blocos-de-montar": ("blocos de montar", ["building blocks toy", "toy bricks", "construction toy"]),
+    "jogos-de-tabuleiro": ("jogos de tabuleiro", ["board game", "chess board", "board game pieces"]),
+    "pelucias": ("bichos de pelúcia", ["teddy bear", "plush toy", "stuffed animal"]),
+    "carrinhos": ("carrinhos de brinquedo", ["toy car", "toy cars", "model car toy"]),
+    # Pets
+    "camas-pet": ("camas para cachorro e gato", ["dog bed", "pet bed", "cat bed"]),
+    "brinquedos-pet": ("brinquedos para pets", ["dog toy", "pet toy", "cat toy"]),
+    "coleiras": ("coleiras e guias", ["dog collar", "dog leash", "pet collar"]),
+    "comedouros": ("comedouros e bebedouros", ["dog bowl", "pet bowl", "cat bowl"]),
 }
 
 
 def get(url, timeout=60):
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read()
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read()
+        except urllib.error.HTTPError as e:
+            # o Pixabay limita downloads seguidos (429): espera e tenta de novo
+            if e.code != 429 or attempt == 4:
+                raise
+            time.sleep(int(e.headers.get("Retry-After") or 10 * (attempt + 1)))
 
 
 def original(path):
@@ -103,6 +196,8 @@ def pedido(*anteriores):
         "fontes": fontes,
         "lado_minimo": MIN_SIZE,
         "nota_minima": 7,
+        "max_candidatas": 80,
+        "paralelas": 4,
         "subcategorias": {sub: {"descricao": desc, "buscas": queries, "quantas": PER_SUB}
                           for sub, (desc, queries) in faltam.items()},
     }, ensure_ascii=False, indent=1))
@@ -130,13 +225,15 @@ def importar(*resultado_paths):
         sub, foto = item
         path = CACHE / sub / f"{safe(foto['id'])}.img"
         if not path.exists():
-            path.write_bytes(get(foto["url"]))
+            # a mesma foto pode já estar no cache de outra subcategoria (de uma seleção anterior)
+            antiga = next((p for p in CACHE.glob(f"*/{safe(foto['id'])}.img") if p.stat().st_size), None)
+            path.write_bytes(antiga.read_bytes() if antiga else get(foto["url"]))
         square(path)  # descarta o que não abre
         return foto
 
     for sub, dados in resultado["subcategorias"].items():
         (CACHE / sub).mkdir(parents=True, exist_ok=True)
-        with ThreadPoolExecutor(max_workers=4) as pool:
+        with ThreadPoolExecutor(max_workers=2) as pool:
             fotos = []
             for foto in pool.map(lambda f: _tenta(baixa, (sub, f)), dados["escolhidas"]):
                 if foto:
@@ -199,8 +296,9 @@ def build():
         "permite usar e editar sem atribuição; o crédito fica aqui do mesmo jeito. As marcas citadas nos nomes dos",
         "produtos do seed são só massa de teste: as fotos não mostram esses produtos nem têm relação com essas marcas.",
         "",
-        "Onde os acervos livres não tinham fotos de catálogo suficientes (geladeiras, lavadoras e TV), as que faltavam",
-        "foram geradas por IA (Runway), sem marca, e estão marcadas assim na tabela.",
+        "Onde os acervos livres não tinham fotos de catálogo suficientes, as que faltavam foram geradas por IA (Runway,",
+        "Figma e Cloudflare Workers AI), sem marca, e estão marcadas assim na tabela. Os tipos de produto ainda sem foto mostram o ícone da",
+        "categoria na loja.",
         "",
         "| Foto | Maior variante | Título | Autor | Licença | Origem |",
         "|---|---|---|---|---|---|",

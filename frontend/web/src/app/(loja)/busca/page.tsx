@@ -23,6 +23,15 @@ export default async function SearchPage({ searchParams }: Props) {
   const filters = readFilters(params);
   const { q, onSale } = filters;
   const filtered = activeFilterCount(filters) > 0;
+  const listing = {
+    q,
+    onSale,
+    brands: filters.brands,
+    minPriceCents: filters.minPriceCents,
+    maxPriceCents: filters.maxPriceCents,
+    sort: filters.sort.api,
+    page: filters.page,
+  };
   const categories = await getCategories();
   const roots = categories.ok ? categoryTree(categories.data) : [];
   // sem resultado não é beco sem saída: as ofertas e os departamentos ficam a um toque
@@ -64,19 +73,11 @@ export default async function SearchPage({ searchParams }: Props) {
     <main id="conteudo" className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Resultados para “{q}”</h1>
       <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
-        <ListingFilters path="/busca" params={params} filters={filters} keep={{ q }} />
+        <ListingFilters path="/busca" params={params} filters={filters} keep={{ q }} query={listing} />
         <div className="min-w-0 space-y-4">
           <ActiveFilters path="/busca" params={params} filters={filters} />
           <ProductListing
-            query={{
-              q,
-              onSale,
-              brands: filters.brands,
-              minPriceCents: filters.minPriceCents,
-              maxPriceCents: filters.maxPriceCents,
-              sort: filters.sort.api,
-              page: filters.page,
-            }}
+            query={listing}
             label={`Resultados para ${q}`}
             path={"/busca"}
             params={params}

@@ -20,6 +20,11 @@ info:
     altera. Início e fim não geram evento: o consumidor guarda a campanha e calcula o preço efetivo na
     hora da leitura, com a regra de `CampaignSnapshot`. O preço cobrado de verdade continua vindo do
     gRPC `ValidateItems`; a cópia local é para quando ele está fora.
+
+    **Catálogo do fornecedor** (#217, ADR 0007): o catalog consome o feed que o fulfillment publica.
+    Produto novo entra (rascunho, ou à venda se `supplier.publish_new`) com o preço pela regra de margem;
+    custo novo reprecifica (`ProductUpdated` + `ProductPriceChanged`); produto fora do feed fica inativo.
+    O consumo segue o ADR 0003 (inbox, retry em `catalog.retry-N`, DLT em `catalog.dlt`).
 defaultContentType: application/json
 
 servers:
@@ -70,6 +75,9 @@ channels:
         topicConfiguration:
           cleanup.policy: [delete]
           retention.ms: 604800000
+  # Canal de outro serviço que o catalog consome (definido no contrato do dono)
+  supplierProductEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/supplierProductEvents"
 
 operations:
   publishProductEvents:
@@ -92,6 +100,21 @@ operations:
       - $ref: "#/channels/campaignEvents/messages/CampaignCreated"
       - $ref: "#/channels/campaignEvents/messages/CampaignUpdated"
       - $ref: "#/channels/campaignEvents/messages/CampaignDeleted"
+
+  onSupplierProductEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/supplierProductEvents"
+    summary: Cria, reprecifica ou tira de venda o produto do fornecedor.
+    messages:
+      - $ref: "#/channels/supplierProductEvents/messages/SupplierProductUpdated"
+      - $ref: "#/channels/supplierProductEvents/messages/SupplierProductRemoved"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: catalog
 
 components:
   messages:
@@ -366,3 +389,16 @@ components:
         updated_at:
           type: string
           format: date-time
+        supplier:
+          description: |
+            De que variante de que fornecedor o produto vem (#217); nulo no produto da loja. O inventory a
+            usa para espelhar a disponibilidade do fornecedor (#218). O custo não vai no evento.
+          oneOf:
+            - type: object
+              required: [name, vid]
+              properties:
+                name:
+                  type: string
+                vid:
+                  type: string
+            - type: "null"

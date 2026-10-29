@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
 )
 
 const envPrefix = "CATALOG"
@@ -27,6 +28,39 @@ type Config struct {
 	Auth   AuthConfig   `mapstructure:"auth"`
 	Cache  CacheConfig  `mapstructure:"cache"`
 	Events EventsConfig `mapstructure:"events"`
+	// Supplier é o catálogo do fornecedor de dropshipping (#217): o consumo do feed e a regra de margem.
+	Supplier SupplierConfig `mapstructure:"supplier"`
+}
+
+// SupplierConfig liga o consumo dos eventos do feed (fulfillment.supplier-product.v1) e diz como o
+// custo vira preço. A margem por categoria a equipe grava no painel; aqui fica a padrão de partida.
+type SupplierConfig struct {
+	ConsumerEnabled bool `mapstructure:"consumer_enabled"`
+	// USDBRL é o câmbio do dólar ("5.40"), em que vêm os custos do CJ.
+	USDBRL string `mapstructure:"usd_brl"`
+	// Categories leva a categoria do fornecedor à da loja: "Headphones=fones-over-ear;Mouse=mouses".
+	Categories           string `mapstructure:"categories"`
+	PublishNew           bool   `mapstructure:"publish_new"`
+	DefaultMarginPercent int    `mapstructure:"default_margin_percent"`
+	DefaultMinPriceCents int64  `mapstructure:"default_min_price_cents"`
+}
+
+// CategoryMap lê o mapeamento das categorias ("Fornecedor=slug-da-loja;...").
+func (s SupplierConfig) CategoryMap() (map[string]string, error) {
+	out := map[string]string{}
+	for _, pair := range strings.Split(s.Categories, ";") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		from, to, ok := strings.Cut(pair, "=")
+		from, to = strings.TrimSpace(from), strings.TrimSpace(to)
+		if !ok || from == "" || to == "" {
+			return nil, fmt.Errorf("supplier.categories: %q não é Categoria=slug", pair)
+		}
+		out[from] = to
+	}
+	return out, nil
 }
 
 type AppConfig struct {
@@ -166,6 +200,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("events.batch_size", 100)
 	v.SetDefault("events.publish_timeout", "10s")
 	v.SetDefault("events.max_backoff", "10s")
+	v.SetDefault("supplier.consumer_enabled", true)
+	v.SetDefault("supplier.usd_brl", "5.40")
+	v.SetDefault("supplier.categories", "")
+	v.SetDefault("supplier.publish_new", false)
+	v.SetDefault("supplier.default_margin_percent", 80)
+	v.SetDefault("supplier.default_min_price_cents", 1990)
 }
 
 func (c Config) validate() error {
@@ -202,6 +242,18 @@ func (c Config) validate() error {
 		if c.Events.BatchSize < 1 || c.Events.BatchSize > 1000 {
 			return fmt.Errorf("events.batch_size deve estar entre 1 e 1000: %d", c.Events.BatchSize)
 		}
+	}
+	if c.Supplier.ConsumerEnabled && len(c.Events.Brokers) == 0 {
+		return errors.New("events.brokers é obrigatório com o consumo do feed do fornecedor ligado")
+	}
+	if _, err := c.Supplier.CategoryMap(); err != nil {
+		return err
+	}
+	if _, err := domain.ParseExchangeRate(c.Supplier.USDBRL); err != nil {
+		return fmt.Errorf("supplier.usd_brl: %w", err)
+	}
+	if err := (domain.PricingRule{MarginPercent: c.Supplier.DefaultMarginPercent, MinPriceCents: c.Supplier.DefaultMinPriceCents}).Validate(); err != nil {
+		return fmt.Errorf("supplier.default_*: %w", err)
 	}
 	switch strings.ToLower(c.Log.Level) {
 	case "debug", "info", "warn", "error":

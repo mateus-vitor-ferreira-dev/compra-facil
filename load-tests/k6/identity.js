@@ -20,8 +20,9 @@ export function login(identityUrl, email, password) {
 }
 
 // cadastra um cliente novo e faz login: { email, token }
-export function newCustomer(identityUrl, label) {
-  const email = `${label}-${suffix()}@exemplo.com`;
+// tag: "ana-x+recusar@..." (o fornecedor simulado lê o cenário do que vem depois do +)
+export function newCustomer(identityUrl, label, tag) {
+  const email = `${label}-${suffix()}${tag ? `+${tag}` : ''}@exemplo.com`;
   const password = `senha-${suffix()}`;
   const res = http.post(`${identityUrl}/v1/accounts`, JSON.stringify({ email, password, name: `Cliente ${label}` }),
     { headers: json, tags: { name: 'register' }, responseCallback: http.expectedStatuses(201) });

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -81,7 +82,19 @@ func TestEvents_MatchContract(t *testing.T) {
 		TypeProductPriceChanged: func() (Message, error) {
 			return ProductPriceChanged(ctx, product, 24990, "BRL", at)
 		},
-		TypeProductDeleted:  func() (Message, error) { return ProductDeleted(ctx, product.ID, product.SKU, 4, at) },
+		TypeProductDeleted: func() (Message, error) { return ProductDeleted(ctx, product.ID, product.SKU, 4, at) },
+		"ProductCreated (do fornecedor)": func() (Message, error) {
+			p := product
+			p.Supplier = &domain.SupplierInfo{Name: "cj", VID: "SIM-V-001", CostCents: 1240, CostCurrency: "USD", SyncedAt: at}
+			m, err := ProductCreated(ctx, p, at)
+			if err == nil && !strings.Contains(string(m.Payload), `"supplier":{"name":"cj","vid":"SIM-V-001"}`) {
+				err = errors.New("snapshot sem o fornecedor: " + string(m.Payload))
+			}
+			if err == nil && strings.Contains(string(m.Payload), "1240") {
+				err = errors.New("o custo não vai no evento")
+			}
+			return m, err
+		},
 		TypeCampaignCreated: func() (Message, error) { return CampaignCreated(ctx, campaign, nil, at) },
 		TypeCampaignUpdated: func() (Message, error) {
 			return CampaignUpdated(ctx, campaign, []uuid.UUID{product.ID, uuid.New()}, at)
@@ -92,7 +105,7 @@ func TestEvents_MatchContract(t *testing.T) {
 		t.Run(eventType, func(t *testing.T) {
 			m, err := fn()
 			require.NoError(t, err)
-			assert.Equal(t, eventType, m.Type)
+			assert.Equal(t, strings.Fields(eventType)[0], m.Type)
 			assertMatchesContract(t, m)
 		})
 	}

@@ -11,6 +11,7 @@ import http from 'k6/http';
 import { check, fail } from 'k6';
 import { Counter } from 'k6/metrics';
 import { newCustomers } from './identity.js';
+import { DELIVERY } from './delivery.js';
 
 const CATALOG_URL = __ENV.CATALOG_URL || 'http://catalog:8001';
 const ORDERS_URL = __ENV.ORDERS_URL || 'http://orders:8002';
@@ -68,6 +69,8 @@ export default function (data) {
   const token = data.tokens[Math.floor(Math.random() * data.tokens.length)];
   const res = http.post(`${ORDERS_URL}/v1/orders`, JSON.stringify({
     items: [{ product_id: product, quantity: 1 }],
+    payment: { method: 'pix' }, // a carga mede o aceite; o PIX fica pendente até expirar
+    ...DELIVERY,
   }), { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid(), Authorization: `Bearer ${token}` } });
 
   if (res.status === 503) {

@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddSingleton<OrderChangeFeed>();
         services.AddScoped<OrderLive>();
         services.AddScoped<OrderOutcome>();
+        services.AddScoped<OrderProgress>();
         services.TryAddSingleton(TimeProvider.System); // o AddPostgres troca pelo relógio do banco
         return services;
     }

@@ -20,6 +20,7 @@ import (
 type productReader interface {
 	ListPublic(ctx context.Context, in service.ListProductsInput) (domain.Page[domain.Product], error)
 	ListBrands(ctx context.Context, in service.ListProductsInput) ([]domain.BrandCount, error)
+	ListCategoryCounts(ctx context.Context, in service.ListProductsInput) ([]domain.CategoryCount, error)
 	GetPublic(ctx context.Context, id uuid.UUID) (domain.Product, error)
 }
 
@@ -48,6 +49,7 @@ func (h *CatalogHandler) Register(r gin.IRouter) {
 	v1.GET("/products", h.listProducts)
 	v1.GET("/products/:product_id", h.getProduct)
 	v1.GET("/brands", h.listBrands)
+	v1.GET("/category-counts", h.listCategoryCounts)
 	v1.GET("/categories", h.listCategories)
 	v1.GET("/campaigns", h.listActiveCampaigns)
 }
@@ -82,7 +84,24 @@ func (h *CatalogHandler) listBrands(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
-// listInput lê os filtros da listagem (os mesmos de /v1/brands); responde 400 e devolve false se algum
+func (h *CatalogHandler) listCategoryCounts(c *gin.Context) {
+	in, ok := listInput(c)
+	if !ok {
+		return
+	}
+	counts, err := h.products.ListCategoryCounts(c.Request.Context(), in)
+	if err != nil {
+		respondError(c, h.log, err)
+		return
+	}
+	out := categoryCountsDTO{Data: make([]categoryCountDTO, len(counts))}
+	for i, cc := range counts {
+		out.Data[i] = categoryCountDTO(cc)
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+// listInput lê os filtros da listagem (os mesmos de /v1/brands e /v1/category-counts); responde 400 e devolve false se algum
 // não tem o tipo certo.
 func listInput(c *gin.Context) (service.ListProductsInput, bool) {
 	in := service.ListProductsInput{
@@ -93,6 +112,9 @@ func listInput(c *gin.Context) (service.ListProductsInput, bool) {
 	}
 	if raw := c.Query("brand"); raw != "" {
 		in.Brands = strings.Split(raw, ",")
+	}
+	if raw := c.Query("type"); raw != "" {
+		in.Types = strings.Split(raw, ",")
 	}
 	var err error
 	if in.Page, err = queryInt(c, "page"); err != nil {

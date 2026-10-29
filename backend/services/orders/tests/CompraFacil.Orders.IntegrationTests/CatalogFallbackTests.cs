@@ -66,6 +66,9 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
             Content = JsonContent.Create(new
             {
                 items = new[] { new { product_id = product, quantity = 2, expected_unit_price_cents = expected } },
+                payment = new { method = "pix" },
+                recipient = new { name = "Ana Souza", cpf = "52998224725", phone = "11987654321" },
+                shipping_address = new { zip_code = "01310100", street = "Avenida Paulista", number = "1000", district = "Bela Vista", city = "São Paulo", state = "SP" },
             }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());

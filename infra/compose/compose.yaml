@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      SERVICE_DATABASES: &service-databases catalog,orders,inventory,payments,notifications,identity
+      SERVICE_DATABASES: &service-databases catalog,orders,inventory,payments,notifications,identity,fulfillment
       SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
     ports:
       - "${POSTGRES_PORT:-55432}:5432"
@@ -237,6 +237,8 @@ services:
         condition: service_started
       media:
         condition: service_started
+      fulfillment:
+        condition: service_started
 
   # só roda sob demanda (task load:catalog-cache): k6 dentro da rede, direto no catalog (sem o rate
   # limit do gateway, que mediria outra coisa)
@@ -268,6 +270,10 @@ services:
       CATALOG_EVENTS_BROKERS: redpanda:9092
       # rotas /v1/admin/*: tokens do identity, validados pelo JWKS dele
       CATALOG_AUTH_AUTHORITY: http://identity:8006
+      # o feed do fornecedor simulado (#217): as 5 categorias dele nas da loja, e o produto novo já à venda
+      # (na produção ele nasce rascunho, para a equipe traduzir e revisar)
+      CATALOG_SUPPLIER_CATEGORIES: "Headphones=fones-over-ear;Mouse=mouses;Keyboard=teclados;Lipstick=batons;Frying Pan=frigideiras"
+      CATALOG_SUPPLIER_PUBLISH_NEW: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
@@ -356,6 +362,8 @@ services:
         APP_VERSION: ${VERSION:-dev}
     image: compra-facil/inventory:${VERSION:-dev}
     environment:
+      # a conferência ao vivo no fornecedor antes de reservar (#218), pela rede dos serviços
+      Fulfillment__BaseUrl: http://fulfillment:8007/
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -378,6 +386,10 @@ services:
         APP_VERSION: ${VERSION:-dev}
     image: compra-facil/payments:${VERSION:-dev}
     environment:
+      # o provedor de pagamento é o simulado (backend/services/payment-sim), no contrato do Mercado Pago
+      Payments__MercadoPago__BaseUrl: http://payment-sim:8090/
+      Payments__MercadoPago__WebhookSecret: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
+      Payments__MercadoPago__NotificationUrl: http://payments:8004/v1/webhooks/payments
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -385,6 +397,90 @@ services:
       # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
       Auth__Authority: http://identity:8006
       Auth__RequireHttpsMetadata: "false"
+
+  # o pedido pago vai ao fornecedor de dropshipping (ADR 0007); em dev, o fornecedor simulado
+  fulfillment:
+    <<: *dotnet-service
+    build:
+      context: ../..
+      dockerfile: backend/services/dotnet.Dockerfile
+      args:
+        SERVICE: fulfillment
+        PROJECT: CompraFacil.Fulfillment.Api
+        PORT: 8007
+        APP_VERSION: ${VERSION:-dev}
+    image: compra-facil/fulfillment:${VERSION:-dev}
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      Kafka__BootstrapServers: redpanda:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
+      # tokens do identity nas rotas protegidas, validados pelo JWKS dele (rede interna, sem TLS)
+      Auth__Authority: http://identity:8006
+      Auth__RequireHttpsMetadata: "false"
+      Supplier__BaseUrl: http://supplier-sim:8090/api2.0/v1/
+      Supplier__WebhookSecret: ${SUPPLIER_SIM_WEBHOOK_SECRET:-sim-secret}
+      # ana+recusar@... no checkout faz o simulado recusar (ver backend/services/supplier-sim)
+      Supplier__ScenarioFromEmail: "true"
+      # o corte de pedidos é obrigatório fora do Development (os contêineres rodam como Production): aqui o
+      # fornecedor é simulado, então aceita qualquer pedido; na produção é a data em que ela passa a vender
+      Supplier__AcceptOrdersSince: "2000-01-01T00:00:00Z"
+      # prazos curtos para ver o atraso no painel em minutos (ana+atrasar@... fica preso no fornecedor);
+      # na produção valem os padrões (3 dias para despachar, 15 para entregar)
+      Supplier__Deadlines__ShipWithin: "00:02:00"
+      Supplier__Deadlines__DeliverWithin: "00:05:00"
+      # o feed do simulado a cada minuto (na produção, de hora em hora): mudar o custo nele aparece logo
+      Supplier__CatalogSyncInterval: "00:01:00"
+
+  # o fornecedor de dropshipping simulado, no contrato do CJ (backend/services/supplier-sim); não vai à produção
+  supplier-sim:
+    build:
+      context: ../../backend/services/supplier-sim
+    image: compra-facil/supplier-sim:${VERSION:-dev}
+    environment:
+      SIM_WEBHOOK_URL: http://fulfillment:8007/v1/webhooks/supplier
+      SIM_WEBHOOK_SECRET: ${SUPPLIER_SIM_WEBHOOK_SECRET:-sim-secret}
+    ports:
+      - "127.0.0.1:${SUPPLIER_SIM_PORT:-8091}:8090"
+    healthcheck:
+      test: ["CMD", "/app/sim", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # o provedor de pagamento simulado, no contrato do Mercado Pago (backend/services/payment-sim); não vai à produção
+  payment-sim:
+    build:
+      context: ../../backend/services/payment-sim
+    image: compra-facil/payment-sim:${VERSION:-dev}
+    environment:
+      SIM_WEBHOOK_URL: http://payments:8004/v1/webhooks/payments
+      SIM_WEBHOOK_SECRET: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
+      # o navegador abre a página do PIX (o ticket_url) por aqui
+      SIM_PUBLIC_URL: http://localhost:${PAYMENT_SIM_PORT:-8092}
+    ports:
+      - "127.0.0.1:${PAYMENT_SIM_PORT:-8092}:8090"
+    healthcheck:
+      test: ["CMD", "/app/sim", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # o emissor de NF-e (ADR 0007, #221): em dev, o simulado no formato da Nuvem Fiscal; não vai para a VPS
+  invoice-sim:
+    build:
+      context: ../../backend/services/invoice-sim
+    image: compra-facil/invoice-sim:${VERSION:-dev}
+    environment:
+      SIM_CLIENT_ID: ${INVOICE_SIM_CLIENT_ID:-sim-client}
+      SIM_CLIENT_SECRET: ${INVOICE_SIM_CLIENT_SECRET:-sim-secret}
+    ports:
+      - "127.0.0.1:${INVOICE_SIM_PORT:-8094}:8090"
+    healthcheck:
+      test: ["CMD", "/app/sim", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   notifications:
     <<: *dotnet-service

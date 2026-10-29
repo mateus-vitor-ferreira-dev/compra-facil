@@ -73,6 +73,7 @@ paths:
           schema:
             type: boolean
         - $ref: "#/components/parameters/Brand"
+        - $ref: "#/components/parameters/Type"
         - name: page
           in: query
           description: |
@@ -144,6 +145,7 @@ paths:
           in: query
           schema:
             type: boolean
+        - $ref: "#/components/parameters/Type"
       responses:
         "200":
           description: Marcas com a quantidade de produtos.
@@ -157,6 +159,68 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/BrandCount"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/category-counts:
+    get:
+      tags: [products]
+      operationId: listCategoryCounts
+      summary: Subcategorias de uma categoria, com a contagem
+      description: |
+        As categorias filhas diretas de `category` (os tipos de produto de uma subcategoria, ou as
+        subcategorias de um departamento), cada uma com quantos produtos `active` dela e das
+        descendentes passam nos mesmos filtros da listagem (sem o próprio `type`). Só as que têm
+        produto, em ordem alfabética. O front monta o filtro de tipo com elas.
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: min_price_cents
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: max_price_cents
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+        - name: on_sale
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/Brand"
+      responses:
+        "200":
+          description: Categorias filhas com a quantidade de produtos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CategoryCount"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "422":
@@ -665,12 +729,204 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
+  /v1/admin/pricing-rules:
+    get:
+      tags: [admin]
+      operationId: getPricingRules
+      summary: Regras de margem e câmbio do catálogo do fornecedor
+      description: |
+        Como o custo do fornecedor vira preço de venda (#217): convertido para reais pelo câmbio, mais a
+        margem da regra, arredondado para cima até terminar em ,90 e nunca abaixo do mínimo. Vale a regra
+        da categoria do produto ou, sem ela, a do ancestral mais próximo; sem nenhuma, a padrão. O câmbio
+        fica na configuração do serviço.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: As regras em vigor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingSettings"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/pricing-rules/default:
+    put:
+      tags: [admin]
+      operationId: setDefaultPricingRule
+      summary: Grava a regra padrão e reprecifica os produtos de fornecedor
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PricingRuleInput"
+      responses:
+        "200":
+          description: A regra gravada e quantos produtos mudaram de preço.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingRuleResult"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/pricing-rules/categories/{category_id}:
+    parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [admin]
+      operationId: setCategoryPricingRule
+      summary: Grava a regra da categoria (e das descendentes sem regra própria) e reprecifica
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PricingRuleInput"
+      responses:
+        "200":
+          description: A regra gravada e quantos produtos mudaram de preço.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricingRuleResult"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    delete:
+      tags: [admin]
+      operationId: deleteCategoryPricingRule
+      summary: Tira a regra da categoria (passa a valer a do ancestral ou a padrão) e reprecifica
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Quantos produtos mudaram de preço.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [repriced]
+                properties:
+                  repriced:
+                    type: integer
+                    minimum: 0
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/dead-letters:
+    get:
+      tags: [admin]
+      operationId: listDeadLetters
+      summary: Mensagens pendentes na dead letter topic
+      description: |
+        Mensagens em `catalog.dlt` (o consumo do feed do fornecedor) que chegaram depois do último
+        reprocessamento, como nos serviços .NET (docs/adr/0003-retries-e-dead-letter-topics.md). Uma
+        categoria do fornecedor sem categoria da loja na configuração para aqui: configure e reprocesse.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/dead-letters.yaml#/components/parameters/DeadLetterLimit"
+      responses:
+        "200":
+          description: Mensagens pendentes.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterList"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
+  /v1/admin/dead-letters/replay:
+    post:
+      tags: [admin]
+      operationId: replayDeadLetters
+      summary: Reprocessa as mensagens pendentes na dead letter topic
+      description: |
+        Devolve as pendentes para `catalog.retry-1`. Falhando outra vez, voltam para a DLT. Evento já
+        processado não repete o efeito (inbox).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Quantas mensagens foram devolvidas.
+          content:
+            application/json:
+              schema:
+                $ref: "./common/v1/dead-letters.yaml#/components/schemas/DeadLetterReplay"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
+
 components:
   parameters:
     Brand:
       name: brand
       in: query
       description: Uma ou mais marcas, separadas por vírgula (sem diferenciar maiúsculas).
+      style: form
+      explode: false
+      schema:
+        type: array
+        maxItems: 20
+        items:
+          type: string
+          minLength: 1
+          maxLength: 80
+    Type:
+      name: type
+      in: query
+      description: |
+        Um ou mais tipos de produto (slugs de categorias dentro de `category`), separados por vírgula:
+        a listagem fica com os produtos de qualquer um deles e das subcategorias de cada um. A faceta
+        de tipos sai de `/v1/category-counts`.
       style: form
       explode: false
       schema:
@@ -803,6 +1059,98 @@ components:
               type: integer
               description: Incrementa a cada alteração; é o valor do ETag.
               minimum: 1
+            supplier:
+              description: |
+                De onde vem o produto de dropshipping (#217); nulo no cadastrado pela loja. O preço de venda
+                sai do custo pela regra de margem e muda quando o custo muda no fornecedor.
+              oneOf:
+                - $ref: "#/components/schemas/ProductSupplier"
+                - type: "null"
+
+    ProductSupplier:
+      type: object
+      required: [name, vid, cost, synced_at, removed_at]
+      properties:
+        name:
+          type: string
+          description: "Fornecedor (ex.: `cj`)."
+        vid:
+          type: string
+          description: Variante no fornecedor; é também o SKU do produto na loja.
+        cost:
+          description: Custo unitário, na moeda do fornecedor.
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        synced_at:
+          type: string
+          format: date-time
+          description: A última atualização do fornecedor aplicada.
+        removed_at:
+          type: [string, "null"]
+          format: date-time
+          description: Quando saiu do feed (o produto fica inativo); nulo enquanto o fornecedor vende.
+
+    PricingRuleInput:
+      type: object
+      required: [margin_percent, min_price_cents]
+      additionalProperties: false
+      properties:
+        margin_percent:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          description: Sobre o custo já em reais (80 = custo + 80%).
+        min_price_cents:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 100000000
+          description: Preço mínimo de venda, em centavos.
+
+    PricingRule:
+      type: object
+      required: [margin_percent, min_price_cents, updated_at]
+      properties:
+        category_id:
+          type: string
+          format: uuid
+          description: Ausente na regra padrão.
+        margin_percent:
+          type: integer
+        min_price_cents:
+          type: integer
+          format: int64
+        updated_at:
+          type: [string, "null"]
+          format: date-time
+          description: Nulo na padrão da configuração, ainda não gravada pelo painel.
+
+    PricingSettings:
+      type: object
+      required: [default, rules, exchange_rates]
+      properties:
+        default:
+          $ref: "#/components/schemas/PricingRule"
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PricingRule"
+        exchange_rates:
+          type: object
+          description: 'Reais por unidade de cada moeda dos fornecedores (ex.: `{"USD": "5.40"}`).'
+          additionalProperties:
+            type: string
+            pattern: "^[0-9]+\\.[0-9]{1,3}$"
+
+    PricingRuleResult:
+      type: object
+      required: [rule, repriced]
+      properties:
+        rule:
+          $ref: "#/components/schemas/PricingRule"
+        repriced:
+          type: integer
+          minimum: 0
+          description: Produtos de fornecedor que mudaram de preço.
 
     ProductInput:
       type: object
@@ -844,6 +1192,18 @@ components:
       type: object
       required: [name, count]
       properties:
+        name:
+          type: string
+        count:
+          type: integer
+          minimum: 1
+
+    CategoryCount:
+      type: object
+      required: [slug, name, count]
+      properties:
+        slug:
+          type: string
         name:
           type: string
         count:

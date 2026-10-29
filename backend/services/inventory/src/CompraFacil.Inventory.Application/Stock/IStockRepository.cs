@@ -21,6 +21,14 @@ public interface IStockRepository
 
     void Add(StockItem item);
 
+    /// <summary>Os saldos ligados a uma variante do fornecedor, rastreados (para espelhar).</summary>
+    Task<List<StockItem>> GetLinkedForUpdateAsync(string supplier, string vid, CancellationToken ct);
+
+    /// <summary>As leituras guardadas das variantes, rastreadas.</summary>
+    Task<List<SupplierStockLevel>> GetSupplierLevelsAsync(string supplier, IReadOnlyCollection<string> vids, CancellationToken ct);
+
+    void Add(SupplierStockLevel level);
+
     Task<Reservation?> GetReservationAsync(Guid orderId, bool forUpdate, CancellationToken ct);
 
     void Add(Reservation reservation);

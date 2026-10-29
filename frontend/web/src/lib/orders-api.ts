@@ -28,6 +28,13 @@ export function getOrder(token: string, id: string): Promise<Result<Order>> {
 }
 
 export type PlaceOrderItem = { product_id: string; quantity: number; expected_unit_price_cents: number };
+/** PIX, ou o cartão já tokenizado no provedor (#220): o número dele nunca chega aqui. */
+export type PlaceOrderPayment = OrdersSchemas["schemas"]["PlaceOrderPayment"];
+/** Quem recebe e onde (#221), já só com os dígitos no CPF, no telefone e no CEP. */
+export type PlaceOrderDelivery = Pick<
+  OrdersSchemas["schemas"]["PlaceOrderRequest"],
+  "recipient" | "shipping_address"
+>;
 
 /** Por que o pedido não foi criado, com o que a tela precisa para explicar e o suporte, para achar. */
 export type PlaceOrderFailure = {
@@ -47,12 +54,14 @@ const TRACE_ID = /^[0-9a-f]{32}$/;
 export async function placeOrder(
   token: string,
   items: PlaceOrderItem[],
+  payment: PlaceOrderPayment,
+  delivery: PlaceOrderDelivery,
   idempotencyKey: string,
 ): Promise<{ ok: true; order: Order } | { ok: false; error: PlaceOrderFailure }> {
   try {
     const r = await api.orders({ token }).POST("/v1/orders", {
       params: { header: { "Idempotency-Key": idempotencyKey } },
-      body: { items },
+      body: { items, payment, ...delivery },
       cache: "no-store",
     });
     if (r.data) return { ok: true, order: r.data };

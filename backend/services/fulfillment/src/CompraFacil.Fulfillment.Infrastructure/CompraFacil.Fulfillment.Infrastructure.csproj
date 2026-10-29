@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- EF Core + Npgsql (banco fulfillment), o cliente do fornecedor e o despachante dos pedidos. -->
+  <ItemGroup>
+    <ProjectReference Include="../CompraFacil.Fulfillment.Application/CompraFacil.Fulfillment.Application.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- o cliente do fornecedor é testado contra respostas HTTP simuladas -->
+    <InternalsVisibleTo Include="CompraFacil.Fulfillment.IntegrationTests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,56 @@
+# O fornecedor de dropshipping simulado (backend/services/supplier-sim, ADR 0007): lint e testes. Não gera
+# imagem: é ferramenta de teste e de demonstração, roda no compose local e não vai para a produção.
+name: supplier-sim
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - backend/services/supplier-sim/**
+      - .github/workflows/supplier-sim.yml
+  pull_request:
+    paths:
+      - backend/services/supplier-sim/**
+      - .github/workflows/supplier-sim.yml
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: backend/services/supplier-sim
+
+jobs:
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: backend/services/supplier-sim/go.mod
+          cache-dependency-path: backend/services/supplier-sim/go.sum
+      - run: go mod download
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.14.0
+          working-directory: backend/services/supplier-sim
+          args: --timeout=8m
+
+  test:
+    name: testes (-race)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: backend/services/supplier-sim/go.mod
+          cache-dependency-path: backend/services/supplier-sim/go.sum
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...

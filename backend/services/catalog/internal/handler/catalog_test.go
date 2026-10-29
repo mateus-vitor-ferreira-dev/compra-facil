@@ -26,6 +26,7 @@ import (
 type fakeProducts struct {
 	page    domain.Page[domain.Product]
 	brands  []domain.BrandCount
+	counts  []domain.CategoryCount
 	product domain.Product
 	err     error
 	gotIn   service.ListProductsInput
@@ -39,6 +40,11 @@ func (f *fakeProducts) ListPublic(_ context.Context, in service.ListProductsInpu
 func (f *fakeProducts) ListBrands(_ context.Context, in service.ListProductsInput) ([]domain.BrandCount, error) {
 	f.gotIn = in
 	return f.brands, f.err
+}
+
+func (f *fakeProducts) ListCategoryCounts(_ context.Context, in service.ListProductsInput) ([]domain.CategoryCount, error) {
+	f.gotIn = in
+	return f.counts, f.err
 }
 
 func (f *fakeProducts) GetPublic(context.Context, uuid.UUID) (domain.Product, error) {
@@ -178,6 +184,28 @@ func TestListBrands(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	assert.JSONEq(t, `{"data":[{"name":"Dell","count":3},{"name":"Acer","count":1}]}`, w.Body.String())
 	assert.Equal(t, service.ListProductsInput{CategorySlug: "notebooks", OnSale: true}, products.gotIn)
+}
+
+// a faceta de tipos (#212): as filhas com a contagem, e o tipo chega ao serviço na listagem
+func TestListCategoryCounts(t *testing.T) {
+	products := &fakeProducts{counts: []domain.CategoryCount{{Slug: "mouses", Name: "Mouses", Count: 7}}}
+	api := newAPI(products, fakeCategories{}, fakeCampaigns{})
+
+	w := serve(t, api, "/v1/category-counts?category=perifericos&brand=Logitech")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.JSONEq(t, `{"data":[{"slug":"mouses","name":"Mouses","count":7}]}`, w.Body.String())
+	assert.Equal(t, service.ListProductsInput{CategorySlug: "perifericos", Brands: []string{"Logitech"}}, products.gotIn)
+}
+
+func TestListProducts_Types(t *testing.T) {
+	products := &fakeProducts{page: domain.Page[domain.Product]{Items: []domain.Product{}}}
+	api := newAPI(products, fakeCategories{}, fakeCampaigns{})
+
+	w := serve(t, api, "/v1/products?category=perifericos&type=mouses,teclados")
+
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, []string{"mouses", "teclados"}, products.gotIn.Types)
 }
 
 func TestListProducts_EmptyAndLastPage(t *testing.T) {
