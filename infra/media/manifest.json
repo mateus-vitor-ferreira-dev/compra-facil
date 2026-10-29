@@ -3928,5 +3928,2909 @@
     "file": "paletas-de-sombra-3.4188c3f6-1024.webp"
    }
   ]
+ },
+ "air-fryers-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "air-fryers-1.a0038db8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "air-fryers-1.a0038db8-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "air-fryers-1.a0038db8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "air-fryers-1.a0038db8-1024.webp"
+   }
+  ]
+ },
+ "air-fryers-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "air-fryers-2.0fdbdfdc-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "air-fryers-2.0fdbdfdc-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "air-fryers-2.0fdbdfdc-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "air-fryers-2.0fdbdfdc-1024.webp"
+   }
+  ]
+ },
+ "air-fryers-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "air-fryers-3.c23b26c5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "air-fryers-3.c23b26c5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "air-fryers-3.c23b26c5-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "air-fryers-3.c23b26c5-1024.webp"
+   }
+  ]
+ },
+ "aparadores-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "aparadores-1.733e0a86-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "aparadores-1.733e0a86-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "aparadores-1.733e0a86-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "aparadores-1.733e0a86-1024.webp"
+   }
+  ]
+ },
+ "aparadores-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "aparadores-2.8981e1fd-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "aparadores-2.8981e1fd-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "aparadores-2.8981e1fd-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "aparadores-2.8981e1fd-1024.webp"
+   }
+  ]
+ },
+ "aparadores-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "aparadores-3.7d7fd498-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "aparadores-3.7d7fd498-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "aparadores-3.7d7fd498-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "aparadores-3.7d7fd498-1024.webp"
+   }
+  ]
+ },
+ "barbeadores-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "barbeadores-1.28ee7897-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "barbeadores-1.28ee7897-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "barbeadores-1.28ee7897-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "barbeadores-1.28ee7897-1024.webp"
+   }
+  ]
+ },
+ "barbeadores-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "barbeadores-2.121ab7bf-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "barbeadores-2.121ab7bf-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "barbeadores-2.121ab7bf-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "barbeadores-2.121ab7bf-1024.webp"
+   }
+  ]
+ },
+ "barbeadores-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "barbeadores-3.936db795-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "barbeadores-3.936db795-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "barbeadores-3.936db795-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "barbeadores-3.936db795-1024.webp"
+   }
+  ]
+ },
+ "batedeiras-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "batedeiras-1.35179d3b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "batedeiras-1.35179d3b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "batedeiras-1.35179d3b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "batedeiras-1.35179d3b-1024.webp"
+   }
+  ]
+ },
+ "batedeiras-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "batedeiras-2.0a3d7445-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "batedeiras-2.0a3d7445-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "batedeiras-2.0a3d7445-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "batedeiras-2.0a3d7445-1024.webp"
+   }
+  ]
+ },
+ "batedeiras-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "batedeiras-3.38c850aa-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "batedeiras-3.38c850aa-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "batedeiras-3.38c850aa-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "batedeiras-3.38c850aa-1024.webp"
+   }
+  ]
+ },
+ "blocos-de-montar-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "blocos-de-montar-1.dbe36a53-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "blocos-de-montar-1.dbe36a53-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "blocos-de-montar-1.dbe36a53-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "blocos-de-montar-1.dbe36a53-1024.webp"
+   }
+  ]
+ },
+ "blocos-de-montar-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "blocos-de-montar-2.10dec77f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "blocos-de-montar-2.10dec77f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "blocos-de-montar-2.10dec77f-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "blocos-de-montar-2.10dec77f-1024.webp"
+   }
+  ]
+ },
+ "blocos-de-montar-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "blocos-de-montar-3.5d6f82cc-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "blocos-de-montar-3.5d6f82cc-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "blocos-de-montar-3.5d6f82cc-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "blocos-de-montar-3.5d6f82cc-1024.webp"
+   }
+  ]
+ },
+ "bolsas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bolsas-1.05675213-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bolsas-1.05675213-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bolsas-1.05675213-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bolsas-1.05675213-1024.webp"
+   }
+  ]
+ },
+ "bolsas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bolsas-2.8953e70d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bolsas-2.8953e70d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bolsas-2.8953e70d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bolsas-2.8953e70d-1024.webp"
+   }
+  ]
+ },
+ "bolsas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bolsas-3.1428e60c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bolsas-3.1428e60c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bolsas-3.1428e60c-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bolsas-3.1428e60c-1024.webp"
+   }
+  ]
+ },
+ "bones-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bones-1.ec1245cd-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bones-1.ec1245cd-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bones-1.ec1245cd-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bones-1.ec1245cd-1024.webp"
+   }
+  ]
+ },
+ "bones-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bones-2.6661350d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bones-2.6661350d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bones-2.6661350d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bones-2.6661350d-1024.webp"
+   }
+  ]
+ },
+ "bones-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bones-3.6b743ca9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bones-3.6b743ca9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bones-3.6b743ca9-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bones-3.6b743ca9-1024.webp"
+   }
+  ]
+ },
+ "botas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "botas-1.f400ce8a-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "botas-1.f400ce8a-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "botas-1.f400ce8a-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "botas-1.f400ce8a-1024.webp"
+   }
+  ]
+ },
+ "botas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "botas-2.c7a0ee66-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "botas-2.c7a0ee66-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "botas-2.c7a0ee66-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "botas-2.c7a0ee66-1024.webp"
+   }
+  ]
+ },
+ "botas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "botas-3.8da7c2e2-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "botas-3.8da7c2e2-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "botas-3.8da7c2e2-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "botas-3.8da7c2e2-1024.webp"
+   }
+  ]
+ },
+ "brinquedos-pet-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "brinquedos-pet-1.23a10a7d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "brinquedos-pet-1.23a10a7d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "brinquedos-pet-1.23a10a7d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "brinquedos-pet-1.23a10a7d-1024.webp"
+   }
+  ]
+ },
+ "brinquedos-pet-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "brinquedos-pet-2.49dae6ab-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "brinquedos-pet-2.49dae6ab-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "brinquedos-pet-2.49dae6ab-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "brinquedos-pet-2.49dae6ab-1024.webp"
+   }
+  ]
+ },
+ "brinquedos-pet-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "brinquedos-pet-3.ccd9d026-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "brinquedos-pet-3.ccd9d026-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "brinquedos-pet-3.ccd9d026-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "brinquedos-pet-3.ccd9d026-1024.webp"
+   }
+  ]
+ },
+ "cafeteiras-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "cafeteiras-1.682576ba-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "cafeteiras-1.682576ba-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "cafeteiras-1.682576ba-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "cafeteiras-1.682576ba-1024.webp"
+   }
+  ]
+ },
+ "cafeteiras-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "cafeteiras-2.cb34252b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "cafeteiras-2.cb34252b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "cafeteiras-2.cb34252b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "cafeteiras-2.cb34252b-1024.webp"
+   }
+  ]
+ },
+ "cafeteiras-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "cafeteiras-3.f77bf914-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "cafeteiras-3.f77bf914-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "cafeteiras-3.f77bf914-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "cafeteiras-3.f77bf914-1024.webp"
+   }
+  ]
+ },
+ "camas-pet-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "camas-pet-1.4a639dab-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "camas-pet-1.4a639dab-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "camas-pet-1.4a639dab-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "camas-pet-1.4a639dab-1024.webp"
+   }
+  ]
+ },
+ "camas-pet-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "camas-pet-2.2a528351-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "camas-pet-2.2a528351-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "camas-pet-2.2a528351-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "camas-pet-2.2a528351-1024.webp"
+   }
+  ]
+ },
+ "camas-pet-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "camas-pet-3.47c1f926-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "camas-pet-3.47c1f926-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "camas-pet-3.47c1f926-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "camas-pet-3.47c1f926-1024.webp"
+   }
+  ]
+ },
+ "carrinhos-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "carrinhos-1.0c1c495d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "carrinhos-1.0c1c495d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "carrinhos-1.0c1c495d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "carrinhos-1.0c1c495d-1024.webp"
+   }
+  ]
+ },
+ "carrinhos-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "carrinhos-2.b2ab88ed-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "carrinhos-2.b2ab88ed-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "carrinhos-2.b2ab88ed-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "carrinhos-2.b2ab88ed-1024.webp"
+   }
+  ]
+ },
+ "carrinhos-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "carrinhos-3.afe6107b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "carrinhos-3.afe6107b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "carrinhos-3.afe6107b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "carrinhos-3.afe6107b-1024.webp"
+   }
+  ]
+ },
+ "carteiras-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "carteiras-1.25f40732-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "carteiras-1.25f40732-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "carteiras-1.25f40732-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "carteiras-1.25f40732-1024.webp"
+   }
+  ]
+ },
+ "carteiras-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "carteiras-2.96d81a60-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "carteiras-2.96d81a60-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "carteiras-2.96d81a60-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "carteiras-2.96d81a60-1024.webp"
+   }
+  ]
+ },
+ "carteiras-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "carteiras-3.2d262144-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "carteiras-3.2d262144-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "carteiras-3.2d262144-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "carteiras-3.2d262144-1024.webp"
+   }
+  ]
+ },
+ "chapinhas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "chapinhas-1.7a5c6f28-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "chapinhas-1.7a5c6f28-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "chapinhas-1.7a5c6f28-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "chapinhas-1.7a5c6f28-1024.webp"
+   }
+  ]
+ },
+ "chapinhas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "chapinhas-2.6edcc567-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "chapinhas-2.6edcc567-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "chapinhas-2.6edcc567-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "chapinhas-2.6edcc567-1024.webp"
+   }
+  ]
+ },
+ "chapinhas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "chapinhas-3.208aab50-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "chapinhas-3.208aab50-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "chapinhas-3.208aab50-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "chapinhas-3.208aab50-1024.webp"
+   }
+  ]
+ },
+ "cintos-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "cintos-1.3b2c5eac-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "cintos-1.3b2c5eac-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "cintos-1.3b2c5eac-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "cintos-1.3b2c5eac-1024.webp"
+   }
+  ]
+ },
+ "cintos-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "cintos-2.0ee0eab9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "cintos-2.0ee0eab9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "cintos-2.0ee0eab9-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "cintos-2.0ee0eab9-1024.webp"
+   }
+  ]
+ },
+ "cintos-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "cintos-3.a37c7caf-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "cintos-3.a37c7caf-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "cintos-3.a37c7caf-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "cintos-3.a37c7caf-1024.webp"
+   }
+  ]
+ },
+ "coleiras-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "coleiras-1.19f2ed55-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "coleiras-1.19f2ed55-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "coleiras-1.19f2ed55-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "coleiras-1.19f2ed55-1024.webp"
+   }
+  ]
+ },
+ "coleiras-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "coleiras-2.d5402efb-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "coleiras-2.d5402efb-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "coleiras-2.d5402efb-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "coleiras-2.d5402efb-1024.webp"
+   }
+  ]
+ },
+ "coleiras-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "coleiras-3.282ba43d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "coleiras-3.282ba43d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "coleiras-3.282ba43d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "coleiras-3.282ba43d-1024.webp"
+   }
+  ]
+ },
+ "comedouros-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "comedouros-1.928ca71b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "comedouros-1.928ca71b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "comedouros-1.928ca71b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "comedouros-1.928ca71b-1024.webp"
+   }
+  ]
+ },
+ "comedouros-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "comedouros-2.a32937f8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "comedouros-2.a32937f8-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "comedouros-2.a32937f8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "comedouros-2.a32937f8-1024.webp"
+   }
+  ]
+ },
+ "comedouros-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "comedouros-3.922d8c42-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "comedouros-3.922d8c42-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "comedouros-3.922d8c42-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "comedouros-3.922d8c42-1024.webp"
+   }
+  ]
+ },
+ "consoles-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "consoles-1.eb71f9d3-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "consoles-1.eb71f9d3-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "consoles-1.eb71f9d3-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "consoles-1.eb71f9d3-1024.webp"
+   }
+  ]
+ },
+ "consoles-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "consoles-2.0732f4e5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "consoles-2.0732f4e5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "consoles-2.0732f4e5-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "consoles-2.0732f4e5-1024.webp"
+   }
+  ]
+ },
+ "consoles-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "consoles-3.a8bbb1c6-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "consoles-3.a8bbb1c6-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "consoles-3.a8bbb1c6-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "consoles-3.a8bbb1c6-1024.webp"
+   }
+  ]
+ },
+ "controles-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "controles-1.17668c7e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "controles-1.17668c7e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "controles-1.17668c7e-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "controles-1.17668c7e-1024.webp"
+   }
+  ]
+ },
+ "controles-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "controles-2.53f73210-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "controles-2.53f73210-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "controles-2.53f73210-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "controles-2.53f73210-1024.webp"
+   }
+  ]
+ },
+ "controles-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "controles-3.cfccd615-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "controles-3.cfccd615-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "controles-3.cfccd615-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "controles-3.cfccd615-1024.webp"
+   }
+  ]
+ },
+ "facas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "facas-1.67f9d9a3-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "facas-1.67f9d9a3-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "facas-1.67f9d9a3-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "facas-1.67f9d9a3-1024.webp"
+   }
+  ]
+ },
+ "facas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "facas-2.f14c8e46-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "facas-2.f14c8e46-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "facas-2.f14c8e46-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "facas-2.f14c8e46-1024.webp"
+   }
+  ]
+ },
+ "facas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "facas-3.e4556983-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "facas-3.e4556983-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "facas-3.e4556983-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "facas-3.e4556983-1024.webp"
+   }
+  ]
+ },
+ "frigideiras-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "frigideiras-1.3e00f0bf-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "frigideiras-1.3e00f0bf-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "frigideiras-1.3e00f0bf-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "frigideiras-1.3e00f0bf-1024.webp"
+   }
+  ]
+ },
+ "frigideiras-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "frigideiras-2.6169005e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "frigideiras-2.6169005e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "frigideiras-2.6169005e-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "frigideiras-2.6169005e-1024.webp"
+   }
+  ]
+ },
+ "frigideiras-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "frigideiras-3.4e4d20ec-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "frigideiras-3.4e4d20ec-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "frigideiras-3.4e4d20ec-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "frigideiras-3.4e4d20ec-1024.webp"
+   }
+  ]
+ },
+ "hidratantes-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "hidratantes-1.18a2cd62-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "hidratantes-1.18a2cd62-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "hidratantes-1.18a2cd62-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "hidratantes-1.18a2cd62-1024.webp"
+   }
+  ]
+ },
+ "hidratantes-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "hidratantes-2.da0bca61-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "hidratantes-2.da0bca61-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "hidratantes-2.da0bca61-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "hidratantes-2.da0bca61-1024.webp"
+   }
+  ]
+ },
+ "hidratantes-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "hidratantes-3.8ea6e974-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "hidratantes-3.8ea6e974-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "hidratantes-3.8ea6e974-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "hidratantes-3.8ea6e974-1024.webp"
+   }
+  ]
+ },
+ "jogos-de-tabuleiro-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "jogos-de-tabuleiro-1.2e84b7b8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "jogos-de-tabuleiro-1.2e84b7b8-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "jogos-de-tabuleiro-1.2e84b7b8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "jogos-de-tabuleiro-1.2e84b7b8-1024.webp"
+   }
+  ]
+ },
+ "jogos-de-tabuleiro-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "jogos-de-tabuleiro-2.04564822-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "jogos-de-tabuleiro-2.04564822-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "jogos-de-tabuleiro-2.04564822-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "jogos-de-tabuleiro-2.04564822-1024.webp"
+   }
+  ]
+ },
+ "jogos-de-tabuleiro-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "jogos-de-tabuleiro-3.377d0694-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "jogos-de-tabuleiro-3.377d0694-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "jogos-de-tabuleiro-3.377d0694-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "jogos-de-tabuleiro-3.377d0694-1024.webp"
+   }
+  ]
+ },
+ "liquidificadores-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "liquidificadores-1.d6ce7e08-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "liquidificadores-1.d6ce7e08-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "liquidificadores-1.d6ce7e08-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "liquidificadores-1.d6ce7e08-1024.webp"
+   }
+  ]
+ },
+ "liquidificadores-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "liquidificadores-2.531e2c6c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "liquidificadores-2.531e2c6c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "liquidificadores-2.531e2c6c-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "liquidificadores-2.531e2c6c-1024.webp"
+   }
+  ]
+ },
+ "liquidificadores-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "liquidificadores-3.939753c4-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "liquidificadores-3.939753c4-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "liquidificadores-3.939753c4-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "liquidificadores-3.939753c4-1024.webp"
+   }
+  ]
+ },
+ "malas-de-viagem-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "malas-de-viagem-1.ea15aef2-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "malas-de-viagem-1.ea15aef2-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "malas-de-viagem-1.ea15aef2-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "malas-de-viagem-1.ea15aef2-1024.webp"
+   }
+  ]
+ },
+ "malas-de-viagem-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "malas-de-viagem-2.335b4964-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "malas-de-viagem-2.335b4964-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "malas-de-viagem-2.335b4964-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "malas-de-viagem-2.335b4964-1024.webp"
+   }
+  ]
+ },
+ "malas-de-viagem-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "malas-de-viagem-3.cae11298-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "malas-de-viagem-3.cae11298-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "malas-de-viagem-3.cae11298-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "malas-de-viagem-3.cae11298-1024.webp"
+   }
+  ]
+ },
+ "mascaras-de-cilios-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "mascaras-de-cilios-1.d0c7109c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "mascaras-de-cilios-1.d0c7109c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "mascaras-de-cilios-1.d0c7109c-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "mascaras-de-cilios-1.d0c7109c-1024.webp"
+   }
+  ]
+ },
+ "mascaras-de-cilios-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "mascaras-de-cilios-2.94fa1273-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "mascaras-de-cilios-2.94fa1273-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "mascaras-de-cilios-2.94fa1273-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "mascaras-de-cilios-2.94fa1273-1024.webp"
+   }
+  ]
+ },
+ "mascaras-de-cilios-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "mascaras-de-cilios-3.2c7a0e44-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "mascaras-de-cilios-3.2c7a0e44-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "mascaras-de-cilios-3.2c7a0e44-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "mascaras-de-cilios-3.2c7a0e44-1024.webp"
+   }
+  ]
+ },
+ "mochilas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "mochilas-1.fe48532d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "mochilas-1.fe48532d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "mochilas-1.fe48532d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "mochilas-1.fe48532d-1024.webp"
+   }
+  ]
+ },
+ "mochilas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "mochilas-2.397ca5ab-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "mochilas-2.397ca5ab-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "mochilas-2.397ca5ab-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "mochilas-2.397ca5ab-1024.webp"
+   }
+  ]
+ },
+ "mochilas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "mochilas-3.fd1cc877-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "mochilas-3.fd1cc877-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "mochilas-3.fd1cc877-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "mochilas-3.fd1cc877-1024.webp"
+   }
+  ]
+ },
+ "oculos-de-sol-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "oculos-de-sol-1.d48dd624-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "oculos-de-sol-1.d48dd624-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "oculos-de-sol-1.d48dd624-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "oculos-de-sol-1.d48dd624-1024.webp"
+   }
+  ]
+ },
+ "oculos-de-sol-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "oculos-de-sol-2.2e0819e0-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "oculos-de-sol-2.2e0819e0-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "oculos-de-sol-2.2e0819e0-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "oculos-de-sol-2.2e0819e0-1024.webp"
+   }
+  ]
+ },
+ "oculos-de-sol-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "oculos-de-sol-3.df2e15a7-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "oculos-de-sol-3.df2e15a7-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "oculos-de-sol-3.df2e15a7-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "oculos-de-sol-3.df2e15a7-1024.webp"
+   }
+  ]
+ },
+ "panelas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "panelas-1.bcce3ee0-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "panelas-1.bcce3ee0-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "panelas-1.bcce3ee0-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "panelas-1.bcce3ee0-1024.webp"
+   }
+  ]
+ },
+ "panelas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "panelas-2.1e5f6e38-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "panelas-2.1e5f6e38-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "panelas-2.1e5f6e38-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "panelas-2.1e5f6e38-1024.webp"
+   }
+  ]
+ },
+ "panelas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "panelas-3.5eb35598-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "panelas-3.5eb35598-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "panelas-3.5eb35598-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "panelas-3.5eb35598-1024.webp"
+   }
+  ]
+ },
+ "pelucias-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "pelucias-1.2571f53e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "pelucias-1.2571f53e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "pelucias-1.2571f53e-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "pelucias-1.2571f53e-1024.webp"
+   }
+  ]
+ },
+ "pelucias-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "pelucias-2.18a962e1-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "pelucias-2.18a962e1-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "pelucias-2.18a962e1-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "pelucias-2.18a962e1-1024.webp"
+   }
+  ]
+ },
+ "pelucias-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "pelucias-3.26e59ae3-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "pelucias-3.26e59ae3-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "pelucias-3.26e59ae3-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "pelucias-3.26e59ae3-1024.webp"
+   }
+  ]
+ },
+ "perfumes-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perfumes-1.5d1c12b7-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perfumes-1.5d1c12b7-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perfumes-1.5d1c12b7-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "perfumes-1.5d1c12b7-1024.webp"
+   }
+  ]
+ },
+ "perfumes-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perfumes-2.16ee2223-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perfumes-2.16ee2223-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perfumes-2.16ee2223-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "perfumes-2.16ee2223-1024.webp"
+   }
+  ]
+ },
+ "perfumes-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "perfumes-3.d7f7462d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "perfumes-3.d7f7462d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "perfumes-3.d7f7462d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "perfumes-3.d7f7462d-1024.webp"
+   }
+  ]
+ },
+ "potes-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "potes-1.1fd62147-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "potes-1.1fd62147-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "potes-1.1fd62147-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "potes-1.1fd62147-1024.webp"
+   }
+  ]
+ },
+ "potes-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "potes-2.0f21996f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "potes-2.0f21996f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "potes-2.0f21996f-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "potes-2.0f21996f-1024.webp"
+   }
+  ]
+ },
+ "potes-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "potes-3.962acc88-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "potes-3.962acc88-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "potes-3.962acc88-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "potes-3.962acc88-1024.webp"
+   }
+  ]
+ },
+ "protetores-solares-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "protetores-solares-1.35b9af22-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "protetores-solares-1.35b9af22-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "protetores-solares-1.35b9af22-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "protetores-solares-1.35b9af22-1024.webp"
+   }
+  ]
+ },
+ "protetores-solares-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "protetores-solares-2.04915d40-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "protetores-solares-2.04915d40-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "protetores-solares-2.04915d40-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "protetores-solares-2.04915d40-1024.webp"
+   }
+  ]
+ },
+ "protetores-solares-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "protetores-solares-3.3b9ca952-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "protetores-solares-3.3b9ca952-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "protetores-solares-3.3b9ca952-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "protetores-solares-3.3b9ca952-1024.webp"
+   }
+  ]
+ },
+ "relogios-analogicos-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "relogios-analogicos-1.f05a35a8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "relogios-analogicos-1.f05a35a8-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "relogios-analogicos-1.f05a35a8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "relogios-analogicos-1.f05a35a8-1024.webp"
+   }
+  ]
+ },
+ "relogios-analogicos-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "relogios-analogicos-2.4adfcbcf-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "relogios-analogicos-2.4adfcbcf-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "relogios-analogicos-2.4adfcbcf-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "relogios-analogicos-2.4adfcbcf-1024.webp"
+   }
+  ]
+ },
+ "relogios-analogicos-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "relogios-analogicos-3.18d4eeb5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "relogios-analogicos-3.18d4eeb5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "relogios-analogicos-3.18d4eeb5-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "relogios-analogicos-3.18d4eeb5-1024.webp"
+   }
+  ]
+ },
+ "sabonetes-faciais-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sabonetes-faciais-1.7e1a654d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sabonetes-faciais-1.7e1a654d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sabonetes-faciais-1.7e1a654d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sabonetes-faciais-1.7e1a654d-1024.webp"
+   }
+  ]
+ },
+ "sabonetes-faciais-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sabonetes-faciais-2.573fffc7-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sabonetes-faciais-2.573fffc7-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sabonetes-faciais-2.573fffc7-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sabonetes-faciais-2.573fffc7-1024.webp"
+   }
+  ]
+ },
+ "sabonetes-faciais-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sabonetes-faciais-3.27627a5d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sabonetes-faciais-3.27627a5d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sabonetes-faciais-3.27627a5d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sabonetes-faciais-3.27627a5d-1024.webp"
+   }
+  ]
+ },
+ "sandalias-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sandalias-1.4a6bc4bc-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sandalias-1.4a6bc4bc-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sandalias-1.4a6bc4bc-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sandalias-1.4a6bc4bc-1024.webp"
+   }
+  ]
+ },
+ "sandalias-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sandalias-2.dfecc3e8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sandalias-2.dfecc3e8-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sandalias-2.dfecc3e8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sandalias-2.dfecc3e8-1024.webp"
+   }
+  ]
+ },
+ "sandalias-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sandalias-3.54f0af5d-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sandalias-3.54f0af5d-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sandalias-3.54f0af5d-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sandalias-3.54f0af5d-1024.webp"
+   }
+  ]
+ },
+ "sanduicheiras-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sanduicheiras-1.71853d45-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sanduicheiras-1.71853d45-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sanduicheiras-1.71853d45-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sanduicheiras-1.71853d45-1024.webp"
+   }
+  ]
+ },
+ "sanduicheiras-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sanduicheiras-2.7e793791-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sanduicheiras-2.7e793791-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sanduicheiras-2.7e793791-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sanduicheiras-2.7e793791-1024.webp"
+   }
+  ]
+ },
+ "sanduicheiras-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "sanduicheiras-3.d15433c5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "sanduicheiras-3.d15433c5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "sanduicheiras-3.d15433c5-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "sanduicheiras-3.d15433c5-1024.webp"
+   }
+  ]
+ },
+ "secadores-de-cabelo-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "secadores-de-cabelo-1.c66ae111-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "secadores-de-cabelo-1.c66ae111-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "secadores-de-cabelo-1.c66ae111-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "secadores-de-cabelo-1.c66ae111-1024.webp"
+   }
+  ]
+ },
+ "secadores-de-cabelo-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "secadores-de-cabelo-2.17cb0001-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "secadores-de-cabelo-2.17cb0001-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "secadores-de-cabelo-2.17cb0001-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "secadores-de-cabelo-2.17cb0001-1024.webp"
+   }
+  ]
+ },
+ "secadores-de-cabelo-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "secadores-de-cabelo-3.ae235a9e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "secadores-de-cabelo-3.ae235a9e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "secadores-de-cabelo-3.ae235a9e-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "secadores-de-cabelo-3.ae235a9e-1024.webp"
+   }
+  ]
+ },
+ "shampoos-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "shampoos-1.651b8877-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "shampoos-1.651b8877-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "shampoos-1.651b8877-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "shampoos-1.651b8877-1024.webp"
+   }
+  ]
+ },
+ "shampoos-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "shampoos-2.ce634231-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "shampoos-2.ce634231-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "shampoos-2.ce634231-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "shampoos-2.ce634231-1024.webp"
+   }
+  ]
+ },
+ "shampoos-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "shampoos-3.2b7ae4e3-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "shampoos-3.2b7ae4e3-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "shampoos-3.2b7ae4e3-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "shampoos-3.2b7ae4e3-1024.webp"
+   }
+  ]
+ },
+ "smartwatches-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "smartwatches-1.393972c5-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "smartwatches-1.393972c5-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "smartwatches-1.393972c5-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "smartwatches-1.393972c5-1024.webp"
+   }
+  ]
+ },
+ "smartwatches-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "smartwatches-2.ed232826-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "smartwatches-2.ed232826-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "smartwatches-2.ed232826-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "smartwatches-2.ed232826-1024.webp"
+   }
+  ]
+ },
+ "smartwatches-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "smartwatches-3.d3ddcb1b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "smartwatches-3.d3ddcb1b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "smartwatches-3.d3ddcb1b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "smartwatches-3.d3ddcb1b-1024.webp"
+   }
+  ]
+ },
+ "tabuas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tabuas-1.4876d065-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tabuas-1.4876d065-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tabuas-1.4876d065-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tabuas-1.4876d065-1024.webp"
+   }
+  ]
+ },
+ "tabuas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tabuas-2.1c177732-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tabuas-2.1c177732-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tabuas-2.1c177732-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tabuas-2.1c177732-1024.webp"
+   }
+  ]
+ },
+ "tabuas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tabuas-3.d57195b9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tabuas-3.d57195b9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tabuas-3.d57195b9-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tabuas-3.d57195b9-1024.webp"
+   }
+  ]
+ },
+ "tenis-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tenis-1.4542bb04-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tenis-1.4542bb04-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tenis-1.4542bb04-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tenis-1.4542bb04-1024.webp"
+   }
+  ]
+ },
+ "tenis-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tenis-2.328ceb18-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tenis-2.328ceb18-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tenis-2.328ceb18-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tenis-2.328ceb18-1024.webp"
+   }
+  ]
+ },
+ "tenis-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tenis-3.116bc053-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tenis-3.116bc053-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tenis-3.116bc053-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tenis-3.116bc053-1024.webp"
+   }
+  ]
+ },
+ "volantes-e-acessorios-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "volantes-e-acessorios-1.0edc9833-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "volantes-e-acessorios-1.0edc9833-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "volantes-e-acessorios-1.0edc9833-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "volantes-e-acessorios-1.0edc9833-1024.webp"
+   }
+  ]
+ },
+ "volantes-e-acessorios-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "volantes-e-acessorios-2.4435a700-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "volantes-e-acessorios-2.4435a700-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "volantes-e-acessorios-2.4435a700-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "volantes-e-acessorios-2.4435a700-1024.webp"
+   }
+  ]
+ },
+ "volantes-e-acessorios-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "volantes-e-acessorios-3.204a3f5c-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "volantes-e-acessorios-3.204a3f5c-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "volantes-e-acessorios-3.204a3f5c-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "volantes-e-acessorios-3.204a3f5c-1024.webp"
+   }
+  ]
+ },
+ "teclados-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "teclados-1.c228a10f-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "teclados-1.c228a10f-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "teclados-1.c228a10f-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "teclados-1.c228a10f-1024.webp"
+   }
+  ]
+ },
+ "teclados-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "teclados-2.c134e1d4-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "teclados-2.c134e1d4-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "teclados-2.c134e1d4-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "teclados-2.c134e1d4-1024.webp"
+   }
+  ]
+ },
+ "teclados-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "teclados-3.4488f0d8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "teclados-3.4488f0d8-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "teclados-3.4488f0d8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "teclados-3.4488f0d8-1024.webp"
+   }
+  ]
  }
 }
