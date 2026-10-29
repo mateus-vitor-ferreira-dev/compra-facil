@@ -11,7 +11,7 @@ public sealed class ContractsTests
     private static string PaymentApproved(string amount) => $$$"""
         {"event_id":"{{{Id}}}","event_type":"PaymentApproved","event_version":1,"occurred_at":"2026-11-28T03:00:02Z",
          "producer":"payments","correlation_id":"req-1","causation_id":null,
-         "data":{"order_id":"{{{Id}}}","payment_id":"{{{Id}}}","amount":{{{amount}}},"provider":"fake","provider_reference":null}}
+         "data":{"order_id":"{{{Id}}}","payment_id":"{{{Id}}}","amount":{{{amount}}},"provider":"mercadopago","provider_reference":null,"method":"card","installments":1,"captured":false}}
         """;
 
     [Fact]
