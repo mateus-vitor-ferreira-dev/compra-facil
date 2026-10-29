@@ -68,7 +68,7 @@ func runWithPostgres(m *testing.M) int {
 
 func resetDB(t *testing.T) {
 	t.Helper()
-	err := testDB.Exec("TRUNCATE outbox, campaign_products, campaigns, products, categories CASCADE").Error
+	err := testDB.Exec("TRUNCATE outbox, inbox_messages, pricing_rules, campaign_products, campaigns, products, categories CASCADE").Error
 	if err != nil {
 		t.Fatalf("truncate: %v", err)
 	}

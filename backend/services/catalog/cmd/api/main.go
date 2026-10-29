@@ -17,11 +17,14 @@ import (
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/cache"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/events"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/grpcserver"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/handler"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/messaging"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/repository"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/service"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/supplierfeed"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/telemetry"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/migrations"
 )
@@ -134,6 +137,8 @@ func run() error {
 	var catalogAPI *handler.CatalogHandler
 	var adminAPI *handler.AdminHandler
 	wrap := func(h http.Handler) http.Handler { return h }
+	// as escritas que não passam pelos writers do cache (feed do fornecedor, reprecificação) o invalidam por aqui
+	invalidate := func(context.Context) {}
 	if cfg.Cache.Enabled {
 		store := cache.NewRedisStore(cache.RedisOptions{
 			Addr:         cfg.Cache.Redis.Addr,
@@ -154,6 +159,7 @@ func run() error {
 			return fmt.Errorf("cache: %w", err)
 		}
 		catalogAPI = handler.NewCatalogHandler(cached, cached, cached, log)
+		invalidate = cached.Invalidate
 		adminAPI = handler.NewAdminHandler(cache.NewProductWriter(productSvc, cached),
 			cache.NewCategoryWriter(categorySvc, cached), cache.NewCampaignWriter(campaignSvc, cached), requireAdmin, log)
 		wrap = cache.HeaderMiddleware
@@ -188,9 +194,44 @@ func run() error {
 		log.Warn("relay do outbox desligado: eventos ficam no outbox sem publicar")
 	}
 
+	// catálogo do fornecedor (#217): o feed vira produto pela regra de margem
+	supplierOpts, err := supplierOptions(cfg.Supplier)
+	if err != nil {
+		return err
+	}
+	pricing := supplierfeed.Catalog(db, supplierOpts, log)
+	var deadLetters handler.DeadLetterAdmin
+	stopConsumer := func() {}
+	if cfg.Supplier.ConsumerEnabled {
+		consumer, err := messaging.NewConsumer(db, messaging.Options{
+			Brokers: cfg.Events.Brokers, Service: "catalog", PollInterval: cfg.Events.PollInterval, MaxBackoff: cfg.Events.MaxBackoff,
+		}, log)
+		if err != nil {
+			return fmt.Errorf("consumer: %w", err)
+		}
+		defer consumer.Close()
+		supplierfeed.Register(consumer, supplierOpts, log)
+		consumer.AfterCommit(func(ctx context.Context, _ messaging.Event) { invalidate(ctx) })
+		deadLetters = consumer.DeadLetters()
+		consumerCtx, cancelConsumer := context.WithCancel(context.Background())
+		consumerDone := make(chan struct{})
+		go func() {
+			defer close(consumerDone)
+			log.Info("consumo do feed do fornecedor no ar", "topic", supplierfeed.Topic)
+			if err := consumer.Run(consumerCtx); err != nil {
+				log.Error("consumo do feed parou", "error", err.Error())
+			}
+		}()
+		stopConsumer = func() { cancelConsumer(); <-consumerDone }
+		defer stopConsumer()
+	} else {
+		log.Warn("consumo do feed do fornecedor desligado")
+	}
+	supplierAPI := handler.NewSupplierAdminHandler(pricing, deadLetters, invalidate, requireAdmin, log)
+
 	srv := &http.Server{
 		Addr:              cfg.HTTP.Addr(),
-		Handler:           wrap(handler.NewRouter(log, health, catalogAPI, adminAPI, handler.NewDocs(openapi.Files))),
+		Handler:           wrap(handler.NewRouter(log, health, catalogAPI, adminAPI, supplierAPI, handler.NewDocs(openapi.Files))),
 		ReadTimeout:       cfg.HTTP.ReadTimeout,
 		ReadHeaderTimeout: cfg.HTTP.ReadTimeout,
 		WriteTimeout:      cfg.HTTP.WriteTimeout,
@@ -239,9 +280,29 @@ func run() error {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}
+	// o consumer antes do relay: o que ele gravar ainda sai pelo outbox
+	stopConsumer()
 	// depois do HTTP, para não sobrar escrita sem relay; o que não saiu fica no outbox para o
 	// próximo start (ou outra réplica)
 	stopRelay()
 	log.Info("desligado")
 	return nil
+}
+
+// supplierOptions monta a configuração do catálogo do fornecedor (já validada no config.Load).
+func supplierOptions(c config.SupplierConfig) (service.SupplierOptions, error) {
+	categories, err := c.CategoryMap()
+	if err != nil {
+		return service.SupplierOptions{}, fmt.Errorf("config: %w", err)
+	}
+	usd, err := domain.ParseExchangeRate(c.USDBRL)
+	if err != nil {
+		return service.SupplierOptions{}, fmt.Errorf("config: %w", err)
+	}
+	return service.SupplierOptions{
+		Rates:       domain.ExchangeRates{"USD": usd},
+		Categories:  categories,
+		DefaultRule: domain.PricingRule{MarginPercent: c.DefaultMarginPercent, MinPriceCents: c.DefaultMinPriceCents},
+		PublishNew:  c.PublishNew,
+	}, nil
 }

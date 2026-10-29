@@ -62,8 +62,10 @@ type Product struct {
 	Version    int
 	// ActiveCampaign é a campanha vigente de maior desconto, se houver (preenchida na leitura).
 	ActiveCampaign *CampaignRef
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// Supplier: o produto vem do feed de um fornecedor de dropshipping (nulo: cadastrado pela loja).
+	Supplier  *SupplierInfo
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // EffectivePriceCents aplica o desconto da campanha ativa, arredondando a favor do cliente.
