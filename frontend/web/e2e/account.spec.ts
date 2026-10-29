@@ -88,6 +88,11 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   const invoice = page.getByRole("region", { name: "Nota fiscal" });
   await expect(invoice).toContainText("NF-e 1001, série 1");
   await expect(invoice).toContainText("3126 1011 2223 3300 0181 5500 1000 0010 0110 0001 0015");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    invoice.getByRole("link", { name: "Baixar a nota (PDF)" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("nfe-1001.pdf");
   await page.goBack();
 
   await orders.getByRole("link", { name: /Pedido 7C3E5D2A/ }).click();

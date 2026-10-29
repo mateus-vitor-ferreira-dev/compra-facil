@@ -807,6 +807,19 @@ createServer(async (req, res) => {
     return admin(req, res, url);
   }
   if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  // o DANFE da nota (#221): só a do pedido confirmado da Ana
+  const danfe = url.pathname.match(/^\/fulfillment\/v1\/me\/invoices\/([0-9a-f-]{36})\/danfe$/);
+  if (req.method === "GET" && danfe) {
+    const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
+    if (!email) return problem(res, 401, "Não autenticado");
+    const found = email === "ana@exemplo.com" && orders.find((o) => o.id === danfe[1] && o.invoice);
+    if (!found) return problem(res, 404, "Recurso não encontrado");
+    res.writeHead(200, {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="nfe-${found.invoice.number}.pdf"`,
+    });
+    return res.end("%PDF-1.4\n%%EOF\n");
+  }
   // o ViaCEP: um CEP da Paulista, um de cidade pequena (sem rua) e o resto não existe
   const cep = url.pathname.match(/^\/cep\/(\d{8})\/json\/$/);
   if (req.method === "GET" && cep) {

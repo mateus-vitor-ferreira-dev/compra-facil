@@ -126,6 +126,15 @@ export default async function OrderPage({ params, searchParams }: Props) {
             </time>
             {order.invoice.cancelled_at && <span className="text-ink-soft"> (cancelada no estorno)</span>}
           </p>
+          <p className="pt-1">
+            <a
+              href={`/api/pedidos/${order.id}/nota`}
+              download
+              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+            >
+              Baixar a nota (PDF)
+            </a>
+          </p>
           <p className="text-ink-soft text-sm">
             Chave de acesso{" "}
             <span className="text-ink tabular-nums select-all">

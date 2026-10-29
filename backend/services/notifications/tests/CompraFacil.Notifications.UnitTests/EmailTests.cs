@@ -39,6 +39,21 @@ public sealed class EmailTests
         Assert.DoesNotContain("<td>", email.TextBody, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task InvoiceIssued_HasTheNumber_TheKeyInGroups_AndTheOrderLink()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.InvoiceIssuedAsync(
+            new InvoiceIssuedData(order, "ana@exemplo.com", "31261011222333000181550010000010011000010015", 1001, 1, 24990),
+            new Uri("https://loja.example/"));
+
+        Assert.Equal("Nota fiscal do pedido 0000ABCD", email.Subject);
+        Assert.Contains("NF-e 1001, série 1, no valor de R$ 249,90", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("3126 1011 2223 3300 0181 5500 1000 0010 0110 0001 0015", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.EndsWith($"https://loja.example/conta/pedidos/{order}", email.TextBody, StringComparison.Ordinal);
+    }
+
     private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
     private static EmailConfirmationRequestedData Confirmation(string url, string name = "Ana <b>Souza</b>", double hours = 24) =>
