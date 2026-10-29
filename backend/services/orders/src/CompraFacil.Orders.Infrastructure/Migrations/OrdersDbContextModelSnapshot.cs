@@ -203,6 +203,31 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("items");
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Invoice", "CompraFacil.Orders.Domain.Order.Invoice#OrderInvoice", b1 =>
+                        {
+                            b1.Property<string>("AccessKey")
+                                .IsRequired()
+                                .HasMaxLength(44)
+                                .HasColumnType("character varying(44)")
+                                .HasColumnName("invoice_access_key");
+
+                            b1.Property<DateTimeOffset?>("CancelledAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("invoice_cancelled_at");
+
+                            b1.Property<DateTimeOffset>("IssuedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("invoice_issued_at");
+
+                            b1.Property<int>("Number")
+                                .HasColumnType("integer")
+                                .HasColumnName("invoice_number");
+
+                            b1.Property<int>("Series")
+                                .HasColumnType("integer")
+                                .HasColumnName("invoice_series");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Pix", "CompraFacil.Orders.Domain.Order.Pix#OrderPix", b1 =>
                         {
                             b1.Property<DateTimeOffset>("ExpiresAt")

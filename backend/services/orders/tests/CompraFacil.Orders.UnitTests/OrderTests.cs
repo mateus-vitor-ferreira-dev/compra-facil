@@ -233,6 +233,32 @@ public sealed class OrderTests
     }
 
     [Fact]
+    public void InvoiceRejected_CancelsThePaidOrder_WithItsOwnReason_UntilRefunded()
+    {
+        var order = Paid();
+
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1), invoiceRejected: true));
+        Assert.Equal(CancellationReason.InvoiceFailed, order.CancellationReason);
+        Assert.True(order.AwaitingRefund);
+        Assert.True(order.MarkRefunded(s_now.AddHours(2)));
+    }
+
+    [Fact]
+    public void Invoice_IsRecordedOnce_AndCancelledAfterTheRefund()
+    {
+        var order = Paid();
+        var invoice = new OrderInvoice(new string('1', 44), 42, 1, s_now);
+
+        Assert.True(order.RecordInvoice(invoice, s_now));
+        Assert.False(order.RecordInvoice(invoice with { Number = 43 }, s_now)); // repetida
+        Assert.Equal(42, order.Invoice!.Number);
+        Assert.True(order.CancelInvoice(s_now.AddHours(1), s_now.AddHours(1)));
+        Assert.False(order.CancelInvoice(s_now.AddHours(2), s_now.AddHours(2)));
+        Assert.Equal(s_now.AddHours(1), order.Invoice.CancelledAt);
+        Assert.False(Pending().CancelInvoice(s_now, s_now)); // sem nota não há o que cancelar
+    }
+
+    [Fact]
     public void SupplierFailure_AfterShipping_IsIgnored()
     {
         var order = Paid();

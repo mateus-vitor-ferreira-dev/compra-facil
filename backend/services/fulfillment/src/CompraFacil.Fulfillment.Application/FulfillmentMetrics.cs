@@ -22,7 +22,19 @@ public static class FulfillmentMetrics
     private static readonly Counter<long> s_catalog = s_meter.CreateCounter<long>(
         "compra_facil.fulfillment.catalog_products", unit: "{product}", description: "Produtos do feed por sincronização (created, updated, removed, unchanged).");
 
+    /// <summary>Notas emitidas antes de o pedido ir ao fornecedor, pelo resultado (authorized, rejected).</summary>
+    private static readonly Counter<long> s_invoices = s_meter.CreateCounter<long>(
+        "compra_facil.fulfillment.invoices", unit: "{invoice}", description: "Notas fiscais emitidas, por resultado.");
+
+    /// <summary>Cancelamentos de nota que o emissor recusou (fora do prazo): a equipe resolve com nota de entrada.</summary>
+    private static readonly Counter<long> s_cancelRefused = s_meter.CreateCounter<long>(
+        "compra_facil.fulfillment.invoice_cancel_refused", unit: "{invoice}", description: "Cancelamentos de nota recusados pelo emissor.");
+
     public static void SkippedBeforeCutoff() => s_skipped.Add(1);
+
+    public static void Invoice(string result) => s_invoices.Add(1, new KeyValuePair<string, object?>("result", result));
+
+    public static void InvoiceCancelRefused() => s_cancelRefused.Add(1);
 
     public static void CatalogSynced(string supplier, CatalogSyncResult result)
     {

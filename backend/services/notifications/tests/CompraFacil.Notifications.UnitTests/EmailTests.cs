@@ -17,6 +17,7 @@ public sealed class EmailTests
     [Theory]
     [InlineData("out_of_stock", null, "sem estoque")]
     [InlineData("supplier_failed", null, "fornecedor")]
+    [InlineData("invoice_failed", null, "nota fiscal")]
     [InlineData("payment_failed", "insufficient_funds", "limite insuficiente")]
     [InlineData("payment_failed", "card_declined", "cartão foi recusado")]
     [InlineData("payment_failed", "pix_expired", "PIX não foi pago")]

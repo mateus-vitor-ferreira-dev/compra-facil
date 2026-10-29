@@ -47,6 +47,9 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
             ShippingZip: to?.ZipCode ?? "",
             ShippingPhone: to?.Phone ?? "",
             ConsigneeId: to?.Cpf ?? "",
+            // venda à ordem (#221): a nota da loja vai junto, para o fornecedor emitir a remessa referenciando-a
+            InvoiceKey: request.InvoiceKey,
+            InvoiceXml: request.InvoiceXml is { } xml ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(xml)) : null,
             Email: request.CustomerEmail,
             Remark: Scenario(request.CustomerEmail),
             Products: [.. request.Items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
@@ -173,6 +176,7 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         string OrderNumber, string ShippingCountryCode, string ShippingProvince, string ShippingCity, string ShippingCustomerName,
         string ShippingAddress, string ShippingAddress2, string HouseNumber, string ShippingZip, string ShippingPhone,
         [property: JsonPropertyName("consigneeID")] string ConsigneeId,
+        string? InvoiceKey, string? InvoiceXml,
         string Email, string Remark, IReadOnlyList<CreateOrderProduct> Products);
 
     private sealed record CreateOrderResult(string? OrderId, string? OrderNumber, string? OrderStatus);

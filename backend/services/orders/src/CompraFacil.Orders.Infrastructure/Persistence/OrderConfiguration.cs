@@ -44,6 +44,15 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             a.Property(x => x.City).HasColumnName("shipping_city").HasMaxLength(60);
             a.Property(x => x.State).HasColumnName("shipping_state").HasMaxLength(2);
         });
+        // a nota fiscal (#221): só existe depois que o fulfillment a emite
+        builder.ComplexProperty(o => o.Invoice, i =>
+        {
+            i.Property(x => x.AccessKey).HasColumnName("invoice_access_key").HasMaxLength(44);
+            i.Property(x => x.Number).HasColumnName("invoice_number");
+            i.Property(x => x.Series).HasColumnName("invoice_series");
+            i.Property(x => x.IssuedAt).HasColumnName("invoice_issued_at");
+            i.Property(x => x.CancelledAt).HasColumnName("invoice_cancelled_at");
+        });
         // rastreio: opcional, só existe depois do envio
         builder.ComplexProperty(o => o.Tracking, t =>
         {

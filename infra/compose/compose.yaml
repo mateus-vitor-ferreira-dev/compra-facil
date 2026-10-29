@@ -431,6 +431,12 @@ services:
       Supplier__Deadlines__DeliverWithin: "00:05:00"
       # o feed do simulado a cada minuto (na produção, de hora em hora): mudar o custo nele aparece logo
       Supplier__CatalogSyncInterval: "00:01:00"
+      # a nota fiscal (#221) pelo emissor simulado, no contrato da Nuvem Fiscal (ana+recusar-nota@... faz a
+      # SEFAZ simulada rejeitar)
+      Invoice__AuthUrl: http://invoice-sim:8090/oauth/token
+      Invoice__BaseUrl: http://invoice-sim:8090/
+      Invoice__ClientId: ${INVOICE_SIM_CLIENT_ID:-sim-client}
+      Invoice__ClientSecret: ${INVOICE_SIM_CLIENT_SECRET:-sim-secret}
 
   # o fornecedor de dropshipping simulado, no contrato do CJ (backend/services/supplier-sim); não vai à produção
   supplier-sim:

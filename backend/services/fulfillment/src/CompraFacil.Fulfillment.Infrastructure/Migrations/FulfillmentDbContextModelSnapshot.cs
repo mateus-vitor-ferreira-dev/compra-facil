@@ -105,6 +105,114 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.ToTable("outbox", (string)null);
                 });
 
+            modelBuilder.Entity("CompraFacil.Fulfillment.Domain.Invoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessKey")
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)")
+                        .HasColumnName("access_key");
+
+                    b.Property<DateTimeOffset?>("CancelClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancel_claimed_at");
+
+                    b.Property<string>("CancelError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cancel_error");
+
+                    b.Property<DateTimeOffset?>("CancelRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancel_requested_at");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomerEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("customer_email");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<DateTimeOffset?>("IssuedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issued_at");
+
+                    b.Property<int?>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("ProviderId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("provider_id");
+
+                    b.Property<DateTimeOffset?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<int?>("RejectionCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("rejection_code");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<int?>("Series")
+                        .HasColumnType("integer")
+                        .HasColumnName("series");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("TotalCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("total_cents");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("_lines")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("lines");
+
+                    b.HasKey("Id")
+                        .HasName("pk_invoices");
+
+                    b.HasIndex("Status", "CancelRequestedAt")
+                        .HasDatabaseName("ix_invoices_status_cancel_requested_at");
+
+                    b.ToTable("invoices", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Fulfillment.Domain.SupplierOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -290,6 +398,59 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasName("pk_supplier_webhooks");
 
                     b.ToTable("supplier_webhooks", (string)null);
+                });
+
+            modelBuilder.Entity("CompraFacil.Fulfillment.Domain.Invoice", b =>
+                {
+                    b.OwnsOne("CompraFacil.Fulfillment.Domain.ShipTo", "ShipTo", b1 =>
+                        {
+                            b1.Property<Guid>("InvoiceId");
+
+                            b1.Property<string>("City")
+                                .IsRequired();
+
+                            b1.Property<string>("Complement");
+
+                            b1.Property<string>("Cpf")
+                                .IsRequired();
+
+                            b1.Property<string>("District")
+                                .IsRequired();
+
+                            b1.Property<string>("Name")
+                                .IsRequired();
+
+                            b1.Property<string>("Number")
+                                .IsRequired();
+
+                            b1.Property<string>("Phone")
+                                .IsRequired();
+
+                            b1.Property<string>("State")
+                                .IsRequired();
+
+                            b1.Property<string>("Street")
+                                .IsRequired();
+
+                            b1.Property<string>("ZipCode")
+                                .IsRequired();
+
+                            b1.HasKey("InvoiceId")
+                                .HasName("pk_invoices");
+
+                            b1.ToTable("invoices");
+
+                            b1
+                                .ToJson("ship_to")
+                                .HasColumnType("jsonb");
+
+                            b1.WithOwner()
+                                .HasForeignKey("InvoiceId")
+                                .HasConstraintName("fk_invoices_invoices_invoice_id");
+                        });
+
+                    b.Navigation("ShipTo")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CompraFacil.Fulfillment.Domain.SupplierOrder", b =>

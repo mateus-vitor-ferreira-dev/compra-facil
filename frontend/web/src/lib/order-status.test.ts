@@ -25,6 +25,14 @@ describe("orderStatus", () => {
     );
   });
 
+  it("nota fiscal recusada: diz que o valor volta, como no fornecedor que não atendeu", () => {
+    const cancelled = { status: "cancelled", cancellation_reason: "invoice_failed" } as const;
+    expect(orderStatus(cancelled).detail).toContain("nota fiscal");
+    expect(orderStatus(cancelled).detail).toContain("Estamos estornando");
+    expect(isFinal(cancelled)).toBe(false);
+    expect(isFinal({ ...cancelled, refunded_at: "2026-10-29T10:00:00Z" })).toBe(true);
+  });
+
   it("fornecedor não atendeu: diz se o estorno está em andamento ou feito", () => {
     const cancelled = { status: "cancelled", cancellation_reason: "supplier_failed" } as const;
     expect(orderStatus(cancelled).detail).toContain("Estamos estornando");
@@ -119,6 +127,12 @@ describe("orderSteps", () => {
 
     const refunded = { ...o, refunded_at: "2026-10-27T15:01:00Z" };
     expect(orderSteps(refunded)[4]).toMatchObject({ label: "Valor estornado", state: "done" });
+  });
+
+  it("nota recusada: a etapa do fornecedor diz que foi a nota, e o estorno vem depois", () => {
+    const o = { ...paid, status: "cancelled" as const, cancellation_reason: "invoice_failed" as const };
+    expect(orderSteps(o)[3]).toMatchObject({ label: "Nota fiscal recusada", state: "failed" });
+    expect(orderSteps(o)[4]?.label).toBe("Estornando o valor pago");
   });
 
   it("pedido de antes da etapa existir (sem stock_reserved_at) ainda fecha certo", () => {

@@ -16,6 +16,7 @@ public static class OrderEvents
     public const string PaymentsTopic = "payments.payment.v1";
     public const string PaymentPending = nameof(PaymentPending);
     public const string FulfillmentTopic = "fulfillment.supplier-order.v1";
+    public const string InvoicesTopic = "fulfillment.invoice.v1";
 }
 
 /// <summary>Item do pedido nos eventos (OrderItem do contrato REST).</summary>
@@ -46,13 +47,13 @@ public sealed record OrderPlacedData(
 /// </summary>
 public sealed record OrderConfirmedData(
     Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total,
-    Recipient? Recipient, ShippingAddress? ShippingAddress)
+    PaymentMethod PaymentMethod, Recipient? Recipient, ShippingAddress? ShippingAddress)
 {
     public static OrderConfirmedData From(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.PaymentId!.Value,
-            [.. order.Items.Select(OrderItemData.From)], order.Total, order.Recipient, order.ShippingAddress);
+            [.. order.Items.Select(OrderItemData.From)], order.Total, order.PaymentMethod, order.Recipient, order.ShippingAddress);
     }
 }
 
@@ -109,4 +110,12 @@ public sealed record SupplierOrderShippedData(Guid OrderId, string TrackingNumbe
 
 public sealed record SupplierOrderDeliveredData(Guid OrderId);
 
-public sealed record SupplierOrderFailedData(Guid OrderId, string Reason);
+public sealed record SupplierOrderFailedData(Guid OrderId, string Reason)
+{
+    /// <summary>A SEFAZ rejeitou a nota da loja: o pedido nem foi ao fornecedor.</summary>
+    public bool InvoiceRejected => Reason == "invoice_rejected";
+}
+
+public sealed record InvoiceIssuedData(Guid OrderId, string AccessKey, int Number, int Series, DateTimeOffset IssuedAt);
+
+public sealed record InvoiceCancelledData(Guid OrderId, DateTimeOffset CancelledAt);

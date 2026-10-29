@@ -114,6 +114,27 @@ export default async function OrderPage({ params, searchParams }: Props) {
         </section>
       )}
 
+      {order.invoice && (
+        <section aria-labelledby="nota" className="mt-10 space-y-1">
+          <h2 id="nota" className="text-xl font-semibold tracking-tight">
+            Nota fiscal
+          </h2>
+          <p>
+            NF-e {order.invoice.number}, série {order.invoice.series}, emitida em{" "}
+            <time dateTime={order.invoice.issued_at}>
+              {dateTime.format(new Date(order.invoice.issued_at))}
+            </time>
+            {order.invoice.cancelled_at && <span className="text-ink-soft"> (cancelada no estorno)</span>}
+          </p>
+          <p className="text-ink-soft text-sm">
+            Chave de acesso{" "}
+            <span className="text-ink tabular-nums select-all">
+              {order.invoice.access_key.replace(/(\d{4})(?=\d)/g, "$1 ")}
+            </span>
+          </p>
+        </section>
+      )}
+
       <div className="mt-8 flex flex-wrap gap-3">
         <Link href="/" className={buttonVariants({ variant: "secondary" })}>
           Continuar comprando

@@ -46,6 +46,7 @@ public sealed record OrderResponse(
     OrderPaymentResponse Payment,
     Recipient? Recipient,
     ShippingAddress? ShippingAddress,
+    OrderInvoice? Invoice,
     DateTimeOffset? StockReservedAt,
     DateTimeOffset? SentToSupplierAt,
     Tracking? Tracking,
@@ -59,7 +60,7 @@ public sealed record OrderResponse(
     {
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.CustomerId, o.Status, o.CancellationReason, [.. o.Items.Select(OrderItemData.From)],
-            o.Total, o.PaymentId, new OrderPaymentResponse(o.PaymentMethod, o.Installments, o.Pix), o.Recipient, o.ShippingAddress, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt,
+            o.Total, o.PaymentId, new OrderPaymentResponse(o.PaymentMethod, o.Installments, o.Pix), o.Recipient, o.ShippingAddress, o.Invoice, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt,
             o.CreatedAt, o.UpdatedAt);
     }
 }

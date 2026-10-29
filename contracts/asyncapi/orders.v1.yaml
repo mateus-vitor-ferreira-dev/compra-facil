@@ -20,8 +20,12 @@ info:
     6. `SupplierOrderPlaced` → segue `confirmed`, com `sent_to_supplier_at`; não publica nada;
     7. `SupplierOrderShipped` → `shipped`, com o rastreio → `OrderShipped`;
     8. `SupplierOrderDelivered` → `delivered` → `OrderDelivered`;
-    9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`) → `OrderCancelled`, que faz o payments
-       estornar o cliente (compensação); `PaymentRefunded` → `refunded_at`.
+    9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`, ou `invoice_failed` quando a SEFAZ
+       rejeitou a nota) → `OrderCancelled`, que faz o payments estornar o cliente (compensação);
+       `PaymentRefunded` → `refunded_at`.
+
+    A nota fiscal (`fulfillment.invoice.v1`, #221): `InvoiceIssued` grava a nota no pedido e
+    `InvoiceCancelled`, o cancelamento dela; nenhum dos dois publica.
 
     Também consome `catalog.product.v1` e `catalog.campaign.v1` para manter o snapshot local de
     produtos e campanhas, usado só quando o gRPC do catálogo está fora.
@@ -64,6 +68,8 @@ channels:
     $ref: "./payments.v1.yaml#/channels/paymentEvents"
   supplierOrderEvents:
     $ref: "./fulfillment.v1.yaml#/channels/supplierOrderEvents"
+  invoiceEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/invoiceEvents"
   productEvents:
     $ref: "./catalog.v1.yaml#/channels/productEvents"
   campaignEvents:
@@ -116,6 +122,17 @@ operations:
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderShipped"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderDelivered"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
+    bindings:
+      $ref: "#/components/operationBindings/OrdersGroup"
+
+  onInvoiceEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/invoiceEvents"
+    summary: Grava a nota fiscal no pedido e, depois do estorno, o cancelamento dela.
+    messages:
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceIssued"
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceCancelled"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"
 
@@ -247,6 +264,9 @@ components:
                       $ref: "../openapi/orders.v1.yaml#/components/schemas/OrderItem"
                   total:
                     $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  payment_method:
+                    $ref: "../openapi/payments.v1.yaml#/components/schemas/PaymentMethod"
+                    description: Como o cliente pagou (vai na nota fiscal).
                   recipient:
                     description: Nulo só nos pedidos de antes do #221.
                     oneOf:
@@ -262,8 +282,8 @@ components:
       title: Pedido cancelado
       summary: |
         Fim da SAGA com compensação. O inventory libera a reserva, se houver (com `out_of_stock` não
-        há; com `supplier_failed` ela já virou baixa), o payments descarta a cobrança pendente ou, com
-        `supplier_failed`, estorna o que foi pago, e o notifications avisa o cliente.
+        há; com `supplier_failed` ou `invoice_failed` ela já virou baixa), o payments descarta a cobrança
+        pendente ou estorna o que foi pago, e o notifications avisa o cliente.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:

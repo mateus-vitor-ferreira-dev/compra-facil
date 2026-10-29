@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Fulfillment.Application.Invoices;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Domain;
 using CompraFacil.Fulfillment.Infrastructure;
@@ -47,6 +48,39 @@ public sealed class FakeSupplier : ISupplierGateway
             : throw new SupplierUnavailableException("fornecedor fora do ar");
 }
 
+/// <summary>O emissor de nota dos testes: autoriza por padrão, ou responde o que o teste mandar.</summary>
+public sealed class FakeInvoiceIssuer : IInvoiceIssuer
+{
+    private int _number = 1000;
+    public Func<Invoice, InvoiceIssue>? Respond { get; set; }
+    public List<Invoice> Issued { get; } = [];
+    public List<string> Cancelled { get; } = [];
+
+    /// <summary>O que o cancelamento faz; nulo = cancela.</summary>
+    public Func<string, Exception?> CancelError { get; set; } = _ => null;
+
+    public Task<InvoiceIssue> IssueAsync(Invoice invoice, CancellationToken ct)
+    {
+        Issued.Add(invoice);
+        return Task.FromResult(Respond?.Invoke(invoice)
+            ?? new InvoiceIssue.Authorized("nfe_" + invoice.Id.ToString("N")[..12], "3" + new string('1', 43), Interlocked.Increment(ref _number), 1, DateTimeOffset.UtcNow));
+    }
+
+    public Task<string> GetXmlAsync(string providerId, CancellationToken ct) => Task.FromResult($"<nfeProc><id>{providerId}</id></nfeProc>");
+
+    public Task<byte[]> GetPdfAsync(string providerId, CancellationToken ct) => Task.FromResult("%PDF-1.4"u8.ToArray());
+
+    public Task CancelAsync(string providerId, string justification, CancellationToken ct)
+    {
+        if (CancelError(providerId) is { } e)
+        {
+            throw e;
+        }
+        Cancelled.Add(providerId);
+        return Task.CompletedTask;
+    }
+}
+
 public sealed class FulfillmentFixture : IAsyncLifetime
 {
     public const string Secret = "segredo-dos-testes";
@@ -54,6 +88,7 @@ public sealed class FulfillmentFixture : IAsyncLifetime
     public TestIdentity Identity { get; } = new();
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public FakeSupplier Supplier { get; } = new();
+    public FakeInvoiceIssuer Issuer { get; } = new();
 
     public async ValueTask InitializeAsync()
     {
@@ -63,12 +98,15 @@ public sealed class FulfillmentFixture : IAsyncLifetime
             .UseSetting("Kafka:Enabled", "false")
             .UseSetting("Supplier:DispatcherEnabled", "false")
             .UseSetting("Supplier:CatalogSyncEnabled", "false")
+            .UseSetting("Invoice:CancellerEnabled", "false")
             .UseSetting("Supplier:WebhookSecret", Secret)
             .UseSetting("Auth:Jwks", Identity.Jwks)
             .ConfigureTestServices(s =>
             {
                 s.RemoveAll<ISupplierGateway>();
                 s.AddSingleton<ISupplierGateway>(Supplier);
+                s.RemoveAll<IInvoiceIssuer>();
+                s.AddSingleton<IInvoiceIssuer>(Issuer);
             }));
         using var _ = Factory.CreateClient();
     }
@@ -100,6 +138,24 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
     }
 
+    private async Task<Invoice?> InvoiceAsync(Guid id)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().Invoices.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id, Ct);
+    }
+
+    private async Task RefundedAsync(Guid id, bool full = true)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var handler = ActivatorUtilities.CreateInstance<OnPaymentRefunded>(scope.ServiceProvider);
+        await handler.HandleAsync(new PaymentRefundedData(id, full),
+            new EventContext(Guid.NewGuid(), InvoiceEvents.PaymentRefunded, InvoiceEvents.PaymentsTopic, "req", DateTimeOffset.UtcNow), Ct);
+        await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
+    }
+
+    private async Task<int> CancelInvoicesAsync() =>
+        await ActivatorUtilities.CreateInstance<CompraFacil.Fulfillment.Infrastructure.Invoices.InvoiceCancellerJob>(fx.Factory.Services).CancelOnceAsync(Ct);
+
     private async Task<int> DispatchAsync()
     {
         var dispatcher = ActivatorUtilities.CreateInstance<SupplierDispatcher>(fx.Factory.Services);
@@ -112,12 +168,12 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         return await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SupplierOrders.AsNoTracking().SingleAsync(o => o.Id == id, Ct);
     }
 
-    /// <summary>Os eventos do pedido, na ordem, cada um conferido contra o contrato.</summary>
-    private async Task<List<string>> EventsOfAsync(Guid id)
+    /// <summary>Os eventos do pedido num tópico (o do fornecedor, por padrão), na ordem, cada um conferido contra o contrato.</summary>
+    private async Task<List<string>> EventsOfAsync(Guid id, string topic = FulfillmentEvents.Topic)
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var events = await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().Set<OutboxMessage>()
-            .Where(m => m.MessageKey == id.ToString()).OrderBy(m => m.Id).ToListAsync(Ct);
+            .Where(m => m.MessageKey == id.ToString() && m.Topic == topic).OrderBy(m => m.Id).ToListAsync(Ct);
         foreach (var e in events)
         {
             ContractAssert.AssertEvent("fulfillment.v1.yaml", e.EventType, e.Payload);
@@ -169,6 +225,11 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(SupplierOrderStatus.Placed, placed.Status);
         var call = Assert.Single(fx.Supplier.Calls, c => c.OrderNumber == id);
         Assert.Equal("MOU-000001", Assert.Single(call.Items).Sku);
+        // a nota foi emitida antes e vai com o pedido (#221)
+        var invoice = (await InvoiceAsync(id))!;
+        Assert.Equal(InvoiceStatus.Authorized, invoice.Status);
+        Assert.Equal((invoice.AccessKey, $"<nfeProc><id>{invoice.ProviderId}</id></nfeProc>"), (call.InvoiceKey, call.InvoiceXml));
+        Assert.Equal([InvoiceEvents.InvoiceIssued], await EventsOfAsync(id, InvoiceEvents.Topic));
         // para quem e para onde, guardado com o pedido (#221): vale também para as novas tentativas
         Assert.Equal(new ShipTo("Ana Souza", "52998224725", "11987654321", "01310100", "Avenida Paulista", "1000", "Apto 12",
             "Bela Vista", "São Paulo", "SP"), call.ShipTo);
@@ -279,5 +340,114 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Contains("unknown_order", body);
         ContractAssert.AssertSchema("fulfillment.v1.yaml", "/components/schemas/SupplierWebhookAck", body);
+    }
+
+    [Fact]
+    public async Task Nota_rejeitada_nao_vai_ao_fornecedor_e_falha_o_pedido()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        fx.Issuer.Respond = i => i.Id == id ? new InvoiceIssue.Rejected("nfe_x", 237, "Rejeição: CPF do destinatário inválido") : null!;
+        try
+        {
+            await DispatchAsync();
+        }
+        finally
+        {
+            fx.Issuer.Respond = null;
+        }
+
+        var order = await OrderAsync(id);
+        Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.InvoiceRejected), (order.Status, order.FailureReason));
+        Assert.Contains("237", order.FailureDetail, StringComparison.Ordinal);
+        Assert.DoesNotContain(fx.Supplier.Calls, c => c.OrderNumber == id);
+        Assert.Equal([FulfillmentEvents.SupplierOrderFailed], await EventsOfAsync(id));
+        Assert.Equal([InvoiceEvents.InvoiceRejected], await EventsOfAsync(id, InvoiceEvents.Topic));
+        Assert.Equal((InvoiceStatus.Rejected, 237), ((await InvoiceAsync(id))!.Status, (await InvoiceAsync(id))!.RejectionCode));
+    }
+
+    [Fact]
+    public async Task Emissor_fora_do_ar_volta_para_a_fila_sem_emitir_duas_vezes()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        fx.Issuer.Respond = i => i.Id == id ? throw new InvoiceIssuerUnavailableException("emissor respondeu 503") : null!;
+        try
+        {
+            await DispatchAsync();
+        }
+        finally
+        {
+            fx.Issuer.Respond = null;
+        }
+
+        var order = await OrderAsync(id);
+        Assert.Equal((SupplierOrderStatus.Pending, 1), (order.Status, order.Attempts));
+        Assert.Contains("emissor de nota", order.LastError, StringComparison.Ordinal);
+        Assert.Equal(InvoiceStatus.Pending, (await InvoiceAsync(id))!.Status);
+        Assert.DoesNotContain(fx.Supplier.Calls, c => c.OrderNumber == id);
+        Assert.Empty(await EventsOfAsync(id, InvoiceEvents.Topic));
+    }
+
+    [Fact]
+    public async Task Estorno_total_cancela_a_nota_e_o_parcial_nao()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+        var invoice = (await InvoiceAsync(id))!;
+
+        await RefundedAsync(id, full: false); // estorno de parte, pelo painel: a nota continua
+        await CancelInvoicesAsync();
+        Assert.Equal(InvoiceStatus.Authorized, (await InvoiceAsync(id))!.Status);
+
+        await RefundedAsync(id);
+        await RefundedAsync(id); // repetido
+        await CancelInvoicesAsync();
+        await CancelInvoicesAsync();
+
+        Assert.Equal(InvoiceStatus.Cancelled, (await InvoiceAsync(id))!.Status);
+        Assert.Single(fx.Issuer.Cancelled, p => p == invoice.ProviderId);
+        Assert.Equal([InvoiceEvents.InvoiceIssued, InvoiceEvents.InvoiceCancelled], await EventsOfAsync(id, InvoiceEvents.Topic));
+    }
+
+    [Fact]
+    public async Task Cancelamento_recusado_pelo_emissor_fica_para_a_equipe()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+        var provider = (await InvoiceAsync(id))!.ProviderId;
+        fx.Issuer.CancelError = p => p == provider ? new InvoiceCancelRefusedException("prazo de cancelamento vencido") : null;
+        try
+        {
+            await RefundedAsync(id);
+            await CancelInvoicesAsync();
+            await CancelInvoicesAsync(); // não insiste
+        }
+        finally
+        {
+            fx.Issuer.CancelError = _ => null;
+        }
+
+        var invoice = (await InvoiceAsync(id))!;
+        Assert.Equal(InvoiceStatus.Authorized, invoice.Status);
+        Assert.Contains("prazo", invoice.CancelError, StringComparison.Ordinal);
+        Assert.Equal([InvoiceEvents.InvoiceIssued], await EventsOfAsync(id, InvoiceEvents.Topic));
+    }
+
+    [Fact]
+    public async Task Pedido_sem_endereco_vai_sem_nota()
+    {
+        var id = Guid.NewGuid();
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var handler = ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider);
+            var item = new OrderItem(Guid.NewGuid(), "MOU-000001", "Mouse", 1, new Money(9990, "BRL"), new Money(9990, "BRL"));
+            await handler.HandleAsync(new OrderConfirmedData(id, Guid.NewGuid(), "ana@exemplo.com", [item], new Money(9990, "BRL")),
+                new EventContext(Guid.NewGuid(), FulfillmentEvents.OrderConfirmed, FulfillmentEvents.OrdersTopic, "req", DateTimeOffset.UtcNow), Ct);
+            await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
+        }
+        Assert.Null(await InvoiceAsync(id));
     }
 }

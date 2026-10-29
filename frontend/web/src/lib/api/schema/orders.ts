@@ -158,10 +158,25 @@ export interface components {
         /**
          * @description `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
          *     `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
-         *     (`refunded_at`).
+         *     (`refunded_at`) · `invoice_failed`: depois de pago, a SEFAZ rejeitou a nota fiscal e o pedido nem
+         *     foi ao fornecedor; o cliente é estornado do mesmo jeito.
          * @enum {string}
          */
-        CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed";
+        CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed" | "invoice_failed";
+        /** @description A NF-e do pedido (#221), autorizada antes de o pedido ir ao fornecedor. */
+        OrderInvoice: {
+            /** @description A chave de acesso, para consultar a nota na SEFAZ. */
+            access_key: string;
+            number: number;
+            series: number;
+            /** Format: date-time */
+            issued_at: string;
+            /**
+             * Format: date-time
+             * @description Quando a nota foi cancelada (o pedido foi estornado por inteiro).
+             */
+            cancelled_at?: string | null;
+        };
         /**
          * @description Quem recebe o pedido (#221): o nome e o CPF vão na nota fiscal; o telefone, à transportadora. O
          *     CPF e o telefone podem ir com máscara; o pedido guarda só os dígitos.
@@ -272,6 +287,8 @@ export interface components {
             recipient?: components["schemas"]["Recipient"] | null;
             /** @description Onde entregar; nulo só nos pedidos de antes do */
             shipping_address?: components["schemas"]["ShippingAddress"] | null;
+            /** @description A nota fiscal, depois que o fulfillment a emite; nula antes disso. */
+            invoice?: components["schemas"]["OrderInvoice"] | null;
             /**
              * Format: date-time
              * @description Quando o fornecedor aceitou o pedido pago (`confirmed`, antes de `shipped`).
@@ -285,8 +302,8 @@ export interface components {
             delivered_at?: string | null;
             /**
              * Format: date-time
-             * @description Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`. Nulo nesse
-             *     pedido é o estorno em andamento.
+             * @description Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed` ou
+             *     `invoice_failed`. Nulo nesse pedido é o estorno em andamento.
              */
             refunded_at?: string | null;
             /** Format: date-time */

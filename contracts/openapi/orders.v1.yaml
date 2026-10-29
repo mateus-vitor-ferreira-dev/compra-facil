@@ -316,8 +316,32 @@ components:
       description: |
         `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
         `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
-        (`refunded_at`).
-      enum: [out_of_stock, payment_failed, supplier_failed]
+        (`refunded_at`) · `invoice_failed`: depois de pago, a SEFAZ rejeitou a nota fiscal e o pedido nem
+        foi ao fornecedor; o cliente é estornado do mesmo jeito.
+      enum: [out_of_stock, payment_failed, supplier_failed, invoice_failed]
+
+    OrderInvoice:
+      type: object
+      description: A NF-e do pedido (#221), autorizada antes de o pedido ir ao fornecedor.
+      required: [access_key, number, series, issued_at]
+      properties:
+        access_key:
+          type: string
+          pattern: "^[0-9]{44}$"
+          description: A chave de acesso, para consultar a nota na SEFAZ.
+        number:
+          type: integer
+          minimum: 1
+        series:
+          type: integer
+          minimum: 0
+        issued_at:
+          type: string
+          format: date-time
+        cancelled_at:
+          type: [string, "null"]
+          format: date-time
+          description: Quando a nota foi cancelada (o pedido foi estornado por inteiro).
 
     Recipient:
       type: object
@@ -515,6 +539,11 @@ components:
           oneOf:
             - $ref: "#/components/schemas/ShippingAddress"
             - type: "null"
+        invoice:
+          description: A nota fiscal, depois que o fulfillment a emite; nula antes disso.
+          oneOf:
+            - $ref: "#/components/schemas/OrderInvoice"
+            - type: "null"
         sent_to_supplier_at:
           type: [string, "null"]
           format: date-time
@@ -534,8 +563,8 @@ components:
           type: [string, "null"]
           format: date-time
           description: |
-            Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`. Nulo nesse
-            pedido é o estorno em andamento.
+            Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed` ou
+            `invoice_failed`. Nulo nesse pedido é o estorno em andamento.
         created_at:
           type: string
           format: date-time

@@ -83,6 +83,13 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   await expect(orders).toContainText("Em preparação");
   await expect(orders).toContainText("Cancelado");
 
+  // o pedido em preparação mostra a nota fiscal, com a chave em grupos de 4 como no DANFE
+  await orders.getByRole("link", { name: /Pedido 4F2A9C1B/ }).click();
+  const invoice = page.getByRole("region", { name: "Nota fiscal" });
+  await expect(invoice).toContainText("NF-e 1001, série 1");
+  await expect(invoice).toContainText("3126 1011 2223 3300 0181 5500 1000 0010 0110 0001 0015");
+  await page.goBack();
+
   await orders.getByRole("link", { name: /Pedido 7C3E5D2A/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pedido 7C3E5D2A");
   await expect(page.getByText("Um dos produtos esgotou antes da reserva. Nada foi cobrado.")).toBeVisible();
