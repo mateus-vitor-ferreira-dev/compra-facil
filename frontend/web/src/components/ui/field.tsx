@@ -1,10 +1,10 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import { useId, useState, type InputHTMLAttributes } from "react";
+import { useId, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
+type FieldProps = ComponentProps<"input"> & {
   label: string;
   /** a regra do campo, sempre visível (não some quando se digita, como o placeholder) */
   hint?: string;
@@ -15,8 +15,19 @@ type FieldProps = InputHTMLAttributes<HTMLInputElement> & {
 const input =
   "bg-surface text-ink h-11 w-full rounded-md border px-3 text-base outline-none focus-visible:outline-2 focus-visible:outline-offset-0 aria-invalid:border-danger";
 
-/** Campo com rótulo em cima, dica e erro ligados ao input (aria-describedby / aria-invalid). */
-export function TextField({ label, hint, error, className, id: fixedId, ...props }: FieldProps) {
+/**
+ * Campo com rótulo em cima, dica e erro ligados ao input (aria-describedby / aria-invalid). Um
+ * `aria-describedby` passado soma-se à dica e ao erro (a bandeira do cartão, ao lado do número).
+ */
+export function TextField({
+  label,
+  hint,
+  error,
+  className,
+  id: fixedId,
+  "aria-describedby": extra,
+  ...props
+}: FieldProps) {
   const generated = useId();
   const id = fixedId ?? generated;
   return (
@@ -27,7 +38,7 @@ export function TextField({ label, hint, error, className, id: fixedId, ...props
       <input
         id={id}
         aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy(id, hint, error)}
+        aria-describedby={[describedBy(id, hint, error), extra].filter(Boolean).join(" ") || undefined}
         className={cn(input, "border-ink/25")}
         {...props}
       />

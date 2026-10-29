@@ -104,3 +104,29 @@ func TestCardFlow_OverHTTP(t *testing.T) {
 	status, _ = e.do(http.MethodGet, "/v1/payments/999", nil, auth(""))
 	assert.Equal(t, http.StatusNotFound, status)
 }
+
+func TestCardTokens_OpenToTheBrowser(t *testing.T) {
+	e := newEnv(t)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/v1/card_tokens?public_key=pub", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "content-type")
+	rec := httptest.NewRecorder()
+	e.router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Equal(t, "*", rec.Header().Get("Access-Control-Allow-Origin"))
+	assert.Contains(t, rec.Header().Get("Access-Control-Allow-Headers"), "Content-Type")
+
+	// a resposta também leva o cabeçalho, senão o navegador não entrega o token à página
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/v1/card_tokens?public_key=pub",
+		bytes.NewReader([]byte(`{"card_number":"4509953566233704","security_code":"123","expiration_month":11,"expiration_year":2099,"cardholder":{"name":"APRO"}}`)))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	e.router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	assert.Equal(t, "*", rec.Header().Get("Access-Control-Allow-Origin"))
+
+	// as rotas do servidor da loja continuam fechadas ao navegador
+	status, _ := e.do(http.MethodOptions, "/v1/payments", nil, nil)
+	assert.NotEqual(t, http.StatusNoContent, status)
+}

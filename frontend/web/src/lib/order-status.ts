@@ -6,6 +6,10 @@ import type { OrdersSchemas } from "@/lib/api/client";
  */
 type Status = OrdersSchemas["schemas"]["OrderStatus"];
 type Reason = OrdersSchemas["schemas"]["CancellationReason"] | null | undefined;
+/** Como o cliente paga (#220): o PIX, depois de gerado, traz o código e a validade. */
+type Payment = Pick<OrdersSchemas["schemas"]["OrderPayment"], "method"> & {
+  pix?: OrdersSchemas["schemas"]["OrderPayment"]["pix"];
+};
 
 /** O pedido como a SAGA o deixa: situação, motivo e o horário de cada etapa que já aconteceu. */
 export type OrderProgress = {
@@ -16,23 +20,33 @@ export type OrderProgress = {
   shipped_at?: string | null;
   delivered_at?: string | null;
   refunded_at?: string | null;
+  payment?: Payment;
   created_at: string;
   updated_at: string;
 };
 
 type StatusInput = Pick<
   OrderProgress,
-  "status" | "cancellation_reason" | "stock_reserved_at" | "sent_to_supplier_at" | "refunded_at"
+  "status" | "cancellation_reason" | "stock_reserved_at" | "sent_to_supplier_at" | "refunded_at" | "payment"
 >;
+
+/** O pedido espera o cliente pagar o PIX: o código já foi gerado. */
+export const awaitingPix = (order: Pick<OrderProgress, "status" | "payment">) =>
+  order.status === "pending" && !!order.payment?.pix;
 
 export type Tone = "neutral" | "success" | "danger";
 
-function cancelledDetail(reason: Reason, refundedAt?: string | null) {
+function cancelledDetail(reason: Reason, refundedAt?: string | null, method?: Payment["method"]) {
   switch (reason) {
     case "out_of_stock":
       return "Um dos produtos esgotou antes da reserva. Nada foi cobrado.";
     case "payment_failed":
-      return "O pagamento foi recusado. Nada foi cobrado.";
+      // no PIX, a única falha é o prazo: o cliente não pagou a tempo
+      return method === "pix"
+        ? "O PIX venceu sem pagamento. Nada foi cobrado."
+        : method === "card"
+          ? "O cartão foi recusado. Nada foi cobrado."
+          : "O pagamento foi recusado. Nada foi cobrado.";
     case "supplier_failed":
       return refundedAt
         ? "O fornecedor não conseguiu atender o pedido. O valor pago foi estornado."
@@ -50,7 +64,9 @@ export function orderStatus(order: StatusInput): { label: string; tone: Tone; de
         tone: "neutral",
         detail: order.sent_to_supplier_at
           ? "O fornecedor está separando os produtos."
-          : "Enviando o pedido ao fornecedor.",
+          : order.payment?.method === "card"
+            ? "Enviando o pedido ao fornecedor. O cartão só é cobrado quando ele aceitar."
+            : "Enviando o pedido ao fornecedor.",
       };
     case "shipped":
       return { label: "Enviado", tone: "neutral", detail: "O pedido saiu para entrega." };
@@ -60,9 +76,16 @@ export function orderStatus(order: StatusInput): { label: string; tone: Tone; de
       return {
         label: "Cancelado",
         tone: "danger",
-        detail: cancelledDetail(order.cancellation_reason, order.refunded_at),
+        detail: cancelledDetail(order.cancellation_reason, order.refunded_at, order.payment?.method),
       };
     default:
+      if (awaitingPix(order)) {
+        return {
+          label: "Aguardando o PIX",
+          tone: "neutral",
+          detail: "O pedido é confirmado assim que o pagamento cair.",
+        };
+      }
       return {
         label: "Processando",
         tone: "neutral",
@@ -117,10 +140,17 @@ export function orderSteps(order: OrderProgress): Step[] {
   const payment: Step = wasPaid
     ? { key: "payment", label: "Pagamento aprovado", state: "done" }
     : paymentFailed
-      ? { key: "payment", label: "Pagamento recusado", state: "failed", at: end }
-      : status === "pending" && reserved
-        ? { key: "payment", label: "Cobrando o pagamento", state: "current" }
-        : { key: "payment", label: "Pagamento", state: status === "cancelled" ? "skipped" : "upcoming" };
+      ? {
+          key: "payment",
+          label: order.payment?.method === "pix" ? "PIX vencido" : "Pagamento recusado",
+          state: "failed",
+          at: end,
+        }
+      : awaitingPix(order)
+        ? { key: "payment", label: "Esperando o PIX", state: "current" }
+        : status === "pending" && reserved
+          ? { key: "payment", label: "Cobrando o pagamento", state: "current" }
+          : { key: "payment", label: "Pagamento", state: status === "cancelled" ? "skipped" : "upcoming" };
 
   // antes de pagar, ainda não há fornecedor: a linha mostra só o que vem a seguir de perto
   if (status === "pending" || (status === "cancelled" && !supplierFailed)) {
@@ -170,6 +200,7 @@ export function orderHeadline(order: OrderProgress): string {
     case "cancelled":
       return "Pedido cancelado";
     default:
+      if (awaitingPix(order)) return "Pague o PIX";
       return order.stock_reserved_at ? "Cobrando o pagamento" : "Reservando o estoque";
   }
 }

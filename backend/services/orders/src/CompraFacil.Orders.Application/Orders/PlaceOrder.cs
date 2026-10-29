@@ -15,9 +15,9 @@ public sealed record PlaceOrderItem(Guid ProductId, int Quantity, long? Expected
 /// <summary>Como pagar (#220): PIX, ou cartão com o token do provedor, a bandeira e as parcelas.</summary>
 public sealed record PlaceOrderPayment(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
 
-/// <summary>O pedido a criar; Payment nulo é PIX.</summary>
+/// <summary>O pedido a criar; Payment é obrigatório (nulo só chega da requisição sem ele, e a validação recusa).</summary>
 public sealed record PlaceOrderCommand(
-    Guid CustomerId, string CustomerEmail, IReadOnlyList<PlaceOrderItem> Items, string IdempotencyKey, PlaceOrderPayment? Payment = null);
+    Guid CustomerId, string CustomerEmail, IReadOnlyList<PlaceOrderItem> Items, string IdempotencyKey, PlaceOrderPayment? Payment);
 
 /// <param name="Order">O pedido (novo ou o já criado com a mesma Idempotency-Key).</param>
 /// <param name="Created">false quando a chave já tinha sido usada com o mesmo corpo.</param>
@@ -41,6 +41,8 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
             item.RuleFor(i => i.Quantity).InclusiveBetween(OrderItem.MinQuantity, OrderItem.MaxQuantity);
             item.RuleFor(i => i.ExpectedUnitPriceCents).GreaterThanOrEqualTo(1).When(i => i.ExpectedUnitPriceCents.HasValue);
         });
+        RuleFor(c => c.Payment).NotNull().WithName("payment").OverridePropertyName("payment")
+            .WithMessage("escolha como pagar: pix ou card");
         RuleFor(c => c.Payment!).ChildRules(p =>
         {
             p.RuleFor(x => x.Method).IsInEnum();
@@ -82,7 +84,7 @@ public sealed class PlaceOrder(
             [.. command.Items.Select(i => new ItemToPrice(i.ProductId, i.Quantity, i.ExpectedUnitPriceCents))], ct);
         EnsureAllSellable(priced);
 
-        var payment = command.Payment ?? new PlaceOrderPayment(PaymentMethod.Pix, 1, null, null);
+        var payment = command.Payment!; // validado acima
         var order = Order.Place(
             Guid.CreateVersion7(), command.CustomerId, command.CustomerEmail.Trim(),
             [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId))],

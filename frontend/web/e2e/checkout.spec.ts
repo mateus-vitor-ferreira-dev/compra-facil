@@ -11,6 +11,15 @@ async function addToCart(page: Page, path: string) {
   await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toBeVisible();
 }
 
+/** Paga com o cartão de teste; o titular decide o resultado no provedor (APRO aprova, FUND recusa). */
+async function payByCard(page: Page, holder = "APRO") {
+  await page.getByRole("radio", { name: /Cartão de crédito/ }).check();
+  await page.getByLabel("Número do cartão").fill("4509 9535 6623 3704");
+  await page.getByLabel("Nome impresso no cartão").fill(holder);
+  await page.getByLabel("Validade").fill("11/30");
+  await page.getByLabel("Código de segurança").fill("123");
+}
+
 async function signIn(page: Page, email: string) {
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
@@ -18,7 +27,7 @@ async function signIn(page: Page, email: string) {
   await expect(page).not.toHaveURL(/\/entrar/);
 }
 
-test("compra do começo ao fim, com a SAGA aparecendo ao vivo", async ({ page }) => {
+test("compra no cartão do começo ao fim, com a SAGA aparecendo ao vivo", async ({ page }) => {
   await addToCart(page, TV);
   await page.goto("/carrinho");
   await page.getByRole("link", { name: "Continuar para o pagamento" }).click();
@@ -30,6 +39,9 @@ test("compra do começo ao fim, com a SAGA aparecendo ao vivo", async ({ page })
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Revise e faça o pedido");
   await expect(page.getByRole("complementary", { name: "Resumo" })).toContainText("R$ 2.639,92");
 
+  await payByCard(page);
+  await expect(page.getByText("Visa", { exact: true })).toBeVisible();
+  await page.getByLabel("Parcelas").selectOption({ label: "3× de R$ 879,97 sem juros" });
   await page.getByRole("button", { name: "Fazer o pedido de R$ 2.639,92" }).click();
   await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
   await expect(page.getByText("Recebemos o seu pedido.")).toBeVisible();
@@ -40,8 +52,9 @@ test("compra do começo ao fim, com a SAGA aparecendo ao vivo", async ({ page })
   await expect(page.getByRole("status")).toContainText("Pagamento aprovado", { timeout: 10_000 });
   await expect(steps).toContainText("Estoque reservado");
   await expect(steps).toContainText("Pagamento aprovado");
-  // pago, o pedido segue para o fornecedor
+  // pago, o pedido segue para o fornecedor; o cartão só é cobrado quando ele aceitar
   await expect(steps.locator("[aria-current=step]")).toContainText("Enviando ao fornecedor");
+  await expect(page.getByRole("status")).toContainText("O cartão só é cobrado quando ele aceitar");
 
   // o carrinho foi esvaziado
   await page.goto("/carrinho");
@@ -120,4 +133,81 @@ test("preço que mudou no meio da compra volta ao carrinho com o aviso", async (
       data: { product_id: HEADPHONE, amount_cents: original.effective_price.amount_cents },
     });
   }
+});
+
+test("PIX: o código aparece no pedido e, pago, o pedido segue", async ({ page, request }) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "ana@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await expect(page.getByRole("radio", { name: /PIX/ })).toBeChecked();
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
+
+  const panel = page.getByRole("region", { name: "Valor do PIX" });
+  await expect(panel).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Pague o PIX")).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "Andamento do pedido" }).locator("[aria-current=step]"),
+  ).toContainText("Esperando o PIX");
+  await expect(panel.getByRole("textbox", { name: "Código PIX copia e cola" })).toHaveValue(/^000201/);
+  await expect(panel.getByRole("img", { name: /QR code do PIX de R\$ 2\.639,92/ })).toBeVisible();
+
+  // o banco confirma o pagamento: o painel sai e o pedido segue, sem recarregar
+  const id = new URL(page.url()).pathname.split("/").pop();
+  await request.post(`${STUB}/__pix/${id}/pay`);
+  await expect(page.getByRole("status").first()).toContainText("Pagamento aprovado", { timeout: 10_000 });
+  await expect(panel).toBeHidden();
+});
+
+test("PIX vencido: o painel avisa e o pedido é cancelado sem cobrar", async ({ page }) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "pix-curto@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+
+  await expect(page.getByRole("region", { name: "Valor do PIX" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Pedido cancelado")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("O PIX venceu sem pagamento. Nada foi cobrado.")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Andamento do pedido" })).toContainText("PIX vencido");
+});
+
+test("cartão: os erros ficam no campo, e o recusado pelo banco cancela o pedido", async ({ page }) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "ana@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+
+  await page.getByRole("radio", { name: /Cartão de crédito/ }).check();
+  await page.getByLabel("Número do cartão").fill("4509 9535 6623 3705");
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+  const number = page.getByLabel("Número do cartão");
+  await expect(number).toBeFocused();
+  await expect(number).toHaveAccessibleDescription(/algum dígito está errado/);
+  await expect(page.getByLabel("Validade")).toHaveAccessibleDescription(/MM\/AA/);
+  await expect(page).toHaveURL(/\/checkout$/);
+
+  await payByCard(page, "FUND");
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
+  await expect(page.getByText("O cartão foi recusado. Nada foi cobrado.")).toBeVisible({ timeout: 10_000 });
+});
+
+test("o número do cartão não vai para a loja: só o token do provedor", async ({ page }) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "ana@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await payByCard(page);
+
+  const sent: string[] = [];
+  page.on("request", (r) => {
+    if (new URL(r.url()).origin === "http://localhost:3000" && r.method() === "POST")
+      sent.push(r.postData() ?? "");
+  });
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\//);
+  expect(sent.join("\n")).not.toContain("4509");
+  expect(sent.join("\n")).not.toMatch(/"123"|security_code/);
 });

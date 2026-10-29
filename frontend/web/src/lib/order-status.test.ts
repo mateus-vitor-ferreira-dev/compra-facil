@@ -1,4 +1,5 @@
 import {
+  awaitingPix,
   isFinal,
   orderHeadline,
   orderNumber,
@@ -122,6 +123,48 @@ describe("orderSteps", () => {
 
   it("pedido de antes da etapa existir (sem stock_reserved_at) ainda fecha certo", () => {
     expect(states({ ...paid, stock_reserved_at: undefined }).slice(0, 3)).toEqual(["done", "done", "done"]);
+  });
+});
+
+describe("PIX e cartão (#220)", () => {
+  const pix = {
+    qr_code: "00020101021226",
+    qr_code_base64: "iVBORw0KGgo=",
+    ticket_url: null,
+    expires_at: "2026-10-27T15:30:00Z",
+  };
+  const reserved = { ...base, stock_reserved_at: "2026-10-27T15:00:01Z" };
+
+  it("PIX gerado: a cobrança espera o cliente pagar", () => {
+    const o = { ...reserved, payment: { method: "pix" as const, pix } };
+    expect(awaitingPix(o)).toBe(true);
+    expect(orderHeadline(o)).toBe("Pague o PIX");
+    expect(orderSteps(o)[2]).toMatchObject({ label: "Esperando o PIX", state: "current" });
+    expect(orderStatus(o)).toMatchObject({ label: "Aguardando o PIX" });
+    // antes de o payments gerar o código, ainda é a cobrança
+    expect(awaitingPix({ ...reserved, payment: { method: "pix", pix: null } })).toBe(false);
+  });
+
+  it("PIX vencido e cartão recusado dizem o que houve", () => {
+    const failed = {
+      ...reserved,
+      status: "cancelled" as const,
+      cancellation_reason: "payment_failed" as const,
+    };
+    const expired = { ...failed, payment: { method: "pix" as const, pix } };
+    expect(orderSteps(expired)[2]).toMatchObject({ label: "PIX vencido", state: "failed" });
+    expect(orderStatus(expired).detail).toBe("O PIX venceu sem pagamento. Nada foi cobrado.");
+    expect(awaitingPix(expired)).toBe(false);
+
+    const declined = { ...failed, payment: { method: "card" as const } };
+    expect(orderSteps(declined)[2]?.label).toBe("Pagamento recusado");
+    expect(orderStatus(declined).detail).toBe("O cartão foi recusado. Nada foi cobrado.");
+  });
+
+  it("cartão aprovado: a cobrança só vem quando o fornecedor aceita", () => {
+    expect(orderStatus({ ...paid, payment: { method: "card" } }).detail).toContain(
+      "só é cobrado quando ele aceitar",
+    );
   });
 });
 

@@ -38,7 +38,9 @@ func NewRouter(provider *payment.Provider, creds Credentials, log *slog.Logger) 
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 
 	v1 := r.Group("/v1")
-	v1.POST("/card_tokens", a.requirePublicKey, a.tokenize)
+	// o navegador da loja tokeniza o cartão direto aqui (outra origem): a chave pública é a autorização
+	v1.OPTIONS("/card_tokens", browserCORS)
+	v1.POST("/card_tokens", browserCORS, a.requirePublicKey, a.tokenize)
 	pays := v1.Group("/payments", a.requireAccessToken)
 	pays.POST("", a.create)
 	pays.GET("/:id", a.get)
@@ -79,6 +81,19 @@ func (a *API) requireAccessToken(c *gin.Context) {
 	token, ok := strings.CutPrefix(c.GetHeader("Authorization"), "Bearer ")
 	if !ok || !same(token, a.creds.AccessToken) {
 		apiError(c, http.StatusUnauthorized, "unauthorized", "invalid access token")
+	}
+}
+
+// browserCORS libera o /v1/card_tokens para qualquer origem, como no Mercado Pago: a rota só aceita a
+// chave pública e devolve um token de uso único, então não há credencial do navegador a proteger.
+func browserCORS(c *gin.Context) {
+	h := c.Writer.Header()
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	h.Set("Access-Control-Allow-Headers", "Content-Type")
+	h.Set("Access-Control-Max-Age", "600")
+	if c.Request.Method == http.MethodOptions {
+		c.AbortWithStatus(http.StatusNoContent)
 	}
 }
 
