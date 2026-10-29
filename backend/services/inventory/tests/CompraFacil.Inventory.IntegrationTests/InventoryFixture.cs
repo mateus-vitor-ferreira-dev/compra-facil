@@ -4,8 +4,10 @@ using CompraFacil.Inventory.Application.Stock;
 using CompraFacil.Inventory.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CompraFacil.Inventory.IntegrationTests;
 
@@ -19,6 +21,9 @@ public sealed class InventoryFixture : IAsyncLifetime
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
+    /// <summary>A conferência ao vivo no fornecedor (#218): responde o que o teste mandar; nulo = fora do ar.</summary>
+    public FakeStockCheck StockCheck { get; } = new();
+
     public async ValueTask InitializeAsync()
     {
         await _postgres.InitializeAsync();
@@ -26,7 +31,12 @@ public sealed class InventoryFixture : IAsyncLifetime
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Kafka:Enabled", "false")
             .UseSetting("Inventory:InitialOnHandForNewProducts", "7")
-            .UseSetting("Auth:Jwks", Identity.Jwks));
+            .UseSetting("Auth:Jwks", Identity.Jwks)
+            .ConfigureTestServices(s =>
+            {
+                s.RemoveAll<ISupplierStockCheck>();
+                s.AddSingleton<ISupplierStockCheck>(StockCheck);
+            }));
         using var _ = Factory.CreateClient();
     }
 
@@ -53,7 +63,7 @@ public sealed class InventoryFixture : IAsyncLifetime
     public async Task<Guid> ProductWithStockAsync(int onHand)
     {
         var id = Guid.NewGuid();
-        await HandleAsync<ProductCreatedData, ProductCreated>(new ProductCreatedData(id)); // nasce com 7
+        await HandleAsync<ProductCreatedData, ProductCreated>(new ProductCreatedData(id, null)); // nasce com 7
         if (onHand != 7)
         {
             await using var scope = Factory.Services.CreateAsyncScope();
@@ -76,4 +86,19 @@ public sealed class InventoryFixture : IAsyncLifetime
 
     /// <summary>Token de operador do identity (de teste); outros papéis para testar o 403.</summary>
     public string AdminToken(string[]? roles = null) => Identity.Token(roles ?? ["admin"]);
+}
+
+/// <summary>O fornecedor da conferência ao vivo: o estoque por vid que ele tem agora (nulo: não respondeu).</summary>
+public sealed class FakeStockCheck : ISupplierStockCheck
+{
+    public Dictionary<string, int>? Stock { get; set; } = [];
+    public int Calls { get; private set; }
+
+    public Task<IReadOnlyList<LiveSupplierStock>?> CheckAsync(IReadOnlyList<(string Vid, int Quantity)> items, CancellationToken ct)
+    {
+        Calls++;
+        return Task.FromResult<IReadOnlyList<LiveSupplierStock>?>(Stock is { } stock
+            ? [.. items.Where(i => stock.ContainsKey(i.Vid)).Select(i => new LiveSupplierStock(i.Vid, stock[i.Vid], DateTimeOffset.UtcNow))]
+            : null);
+    }
 }

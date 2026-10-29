@@ -23,6 +23,16 @@ public sealed class StockItem
     /// <summary>Removido do catálogo: não aceita reserva nova (as existentes seguem).</summary>
     public bool Discontinued { get; private set; }
 
+    /// <summary>
+    /// Produto de dropshipping (#218): o saldo espelha o do fornecedor (Available = o que ele tem agora,
+    /// menos o reservado aqui). Nulo no estoque próprio da loja.
+    /// </summary>
+    public string? Supplier { get; private set; }
+
+    public string? SupplierVid { get; private set; }
+
+    public bool IsMirrored => SupplierVid is not null;
+
     public DateTimeOffset UpdatedAt { get; private set; }
     public uint Version { get; private set; }
 
@@ -35,6 +45,36 @@ public sealed class StockItem
             throw new DomainException("estoque inicial negativo");
         }
         return new StockItem { ProductId = productId, OnHand = onHand, UpdatedAt = now };
+    }
+
+    /// <summary>Liga o saldo à variante do fornecedor; o espelho vale a partir da primeira leitura.</summary>
+    public void LinkToSupplier(string supplier, string vid, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(supplier);
+        ArgumentException.ThrowIfNullOrWhiteSpace(vid);
+        Supplier = supplier;
+        SupplierVid = vid;
+        UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// O fornecedor tem <paramref name="supplierAvailable"/> unidades: o disponível daqui passa a ser isso
+    /// (as reservas daqui ainda não chegaram a ele). False se nada mudou.
+    /// </summary>
+    public bool Mirror(int supplierAvailable, DateTimeOffset now)
+    {
+        if (!IsMirrored)
+        {
+            throw new DomainException($"produto {ProductId}: o estoque é próprio, não espelha fornecedor");
+        }
+        var onHand = Math.Max(supplierAvailable, 0) + Reserved;
+        if (onHand == OnHand)
+        {
+            return false;
+        }
+        OnHand = onHand;
+        UpdatedAt = now;
+        return true;
     }
 
     public bool CanReserve(int quantity) => !Discontinued && quantity > 0 && Available >= quantity;
@@ -75,6 +115,10 @@ public sealed class StockItem
     /// <summary>Ajuste do estoque físico (entrada, inventário, avaria). Não pode ficar abaixo do reservado.</summary>
     public void Adjust(int delta, DateTimeOffset now)
     {
+        if (IsMirrored)
+        {
+            throw new DomainException($"produto {ProductId}: o estoque é o do fornecedor e muda por ele, não por ajuste");
+        }
         if (delta == 0)
         {
             throw new DomainException("ajuste sem efeito (delta 0)");
