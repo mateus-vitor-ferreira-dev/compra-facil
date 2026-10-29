@@ -444,6 +444,24 @@ services:
       timeout: 3s
       retries: 3
 
+  # o provedor de pagamento simulado, no contrato do Mercado Pago (backend/services/payment-sim); não vai à produção
+  payment-sim:
+    build:
+      context: ../../backend/services/payment-sim
+    image: compra-facil/payment-sim:${VERSION:-dev}
+    environment:
+      SIM_WEBHOOK_URL: http://payments:8004/v1/webhooks/payments
+      SIM_WEBHOOK_SECRET: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
+      # o navegador abre a página do PIX (o ticket_url) por aqui
+      SIM_PUBLIC_URL: http://localhost:${PAYMENT_SIM_PORT:-8092}
+    ports:
+      - "127.0.0.1:${PAYMENT_SIM_PORT:-8092}:8090"
+    healthcheck:
+      test: ["CMD", "/app/sim", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   notifications:
     <<: *dotnet-service
     build:
