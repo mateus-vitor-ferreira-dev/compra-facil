@@ -26,6 +26,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/internal/supplier-stock/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confere no fornecedor, agora, a disponibilidade das variantes de um pedido
+         * @description Usada pelo inventory antes de reservar e cobrar um pedido com produtos de fornecedor (#218). A
+         *     leitura também atualiza o espelho (`SupplierStockChanged`). **Interna**: o gateway não a expõe, só
+         *     a rede dos serviços chega nela.
+         */
+        post: operations["checkSupplierStock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/overdue": {
         parameters: {
             query?: never;
@@ -172,23 +194,31 @@ export interface components {
             /** Format: date-time */
             shipped_at?: string | null;
         };
-        /** @description Formato do CJ Dropshipping (mensagens de pedido com `messageType` UPDATE). */
+        /**
+         * @description Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido) ou `STOCK` (a
+         *     disponibilidade de uma variante, #218).
+         */
         SupplierWebhook: {
             messageId: string;
-            /** @description `ORDER`; outros tipos são ignorados. */
+            /** @description `ORDER` ou `STOCK`; outros tipos são ignorados. */
             type: string;
             /** @description `UPDATE`. */
             messageType: string;
+            /** @description `ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios. */
             params: {
+                /** @description `STOCK`: a variante. */
+                vid?: string;
+                /** @description `STOCK`: unidades disponíveis agora. */
+                storageNum?: number;
                 /** @description Id do pedido no fornecedor. */
                 orderId?: string | null;
                 /**
                  * Format: uuid
                  * @description Número do pedido na loja (order_id).
                  */
-                orderNumber: string;
+                orderNumber?: string;
                 /** @description `CREATED`, `UNSHIPPED`, `SHIPPED`, `DELIVERED` ou `CANCELLED`. */
-                orderStatus: string;
+                orderStatus?: string;
                 subStatus?: string | null;
                 trackNumber?: string | null;
                 trackingProvider?: string | null;
@@ -234,17 +264,6 @@ export interface components {
             /** @description Mesmo valor do header `X-Trace-Id`; abre o trace da requisição no Grafana (Tempo). */
             trace_id?: string;
         };
-        Tracking: {
-            /** @description Código de rastreio. */
-            number: string;
-            /** @description Transportadora. */
-            provider?: string | null;
-            /**
-             * Format: uri
-             * @description Onde acompanhar a entrega.
-             */
-            url?: string | null;
-        };
         /** @description Problema de validação (HTTP 422), com um item por campo inválido. */
         ValidationProblem: components["schemas"]["Problem"] & {
             errors: {
@@ -256,6 +275,17 @@ export interface components {
                 /** @example deve ser maior que 0 */
                 message: string;
             }[];
+        };
+        Tracking: {
+            /** @description Código de rastreio. */
+            number: string;
+            /** @description Transportadora. */
+            provider?: string | null;
+            /**
+             * Format: uri
+             * @description Onde acompanhar a entrega.
+             */
+            url?: string | null;
         };
         DeadLetter: {
             /**
@@ -315,15 +345,6 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Token válido, mas sem a permissão necessária. */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
         /** @description Corpo bem formado, mas com campos inválidos. */
         UnprocessableEntity: {
             headers: {
@@ -331,6 +352,15 @@ export interface components {
             };
             content: {
                 "application/problem+json": components["schemas"]["ValidationProblem"];
+            };
+        };
+        /** @description Token válido, mas sem a permissão necessária. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
         /** @description Kafka fora do ar; tente de novo. */
@@ -380,6 +410,53 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    checkSupplierStock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    items: {
+                        vid: string;
+                        quantity: number;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description A disponibilidade de cada variante. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            vid: string;
+                            available: number;
+                            /** @description Falso se a variante não está no feed do fornecedor. */
+                            known: boolean;
+                        }[];
+                    };
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+            /** @description O fornecedor não respondeu; o inventory decide pelo espelho. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listOverdueSupplierOrders: {

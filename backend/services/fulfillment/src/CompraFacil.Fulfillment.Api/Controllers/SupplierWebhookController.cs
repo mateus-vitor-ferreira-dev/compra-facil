@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Web;
+using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Infrastructure.Supplier;
 using FluentValidation;
@@ -18,7 +19,7 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 [ApiController]
 [Route("v1/webhooks/supplier")]
 [Produces("application/json")]
-public sealed class SupplierWebhookController(SupplierUpdates updates, IOptions<SupplierOptions> options) : ControllerBase
+public sealed class SupplierWebhookController(SupplierUpdates updates, SupplierStock stock, IOptions<SupplierOptions> options) : ControllerBase
 {
     private const int MaxBody = 64 * 1024;
 
@@ -46,13 +47,27 @@ public sealed class SupplierWebhookController(SupplierUpdates updates, IOptions<
         {
             throw Invalid("JSON fora do formato do webhook");
         }
-        if (webhook?.Params is not { } p || string.IsNullOrWhiteSpace(webhook.MessageId) || !Guid.TryParse(p.OrderNumber, out var orderId))
+        if (webhook?.Params is not { } p || string.IsNullOrWhiteSpace(webhook.MessageId))
         {
-            throw Invalid("faltam messageId ou params.orderNumber (uuid)");
+            throw Invalid("faltam messageId ou params");
+        }
+        if (string.Equals(webhook.Type, "STOCK", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(p.Vid) || p.StorageNum is not { } available)
+            {
+                throw Invalid("faltam params.vid ou params.storageNum");
+            }
+            var at = DateTimeOffset.TryParse(p.UpdateDate, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal, out var parsed) ? parsed : (DateTimeOffset?)null;
+            return new SupplierWebhookAck(await stock.ApplyWebhookAsync(webhook.MessageId, p.Vid, available, at, ct) ? "applied" : "duplicate");
+        }
+        if (!Guid.TryParse(p.OrderNumber, out var orderId))
+        {
+            throw Invalid("falta params.orderNumber (uuid)");
         }
         if (!string.Equals(webhook.Type, "ORDER", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(p.OrderStatus))
         {
-            return new SupplierWebhookAck("ignored"); // outros tipos (produto, estoque) ainda não interessam
+            return new SupplierWebhookAck("ignored"); // outros tipos (produto) ainda não interessam
         }
 
         var result = await updates.ApplyAsync(new SupplierUpdate(
@@ -94,9 +109,10 @@ public sealed class SupplierWebhookController(SupplierUpdates updates, IOptions<
 
     private sealed record SupplierWebhook(string? MessageId, string? Type, string? MessageType, WebhookParams? Params);
 
+    // ORDER: os campos do pedido; STOCK: vid, storageNum e updateDate
     private sealed record WebhookParams(
         string? OrderId, string? OrderNumber, string? OrderStatus, string? SubStatus, string? TrackNumber,
-        string? TrackingProvider, string? TrackingUrl, string? Reason);
+        string? TrackingProvider, string? TrackingUrl, string? Reason, string? Vid, int? StorageNum, string? UpdateDate);
 }
 
 public sealed record SupplierWebhookAck(string Result);

@@ -50,7 +50,8 @@ mudam o feed, para demonstrar e testar a importação do catálogo:
 |---|---|
 | `PUT /sim/products/{vid}/cost` | `{"sellPrice":"15.90"}`: o fornecedor reajustou o custo (feed e pedidos novos). |
 | `DELETE /sim/products/{vid}` | O produto sai do feed (o fornecedor deixou de vender). |
-| `POST /sim/catalog/reset` | Volta aos 30 produtos com os custos de fábrica. |
+| `PUT /sim/products/{vid}/stock` | `{"stock":0}`: a disponibilidade do vid muda e sai o webhook `STOCK` (`params: vid, storageNum, updateDate`). |
+| `POST /sim/catalog/reset` | Volta aos 30 produtos com os custos e o estoque de fábrica. |
 As rotas do prefixo, exceto `getAccessToken`, exigem o header `CJ-Access-Token`.
 
 | Código | Mensagem | Quando |

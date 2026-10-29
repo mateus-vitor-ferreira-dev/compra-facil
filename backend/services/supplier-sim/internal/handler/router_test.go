@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,7 +22,20 @@ type env struct {
 	t      *testing.T
 	router http.Handler
 	orders *order.Simulator
+	stock  *fakeStockNotifier
 	token  string
+}
+
+// fakeStockNotifier guarda os avisos de estoque (o webhook tem teste próprio).
+type fakeStockNotifier struct {
+	mu   sync.Mutex
+	sent map[string]int
+}
+
+func (f *fakeStockNotifier) EnqueueStock(vid string, n int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sent[vid] = n
 }
 
 // newEnv sobe a API com atrasos de milissegundos e sem webhook (o webhook tem teste próprio).
@@ -34,8 +48,9 @@ func newEnv(t *testing.T, delays order.Delays, outOfStock ...string) *env {
 	stock := catalog.NewStock(oos)
 	orders := order.NewSimulator(stock, delays, nil)
 	t.Cleanup(orders.Close)
-	e := &env{t: t, orders: orders,
-		router: NewRouter(NewTokens("sim@comprafacil.local", "sim", time.Hour), stock, orders, slog.New(slog.DiscardHandler))}
+	notifier := &fakeStockNotifier{sent: map[string]int{}}
+	e := &env{t: t, orders: orders, stock: notifier,
+		router: NewRouter(NewTokens("sim@comprafacil.local", "sim", time.Hour), stock, orders, notifier, slog.New(slog.DiscardHandler))}
 	rec, body := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@comprafacil.local", "password": "sim"}, false)
 	require.Equal(t, http.StatusOK, rec.Code)
 	var data tokenResponse
@@ -175,6 +190,34 @@ func TestSimChangesTheFeed(t *testing.T) {
 	_, env = e.do(http.MethodGet, "/api2.0/v1/product/list?pageNum=1&pageSize=1", nil, true)
 	decodeData(t, env, &p)
 	assert.Equal(t, 30, p.Total)
+}
+
+func TestSimChangesTheStock_AndNotifies(t *testing.T) {
+	e := newEnv(t, slow)
+
+	_, env := e.do(http.MethodPut, "/sim/products/SIM-V-003/stock", map[string]int{"stock": 0}, false)
+	assert.Equal(t, CodeSuccess, env.Code)
+	assert.Equal(t, map[string]int{"SIM-V-003": 0}, e.stock.sent)
+
+	_, env = e.do(http.MethodGet, "/api2.0/v1/product/stock/queryByVid?vid=SIM-V-003", nil, true)
+	var stock []stockEntry
+	decodeData(t, env, &stock)
+	assert.Zero(t, stock[0].StorageNum)
+
+	// pedido do vid esgotado é recusado pelo fornecedor
+	_, env = e.do(http.MethodPost, "/api2.0/v1/shopping/order/createOrderV2", map[string]any{
+		"orderNumber": "pedido-esgotado", "shippingCountryCode": "BR", "products": []map[string]any{{"vid": "SIM-V-003", "quantity": 1}},
+	}, true)
+	assert.Equal(t, CodeOutOfStock, env.Code)
+
+	_, env = e.do(http.MethodPut, "/sim/products/SIM-V-003/stock", map[string]int{"stock": -1}, false)
+	assert.Equal(t, CodeInvalidParams, env.Code)
+
+	_, env = e.do(http.MethodPost, "/sim/catalog/reset", nil, false)
+	assert.Equal(t, CodeSuccess, env.Code)
+	_, env = e.do(http.MethodGet, "/api2.0/v1/product/stock/queryByVid?vid=SIM-V-003", nil, true)
+	decodeData(t, env, &stock)
+	assert.Positive(t, stock[0].StorageNum)
 }
 
 func TestCreateIdempotent(t *testing.T) {

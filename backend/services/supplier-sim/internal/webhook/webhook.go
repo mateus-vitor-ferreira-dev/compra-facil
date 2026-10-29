@@ -27,7 +27,23 @@ type Message struct {
 	MessageID   string `json:"messageId"`
 	Type        string `json:"type"`
 	MessageType string `json:"messageType"`
+	// Params (pedido) ou StockParams (estoque)
+	Params any `json:"params"`
+}
+
+// OrderMessage é a Message de pedido como quem recebe a lê (type ORDER, com Params tipado).
+type OrderMessage struct {
+	MessageID   string `json:"messageId"`
+	Type        string `json:"type"`
+	MessageType string `json:"messageType"`
 	Params      Params `json:"params"`
+}
+
+// StockParams é a mudança de estoque de uma variante (type STOCK): a loja espelha a disponibilidade.
+type StockParams struct {
+	VID        string `json:"vid"`
+	StorageNum int    `json:"storageNum"`
+	UpdateDate string `json:"updateDate"`
 }
 
 type Params struct {
@@ -89,20 +105,29 @@ func NewDispatcher(opts Options, log *slog.Logger) *Dispatcher {
 
 // Enqueue agenda a mensagem na fila do pedido e volta na hora. Sem URL configurada, descarta.
 func (d *Dispatcher) Enqueue(p Params) {
+	d.enqueue(p.OrderID, Message{MessageID: uuid.NewString(), Type: "ORDER", MessageType: "UPDATE", Params: p})
+}
+
+// EnqueueStock avisa a nova disponibilidade de uma variante (fila própria por vid).
+func (d *Dispatcher) EnqueueStock(vid string, available int) {
+	d.enqueue("stock:"+vid, Message{MessageID: uuid.NewString(), Type: "STOCK", MessageType: "UPDATE",
+		Params: StockParams{VID: vid, StorageNum: available, UpdateDate: time.Now().UTC().Format(time.RFC3339)}})
+}
+
+func (d *Dispatcher) enqueue(key string, msg Message) {
 	if d.opts.URL == "" {
 		return
 	}
-	msg := Message{MessageID: uuid.NewString(), Type: "ORDER", MessageType: "UPDATE", Params: p}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.ctx.Err() != nil {
 		return
 	}
-	d.queues[p.OrderID] = append(d.queues[p.OrderID], msg)
-	if !d.running[p.OrderID] {
-		d.running[p.OrderID] = true
+	d.queues[key] = append(d.queues[key], msg)
+	if !d.running[key] {
+		d.running[key] = true
 		d.wg.Add(1)
-		go d.drain(p.OrderID)
+		go d.drain(key)
 	}
 }
 
@@ -117,19 +142,19 @@ func (d *Dispatcher) Close() {
 	d.wg.Wait()
 }
 
-func (d *Dispatcher) drain(orderID string) {
+func (d *Dispatcher) drain(key string) {
 	defer d.wg.Done()
 	for {
 		d.mu.Lock()
-		q := d.queues[orderID]
+		q := d.queues[key]
 		if len(q) == 0 {
-			delete(d.queues, orderID)
-			delete(d.running, orderID)
+			delete(d.queues, key)
+			delete(d.running, key)
 			d.mu.Unlock()
 			return
 		}
 		msg := q[0]
-		d.queues[orderID] = q[1:]
+		d.queues[key] = q[1:]
 		d.mu.Unlock()
 
 		d.deliver(msg)
@@ -147,7 +172,10 @@ func (d *Dispatcher) deliver(msg Message) {
 		return
 	}
 	sig := "sha256=" + Sign(body, d.opts.Secret)
-	log := d.log.With("message_id", msg.MessageID, "order_id", msg.Params.OrderID, "status", msg.Params.OrderStatus)
+	log := d.log.With("message_id", msg.MessageID, "type", msg.Type)
+	if p, ok := msg.Params.(Params); ok {
+		log = log.With("order_id", p.OrderID, "status", p.OrderStatus)
+	}
 
 	wait := d.opts.RetryBase
 	for attempt := 1; attempt <= d.opts.Attempts; attempt++ {

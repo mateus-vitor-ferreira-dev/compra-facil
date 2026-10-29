@@ -56,6 +56,8 @@ channels:
         $ref: "#/components/messages/SupplierProductUpdated"
       SupplierProductRemoved:
         $ref: "#/components/messages/SupplierProductRemoved"
+      SupplierStockChanged:
+        $ref: "#/components/messages/SupplierStockChanged"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -88,6 +90,7 @@ operations:
     messages:
       - $ref: "#/channels/supplierProductEvents/messages/SupplierProductUpdated"
       - $ref: "#/channels/supplierProductEvents/messages/SupplierProductRemoved"
+      - $ref: "#/channels/supplierProductEvents/messages/SupplierStockChanged"
 
   onOrderConfirmed:
     action: receive
@@ -365,3 +368,43 @@ components:
                   removed_at:
                     type: string
                     format: date-time
+
+    SupplierStockChanged:
+      name: SupplierStockChanged
+      title: Disponibilidade do fornecedor mudou
+      summary: |
+        Quantas unidades de uma variante o fornecedor tem agora (#218), lidas no ciclo do feed, no webhook
+        de estoque dele ou na conferência de um pedido. O inventory espelha: item que acabou no fornecedor
+        deixa de ser vendido. Só sai quando o número muda.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/SupplierProductKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierStockChanged
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [supplier, vid, available, checked_at]
+                properties:
+                  supplier:
+                    type: string
+                  vid:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  available:
+                    type: integer
+                    minimum: 0
+                  checked_at:
+                    type: string
+                    format: date-time
+                    description: Quando foi lida; uma leitura mais velha que a já espelhada não vale.

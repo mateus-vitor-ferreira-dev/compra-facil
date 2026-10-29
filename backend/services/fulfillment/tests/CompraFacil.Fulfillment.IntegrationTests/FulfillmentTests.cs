@@ -33,6 +33,14 @@ public sealed class FakeSupplier : ISupplierGateway
         return Task.FromResult(Respond(request));
     }
 
+    /// <summary>O estoque por vid que o fornecedor responde (vid ausente: 0); nulo = fora do ar.</summary>
+    public Dictionary<string, int>? Stock { get; set; } = [];
+
+    public Task<IReadOnlyDictionary<string, int>> GetStockAsync(IReadOnlyCollection<string> vids, CancellationToken ct) =>
+        Stock is { } stock
+            ? Task.FromResult<IReadOnlyDictionary<string, int>>(vids.ToDictionary(v => v, v => stock.GetValueOrDefault(v)))
+            : throw new SupplierUnavailableException("estoque fora do ar");
+
     public Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct) =>
         Feed is { } feed
             ? Task.FromResult<IReadOnlyList<SupplierFeedItem>>([.. feed])

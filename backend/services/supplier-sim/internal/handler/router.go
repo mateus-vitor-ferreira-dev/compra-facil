@@ -17,16 +17,22 @@ import (
 
 const maxPageSize = 200
 
+// StockNotifier avisa a loja da mudança de estoque (o webhook.Dispatcher; nil não avisa).
+type StockNotifier interface {
+	EnqueueStock(vid string, available int)
+}
+
 type API struct {
 	tokens *Tokens
 	stock  *catalog.Stock
 	orders *order.Simulator
+	notify StockNotifier
 	log    *slog.Logger
 }
 
-func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, log *slog.Logger) *gin.Engine {
+func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, notify StockNotifier, log *slog.Logger) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
-	a := &API{tokens: tokens, stock: stock, orders: orders, log: log}
+	a := &API{tokens: tokens, stock: stock, orders: orders, notify: notify, log: log}
 
 	r := gin.New()
 	r.Use(gin.Recovery(), a.accessLog)
@@ -36,7 +42,8 @@ func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, lo
 	// demonstração e testes, sem token: o fornecedor reajusta um custo ou deixa de vender um produto
 	r.PUT("/sim/products/:vid/cost", a.setCost)
 	r.DELETE("/sim/products/:vid", a.removeProduct)
-	r.POST("/sim/catalog/reset", func(c *gin.Context) { catalog.Reset(); ok(c, nil) })
+	r.PUT("/sim/products/:vid/stock", a.setStock)
+	r.POST("/sim/catalog/reset", func(c *gin.Context) { catalog.Reset(); stock.ResetStock(); ok(c, nil) })
 
 	v1 := r.Group("/api2.0/v1")
 	v1.POST("/authentication/getAccessToken", tokens.getAccessToken)
@@ -89,6 +96,26 @@ func (a *API) setCost(c *gin.Context) {
 	}
 	a.log.Info("custo reajustado", "vid", c.Param("vid"), "sell_price", catalog.FormatUSD(cents))
 	ok(c, gin.H{"vid": c.Param("vid"), "sellPrice": catalog.FormatUSD(cents)})
+}
+
+type stockRequest struct {
+	Stock *int `json:"stock" binding:"required"`
+}
+
+// setStock fixa a disponibilidade de um vid e avisa a loja pelo webhook STOCK.
+func (a *API) setStock(c *gin.Context) {
+	var req stockRequest
+	if c.ShouldBindJSON(&req) != nil || *req.Stock < 0 {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	vid := c.Param("vid")
+	a.stock.SetStock(vid, *req.Stock)
+	if a.notify != nil {
+		a.notify.EnqueueStock(vid, *req.Stock)
+	}
+	a.log.Info("estoque mudou no fornecedor", "vid", vid, "stock", *req.Stock)
+	ok(c, gin.H{"vid": vid, "storageNum": *req.Stock})
 }
 
 func (a *API) removeProduct(c *gin.Context) {

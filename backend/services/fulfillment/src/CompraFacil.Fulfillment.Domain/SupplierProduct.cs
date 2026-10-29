@@ -36,6 +36,12 @@ public sealed class SupplierProduct
     public string? ImageUrl { get; private set; }
     public int? WeightGrams { get; private set; }
 
+    /// <summary>Unidades disponíveis no fornecedor (nulo: ainda não consultado).</summary>
+    public int? Available { get; private set; }
+
+    /// <summary>Quando a disponibilidade foi lida (no feed, no webhook ou na conferência do pedido).</summary>
+    public DateTimeOffset? StockCheckedAt { get; private set; }
+
     /// <summary>Está no feed agora (falso: saiu, em <see cref="RemovedAt"/>).</summary>
     public bool InFeed { get; private set; }
     public DateTimeOffset FirstSeenAt { get; private set; }
@@ -74,6 +80,22 @@ public sealed class SupplierProduct
         RemovedAt = null;
         UpdatedAt = now;
         return SupplierProductChange.Updated;
+    }
+
+    /// <summary>
+    /// A disponibilidade lida em <paramref name="checkedAt"/>. True se mudou (vira evento); uma leitura
+    /// mais velha que a guardada (webhook atrasado) não desfaz a mais nova.
+    /// </summary>
+    public bool UpdateStock(int available, DateTimeOffset checkedAt)
+    {
+        if (StockCheckedAt is { } last && checkedAt < last)
+        {
+            return false;
+        }
+        StockCheckedAt = checkedAt;
+        var changed = Available != Math.Max(available, 0);
+        Available = Math.Max(available, 0);
+        return changed;
     }
 
     /// <summary>Não veio no feed.</summary>

@@ -79,6 +79,28 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         throw new SupplierUnavailableException($"o feed do fornecedor passou de {MaxFeedPages} páginas");
     }
 
+    // consultas de estoque simultâneas (uma por variante, como a API do CJ pede)
+    private const int StockParallelism = 4;
+
+    public async Task<IReadOnlyDictionary<string, int>> GetStockAsync(IReadOnlyCollection<string> vids, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(vids);
+        var stock = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+        await Parallel.ForEachAsync(vids.Distinct(), new ParallelOptions { MaxDegreeOfParallelism = StockParallelism, CancellationToken = ct },
+            async (vid, token) =>
+            {
+                var path = $"product/stock/queryByVid?vid={Uri.EscapeDataString(vid)}";
+                var envelope = await SendAsync<IReadOnlyList<StockEntry>>(() => new HttpRequestMessage(HttpMethod.Get, path), retryOnInvalidToken: true, token);
+                if (!envelope.Result || envelope.Data is not { } areas)
+                {
+                    throw new SupplierUnavailableException($"o fornecedor não deu o estoque de {vid}: {envelope.Code} {envelope.Message}");
+                }
+                // um vid pode estar em vários armazéns: vale a soma
+                stock[vid] = areas.Sum(a => Math.Max(a.StorageNum, 0));
+            });
+        return stock;
+    }
+
     /// <summary>Item sem vid ou sem preço válido não entra (sem custo não há preço de venda).</summary>
     private static SupplierFeedItem? ToFeedItem(FeedProduct p) =>
         string.IsNullOrWhiteSpace(p.Vid) || string.IsNullOrWhiteSpace(p.ProductNameEn)
@@ -144,6 +166,8 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     private sealed record CreateOrderResult(string? OrderId, string? OrderNumber, string? OrderStatus);
 
     private sealed record ProductPage(int Total, IReadOnlyList<FeedProduct>? List);
+
+    private sealed record StockEntry(string? Vid, string? AreaId, int StorageNum);
 
     private sealed record FeedProduct(
         string? Vid, string? ProductSku, string? ProductNameEn, string? SellPrice, string? CategoryName, string? ProductImage, int? ProductWeight);

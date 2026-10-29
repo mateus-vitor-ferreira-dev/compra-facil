@@ -16,7 +16,7 @@ import (
 )
 
 type received struct {
-	msg       Message
+	msg       OrderMessage
 	signature string
 	body      []byte
 }
@@ -25,13 +25,13 @@ type received struct {
 type receiver struct {
 	mu   sync.Mutex
 	got  []received
-	fail func(n int, m Message) bool
+	fail func(n int, m OrderMessage) bool
 	n    atomic.Int32
 }
 
 func (r *receiver) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	body, _ := io.ReadAll(req.Body)
-	var m Message
+	var m OrderMessage
 	_ = json.Unmarshal(body, &m)
 	n := int(r.n.Add(1))
 	if r.fail != nil && r.fail(n, m) {
@@ -54,7 +54,7 @@ func newDispatcher(t *testing.T, url string, dup bool) *Dispatcher {
 func TestDeliverSignedRetriedAndOrdered(t *testing.T) {
 	// a primeira tentativa de UNSHIPPED falha: SHIPPED tem de esperar o retry
 	var failedOnce atomic.Bool
-	rcv := &receiver{fail: func(_ int, m Message) bool {
+	rcv := &receiver{fail: func(_ int, m OrderMessage) bool {
 		return m.Params.OrderStatus == "UNSHIPPED" && failedOnce.CompareAndSwap(false, true)
 	}}
 	srv := httptest.NewServer(rcv)
@@ -82,7 +82,7 @@ func TestRetryKeepsMessageIDAndGivesUp(t *testing.T) {
 	var ids []string
 	var mu sync.Mutex
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var m Message
+		var m OrderMessage
 		_ = json.NewDecoder(r.Body).Decode(&m)
 		mu.Lock()
 		ids = append(ids, m.MessageID)
@@ -118,4 +118,29 @@ func TestNoURLDropsSilently(t *testing.T) {
 	d := newDispatcher(t, "", false)
 	d.Enqueue(Params{OrderID: "CJ1", OrderStatus: "UNSHIPPED"})
 	d.Wait()
+}
+
+func TestStockMessage(t *testing.T) {
+	var got []byte
+	done := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got, _ = io.ReadAll(r.Body)
+		close(done)
+	}))
+	defer srv.Close()
+	d := NewDispatcher(Options{URL: srv.URL, Secret: "s", RetryBase: time.Millisecond}, slog.New(slog.DiscardHandler))
+	defer d.Close()
+
+	d.EnqueueStock("SIM-V-003", 0)
+	<-done
+
+	var m struct {
+		Type   string      `json:"type"`
+		Params StockParams `json:"params"`
+	}
+	require.NoError(t, json.Unmarshal(got, &m))
+	assert.Equal(t, "STOCK", m.Type)
+	assert.Equal(t, "SIM-V-003", m.Params.VID)
+	assert.Zero(t, m.Params.StorageNum)
+	assert.NotEmpty(t, m.Params.UpdateDate)
 }
