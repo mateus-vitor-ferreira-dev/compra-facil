@@ -20,6 +20,11 @@ public sealed record OrderResponse(
     Money Total,
     Guid? PaymentId,
     DateTimeOffset? StockReservedAt,
+    DateTimeOffset? SentToSupplierAt,
+    Tracking? Tracking,
+    DateTimeOffset? ShippedAt,
+    DateTimeOffset? DeliveredAt,
+    DateTimeOffset? RefundedAt,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
@@ -27,7 +32,8 @@ public sealed record OrderResponse(
     {
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.CustomerId, o.Status, o.CancellationReason, [.. o.Items.Select(OrderItemData.From)],
-            o.Total, o.PaymentId, o.StockReservedAt, o.CreatedAt, o.UpdatedAt);
+            o.Total, o.PaymentId, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt,
+            o.CreatedAt, o.UpdatedAt);
     }
 }
 

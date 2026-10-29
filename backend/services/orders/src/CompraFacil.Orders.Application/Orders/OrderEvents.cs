@@ -9,9 +9,12 @@ public static class OrderEvents
     public const string OrderPlaced = nameof(OrderPlaced);
     public const string OrderConfirmed = nameof(OrderConfirmed);
     public const string OrderCancelled = nameof(OrderCancelled);
+    public const string OrderShipped = nameof(OrderShipped);
+    public const string OrderDelivered = nameof(OrderDelivered);
 
     public const string ReservationsTopic = "inventory.reservation.v1";
     public const string PaymentsTopic = "payments.payment.v1";
+    public const string FulfillmentTopic = "fulfillment.supplier-order.v1";
 }
 
 /// <summary>Item do pedido nos eventos (OrderItem do contrato REST).</summary>
@@ -54,6 +57,26 @@ public sealed record OrderCancelledData(
     }
 }
 
+/// <summary>data do OrderShipped: o fornecedor despachou (o cliente acompanha pelo rastreio).</summary>
+public sealed record OrderShippedData(Guid OrderId, Guid CustomerId, string CustomerEmail, Tracking Tracking, DateTimeOffset ShippedAt)
+{
+    public static OrderShippedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.Tracking!, order.ShippedAt!.Value);
+    }
+}
+
+/// <summary>data do OrderDelivered: chegou ao cliente.</summary>
+public sealed record OrderDeliveredData(Guid OrderId, Guid CustomerId, string CustomerEmail, DateTimeOffset DeliveredAt)
+{
+    public static OrderDeliveredData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.DeliveredAt!.Value);
+    }
+}
+
 // ---- consumidos dos outros serviços (só os campos usados) ----
 
 public sealed record StockReservedData(Guid OrderId);
@@ -64,3 +87,12 @@ public sealed record PaymentApprovedData(Guid OrderId, Guid PaymentId);
 
 public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, string FailureReason);
 
+public sealed record PaymentRefundedData(Guid OrderId, Guid PaymentId);
+
+public sealed record SupplierOrderPlacedData(Guid OrderId);
+
+public sealed record SupplierOrderShippedData(Guid OrderId, string TrackingNumber, string? TrackingProvider, string? TrackingUrl);
+
+public sealed record SupplierOrderDeliveredData(Guid OrderId);
+
+public sealed record SupplierOrderFailedData(Guid OrderId, string Reason);

@@ -58,4 +58,17 @@ public sealed class ChargeTests
         Assert.Equal((PaymentStatus.Failed, FailureReason.InsufficientFunds), (failed.Status, failed.FailureReason));
         Assert.Throws<DomainException>(() => failed.Approve("x", s_now));
     }
+
+    [Fact]
+    public void Refund_OnlyTheApproved_Once()
+    {
+        var approved = Payment.Start(Guid.NewGuid(), Guid.NewGuid(), s_amount, "fake", s_now);
+        approved.Approve("fake_ch_1", s_now);
+        approved.Refund("fake_re_1", s_now.AddDays(1));
+        Assert.Equal((PaymentStatus.Refunded, "fake_re_1", s_now.AddDays(1)), (approved.Status, approved.RefundReference, approved.RefundedAt));
+        Assert.Throws<DomainException>(() => approved.Refund("fake_re_2", s_now));
+
+        var processing = Payment.Start(Guid.NewGuid(), Guid.NewGuid(), s_amount, "fake", s_now);
+        Assert.Throws<DomainException>(() => processing.Refund("fake_re_3", s_now));
+    }
 }

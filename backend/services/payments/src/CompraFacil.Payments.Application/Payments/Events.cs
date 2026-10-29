@@ -8,6 +8,7 @@ public static class PaymentEvents
     public const string Topic = "payments.payment.v1";
     public const string PaymentApproved = nameof(PaymentApproved);
     public const string PaymentFailed = nameof(PaymentFailed);
+    public const string PaymentRefunded = nameof(PaymentRefunded);
 
     public const string OrdersTopic = "orders.order.v1";
     public const string ReservationsTopic = "inventory.reservation.v1";
@@ -26,3 +27,5 @@ public sealed record OrderCancelledData(Guid OrderId);
 public sealed record PaymentApprovedData(Guid OrderId, Guid PaymentId, Money Amount, string Provider, string? ProviderReference);
 
 public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, Money Amount, string Provider, FailureReason FailureReason);
+
+public sealed record PaymentRefundedData(Guid OrderId, Guid PaymentId, Money Amount, string Provider, string RefundReference, DateTimeOffset RefundedAt);

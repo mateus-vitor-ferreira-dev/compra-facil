@@ -18,6 +18,13 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(16);
         builder.Property(o => o.CancellationReason).HasConversion<string>().HasMaxLength(32);
         builder.Property(o => o.PaymentFailureReason).HasMaxLength(32);
+        // rastreio: opcional, só existe depois do envio
+        builder.ComplexProperty(o => o.Tracking, t =>
+        {
+            t.Property(x => x.Number).HasColumnName("tracking_number").HasMaxLength(64);
+            t.Property(x => x.Provider).HasColumnName("tracking_provider").HasMaxLength(64);
+            t.Property(x => x.Url).HasColumnName("tracking_url").HasMaxLength(512);
+        });
         builder.Property(o => o.IdempotencyKey).HasMaxLength(128);
         builder.Property(o => o.RequestHash).HasMaxLength(64);
         builder.ComplexProperty(o => o.Total, m =>

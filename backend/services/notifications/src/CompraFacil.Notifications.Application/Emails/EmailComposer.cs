@@ -88,6 +88,8 @@ public static partial class EmailComposer
             "Nada foi cobrado. Tente de novo em alguns minutos."),
         ("payment_failed", _) => ("o pagamento não foi aprovado.",
             "Entre em contato com o seu banco ou tente outra forma de pagamento."),
+        ("supplier_failed", _) => ("o fornecedor não conseguiu atender o pedido.",
+            "O valor pago foi estornado por inteiro, pelo mesmo meio de pagamento."),
         _ => ("o pedido não pôde ser concluído.", "Nada foi cobrado."),
     };
 

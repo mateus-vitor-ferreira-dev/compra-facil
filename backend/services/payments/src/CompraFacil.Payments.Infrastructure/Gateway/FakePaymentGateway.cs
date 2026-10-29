@@ -28,6 +28,7 @@ public sealed class FakeGatewayOptions
 public sealed class FakePaymentGateway(IOptions<FakeGatewayOptions> options) : IPaymentGateway
 {
     private readonly ConcurrentDictionary<string, ChargeResult> _charges = new();
+    private readonly ConcurrentDictionary<string, string> _refunds = new();
 
     public string Provider => "fake";
 
@@ -43,6 +44,20 @@ public sealed class FakePaymentGateway(IOptions<FakeGatewayOptions> options) : I
         }
         await Task.Delay(options.Value.Latency, ct);
         return _charges.GetOrAdd(request.IdempotencyKey, _ => Decide(request));
+    }
+
+    /// <summary>Quantos estornos de fato aconteceram (para os testes de idempotência).</summary>
+    public int RefundsMade => _refunds.Count;
+
+    public async Task<string> RefundAsync(RefundRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (_refunds.TryGetValue(request.IdempotencyKey, out var previous))
+        {
+            return previous;
+        }
+        await Task.Delay(options.Value.Latency, ct);
+        return _refunds.GetOrAdd(request.IdempotencyKey, _ => "fake_re_" + Guid.NewGuid().ToString("N")[..16]);
     }
 
     private ChargeResult Decide(ChargeRequest request)

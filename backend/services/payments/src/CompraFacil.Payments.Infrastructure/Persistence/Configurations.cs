@@ -29,6 +29,7 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.FailureReason).HasConversion<string>().HasMaxLength(32);
         builder.Property(p => p.Provider).HasMaxLength(16);
         builder.Property(p => p.ProviderReference).HasMaxLength(128);
+        builder.Property(p => p.RefundReference).HasMaxLength(128);
         builder.ComplexProperty(p => p.Amount, m =>
         {
             m.Property(x => x.AmountCents).HasColumnName("amount_cents");

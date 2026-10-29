@@ -91,12 +91,46 @@ public sealed class OnStockReserved(ChargeProcessor processor) : IHandleEvent<St
     }
 }
 
-/// <summary>OrderCancelled → descarta a cobrança que ainda não aconteceu (reserva recusada).</summary>
-public sealed class OnOrderCancelled(ChargeProcessor processor) : IHandleEvent<OrderCancelledData>
+/// <summary>
+/// OrderCancelled → descarta a cobrança que ainda não aconteceu (reserva recusada) ou, se o pedido já
+/// estava pago (o fornecedor não atendeu), estorna o cliente e publica PaymentRefunded. O estorno usa o
+/// payment_id como chave: o gateway não devolve duas vezes.
+/// </summary>
+public sealed class OnOrderCancelled(IPaymentRepository payments, IPaymentGateway gateway, IOutbox outbox, TimeProvider clock)
+    : IHandleEvent<OrderCancelledData>
 {
     public Task HandleAsync(OrderCancelledData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return processor.ApplyAsync(data.OrderId, (charge, now) => charge.Cancel(now), ct);
+        return OptimisticConcurrency.RetryAsync(payments.Reset, async () =>
+        {
+            var now = clock.GetUtcNow();
+            var charge = await payments.GetChargeAsync(data.OrderId, ct);
+            if (charge is null)
+            {
+                charge = Charge.For(data.OrderId, now);
+                payments.Add(charge);
+            }
+            charge.Cancel(now);
+
+            var payment = charge.PaymentId is { } id ? await payments.GetPaymentForUpdateAsync(id, ct) : null;
+            var refunded = false;
+            if (payment is { Status: PaymentStatus.Approved })
+            {
+                // falha temporária sobe: nada é gravado e a mensagem é tentada de novo, com a mesma chave
+                var reference = await gateway.RefundAsync(
+                    new RefundRequest(payment.Id.ToString(), payment.ProviderReference!, payment.Amount), ct);
+                payment.Refund(reference, clock.GetUtcNow());
+                outbox.Add(PaymentEvents.Topic, data.OrderId.ToString(), PaymentEvents.PaymentRefunded,
+                    new PaymentRefundedData(data.OrderId, payment.Id, payment.Amount, payment.Provider, reference, payment.RefundedAt!.Value));
+                refunded = true;
+            }
+            await payments.SaveChangesAsync(ct);
+            if (refunded)
+            {
+                PaymentsMetrics.Refunds.Add(1, new KeyValuePair<string, object?>("provider", payment!.Provider));
+            }
+            return true;
+        });
     }
 }

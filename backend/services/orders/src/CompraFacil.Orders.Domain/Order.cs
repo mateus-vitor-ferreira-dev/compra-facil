@@ -3,7 +3,14 @@ namespace CompraFacil.Orders.Domain;
 public enum OrderStatus
 {
     Pending,
+
+    /// <summary>Pago: com o fornecedor (<see cref="Order.SentToSupplierAt"/> marca quando ele aceitou).</summary>
     Confirmed,
+
+    /// <summary>O fornecedor despachou, com o rastreio.</summary>
+    Shipped,
+
+    Delivered,
     Cancelled,
 }
 
@@ -15,14 +22,22 @@ public enum CancellationReason
 
     /// <summary>O payments recusou a cobrança.</summary>
     PaymentFailed,
+
+    /// <summary>Depois de pago, o fornecedor não atendeu: o cliente é estornado.</summary>
+    SupplierFailed,
 }
 
+/// <summary>Rastreio do envio, como o fornecedor mandou.</summary>
+public sealed record Tracking(string Number, string? Provider, string? Url);
+
 /// <summary>
-/// Pedido de compra e dono da SAGA. Nasce <see cref="OrderStatus.Pending"/> e termina
-/// <see cref="OrderStatus.Confirmed"/> (estoque reservado e pagamento aprovado) ou
-/// <see cref="OrderStatus.Cancelled"/>. Os estados finais não mudam mais. No meio, o
-/// <see cref="StockReservedAt"/> marca a etapa da SAGA: sem ele, o estoque está sendo reservado; com
-/// ele, o pagamento está sendo cobrado.
+/// Pedido de compra e dono da SAGA. Nasce <see cref="OrderStatus.Pending"/>; com o estoque reservado e o
+/// pagamento aprovado fica <see cref="OrderStatus.Confirmed"/> e vai ao fornecedor, que o leva a
+/// <see cref="OrderStatus.Shipped"/> e <see cref="OrderStatus.Delivered"/>. Termina
+/// <see cref="OrderStatus.Cancelled"/> se o estoque ou o pagamento forem recusados, ou se o fornecedor
+/// não atender (aí já pago, e o cliente é estornado). Só anda para a frente: entregue e cancelado não
+/// mudam mais. No pendente, o <see cref="StockReservedAt"/> marca a etapa: sem ele, o estoque está sendo
+/// reservado; com ele, o pagamento está sendo cobrado.
 /// </summary>
 public sealed class Order
 {
@@ -49,6 +64,19 @@ public sealed class Order
 
     /// <summary>Quando o inventory reservou o estoque (nulo: ainda não reservou, ou recusou).</summary>
     public DateTimeOffset? StockReservedAt { get; private set; }
+
+    /// <summary>Quando o fornecedor aceitou o pedido pago.</summary>
+    public DateTimeOffset? SentToSupplierAt { get; private set; }
+
+    public Tracking? Tracking { get; private set; }
+    public DateTimeOffset? ShippedAt { get; private set; }
+    public DateTimeOffset? DeliveredAt { get; private set; }
+
+    /// <summary>Quando o payments devolveu o valor ao cliente (pedido cancelado depois de pago).</summary>
+    public DateTimeOffset? RefundedAt { get; private set; }
+
+    /// <summary>Cancelado depois de pago e o estorno ainda não voltou.</summary>
+    public bool AwaitingRefund => Status == OrderStatus.Cancelled && CancellationReason == Domain.CancellationReason.SupplierFailed && RefundedAt is null;
     public IReadOnlyList<OrderItem> Items => _items;
     public Money Total { get; private set; }
 
@@ -123,10 +151,88 @@ public sealed class Order
         UpdatedAt = now;
     }
 
+    /// <summary>
+    /// O fornecedor aceitou o pedido pago. As transições do fornecedor devolvem false se não mudou nada
+    /// (evento repetido, atrasado ou de um pedido que já terminou), para não virarem evento de novo.
+    /// </summary>
+    public bool MarkSentToSupplier(DateTimeOffset now)
+    {
+        if (Status != OrderStatus.Confirmed || SentToSupplierAt is not null)
+        {
+            return false;
+        }
+        SentToSupplierAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>O fornecedor despachou.</summary>
+    public bool Ship(Tracking tracking, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(tracking);
+        if (Status != OrderStatus.Confirmed)
+        {
+            return false;
+        }
+        Status = OrderStatus.Shipped;
+        Tracking = tracking;
+        SentToSupplierAt ??= now;
+        ShippedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>Chegou ao cliente: fim feliz.</summary>
+    public bool Deliver(DateTimeOffset now)
+    {
+        if (Status is not (OrderStatus.Confirmed or OrderStatus.Shipped))
+        {
+            return false;
+        }
+        Status = OrderStatus.Delivered;
+        SentToSupplierAt ??= now;
+        ShippedAt ??= now;
+        DeliveredAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// O fornecedor recusou, cancelou ou não respondeu (o motivo fica no fulfillment): cancelado já pago,
+    /// e o OrderCancelled faz o payments estornar. Depois de enviado não se aplica (vira devolução).
+    /// </summary>
+    public bool FailAtSupplier(DateTimeOffset now)
+    {
+        if (Status != OrderStatus.Confirmed)
+        {
+            return false;
+        }
+        Status = OrderStatus.Cancelled;
+        CancellationReason = Domain.CancellationReason.SupplierFailed;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>O payments devolveu o valor ao cliente.</summary>
+    public bool MarkRefunded(DateTimeOffset now)
+    {
+        if (!AwaitingRefund)
+        {
+            return false;
+        }
+        RefundedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
     /// <summary>Estoque recusado ou pagamento recusado: a SAGA termina com compensação.</summary>
     public void Cancel(CancellationReason reason, DateTimeOffset now, Guid? paymentId = null, string? paymentFailureReason = null)
     {
         EnsurePending("cancelar");
+        if (reason == Domain.CancellationReason.SupplierFailed)
+        {
+            throw new DomainException("o pedido pendente ainda não foi ao fornecedor");
+        }
         if (reason == Domain.CancellationReason.PaymentFailed && string.IsNullOrWhiteSpace(paymentFailureReason))
         {
             throw new DomainException("cancelamento por pagamento precisa do motivo da recusa");

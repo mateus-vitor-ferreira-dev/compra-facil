@@ -6,6 +6,9 @@ public enum PaymentStatus
     Processing,
     Approved,
     Failed,
+
+    /// <summary>Aprovado e devolvido ao cliente (o pedido foi cancelado depois de pago).</summary>
+    Refunded,
 }
 
 /// <summary>Motivo da recusa (contrato FailureReason).</summary>
@@ -17,7 +20,7 @@ public enum FailureReason
     GatewayError,
 }
 
-/// <summary>Uma cobrança no gateway: nasce processing e termina approved ou failed.</summary>
+/// <summary>Uma cobrança no gateway: nasce processing e termina approved ou failed; a aprovada pode ser estornada.</summary>
 public sealed class Payment
 {
     private Payment()
@@ -36,6 +39,11 @@ public sealed class Payment
 
     /// <summary>ID da cobrança no gateway.</summary>
     public string? ProviderReference { get; private set; }
+
+    /// <summary>ID do estorno no gateway.</summary>
+    public string? RefundReference { get; private set; }
+
+    public DateTimeOffset? RefundedAt { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -65,6 +73,19 @@ public sealed class Payment
         Status = PaymentStatus.Failed;
         FailureReason = reason;
         ProviderReference = providerReference;
+        UpdatedAt = now;
+    }
+
+    /// <summary>Devolve o valor todo ao cliente.</summary>
+    public void Refund(string refundReference, DateTimeOffset now)
+    {
+        if (Status != PaymentStatus.Approved)
+        {
+            throw new DomainException($"pagamento {Id} está {Status}: só o aprovado é estornado");
+        }
+        Status = PaymentStatus.Refunded;
+        RefundReference = refundReference;
+        RefundedAt = now;
         UpdatedAt = now;
     }
 
