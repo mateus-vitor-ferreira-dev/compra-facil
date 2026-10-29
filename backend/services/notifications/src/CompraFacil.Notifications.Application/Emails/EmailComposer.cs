@@ -19,6 +19,7 @@ public static partial class EmailComposer
     private static readonly IFluidTemplate s_confirmed = Load("order-confirmed");
     private static readonly IFluidTemplate s_cancelled = Load("order-cancelled");
     private static readonly IFluidTemplate s_confirmEmail = Load("confirm-email");
+    private static readonly IFluidTemplate s_invoiceIssued = Load("invoice-issued");
 
     public static async Task<ComposedEmail> ConfirmedAsync(OrderConfirmedData order)
     {
@@ -46,6 +47,25 @@ public static partial class EmailComposer
         var (reason, advice) = Explain(order.Reason, order.PaymentFailureReason);
         var html = await s_cancelled.RenderAsync(Context(new { order_number = number, reason, advice }), s_html);
         return new ComposedEmail($"Pedido {number} cancelado", html, ToText(html));
+    }
+
+    /// <summary>A nota fiscal do pedido (#221): o número, a chave e o link do pedido, onde fica o DANFE.</summary>
+    public static async Task<ComposedEmail> InvoiceIssuedAsync(InvoiceIssuedData invoice, Uri storeUrl)
+    {
+        ArgumentNullException.ThrowIfNull(invoice);
+        ArgumentNullException.ThrowIfNull(storeUrl);
+        var number = OrderNumber(invoice.OrderId);
+        var orderUrl = new Uri(storeUrl, $"conta/pedidos/{invoice.OrderId}").AbsoluteUri;
+        var html = await s_invoiceIssued.RenderAsync(Context(new
+        {
+            order_number = number,
+            number = invoice.Number,
+            series = invoice.Series,
+            total = Brl(new Money(invoice.TotalCents, "BRL")),
+            access_key = string.Join(' ', invoice.AccessKey.Chunk(4).Select(c => new string(c))),
+            order_url = orderUrl,
+        }), s_html);
+        return new ComposedEmail($"Nota fiscal do pedido {number}", html, ToText(html) + "\n" + orderUrl);
     }
 
     public static async Task<ComposedEmail> ConfirmEmailAsync(EmailConfirmationRequestedData request, DateTimeOffset now)

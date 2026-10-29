@@ -48,6 +48,12 @@ http:
       entryPoints: [web]
       service: fulfillment
       middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
+    # o DANFE das notas do cliente logado (#221)
+    fulfillment-me:
+      rule: PathPrefix(`/fulfillment/v1/me`)
+      entryPoints: [web]
+      service: fulfillment
+      middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
 {{- end }}
 {{- if ne (env "GATEWAY_MEDIA") "off" }}
     # as fotos dos produtos no ambiente local; em produção elas saem do R2, com domínio próprio
