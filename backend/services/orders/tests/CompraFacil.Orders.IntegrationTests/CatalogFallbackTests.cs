@@ -69,6 +69,7 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
                 payment = new { method = "pix" },
                 recipient = new { name = "Ana Souza", cpf = "52998224725", phone = "11987654321" },
                 shipping_address = new { zip_code = "01310100", street = "Avenida Paulista", number = "1000", district = "Bela Vista", city = "São Paulo", state = "SP" },
+                shipping = new { service = "economico" },
             }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
@@ -98,7 +99,7 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
         Assert.Equal(7499, item.GetProperty("unit_price").GetProperty("amount_cents").GetInt64());
         Assert.Equal(await CampaignOfAsync(25, product), item.GetProperty("campaign_id").GetGuid());
         Assert.Equal("Produto da cópia", item.GetProperty("name").GetString());
-        Assert.Equal(7499 * 2, order.GetProperty("total").GetProperty("amount_cents").GetInt64());
+        Assert.Equal(7499 * 2 + 2430, order.GetProperty("total").GetProperty("amount_cents").GetInt64());
 
         // e a SAGA começa igual: OrderPlaced no outbox
         var id = order.GetProperty("id").GetGuid();

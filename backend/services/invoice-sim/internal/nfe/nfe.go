@@ -125,8 +125,9 @@ type Total struct {
 }
 
 type ICMSTot struct {
-	VProd float64 `json:"vProd"`
-	VNF   float64 `json:"vNF"`
+	VProd  float64 `json:"vProd"`
+	VFrete float64 `json:"vFrete,omitempty"`
+	VNF    float64 `json:"vNF"`
 }
 
 type Transp struct {
@@ -287,7 +288,9 @@ func (i *Issuer) validate(req Request) (int, string) {
 		}
 		sum += d.Prod.VProd
 	}
-	if cents(sum) != cents(n.Total.ICMSTot.VProd) || cents(n.Total.ICMSTot.VProd) != cents(n.Total.ICMSTot.VNF) {
+	// a nota vale os produtos mais o frete cobrado do cliente
+	t := n.Total.ICMSTot
+	if cents(sum) != cents(t.VProd) || cents(t.VProd)+cents(t.VFrete) != cents(t.VNF) {
 		return 610, "Rejeição: Total da NF difere do somatório dos Valores compõe o valor Total da NF"
 	}
 	var paid float64

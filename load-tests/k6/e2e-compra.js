@@ -204,6 +204,8 @@ export default function (products) {
       'com o rastreio': (o) => !!(o.tracking && o.tracking.number),
       'aceito pelo fornecedor antes do envio': (o) => !!o.sent_to_supplier_at && o.sent_to_supplier_at <= o.shipped_at,
       'com a nota fiscal autorizada': (o) => !!(o.invoice && /^\d{44}$/.test(o.invoice.access_key)),
+      'com o frete no total e o prazo prometido': (o) => !!o.shipping && o.shipping.price.amount_cents > 0
+        && o.total.amount_cents === o.items_total.amount_cents + o.shipping.price.amount_cents && !!o.shipping.promised_by,
     });
     // o fornecedor aceitou: a autorização foi capturada
     check(paymentOf(orderId, 'approved'), { 'cartão capturado': (p) => !!p.captured_at });

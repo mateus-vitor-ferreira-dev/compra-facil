@@ -30,10 +30,10 @@ export function getOrder(token: string, id: string): Promise<Result<Order>> {
 export type PlaceOrderItem = { product_id: string; quantity: number; expected_unit_price_cents: number };
 /** PIX, ou o cartão já tokenizado no provedor (#220): o número dele nunca chega aqui. */
 export type PlaceOrderPayment = OrdersSchemas["schemas"]["PlaceOrderPayment"];
-/** Quem recebe e onde (#221), já só com os dígitos no CPF, no telefone e no CEP. */
+/** Quem recebe, onde (#221) e o frete escolhido (#222): o CPF, o telefone e o CEP só com os dígitos. */
 export type PlaceOrderDelivery = Pick<
   OrdersSchemas["schemas"]["PlaceOrderRequest"],
-  "recipient" | "shipping_address"
+  "recipient" | "shipping_address" | "shipping"
 >;
 
 /** Por que o pedido não foi criado, com o que a tela precisa para explicar e o suporte, para achar. */

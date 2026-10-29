@@ -267,6 +267,20 @@ components:
                   payment_method:
                     $ref: "../openapi/payments.v1.yaml#/components/schemas/PaymentMethod"
                     description: Como o cliente pagou (vai na nota fiscal).
+                  shipping:
+                    description: O frete (vai na nota) e o prazo prometido (o do fornecedor); nulo antes do #222.
+                    oneOf:
+                      - type: object
+                        required: [service, price, promised_by]
+                        properties:
+                          service:
+                            type: string
+                          price:
+                            $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                          promised_by:
+                            type: string
+                            format: date
+                      - type: "null"
                   recipient:
                     description: Nulo só nos pedidos de antes do #221.
                     oneOf:

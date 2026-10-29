@@ -43,7 +43,8 @@ public sealed class OrdersController(PlaceOrder placeOrder, OrderQueries queries
                 ? new PlaceOrderPayment(p.Method ?? (PaymentMethod)(-1), p.Installments ?? 1, p.CardToken, p.CardBrand)
                 : null,
             body.Recipient?.ToDomain(),
-            body.ShippingAddress?.ToDomain()), ct);
+            body.ShippingAddress?.ToDomain(),
+            body.Shipping?.Service?.Trim()), ct);
 
         var order = result.Order;
         return Accepted($"/v1/orders/{order.Id}", OrderResponse.From(order));

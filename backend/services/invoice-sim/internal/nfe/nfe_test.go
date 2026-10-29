@@ -66,6 +66,7 @@ func TestEmit_RejectsLikeTheSefaz(t *testing.T) {
 		{"NCM inexistente", func(r *Request) { r.InfNFe.Det[0].Prod.NCM = "123" }, 778},
 		{"CFOP fora da operação", func(r *Request) { r.InfNFe.Det[1].Prod.CFOP = "5102" }, 543},
 		{"total diferente dos itens", func(r *Request) { r.InfNFe.Total.ICMSTot.VNF = 250 }, 610},
+		{"frete fora do total", func(r *Request) { r.InfNFe.Total.ICMSTot.VFrete = 24.3 }, 610},
 		{"pagamento menor que o total", func(r *Request) { r.InfNFe.Pag.DetPag[0].VPag = 200 }, 866},
 		{"CEP incompleto", func(r *Request) { r.InfNFe.Dest.EnderDest.CEP = "0131" }, 225},
 		{"recusa de propósito", func(r *Request) { r.InfNFe.Dest.Email = "ana+recusar-nota@exemplo.com" }, 999},
@@ -153,6 +154,18 @@ func TestReset_DoesNotRepeatTheNumber(t *testing.T) {
 	require.NoError(t, err)
 	assert.Greater(t, after.Numero, before.Numero)
 	assert.NotEqual(t, before.ID, after.ID)
+}
+
+func TestEmit_FreightAddsToTheTotal(t *testing.T) {
+	req := request("pedido-frete")
+	req.InfNFe.Total.ICMSTot.VFrete = 24.3
+	req.InfNFe.Total.ICMSTot.VNF = 274.2
+	req.InfNFe.Pag.DetPag[0].VPag = 274.2
+	inv, err := NewIssuer(Options{}).Emit(req)
+	require.NoError(t, err)
+	assert.Equal(t, StatusAuthorized, inv.Status)
+	assert.InDelta(t, 274.2, inv.ValorTotal, 0.001)
+	assert.Contains(t, string(PDF(inv, req)), "Frete: R$ 24.30")
 }
 
 func TestValidCPF(t *testing.T) {

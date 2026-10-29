@@ -82,6 +82,9 @@ public sealed class Order
     public Recipient? Recipient { get; private set; }
     public ShippingAddress? ShippingAddress { get; private set; }
 
+    /// <summary>O frete e o prazo prometido (#222); nulo só nos pedidos de antes do frete no checkout.</summary>
+    public OrderShipping? Shipping { get; private set; }
+
     public PaymentMethod PaymentMethod { get; private set; }
     public int Installments { get; private set; } = 1;
 
@@ -126,10 +129,11 @@ public sealed class Order
     public static Order Place(
         Guid id, Guid customerId, string customerEmail, IReadOnlyList<OrderItem> items,
         string idempotencyKey, string requestHash, DateTimeOffset now, Recipient recipient, ShippingAddress shippingAddress,
-        PaymentMethod paymentMethod = PaymentMethod.Pix, int installments = 1)
+        OrderShipping shipping, PaymentMethod paymentMethod = PaymentMethod.Pix, int installments = 1)
     {
         ArgumentNullException.ThrowIfNull(recipient);
         ArgumentNullException.ThrowIfNull(shippingAddress);
+        ArgumentNullException.ThrowIfNull(shipping);
         if (!BrazilianDocuments.IsValidCpf(recipient.Cpf) || !BrazilianDocuments.IsValidZipCode(shippingAddress.ZipCode)
             || !BrazilianDocuments.States.Contains(shippingAddress.State))
         {
@@ -160,6 +164,7 @@ public sealed class Order
             CustomerEmail = customerEmail,
             Recipient = recipient,
             ShippingAddress = shippingAddress,
+            Shipping = shipping,
             Status = OrderStatus.Pending,
             PaymentMethod = paymentMethod,
             Installments = installments,
@@ -169,7 +174,8 @@ public sealed class Order
             UpdatedAt = now,
         };
         order._items.AddRange(items);
-        order.Total = items.Aggregate(Money.Zero(items[0].UnitPrice.Currency), (sum, i) => sum.Plus(i.LineTotal));
+        // o total cobrado: os itens mais o frete
+        order.Total = items.Aggregate(Money.Zero(items[0].UnitPrice.Currency), (sum, i) => sum.Plus(i.LineTotal)).Plus(shipping.Price);
         return order;
     }
 

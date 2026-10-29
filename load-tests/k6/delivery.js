@@ -6,4 +6,6 @@ export const DELIVERY = {
     zip_code: '01310100', street: 'Avenida Paulista', number: '1000', complement: null,
     district: 'Bela Vista', city: 'São Paulo', state: 'SP',
   },
+  // o frete (#222): o orders recota no fulfillment, então basta o serviço
+  shipping: { service: 'economico' },
 };

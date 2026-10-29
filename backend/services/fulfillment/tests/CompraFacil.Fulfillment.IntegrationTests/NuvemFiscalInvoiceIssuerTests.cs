@@ -55,11 +55,11 @@ public sealed class NuvemFiscalInvoiceIssuerTests
         return (new NuvemFiscalInvoiceIssuer(http, new NuvemFiscalTokenCache(new Factory(stub), options, TimeProvider.System), options, TimeProvider.System), stub);
     }
 
-    private static Invoice Invoice(string state = "SP", string payment = "card") => Domain.Invoice.Create(
+    private static Invoice Invoice(string state = "SP", string payment = "card", long freight = 0) => Domain.Invoice.Create(
         Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com",
         new ShipTo("Ana Souza", "52998224725", "11987654321", "01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", state),
         [new InvoiceLine("MOU-1", "Mouse", "84716053", 2, 4995, 9990), new InvoiceLine("TEC-1", "Teclado", "84716052", 1, 15000, 15000)],
-        payment, DateTimeOffset.UtcNow);
+        payment, DateTimeOffset.UtcNow, freight);
 
     [Fact]
     public async Task Emite_com_as_tags_da_NFe_depois_de_procurar_pela_referencia()
@@ -140,5 +140,19 @@ public sealed class NuvemFiscalInvoiceIssuerTests
         var (issuer, stub) = Issuer((_, _) => ++calls == 1 ? new HttpResponseMessage(HttpStatusCode.Unauthorized) : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<nfeProc/>") });
         Assert.Equal("<nfeProc/>", await issuer.GetXmlAsync("nfe_1", Ct));
         Assert.Equal(2, stub.Requests.Count(r => r.PathAndQuery == "/oauth/token"));
+    }
+
+    [Fact]
+    public async Task Frete_entra_no_total_e_rateado_nos_itens()
+    {
+        var (issuer, stub) = Issuer((req, _) => req.Method == HttpMethod.Get ? Json(new { data = Array.Empty<object>() }) : Json(Authorized()));
+        await issuer.IssueAsync(Invoice(freight: 2431), Ct);
+        using var body = JsonDocument.Parse(stub.Requests.Single(r => r.Method == HttpMethod.Post && r.PathAndQuery == "/nfe").Body);
+        var inf = body.RootElement.GetProperty("infNFe");
+        var total = inf.GetProperty("total").GetProperty("ICMSTot");
+        Assert.Equal((249.9m, 24.31m, 274.21m), (total.GetProperty("vProd").GetDecimal(), total.GetProperty("vFrete").GetDecimal(), total.GetProperty("vNF").GetDecimal()));
+        var perItem = inf.GetProperty("det").EnumerateArray().Sum(d => d.GetProperty("prod").GetProperty("vFrete").GetDecimal());
+        Assert.Equal(24.31m, perItem);
+        Assert.Equal(274.21m, inf.GetProperty("pag").GetProperty("detPag")[0].GetProperty("vPag").GetDecimal());
     }
 }

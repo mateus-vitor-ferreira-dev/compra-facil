@@ -163,6 +163,20 @@ export interface components {
          * @enum {string}
          */
         CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed" | "invoice_failed";
+        /** @description O frete do pedido (#222) e a data que a loja prometeu. */
+        OrderShipping: {
+            service: string;
+            name: string;
+            price: components["schemas"]["Money"];
+            /** @description Dias úteis, contados do pedido. */
+            min_days: number;
+            max_days: number;
+            /**
+             * Format: date
+             * @description O prazo prometido ao cliente (o dia do pedido em Brasília mais `max_days` dias úteis).
+             */
+            promised_by: string;
+        };
         /** @description A NF-e do pedido (#221), autorizada antes de o pedido ir ao fornecedor. */
         OrderInvoice: {
             /** @description A chave de acesso, para consultar a nota na SEFAZ. */
@@ -222,6 +236,15 @@ export interface components {
             url?: string | null;
         };
         PlaceOrderRequest: {
+            /**
+             * @description O frete escolhido (#222): só o serviço, de uma cotação do fulfillment (`quoteShipping`). O
+             *     orders recota com o CEP e os itens; o preço e o prazo nunca vêm do cliente. Serviço que não
+             *     atende o CEP dá 422.
+             */
+            shipping: {
+                /** @example economico */
+                service: string;
+            };
             recipient: components["schemas"]["Recipient"];
             shipping_address: components["schemas"]["ShippingAddress"];
             payment: components["schemas"]["PlaceOrderPayment"];
@@ -270,6 +293,11 @@ export interface components {
             status: components["schemas"]["OrderStatus"];
             cancellation_reason?: components["schemas"]["CancellationReason"] | null;
             items: components["schemas"]["OrderItem"][];
+            /** @description A soma dos itens, sem o frete. */
+            items_total: components["schemas"]["Money"];
+            /** @description O frete e o prazo prometido; nulo só nos pedidos de antes do */
+            shipping?: components["schemas"]["OrderShipping"] | null;
+            /** @description O que é cobrado, os itens mais o frete. */
             total: components["schemas"]["Money"];
             /**
              * Format: uuid

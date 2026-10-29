@@ -33,7 +33,7 @@ public sealed partial class OnOrderConfirmed(
         }
         var now = clock.GetUtcNow();
         var items = data.Items.Select(i => new SupplierOrderItem(i.Sku, i.Name, i.Quantity)).ToList();
-        orders.Add(SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, now, data.ShipTo));
+        orders.Add(SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, now, data.ShipTo, data.Shipping?.PromisedBy));
         if (invoicing.Enabled && data.ShipTo is { } shipTo)
         {
             // o NCM sai da categoria do produto no fornecedor (o SKU da loja é o vid dele)
@@ -42,7 +42,8 @@ public sealed partial class OnOrderConfirmed(
             var lines = data.Items.Select(i => new InvoiceLine(
                 i.Sku, i.Name, invoicing.NcmFor(categories.GetValueOrDefault(i.Sku)), i.Quantity,
                 i.UnitPrice.AmountCents, i.LineTotal.AmountCents)).ToList();
-            invoices.Add(Invoice.Create(data.OrderId, data.CustomerId, data.CustomerEmail, shipTo, lines, data.PaymentMethod ?? "pix", now));
+            invoices.Add(Invoice.Create(data.OrderId, data.CustomerId, data.CustomerEmail, shipTo, lines, data.PaymentMethod ?? "pix", now,
+                data.Shipping?.Price.AmountCents ?? 0));
         }
     }
 

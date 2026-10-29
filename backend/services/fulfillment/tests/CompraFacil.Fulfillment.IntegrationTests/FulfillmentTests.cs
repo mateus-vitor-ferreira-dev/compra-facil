@@ -148,7 +148,8 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         var item = new OrderItem(Guid.NewGuid(), "MOU-000001", "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
         await handler.HandleAsync(new OrderConfirmedData(orderId, customer ?? Guid.NewGuid(), email, [item], new Money(19980, "BRL"),
                 new Recipient("Ana Souza", "52998224725", "11987654321"),
-                new ShippingAddress("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP")),
+                new ShippingAddress("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP"),
+                "card", new OrderShipping("economico", new Money(2430, "BRL"), new DateOnly(2026, 12, 28))),
             new EventContext(Guid.NewGuid(), FulfillmentEvents.OrderConfirmed, FulfillmentEvents.OrdersTopic, "req", confirmedAt ?? DateTimeOffset.UtcNow), Ct);
         await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
     }
@@ -240,8 +241,10 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(SupplierOrderStatus.Placed, placed.Status);
         var call = Assert.Single(fx.Supplier.Calls, c => c.OrderNumber == id);
         Assert.Equal("MOU-000001", Assert.Single(call.Items).Sku);
-        // a nota foi emitida antes e vai com o pedido (#221)
+        // a nota foi emitida antes e vai com o pedido (#221), com o frete (#222)
         var invoice = (await InvoiceAsync(id))!;
+        Assert.Equal((2430L, 19980L + 2430, "card"), (invoice.FreightCents, invoice.TotalCents, invoice.PaymentMethod));
+        Assert.Equal(new DateOnly(2026, 12, 28), placed.PromisedBy);
         Assert.Equal(InvoiceStatus.Authorized, invoice.Status);
         Assert.Equal((invoice.AccessKey, $"<nfeProc><id>{invoice.ProviderId}</id></nfeProc>"), (call.InvoiceKey, call.InvoiceXml));
         Assert.Equal([InvoiceEvents.InvoiceIssued], await EventsOfAsync(id, InvoiceEvents.Topic));

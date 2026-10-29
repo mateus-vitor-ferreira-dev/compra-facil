@@ -147,6 +147,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_id");
 
+                    b.Property<long>("FreightCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("freight_cents");
+
                     b.Property<DateTimeOffset?>("IssuedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("issued_at");
@@ -267,6 +271,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("PlacedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("placed_at");
+
+                    b.Property<DateOnly?>("PromisedBy")
+                        .HasColumnType("date")
+                        .HasColumnName("promised_by");
 
                     b.Property<DateTimeOffset?>("ShippedAt")
                         .HasColumnType("timestamp with time zone")

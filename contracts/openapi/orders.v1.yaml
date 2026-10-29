@@ -320,6 +320,29 @@ components:
         foi ao fornecedor; o cliente é estornado do mesmo jeito.
       enum: [out_of_stock, payment_failed, supplier_failed, invoice_failed]
 
+    OrderShipping:
+      type: object
+      description: O frete do pedido (#222) e a data que a loja prometeu.
+      required: [service, name, price, min_days, max_days, promised_by]
+      properties:
+        service:
+          type: string
+        name:
+          type: string
+        price:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        min_days:
+          type: integer
+          minimum: 1
+          description: Dias úteis, contados do pedido.
+        max_days:
+          type: integer
+          minimum: 1
+        promised_by:
+          type: string
+          format: date
+          description: O prazo prometido ao cliente (o dia do pedido em Brasília mais `max_days` dias úteis).
+
     OrderInvoice:
       type: object
       description: A NF-e do pedido (#221), autorizada antes de o pedido ir ao fornecedor.
@@ -416,9 +439,23 @@ components:
 
     PlaceOrderRequest:
       type: object
-      required: [items, payment, recipient, shipping_address]
+      required: [items, payment, recipient, shipping_address, shipping]
       additionalProperties: false
       properties:
+        shipping:
+          type: object
+          description: |
+            O frete escolhido (#222): só o serviço, de uma cotação do fulfillment (`quoteShipping`). O
+            orders recota com o CEP e os itens; o preço e o prazo nunca vêm do cliente. Serviço que não
+            atende o CEP dá 422.
+          required: [service]
+          additionalProperties: false
+          properties:
+            service:
+              type: string
+              minLength: 1
+              maxLength: 32
+              examples: ["economico"]
         recipient:
           $ref: "#/components/schemas/Recipient"
         shipping_address:
@@ -497,7 +534,7 @@ components:
 
     Order:
       type: object
-      required: [id, customer_id, status, items, total, payment, created_at, updated_at]
+      required: [id, customer_id, status, items, items_total, total, payment, created_at, updated_at]
       properties:
         id:
           type: string
@@ -515,8 +552,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrderItem"
+        items_total:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+          description: A soma dos itens, sem o frete.
+        shipping:
+          description: O frete e o prazo prometido; nulo só nos pedidos de antes do #222.
+          oneOf:
+            - $ref: "#/components/schemas/OrderShipping"
+            - type: "null"
         total:
           $ref: "./common/v1/common.yaml#/components/schemas/Money"
+          description: O que é cobrado, os itens mais o frete.
         payment_id:
           type: [string, "null"]
           format: uuid

@@ -1,6 +1,14 @@
 "use client";
 
-import { startTransition, useActionState, useRef, useState, type FormEvent, type ReactNode } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { checkCard, type CardErrors, type CardField, type CardInput } from "@/lib/card";
@@ -12,17 +20,29 @@ import {
   type DeliveryField,
   type DeliveryInput,
 } from "@/lib/delivery";
+import { formatMoney } from "@/lib/format";
+import { ZIP_STORAGE_KEY, type ShippingItem, type ShippingOption } from "@/lib/shipping";
 import { confirmOrder, type CheckoutState } from "./actions";
+import { ShippingChoice, type ShippingQuoteState } from "./shipping-choice";
 import { DeliveryFields } from "./delivery-fields";
 import { CardFields, MethodChoice, type Method } from "./payment-fields";
 
 const EMPTY_CARD: CardInput = { number: "", name: "", expiry: "", cvv: "" };
 const FIELD_ORDER: CardField[] = ["number", "name", "expiry", "cvv"];
 
+const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
+
+/** A mais barata, quando o cliente ainda não escolheu (ou a escolhida não atende o CEP novo). */
+const cheapest = (options: ShippingOption[]) => options[0]?.id;
+
 type Props = {
   idempotencyKey: string;
-  total: string;
-  totalCents: number;
+  /** os produtos, sem o frete (com os descontos de campanha) */
+  itemsTotalCents: number;
+  /** os itens como o frete os cota (o SKU e a quantidade) */
+  items: ShippingItem[];
+  /** a cotação feita no servidor com o CEP do último pedido: sem JavaScript, o frete aparece igual */
+  initialQuote?: { zip: string; options: ShippingOption[] };
   provider: PaymentProvider;
   /** a entrega para começar: a do último pedido ou, no primeiro, só o nome da conta */
   initialDelivery: DeliveryInput;
@@ -43,8 +63,9 @@ type Props = {
  */
 export function CheckoutForm({
   idempotencyKey,
-  total,
-  totalCents,
+  itemsTotalCents,
+  items,
+  initialQuote,
   provider,
   initialDelivery,
   remembered,
@@ -56,6 +77,60 @@ export function CheckoutForm({
   const [delivery, setDelivery] = useState(() => state.delivery?.values ?? initialDelivery);
   const [deliveryErrors, setDeliveryErrors] = useState<DeliveryErrors>(() => state.delivery?.errors ?? {});
   const deliveryFields = useRef<Partial<Record<DeliveryField, HTMLElement | null>>>({});
+  const [quote, setQuote] = useState<ShippingQuoteState>(() =>
+    initialQuote ? { kind: "done", ...initialQuote } : { kind: "waiting" },
+  );
+  const [service, setService] = useState<string | undefined>(
+    () => initialQuote && cheapest(initialQuote.options),
+  );
+  const [shippingError, setShippingError] = useState<string>();
+  const firstShipping = useRef<HTMLInputElement | null>(null);
+  const chosen = quote.kind === "done" ? quote.options.find((o) => o.id === service) : undefined;
+  const totalCents = itemsTotalCents + (chosen?.price_cents ?? 0);
+  const total = brl(totalCents);
+
+  // o frete acompanha o CEP da entrega: completo e diferente do cotado, cota de novo
+  const zip = delivery.zip_code.replace(/\D/g, "");
+  const quotedZip = quote.kind === "done" ? quote.zip : undefined;
+  const itemsKey = JSON.stringify(items);
+  useEffect(() => {
+    if (zip.length !== 8 || zip === quotedZip) return;
+    const timer = setTimeout(async () => {
+      setQuote({ kind: "loading" });
+      try {
+        const response = await fetch("/api/frete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ zip_code: zip, items }),
+        });
+        if (!response.ok) {
+          setQuote({
+            kind: "error",
+            message:
+              response.status === 422
+                ? "Não achamos frete para este CEP. Confira os dígitos."
+                : "A cotação do frete não respondeu. Confira o CEP ou tente de novo em instantes.",
+          });
+          return;
+        }
+        const body = (await response.json()) as { zip_code: string; options: ShippingOption[] };
+        localStorage.setItem(ZIP_STORAGE_KEY, zip);
+        setQuote(
+          body.options.length
+            ? { kind: "done", zip: body.zip_code, options: body.options }
+            : { kind: "error", message: "Nenhuma transportadora atende este CEP." },
+        );
+        setService((current) =>
+          body.options.some((o) => o.id === current) ? current : cheapest(body.options),
+        );
+        setShippingError(undefined);
+      } catch {
+        setQuote({ kind: "error", message: "A cotação do frete não respondeu. Tente de novo em instantes." });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recota pelo CEP e pelos itens
+  }, [zip, quotedZip, itemsKey]);
   const [method, setMethod] = useState<Method>("pix");
   const [card, setCard] = useState(EMPTY_CARD);
   const [errors, setErrors] = useState<CardErrors>({});
@@ -84,6 +159,17 @@ export function CheckoutForm({
     if (Object.keys(wrong).length > 0) {
       setDeliveryErrors(wrong);
       deliveryFields.current[DELIVERY_FIELDS.find((f) => wrong[f]) ?? "name"]?.focus();
+      return;
+    }
+    // o frete antes do pagamento: sem ele, a loja não sabe o total nem o prazo
+    if (!chosen) {
+      setShippingError(
+        quote.kind === "done"
+          ? "Escolha o frete."
+          : "Espere o frete do CEP ser calculado e escolha uma opção.",
+      );
+      if (firstShipping.current) firstShipping.current.focus();
+      else document.getElementById("frete")?.scrollIntoView({ block: "center" });
       return;
     }
     if (method === "card") {
@@ -134,6 +220,18 @@ export function CheckoutForm({
             deliveryFields.current[field] = el;
           }}
         />
+        <ShippingChoice
+          quote={quote}
+          selected={service}
+          onChange={(id) => {
+            setService(id);
+            setShippingError(undefined);
+          }}
+          error={shippingError}
+          register={(el) => {
+            firstShipping.current = el;
+          }}
+        />
         <section aria-labelledby="pagamento" className="space-y-4">
           <h2 id="pagamento" className="text-xl font-semibold tracking-tight">
             Pagamento
@@ -164,6 +262,22 @@ export function CheckoutForm({
 
       <aside aria-labelledby="resumo" className="lg:sticky lg:top-6 lg:self-start">
         {summary}
+        <dl className="mt-2 space-y-2">
+          <div className="flex justify-between gap-4">
+            <dt className="text-ink-soft">{chosen ? `Frete ${chosen.name.toLowerCase()}` : "Frete"}</dt>
+            <dd className="tabular-nums">
+              {chosen ? (chosen.price_cents === 0 ? "Grátis" : brl(chosen.price_cents)) : "a calcular"}
+            </dd>
+          </div>
+          <div className="border-line flex items-end justify-between gap-4 border-t pt-3">
+            <dt className="font-semibold">Total</dt>
+            <dd className="font-condensed text-3xl leading-none font-extrabold">{total}</dd>
+          </div>
+        </dl>
+        <p className="text-ink-soft mt-3 text-sm">
+          O preço fica congelado no pedido. Se algum mudou desde a revisão, o pedido não é feito e o carrinho
+          mostra o quê.
+        </p>
         <div className="mt-6 space-y-3">
           {state.error && (
             <div role="alert" className="border-danger bg-surface space-y-1 rounded-md border-l-4 p-4">

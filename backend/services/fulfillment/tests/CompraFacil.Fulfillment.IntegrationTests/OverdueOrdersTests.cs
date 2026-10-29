@@ -44,8 +44,10 @@ public sealed class OverdueOrdersTests(OverdueFixture fx) : IClassFixture<Overdu
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static readonly DateTimeOffset s_now = DateTimeOffset.UtcNow;
 
-    private static SupplierOrder Paid(TimeSpan ago) =>
-        SupplierOrder.Create(Guid.NewGuid(), "ana@exemplo.com", [new SupplierOrderItem("MOU-1", "Mouse", 1)], "cj", s_now - ago);
+    private static SupplierOrder Paid(TimeSpan ago, DateOnly? promisedBy = null) =>
+        SupplierOrder.Create(Guid.NewGuid(), "ana@exemplo.com", [new SupplierOrderItem("MOU-1", "Mouse", 1)], "cj", s_now - ago, promisedBy: promisedBy);
+
+    private static DateOnly Today(int plusDays) => DateOnly.FromDateTime(s_now.UtcDateTime.AddHours(-3)).AddDays(plusDays);
 
     private async Task SaveAsync(params SupplierOrder[] orders)
     {
@@ -81,7 +83,13 @@ public sealed class OverdueOrdersTests(OverdueFixture fx) : IClassFixture<Overdu
         delivered.MarkDelivered(s_now - TimeSpan.FromDays(30));
         var failed = Paid(TimeSpan.FromDays(40));
         failed.Fail(SupplierFailureReasons.Rejected, null, s_now - TimeSpan.FromDays(40));
-        await SaveAsync(stuckLong, accepted, lost, onTime, travelling, delivered, failed);
+        // com a data prometida ao cliente (#222), vale ela: venceu anteontem, mesmo enviado há pouco...
+        var promisedLate = Paid(TimeSpan.FromDays(6), promisedBy: Today(-2));
+        promisedLate.MarkShipped(new Tracking("BR3", null, null), s_now - TimeSpan.FromDays(1));
+        // ...e enviado há 20 dias, mas prometido para a semana que vem, ainda está no prazo
+        var promisedLater = Paid(TimeSpan.FromDays(25), promisedBy: Today(7));
+        promisedLater.MarkShipped(new Tracking("BR4", null, null), s_now - TimeSpan.FromDays(20));
+        await SaveAsync(stuckLong, accepted, lost, onTime, travelling, delivered, failed, promisedLate, promisedLater);
 
         using var response = await GetAsync(fx.Identity.AdminToken());
 
@@ -90,8 +98,8 @@ public sealed class OverdueOrdersTests(OverdueFixture fx) : IClassFixture<Overdu
         ContractAssert.AssertSchema("fulfillment.v1.yaml",
             "/paths/~1v1~1admin~1supplier-orders~1overdue/get/responses/200/content/application~1json/schema", json);
         var data = JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().ToList();
-        Assert.Equal([stuckLong.Id, lost.Id, accepted.Id], data.Select(o => o.GetProperty("order_id").GetGuid()));
-        Assert.Equal(["shipping", "delivery", "shipping"], data.Select(o => o.GetProperty("stage").GetString()));
+        Assert.Equal([stuckLong.Id, lost.Id, promisedLate.Id, accepted.Id], data.Select(o => o.GetProperty("order_id").GetGuid()));
+        Assert.Equal(["shipping", "delivery", "delivery", "shipping"], data.Select(o => o.GetProperty("stage").GetString()));
         Assert.Equal("BR1", data[1].GetProperty("tracking").GetProperty("number").GetString());
     }
 

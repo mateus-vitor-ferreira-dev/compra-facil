@@ -29,6 +29,21 @@ public static class DependencyInjection
             .ConfigureChannel(c => c.ThrowOperationCanceledOnCancellation = true);
         builder.Services.AddCatalogPricing();
 
+        // o frete recotado no fulfillment (#222)
+        var fulfillment = builder.Configuration.GetSection(Shipping.FulfillmentOptions.Section).Get<Shipping.FulfillmentOptions>() ?? new();
+        if (fulfillment.BaseUrl is { } fulfillmentUrl)
+        {
+            builder.Services.AddHttpClient<Application.Shipping.IShippingQuotes, Shipping.FulfillmentShippingQuotes>(http =>
+            {
+                http.BaseAddress = fulfillmentUrl;
+                http.Timeout = fulfillment.Timeout;
+            });
+        }
+        else
+        {
+            builder.Services.AddSingleton<Application.Shipping.IShippingQuotes, Shipping.NoShippingQuotes>();
+        }
+
         // contracts/asyncapi/orders.v1.yaml: publica orders.order.v1; consome o resultado da SAGA, o
         // andamento no fornecedor, o estorno e o catálogo (snapshot)
         builder.AddMessaging<OrdersDbContext>("orders", m => m
