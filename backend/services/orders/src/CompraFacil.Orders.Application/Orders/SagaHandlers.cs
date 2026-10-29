@@ -199,8 +199,29 @@ public sealed class OnSupplierOrderFailed(OrderProgress progress) : IHandleEvent
     public Task HandleAsync(SupplierOrderFailedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return progress.ApplyAsync(data.OrderId, "SupplierOrderFailed", (order, now) => order.FailAtSupplier(now),
+        return progress.ApplyAsync(data.OrderId, "SupplierOrderFailed", (order, now) => order.FailAtSupplier(now, data.InvoiceRejected),
             order => (OrderEvents.OrderCancelled, OrderCancelledData.From(order)), ct);
+    }
+}
+
+/// <summary>InvoiceIssued → a nota fiscal do pedido foi autorizada: o cliente a vê no pedido. Não publica.</summary>
+public sealed class OnInvoiceIssued(OrderProgress progress) : IHandleEvent<InvoiceIssuedData>
+{
+    public Task HandleAsync(InvoiceIssuedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var invoice = new OrderInvoice(data.AccessKey, data.Number, data.Series, data.IssuedAt);
+        return progress.ApplyAsync(data.OrderId, "InvoiceIssued", (order, now) => order.RecordInvoice(invoice, now), _ => null, ct);
+    }
+}
+
+/// <summary>InvoiceCancelled → a nota foi cancelada depois do estorno. Não publica.</summary>
+public sealed class OnInvoiceCancelled(OrderProgress progress) : IHandleEvent<InvoiceCancelledData>
+{
+    public Task HandleAsync(InvoiceCancelledData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return progress.ApplyAsync(data.OrderId, "InvoiceCancelled", (order, now) => order.CancelInvoice(data.CancelledAt, now), _ => null, ct);
     }
 }
 

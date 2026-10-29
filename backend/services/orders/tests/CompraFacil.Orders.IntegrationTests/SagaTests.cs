@@ -227,6 +227,30 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
     }
 
     [Fact]
+    public async Task InvoiceRejected_CancelsWithInvoiceFailed_AndTheInvoiceShowsInTheOrder()
+    {
+        var order = await PaidOrderAsync();
+        var key = new string('3', 44);
+        await HandleAsync<InvoiceIssuedData, OnInvoiceIssued>(new InvoiceIssuedData(order, key, 1001, 1, DateTimeOffset.UtcNow));
+        var withInvoice = await GetOrderAsync(order);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", withInvoice.GetRawText());
+        Assert.Equal((key, 1001), (withInvoice.GetProperty("invoice").GetProperty("access_key").GetString(),
+            withInvoice.GetProperty("invoice").GetProperty("number").GetInt32()));
+        Assert.Equal([OrderEvents.OrderConfirmed], await EventTypesAsync(order)); // a nota não publica
+
+        await HandleAsync<InvoiceCancelledData, OnInvoiceCancelled>(new InvoiceCancelledData(order, DateTimeOffset.UtcNow));
+        Assert.NotEqual(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("invoice").GetProperty("cancelled_at").ValueKind);
+
+        var other = await PaidOrderAsync();
+        await HandleAsync<SupplierOrderFailedData, OnSupplierOrderFailed>(new SupplierOrderFailedData(other, "invoice_rejected"));
+        var cancelled = await GetOrderAsync(other);
+        Assert.Equal("invoice_failed", cancelled.GetProperty("cancellation_reason").GetString());
+        var e = (await OutcomeEventsAsync(other)).Single(m => m.EventType == OrderEvents.OrderCancelled);
+        ContractAssert.AssertEvent("orders.v1.yaml", OrderEvents.OrderCancelled, e.Payload);
+        Assert.Equal("invoice_failed", EventEnvelope.TryParse(e.Payload)!.Data.GetProperty("reason").GetString());
+    }
+
+    [Fact]
     public async Task SupplierFailure_CancelsThePaidOrder_AndWaitsForTheRefund()
     {
         var order = await PaidOrderAsync();

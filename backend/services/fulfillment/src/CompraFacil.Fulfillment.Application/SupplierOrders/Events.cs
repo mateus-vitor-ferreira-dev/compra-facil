@@ -26,7 +26,7 @@ public sealed record ShippingAddress(string ZipCode, string Street, string Numbe
 /// <summary>data do OrderConfirmed (só os campos usados): o pedido pago que vai ao fornecedor, para quem e para onde.</summary>
 public sealed record OrderConfirmedData(
     Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItem> Items, Money Total,
-    Recipient? Recipient = null, ShippingAddress? ShippingAddress = null)
+    Recipient? Recipient = null, ShippingAddress? ShippingAddress = null, string? PaymentMethod = null)
 {
     /// <summary>O destino do envio; nulo no pedido de antes do #221 (sem endereço).</summary>
     public ShipTo? ShipTo => Recipient is { } r && ShippingAddress is { } a

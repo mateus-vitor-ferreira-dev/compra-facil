@@ -69,6 +69,10 @@ type Shipping struct {
 	ShippingZip          string `json:"shippingZip"`
 	ShippingPhone        string `json:"shippingPhone"`
 	ConsigneeID          string `json:"consigneeID"`
+	// a nota da loja na venda à ordem (#221): a chave de acesso e o XML em base64, para a remessa
+	// referenciá-la; o simulador guarda a chave e conta que o XML chegou
+	InvoiceKey string `json:"invoiceKey,omitempty"`
+	InvoiceXML string `json:"invoiceXml,omitempty"`
 }
 
 type CreateRequest struct {
@@ -209,7 +213,11 @@ func (sh Shipping) complete() bool {
 			return false
 		}
 	}
-	return sh.ShippingCountryCode != "BR" || strings.TrimSpace(sh.ConsigneeID) != ""
+	if sh.ShippingCountryCode == "BR" && strings.TrimSpace(sh.ConsigneeID) == "" {
+		return false
+	}
+	// a chave da nota, quando vem, tem os 44 dígitos e o XML junto
+	return sh.InvoiceKey == "" || (len(sh.InvoiceKey) == 44 && strings.Trim(sh.InvoiceKey, "0123456789") == "" && sh.InvoiceXML != "")
 }
 
 func (s *Simulator) Get(orderID string) (Order, error) {

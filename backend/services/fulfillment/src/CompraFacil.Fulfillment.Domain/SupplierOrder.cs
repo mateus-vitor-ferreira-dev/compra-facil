@@ -25,6 +25,9 @@ public static class SupplierFailureReasons
     public const string Rejected = "rejected";
     public const string SupplierCancelled = "supplier_cancelled";
     public const string SupplierUnavailable = "supplier_unavailable";
+
+    /// <summary>A SEFAZ rejeitou a nota da loja: o pedido não vai ao fornecedor (#221).</summary>
+    public const string InvoiceRejected = "invoice_rejected";
 }
 
 /// <summary>Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome e a quantidade.</summary>

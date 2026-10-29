@@ -49,7 +49,17 @@ const orderOf = (id, status, reason, qty, unit) => ({
   updated_at: "2026-10-20T15:01:00Z",
 });
 const orders = [
-  orderOf("4f2a9c1b-0000-7000-8000-000000000001", "confirmed", null, 1, 263992),
+  // o confirmado já tem a nota fiscal (#221)
+  {
+    ...orderOf("4f2a9c1b-0000-7000-8000-000000000001", "confirmed", null, 1, 263992),
+    invoice: {
+      access_key: "31261011222333000181550010000010011000010015",
+      number: 1001,
+      series: 1,
+      issued_at: "2026-10-20T15:00:30Z",
+      cancelled_at: null,
+    },
+  },
   orderOf("7c3e5d2a-0000-7000-8000-000000000002", "cancelled", "out_of_stock", 2, 263992),
 ];
 

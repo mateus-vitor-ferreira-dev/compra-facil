@@ -13,7 +13,10 @@
 //      e-mail do cancelamento;
 //   5. acabou no fornecedor: um produto do feed do simulado esgota lá → o webhook de estoque zera o
 //      espelho do inventory em segundos, e o pedido é recusado (out_of_stock) antes de qualquer cobrança;
-//   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved.
+//   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved;
+//   7. nota fiscal recusada: cliente "+recusar-nota" (a SEFAZ simulada do invoice-sim rejeita) → o pedido
+//      pago não vai ao fornecedor, cancelled (invoice_failed) e a autorização do cartão cancelada.
+// No cenário 1, a nota fiscal sai antes do fornecedor e aparece no pedido.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
 //
@@ -101,6 +104,7 @@ export function setup() {
     declined: createProduct(token, categoryId, 'recusado'),
     pix: createProduct(token, categoryId, 'pix'),
     supplierRejected: createProduct(token, categoryId, 'fornecedor-recusa'),
+    invoiceRejected: createProduct(token, categoryId, 'nota-recusada'),
     // o produto que o catalog importou do feed do fornecedor (o fulfillment lê o feed ao subir)
     fromSupplier: eventually(`produto ${SUPPLIER_VID} importado do fornecedor`, () => {
       const res = http.get(`${GATEWAY}/catalog/v1/admin/products?sku=${SUPPLIER_VID}`, { headers: auth(token) });
@@ -199,6 +203,7 @@ export default function (products) {
       'pedido delivered': (o) => o.status === 'delivered',
       'com o rastreio': (o) => !!(o.tracking && o.tracking.number),
       'aceito pelo fornecedor antes do envio': (o) => !!o.sent_to_supplier_at && o.sent_to_supplier_at <= o.shipped_at,
+      'com a nota fiscal autorizada': (o) => !!(o.invoice && /^\d{44}$/.test(o.invoice.access_key)),
     });
     // o fornecedor aceitou: a autorização foi capturada
     check(paymentOf(orderId, 'approved'), { 'cartão capturado': (p) => !!p.captured_at });
@@ -309,5 +314,22 @@ export default function (products) {
     check(paid, { 'PIX pago no banco': (r) => r.status === 200 });
     check(finalOrder(orderId, customer), { 'pedido confirmed': (o) => o.status === 'confirmed' });
     check(paymentOf(orderId, 'approved'), { 'cobrança approved': (p) => p.method === 'pix' && p.fee_cents > 0 });
+  });
+
+  group('7. nota fiscal recusada', () => {
+    const customer = newCustomer(IDENTITY, 'e2e-nota', 'recusar-nota');
+    const orderId = placeOrder(products.invoiceRejected, customer);
+    // pago, a SEFAZ simulada rejeita a nota: o pedido não vai ao fornecedor e o cliente é estornado
+    const order = eventually('pedido cancelado e estornado', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('refunded_at') ? res.json() : null;
+    });
+    check(order, {
+      'pedido cancelled': (o) => o.status === 'cancelled',
+      'motivo invoice_failed': (o) => o.cancellation_reason === 'invoice_failed',
+      'sem nota no pedido': (o) => o.invoice === null,
+      'não foi ao fornecedor': (o) => !o.sent_to_supplier_at,
+    });
+    check(paymentOf(orderId, 'voided'), { 'autorização cancelada': (p) => p.status === 'voided' });
   });
 }

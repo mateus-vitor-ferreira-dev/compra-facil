@@ -25,6 +25,9 @@ public enum CancellationReason
 
     /// <summary>Depois de pago, o fornecedor não atendeu: o cliente é estornado.</summary>
     SupplierFailed,
+
+    /// <summary>Depois de pago, a SEFAZ rejeitou a nota fiscal (#221): o pedido nem vai ao fornecedor, e o cliente é estornado.</summary>
+    InvoiceFailed,
 }
 
 /// <summary>Como o cliente paga (#220).</summary>
@@ -36,6 +39,9 @@ public enum PaymentMethod
 
 /// <summary>O PIX do pedido, para o cliente pagar: o copia-e-cola, o QR (PNG em base64) e a validade.</summary>
 public sealed record OrderPix(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
+
+/// <summary>A NF-e do pedido (#221): a chave de acesso, o número e a série, e quando foi cancelada (no estorno).</summary>
+public sealed record OrderInvoice(string AccessKey, int Number, int Series, DateTimeOffset IssuedAt, DateTimeOffset? CancelledAt = null);
 
 /// <summary>Rastreio do envio, como o fornecedor mandou.</summary>
 public sealed record Tracking(string Number, string? Provider, string? Url);
@@ -88,6 +94,9 @@ public sealed class Order
     /// <summary>Quando o fornecedor aceitou o pedido pago.</summary>
     public DateTimeOffset? SentToSupplierAt { get; private set; }
 
+    /// <summary>A nota fiscal, depois que o fulfillment a emite (antes de o pedido ir ao fornecedor).</summary>
+    public OrderInvoice? Invoice { get; private set; }
+
     public Tracking? Tracking { get; private set; }
     public DateTimeOffset? ShippedAt { get; private set; }
     public DateTimeOffset? DeliveredAt { get; private set; }
@@ -96,7 +105,10 @@ public sealed class Order
     public DateTimeOffset? RefundedAt { get; private set; }
 
     /// <summary>Cancelado depois de pago e o estorno ainda não voltou.</summary>
-    public bool AwaitingRefund => Status == OrderStatus.Cancelled && CancellationReason == Domain.CancellationReason.SupplierFailed && RefundedAt is null;
+    public bool AwaitingRefund => Status == OrderStatus.Cancelled && CancelledAfterPayment && RefundedAt is null;
+
+    /// <summary>Cancelado depois de pago (o fornecedor ou a nota): o cliente é estornado.</summary>
+    public bool CancelledAfterPayment => CancellationReason is Domain.CancellationReason.SupplierFailed or Domain.CancellationReason.InvoiceFailed;
     public IReadOnlyList<OrderItem> Items => _items;
     public Money Total { get; private set; }
 
@@ -251,14 +263,43 @@ public sealed class Order
     /// O fornecedor recusou, cancelou ou não respondeu (o motivo fica no fulfillment): cancelado já pago,
     /// e o OrderCancelled faz o payments estornar. Depois de enviado não se aplica (vira devolução).
     /// </summary>
-    public bool FailAtSupplier(DateTimeOffset now)
+    /// <summary>
+    /// O pedido pago não foi atendido: pelo fornecedor, ou porque a SEFAZ rejeitou a nota (aí ele nem foi ao
+    /// fornecedor). O OrderCancelled faz o payments estornar.
+    /// </summary>
+    public bool FailAtSupplier(DateTimeOffset now, bool invoiceRejected = false)
     {
         if (Status != OrderStatus.Confirmed)
         {
             return false;
         }
         Status = OrderStatus.Cancelled;
-        CancellationReason = Domain.CancellationReason.SupplierFailed;
+        CancellationReason = invoiceRejected ? Domain.CancellationReason.InvoiceFailed : Domain.CancellationReason.SupplierFailed;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>A nota foi autorizada. False se nada mudou (a mesma nota de novo).</summary>
+    public bool RecordInvoice(OrderInvoice invoice, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(invoice);
+        if (Invoice is not null)
+        {
+            return false;
+        }
+        Invoice = invoice;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>A nota foi cancelada (o pedido foi estornado). False se não havia nota ou já estava cancelada.</summary>
+    public bool CancelInvoice(DateTimeOffset cancelledAt, DateTimeOffset now)
+    {
+        if (Invoice is null || Invoice.CancelledAt is not null)
+        {
+            return false;
+        }
+        Invoice = Invoice with { CancelledAt = cancelledAt };
         UpdatedAt = now;
         return true;
     }
@@ -279,9 +320,9 @@ public sealed class Order
     public void Cancel(CancellationReason reason, DateTimeOffset now, Guid? paymentId = null, string? paymentFailureReason = null)
     {
         EnsurePending("cancelar");
-        if (reason == Domain.CancellationReason.SupplierFailed)
+        if (reason is Domain.CancellationReason.SupplierFailed or Domain.CancellationReason.InvoiceFailed)
         {
-            throw new DomainException("o pedido pendente ainda não foi ao fornecedor");
+            throw new DomainException("o pedido pendente ainda não foi pago nem ao fornecedor");
         }
         if (reason == Domain.CancellationReason.PaymentFailed && string.IsNullOrWhiteSpace(paymentFailureReason))
         {

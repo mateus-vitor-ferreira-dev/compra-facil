@@ -1,7 +1,9 @@
 using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
+using CompraFacil.Fulfillment.Application.Invoices;
 using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
+using CompraFacil.Fulfillment.Infrastructure.Invoices;
 using CompraFacil.Fulfillment.Infrastructure.Persistence;
 using CompraFacil.Fulfillment.Infrastructure.Supplier;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +41,26 @@ public static class DependencyInjection
             http.BaseAddress = o.BaseUrl;
             http.Timeout = o.Timeout;
         });
+        // a nota fiscal (#221): emitida pelo despachante antes do fornecedor, cancelada no estorno
+        var invoice = builder.Configuration.GetSection("Invoice");
+        builder.Services.Configure<InvoiceOptions>(invoice);
+        builder.Services.AddSingleton(invoice.Get<InvoiceSettings>() ?? new InvoiceSettings());
+        builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        builder.Services.AddScoped<InvoiceCanceller>();
+        builder.Services.AddSingleton<NuvemFiscalTokenCache>();
+        builder.Services.AddHttpClient(NuvemFiscalTokenCache.ClientName, (sp, http) =>
+            http.Timeout = sp.GetRequiredService<IOptions<InvoiceOptions>>().Value.Timeout);
+        builder.Services.AddHttpClient<IInvoiceIssuer, NuvemFiscalInvoiceIssuer>((sp, http) =>
+        {
+            var o = sp.GetRequiredService<IOptions<InvoiceOptions>>().Value;
+            http.BaseAddress = o.BaseUrl;
+            http.Timeout = o.Timeout;
+        });
+        if (invoice.GetValue("CancellerEnabled", defaultValue: true))
+        {
+            builder.Services.AddHostedService<InvoiceCancellerJob>();
+        }
+
         if (supplier.GetValue("DispatcherEnabled", defaultValue: true))
         {
             builder.Services.AddHostedService<SupplierDispatcher>();
@@ -53,7 +75,9 @@ public static class DependencyInjection
         builder.AddMessaging<FulfillmentDbContext>("fulfillment", m => m
             .Produces(FulfillmentEvents.Topic)
             .Produces(SupplierCatalogEvents.Topic)
-            .Handle<OrderConfirmedData, OnOrderConfirmed>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderConfirmed));
+            .Produces(InvoiceEvents.Topic)
+            .Handle<OrderConfirmedData, OnOrderConfirmed>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderConfirmed)
+            .Handle<PaymentRefundedData, OnPaymentRefunded>(InvoiceEvents.PaymentsTopic, InvoiceEvents.PaymentRefunded));
         return builder;
     }
 }
