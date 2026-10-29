@@ -9,8 +9,8 @@ CC BY-SA são obras derivadas e ficam sob a mesma licença dela. A [licença do 
 permite usar e editar sem atribuição; o crédito fica aqui do mesmo jeito. As marcas citadas nos nomes dos
 produtos do seed são só massa de teste: as fotos não mostram esses produtos nem têm relação com essas marcas.
 
-Onde os acervos livres não tinham fotos de catálogo suficientes, as que faltavam foram geradas por IA (Runway
-e Figma), sem marca, e estão marcadas assim na tabela. Os tipos de produto ainda sem foto mostram o ícone da
+Onde os acervos livres não tinham fotos de catálogo suficientes, as que faltavam foram geradas por IA (Runway,
+Figma e Cloudflare Workers AI), sem marca, e estão marcadas assim na tabela. Os tipos de produto ainda sem foto mostram o ícone da
 categoria na loja.
 
 | Foto | Maior variante | Título | Autor | Licença | Origem |
@@ -192,3 +192,135 @@ categoria na loja.
 | `paletas-de-sombra-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
 | `paletas-de-sombra-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
 | `paletas-de-sombra-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `air-fryers-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `air-fryers-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `air-fryers-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `aparadores-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `aparadores-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `aparadores-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `barbeadores-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `barbeadores-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `barbeadores-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `batedeiras-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `batedeiras-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `batedeiras-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `blocos-de-montar-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `blocos-de-montar-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `blocos-de-montar-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `bolsas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `bolsas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `bolsas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `bones-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `bones-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `bones-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `botas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `botas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `botas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `brinquedos-pet-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `brinquedos-pet-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `brinquedos-pet-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `cafeteiras-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `cafeteiras-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `cafeteiras-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `camas-pet-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `camas-pet-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `camas-pet-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `carrinhos-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `carrinhos-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `carrinhos-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `carteiras-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `carteiras-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `carteiras-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `chapinhas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `chapinhas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `chapinhas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `cintos-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `cintos-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `cintos-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `coleiras-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `coleiras-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `coleiras-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `comedouros-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `comedouros-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `comedouros-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `consoles-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `consoles-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `consoles-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `controles-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `controles-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `controles-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `facas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `facas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `facas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `frigideiras-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `frigideiras-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `frigideiras-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `hidratantes-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `hidratantes-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `hidratantes-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `jogos-de-tabuleiro-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `jogos-de-tabuleiro-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `jogos-de-tabuleiro-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `liquidificadores-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `liquidificadores-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `liquidificadores-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `malas-de-viagem-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `malas-de-viagem-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `malas-de-viagem-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `mascaras-de-cilios-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `mascaras-de-cilios-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `mascaras-de-cilios-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `mochilas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `mochilas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `mochilas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `oculos-de-sol-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `oculos-de-sol-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `oculos-de-sol-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `panelas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `panelas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `panelas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `pelucias-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `pelucias-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `pelucias-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `perfumes-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `perfumes-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `perfumes-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `potes-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `potes-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `potes-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `protetores-solares-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `protetores-solares-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `protetores-solares-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `relogios-analogicos-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `relogios-analogicos-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `relogios-analogicos-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sabonetes-faciais-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sabonetes-faciais-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sabonetes-faciais-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sandalias-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sandalias-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sandalias-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sanduicheiras-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sanduicheiras-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `sanduicheiras-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `secadores-de-cabelo-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `secadores-de-cabelo-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `secadores-de-cabelo-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `shampoos-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `shampoos-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `shampoos-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `smartwatches-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `smartwatches-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `smartwatches-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `tabuas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `tabuas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `tabuas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `tenis-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `tenis-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `tenis-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `volantes-e-acessorios-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `volantes-e-acessorios-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `volantes-e-acessorios-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `teclados-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `teclados-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |
+| `teclados-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Workers AI) |

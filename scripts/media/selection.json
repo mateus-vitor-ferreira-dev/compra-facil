@@ -257,5 +257,225 @@
   "figma:5ce0c755-915e-40f1-b41e-83564aa5d7de",
   "figma:1f4541dd-3934-42ee-ac5b-e0a7a3b137cd",
   "figma:8c54cc8b-c117-46f0-b332-bbd50a62c276"
+ ],
+ "air-fryers": [
+  "workersai:53813a44-fb19-4d32-98cb-c785b621772d",
+  "workersai:6b60dedf-298e-4974-973f-6a8d8821e521",
+  "workersai:d00cec9e-ad47-4a81-84c3-1302d0bfe72c"
+ ],
+ "aparadores": [
+  "workersai:3693b519-8305-45fe-a782-560e9174bc35",
+  "workersai:16f6298e-7b6c-4fe4-8e57-8eb80d09a298",
+  "workersai:c816139d-1ffa-468a-ab4a-ee6e4aeefe68"
+ ],
+ "barbeadores": [
+  "workersai:694bb3ac-f7a8-4643-8833-a8409606fb95",
+  "workersai:e1cf5a16-7455-42fe-a1ef-b0fb1f9ff056",
+  "workersai:d07fd697-79fe-4dc3-981a-4437de45789d"
+ ],
+ "batedeiras": [
+  "workersai:b0a92c0a-1c7b-4a03-ac05-9e83593dcc29",
+  "workersai:65238e34-ab03-4cf8-b367-d687e7572c62",
+  "workersai:e6f9b23b-9067-4cc5-8654-3dd3b49eb168"
+ ],
+ "blocos-de-montar": [
+  "workersai:34e83306-05d2-4b10-9a93-1e42007e3c4e",
+  "workersai:83ab9941-2371-4c38-8322-8861ecf9513d",
+  "workersai:db883789-04ff-4134-b243-919ead5a5553"
+ ],
+ "bolsas": [
+  "workersai:2cc8bb25-73ed-42e2-aa1f-758bf44a29db",
+  "workersai:1a62499c-bd73-41c7-9c53-5ac7968c302a",
+  "workersai:3cab8591-5f19-4569-8d74-e9c2d4f63fab"
+ ],
+ "bones": [
+  "workersai:8f928131-5fce-4ef2-afdd-fb92aecb122b",
+  "workersai:dff806ec-2a58-45be-b179-e9234a6c02a8",
+  "workersai:d33c440f-8896-422f-8331-09ff90168a14"
+ ],
+ "botas": [
+  "workersai:383d93ef-f86b-4a87-b064-144c1329fbce",
+  "workersai:c3377a1f-108c-44a1-b84a-3aa43f0f3884",
+  "workersai:3d741f1f-d3c7-4c24-818a-e40de77ca6fb"
+ ],
+ "brinquedos-pet": [
+  "workersai:8dd851e3-cd9c-4171-b5be-19e9d1c47563",
+  "workersai:dd89c566-26d2-4241-8a1a-7da1e0048dbb",
+  "workersai:c48e8004-1222-4771-9bd3-98eed57826ac"
+ ],
+ "cafeteiras": [
+  "workersai:4e19fbf9-57be-4dd1-9293-e7c323d6cd08",
+  "workersai:d49524ff-90cb-4291-abe8-c89ec1f8f4e8",
+  "workersai:0044c987-a61a-4943-9383-e3dd8774d195"
+ ],
+ "camas-pet": [
+  "workersai:7f4dbec6-cd21-442a-986a-0d8bfc6b5b20",
+  "workersai:de06dc5b-4adf-497d-a8c5-843d84992394",
+  "workersai:bd387262-95c2-43ab-9286-cddf22a2206b"
+ ],
+ "carrinhos": [
+  "workersai:7c14e50d-2733-403b-996b-61d11f0a3ab1",
+  "workersai:5766c3ba-be14-4399-8e2d-da52c9f879c0",
+  "workersai:31e39356-5fb2-465a-a0b5-bb99441ca9d2"
+ ],
+ "carteiras": [
+  "workersai:d2742f5a-d06d-4351-9d3d-64cb25c030f1",
+  "workersai:f8b8419e-3697-4ab0-8d59-f2402d497c49",
+  "workersai:51130c98-bf31-4e36-882c-6a85615edd64"
+ ],
+ "chapinhas": [
+  "workersai:78fd465a-bd80-4ea8-890a-cc245f49e59f",
+  "workersai:3db0b24e-9e7d-46c7-9c09-074febc01aff",
+  "workersai:ac198aba-2905-46d1-8420-bfaf36151268"
+ ],
+ "cintos": [
+  "workersai:dc8e174e-e204-4174-85cc-6d6a112d48c8",
+  "workersai:3a83d6ac-1521-446f-a827-019631a9bb38",
+  "workersai:1d58195d-34cf-4aaf-8d33-5d81a4bbad54"
+ ],
+ "coleiras": [
+  "workersai:9d621d89-d679-43b1-93f5-814347f44e59",
+  "workersai:a8c18edb-2f08-48b0-a785-c299b6a9bd33",
+  "workersai:e2b873da-0bbb-4dd3-b21d-c5298b6753f9"
+ ],
+ "comedouros": [
+  "workersai:59b6a07d-4616-459b-b610-df57f5449bbe",
+  "workersai:ef97ea15-81bc-43f3-8d12-c75f7bb6f83e",
+  "workersai:e395574c-ccde-4a8b-919a-9c26980e3b00"
+ ],
+ "consoles": [
+  "workersai:e3cd7e09-469b-41ee-994b-d5e948926b17",
+  "workersai:ba23ea2e-0f9f-4149-9169-0fa8f1abf6e8",
+  "workersai:463c4504-1d35-45aa-9b37-82aa10a4d414"
+ ],
+ "controles": [
+  "workersai:ae3e66e0-d583-4f69-a580-fc34e272a5e3",
+  "workersai:ed3cf80f-2e6c-49a3-bea3-024198ff97f4",
+  "workersai:0015089d-b83a-42d8-952d-6b8b64644609"
+ ],
+ "facas": [
+  "workersai:71ecc8c9-687d-48b6-9e97-07d562819915",
+  "workersai:ea2fc8b1-90c5-47dc-8c5c-2560b3b8ca6d",
+  "workersai:e8d58c72-b1f6-40dc-a849-2f10e113afc4"
+ ],
+ "frigideiras": [
+  "workersai:f115a348-043a-463c-af9e-292123155ca1",
+  "workersai:d1f8cb26-b245-492d-9943-5d0e0827876c",
+  "workersai:405ce1b6-d54f-4069-8cf3-14d8b6011784"
+ ],
+ "hidratantes": [
+  "workersai:b0c2575a-496c-41d4-acf3-79f77fe1ca46",
+  "workersai:e799b897-aa8a-4b37-85bc-96dd6373caab",
+  "workersai:2d78497a-535b-49ba-83e8-d9946b5ce7cb"
+ ],
+ "jogos-de-tabuleiro": [
+  "workersai:3510b9fa-4077-4d8c-b0b2-3a13fe2ca615",
+  "workersai:a272bc37-3279-4282-b9ee-0aeb8e615dd4",
+  "workersai:367cf119-3ec8-4acd-bc1c-8a051a6034d3"
+ ],
+ "liquidificadores": [
+  "workersai:515501e3-e114-4c0a-b71f-996c9c3016c1",
+  "workersai:117d7be4-3a63-4b9b-9dfd-7c44b318ba56",
+  "workersai:4e339507-a25e-40cb-a6af-f5ff48ae64f3"
+ ],
+ "malas-de-viagem": [
+  "workersai:0616e22c-76c6-4f75-bed5-8fc27f83ae3b",
+  "workersai:72828b26-f72f-496b-b88f-4305df231e61",
+  "workersai:f245bdc9-4da9-4da0-bc44-d8f153e4678d"
+ ],
+ "mascaras-de-cilios": [
+  "figma:1d5b099f-3f01-4d0e-99ec-fa32ea5f4a40",
+  "figma:ffd250c9-438f-4dc7-acc9-335895143a7e",
+  "workersai:88087b29-8e10-4b02-a55e-b02849594a59"
+ ],
+ "mochilas": [
+  "workersai:c6cc25aa-f489-460a-a917-5de165bf4574",
+  "workersai:1877cd48-839a-44b5-80eb-4fb7a546dba0",
+  "workersai:29c131b1-de24-44c7-b5f1-60b025f95f1e"
+ ],
+ "oculos-de-sol": [
+  "workersai:5190949d-18cb-4fd1-97c3-256e215f42bc",
+  "workersai:8af60f0c-d559-4c9d-8229-b12eba287dba",
+  "workersai:eb70580a-01e5-4387-80a8-d2c1f1f17953"
+ ],
+ "panelas": [
+  "workersai:072bb975-4b8d-4eea-a41e-724d37309f57",
+  "workersai:130c91ae-2a4a-4b3c-a5f9-e802c59ea49c",
+  "workersai:60c0a0aa-2a08-448a-aeb7-c5d1b5a82f66"
+ ],
+ "pelucias": [
+  "workersai:91078189-d1aa-4b11-a50d-1a32c574b979",
+  "workersai:32d3182d-0e51-4954-8ca8-44e6bc6b5d1e",
+  "workersai:441ac9d2-e97a-4ea1-9291-b849634c73b7"
+ ],
+ "perfumes": [
+  "workersai:defc2239-6008-4244-a6c9-84431483186e",
+  "workersai:e97f48eb-15ee-44c9-b885-7a7490a17de1",
+  "workersai:13b1fde2-9454-4b67-9d34-f98ffc81d8d9"
+ ],
+ "potes": [
+  "workersai:7c64dc20-d5b5-43d9-a956-402ebc609674",
+  "workersai:0243e826-d2bf-405a-afa1-16c6f5af4a90",
+  "workersai:3f7b3f91-07f3-4ac3-9e37-6d5a16310095"
+ ],
+ "protetores-solares": [
+  "workersai:49c39f3a-ce90-4ece-bbbe-5ffab07fec86",
+  "workersai:fcd86482-c141-4c53-b090-5be531477413",
+  "workersai:d8550736-9464-459a-82f8-28840848b411"
+ ],
+ "relogios-analogicos": [
+  "workersai:92096dc7-8987-4ec1-a555-50d3d19c1bc2",
+  "workersai:41aafac0-9afd-47d5-b852-3888606e57ee",
+  "workersai:04814f5e-c636-43c9-a896-f6d346b1ec8e"
+ ],
+ "sabonetes-faciais": [
+  "workersai:90f014fb-e5a0-4826-9bc1-df84687504d1",
+  "workersai:426753fd-580e-477b-a64a-ca5e297ef147",
+  "workersai:3534ddf9-aae4-4094-8fd0-46de19543f7f"
+ ],
+ "sandalias": [
+  "workersai:103f5f8e-1399-44ca-b531-d90454da97ba",
+  "workersai:51f88ea8-e0d1-4316-b186-603f8ee07daa",
+  "workersai:cb0f9102-827b-4893-b3b3-ec374c09d7ce"
+ ],
+ "sanduicheiras": [
+  "workersai:b10aa620-18e2-4441-8688-5d5020ec9b74",
+  "workersai:b23f6b99-c197-4dcc-805a-6adc5c683115",
+  "workersai:76d9f801-39cd-45d4-a85e-411b1b52bbfc"
+ ],
+ "secadores-de-cabelo": [
+  "workersai:7641e650-bcf1-40c5-b089-528fa5283721",
+  "workersai:6065fd70-80b5-4219-8101-424f6ab12c59",
+  "workersai:1abea615-ca1d-49d4-9c7a-6caa249242b2"
+ ],
+ "shampoos": [
+  "workersai:b9dada86-192a-4845-ba3b-c182d2253753",
+  "workersai:d643a86e-e7d9-4896-9171-6f16dc2620a6",
+  "workersai:1f10182c-0ea9-450d-8bc8-6636f6242c9b"
+ ],
+ "smartwatches": [
+  "workersai:25fc67ab-0a17-4834-8019-fa1b4ce65064",
+  "workersai:8c53b432-a2f0-4454-8fe8-a796593d8ae3",
+  "workersai:13b6e879-9fa4-4303-815a-cc99c95e2e97"
+ ],
+ "tabuas": [
+  "workersai:e29f2432-37c5-4451-8d2e-d75896a5d007",
+  "workersai:e9c8c5ea-27e0-44a7-af19-653a55bdf1e9",
+  "workersai:5c20a36f-22c8-437b-badf-a3ed37989ff9"
+ ],
+ "tenis": [
+  "workersai:2eae97c2-8b45-4266-b2ac-8189a0e623ea",
+  "workersai:322c6da8-2e1c-4885-a85d-66834e887263",
+  "workersai:f8661973-c20d-45bd-b2cd-c7b53cdc5fae"
+ ],
+ "volantes-e-acessorios": [
+  "workersai:187ca2f7-ad0d-47c4-81c4-b913fd5ab417",
+  "workersai:a62ecea2-ee4d-4bfa-9937-9b2ae0e6bb6b",
+  "workersai:2b2e68a7-5fe1-4160-99d5-b2f7410f8b70"
+ ],
+ "teclados": [
+  "workersai:422979b1-0e7b-4f87-8e6f-30adaad6ea35",
+  "workersai:02580cc1-449c-42dd-8ef8-2ed27a64259d",
+  "workersai:9f65bec1-3d1a-4c6b-be8b-b4216e63500f"
  ]
 }
