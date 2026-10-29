@@ -41,6 +41,8 @@ const orderOf = (id, status, reason, qty, unit) => ({
       campaign_id: null,
     },
   ],
+  items_total: { amount_cents: unit * qty, currency: "BRL" },
+  shipping: null,
   total: { amount_cents: unit * qty, currency: "BRL" },
   payment_id: null,
   payment: { method: "card", installments: 1, pix: null },
@@ -510,6 +512,13 @@ const iso = (ms) => new Date(ms).toISOString();
 const QR_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
+// ---- o frete (#222): duas opções para qualquer CEP, menos o 99999-999, que ninguém atende ----
+const SHIPPING = [
+  { id: "economico", name: "Econômico", price_cents: 2430, min_days: 13, max_days: 21 },
+  { id: "expresso", name: "Expresso", price_cents: 6480, min_days: 7, max_days: 11 },
+];
+const shippingFor = (zip) => (zip === "99999999" ? [] : SHIPPING);
+
 // ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
 const cardTokens = new Map(); // token -> titular
 const CORS = {
@@ -582,13 +591,14 @@ async function placeOrder(req, res, email) {
   const key = req.headers["idempotency-key"];
   if (!key) return problem(res, 400, "Requisição malformada");
   const existing = byKey.get(`${email}:${key}`);
-  const { items, payment, recipient, shipping_address } = await json(req);
+  const { items, payment, recipient, shipping_address, shipping } = await json(req);
   if (existing) return send(res, 202, orderAt(placed.get(existing)));
   // como o orders: cartão sem o token do provedor (ou com um token já usado) é recusado
   if (
     !payment ||
     !recipient?.cpf ||
     !/^\d{8}$/.test(shipping_address?.zip_code ?? "") ||
+    !shippingFor(shipping_address.zip_code).some((o) => o.id === shipping?.service) ||
     (payment.method === "card" && !cardTokens.has(payment.card_token))
   ) {
     return problem(res, 422, "Dados inválidos");
@@ -623,7 +633,9 @@ async function placeOrder(req, res, email) {
     line_total: { amount_cents: product.effective_price.amount_cents * quantity, currency: "BRL" },
     campaign_id: product.campaign?.id ?? null,
   }));
-  const total = orderItems.reduce((sum, i) => sum + i.line_total.amount_cents, 0);
+  const itemsTotal = orderItems.reduce((sum, i) => sum + i.line_total.amount_cents, 0);
+  const option = shippingFor(shipping_address.zip_code).find((o) => o.id === shipping.service);
+  const total = itemsTotal + option.price_cents;
   const now = Date.now();
   const id = crypto.randomUUID();
   const order = {
@@ -632,6 +644,15 @@ async function placeOrder(req, res, email) {
     status: "pending",
     cancellation_reason: null,
     items: orderItems,
+    items_total: { amount_cents: itemsTotal, currency: "BRL" },
+    shipping: {
+      service: option.id,
+      name: option.name,
+      price: { amount_cents: option.price_cents, currency: "BRL" },
+      min_days: option.min_days,
+      max_days: option.max_days,
+      promised_by: iso(now + option.max_days * 1.4 * 24 * 60 * 60 * 1000).slice(0, 10),
+    },
     total: { amount_cents: total, currency: "BRL" },
     payment_id: null,
     payment: { method: payment.method, installments: payment.installments ?? 1, pix: null },
@@ -807,6 +828,12 @@ createServer(async (req, res) => {
     return admin(req, res, url);
   }
   if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  if (req.method === "POST" && url.pathname === "/fulfillment/v1/shipping/quote") {
+    const { zip_code: zip, items } = await json(req);
+    const digits = String(zip ?? "").replace(/\D/g, "");
+    if (digits.length !== 8 || !items?.length) return problem(res, 422, "Dados inválidos");
+    return send(res, 200, { zip_code: digits, options: shippingFor(digits) });
+  }
   // o DANFE da nota (#221): só a do pedido confirmado da Ana
   const danfe = url.pathname.match(/^\/fulfillment\/v1\/me\/invoices\/([0-9a-f-]{36})\/danfe$/);
   if (req.method === "GET" && danfe) {

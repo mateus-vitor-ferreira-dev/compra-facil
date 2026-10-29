@@ -44,6 +44,20 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             a.Property(x => x.City).HasColumnName("shipping_city").HasMaxLength(60);
             a.Property(x => x.State).HasColumnName("shipping_state").HasMaxLength(2);
         });
+        // o frete e o prazo prometido (#222): nulos só nos pedidos de antes do frete no checkout
+        builder.ComplexProperty(o => o.Shipping, sh =>
+        {
+            sh.Property(x => x.Service).HasColumnName("shipping_service").HasMaxLength(32);
+            sh.Property(x => x.Name).HasColumnName("shipping_name").HasMaxLength(60);
+            sh.ComplexProperty(x => x.Price, m =>
+            {
+                m.Property(x => x.AmountCents).HasColumnName("shipping_price_cents");
+                m.Property(x => x.Currency).HasColumnName("shipping_price_currency").HasMaxLength(3);
+            });
+            sh.Property(x => x.MinDays).HasColumnName("shipping_min_days");
+            sh.Property(x => x.MaxDays).HasColumnName("shipping_max_days");
+            sh.Property(x => x.PromisedBy).HasColumnName("shipping_promised_by");
+        });
         // a nota fiscal (#221): só existe depois que o fulfillment a emite
         builder.ComplexProperty(o => o.Invoice, i =>
         {

@@ -12,9 +12,11 @@ public sealed class OrderTests
     private static readonly Recipient s_recipient = new("Ana Souza", "52998224725", "11987654321");
     private static readonly ShippingAddress s_address = new("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP");
 
+    private static readonly OrderShipping s_shipping = new("economico", "Econômico", new Money(2430, "BRL"), 13, 21, new DateOnly(2026, 12, 28));
+
     private static Order Pending(params OrderItem[] items) =>
         Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", items.Length == 0 ? [Item()] : items, "chave-123", "hash", s_now,
-            s_recipient, s_address);
+            s_recipient, s_address, s_shipping);
 
     [Fact]
     public void Place_StartsPending_WithTotalOfLines()
@@ -22,7 +24,8 @@ public sealed class OrderTests
         var order = Pending(Item(quantity: 2, cents: 1990), Item(quantity: 1, cents: 5000));
 
         Assert.Equal(OrderStatus.Pending, order.Status);
-        Assert.Equal(new Money(8980, "BRL"), order.Total);
+        // os itens (R$ 89,80) mais o frete (R$ 24,30)
+        Assert.Equal(new Money(8980 + 2430, "BRL"), order.Total);
         Assert.Equal(new Money(3980, "BRL"), order.Items[0].LineTotal);
         Assert.Null(order.CancellationReason);
         Assert.Equal(s_now, order.UpdatedAt);
@@ -32,10 +35,19 @@ public sealed class OrderTests
     public void Place_RejectsEmptyTooManyAndRepeated()
     {
         var p = Guid.NewGuid();
-        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [], "k", "h", s_now, s_recipient, s_address));
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [], "k", "h", s_now, s_recipient, s_address, s_shipping));
         Assert.Throws<DomainException>(() => Pending([.. Enumerable.Range(0, Order.MaxItems + 1).Select(_ => Item())]));
         Assert.Throws<DomainException>(() => Pending(Item(productId: p), Item(productId: p)));
     }
+
+    [Theory]
+    [InlineData("2026-10-29T15:00:00Z", 1, "2026-10-30")]  // quinta → sexta
+    [InlineData("2026-10-30T15:00:00Z", 1, "2026-11-02")]  // sexta → segunda
+    [InlineData("2026-10-31T02:00:00Z", 1, "2026-11-02")]  // sexta 23h em Brasília
+    [InlineData("2026-10-29T15:00:00Z", 21, "2026-11-27")]
+    public void Promise_CountsBusinessDaysFromTheDayInBrasilia(string placedAt, int days, string expected) =>
+        Assert.Equal(DateOnly.Parse(expected, System.Globalization.CultureInfo.InvariantCulture),
+            OrderShipping.Promise(DateTimeOffset.Parse(placedAt, System.Globalization.CultureInfo.InvariantCulture), days));
 
     [Theory]
     [InlineData("52998224725", true)]
@@ -53,9 +65,9 @@ public sealed class OrderTests
         Assert.Equal(s_recipient, order.Recipient);
         Assert.Equal(s_address, order.ShippingAddress);
         Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
-            s_recipient with { Cpf = "52998224724" }, s_address));
+            s_recipient with { Cpf = "52998224724" }, s_address, s_shipping));
         Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
-            s_recipient, s_address with { State = "XX" }));
+            s_recipient, s_address with { State = "XX" }, s_shipping));
     }
 
     [Theory]

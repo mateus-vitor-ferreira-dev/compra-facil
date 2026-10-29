@@ -14,6 +14,7 @@ import { categoryPath } from "@/lib/category-path";
 import { env } from "@/lib/env";
 import { discountPercent, formatMoney } from "@/lib/format";
 import { getAvailability } from "@/lib/inventory-api";
+import { ShippingEstimate } from "@/components/commerce/shipping-estimate";
 import { AddToCartForm } from "./add-to-cart-form";
 
 type Props = { params: Promise<{ id: string }> };
@@ -142,7 +143,14 @@ export default async function ProductPage({ params }: Props) {
               Sem unidades para vender agora. Veja outros produtos de {p.category.name} logo abaixo.
             </p>
           ) : (
-            <AddToCartForm productId={p.id} seenPriceCents={p.effective_price.amount_cents} max={available} />
+            <>
+              <AddToCartForm
+                productId={p.id}
+                seenPriceCents={p.effective_price.amount_cents}
+                max={available}
+              />
+              <ShippingEstimate items={[{ sku: p.sku, quantity: 1 }]} className="border-line border-t pt-5" />
+            </>
           )}
         </div>
       </div>

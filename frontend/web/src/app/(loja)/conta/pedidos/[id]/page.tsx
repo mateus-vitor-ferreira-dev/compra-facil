@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
 import { requireAccount } from "@/lib/auth/current";
 import { addressLines } from "@/lib/delivery";
+import { promised } from "@/lib/shipping";
 import { formatMoney } from "@/lib/format";
 import { orderNumber } from "@/lib/order-status";
 import { getOrder } from "@/lib/orders-api";
@@ -92,10 +93,28 @@ export default async function OrderPage({ params, searchParams }: Props) {
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex items-end justify-between">
-          <p className="font-semibold">Total</p>
-          <p className="font-condensed text-3xl leading-none font-extrabold">{formatMoney(order.total)}</p>
-        </div>
+        <dl className="mt-4 space-y-2">
+          {order.shipping && (
+            <>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-soft">Produtos</dt>
+                <dd className="tabular-nums">{formatMoney(order.items_total)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-soft">Frete {order.shipping.name.toLowerCase()}</dt>
+                <dd className="tabular-nums">
+                  {order.shipping.price.amount_cents === 0 ? "Grátis" : formatMoney(order.shipping.price)}
+                </dd>
+              </div>
+            </>
+          )}
+          <div className="flex items-end justify-between gap-4">
+            <dt className="font-semibold">Total</dt>
+            <dd className="font-condensed text-3xl leading-none font-extrabold">
+              {formatMoney(order.total)}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       {order.recipient && order.shipping_address && (
@@ -103,6 +122,12 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <h2 id="entrega" className="text-xl font-semibold tracking-tight">
             Entrega
           </h2>
+          {order.shipping && order.status !== "cancelled" && order.status !== "delivered" && (
+            // a data que a loja prometeu: é por ela que o cliente cobra, e o painel mede o atraso
+            <p className="font-condensed pb-1 text-2xl font-extrabold tracking-tight">
+              Chega até {promised(order.shipping.promised_by)}
+            </p>
+          )}
           <p className="font-medium">{order.recipient.name}</p>
           <address className="text-ink-soft not-italic">
             {addressLines(order.shipping_address).map((line) => (

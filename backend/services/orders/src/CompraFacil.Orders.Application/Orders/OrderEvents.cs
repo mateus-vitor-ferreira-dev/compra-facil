@@ -47,15 +47,19 @@ public sealed record OrderPlacedData(
 /// </summary>
 public sealed record OrderConfirmedData(
     Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total,
-    PaymentMethod PaymentMethod, Recipient? Recipient, ShippingAddress? ShippingAddress)
+    PaymentMethod PaymentMethod, Recipient? Recipient, ShippingAddress? ShippingAddress, OrderShippingData? Shipping)
 {
     public static OrderConfirmedData From(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.PaymentId!.Value,
-            [.. order.Items.Select(OrderItemData.From)], order.Total, order.PaymentMethod, order.Recipient, order.ShippingAddress);
+            [.. order.Items.Select(OrderItemData.From)], order.Total, order.PaymentMethod, order.Recipient, order.ShippingAddress,
+            order.Shipping is { } s ? new OrderShippingData(s.Service, s.Price, s.PromisedBy) : null);
     }
 }
+
+/// <summary>O frete do pedido nos eventos (#222): o serviço, o preço (vai na nota) e a data prometida (o prazo do fornecedor).</summary>
+public sealed record OrderShippingData(string Service, Money Price, DateOnly PromisedBy);
 
 /// <summary>data do OrderCancelled: compensação (inventory libera, payments descarta, notifications avisa).</summary>
 public sealed record OrderCancelledData(

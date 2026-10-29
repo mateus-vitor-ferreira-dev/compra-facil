@@ -62,8 +62,9 @@ func XML(inv Invoice, req Request) ([]byte, error) {
 				} `xml:"dest"`
 				Det   []det `xml:"det"`
 				Total struct {
-					VProd string `xml:"ICMSTot>vProd"`
-					VNF   string `xml:"ICMSTot>vNF"`
+					VProd  string `xml:"ICMSTot>vProd"`
+					VFrete string `xml:"ICMSTot>vFrete"`
+					VNF    string `xml:"ICMSTot>vNF"`
 				} `xml:"total"`
 			} `xml:"infNFe"`
 		} `xml:"NFe"`
@@ -92,7 +93,7 @@ func XML(inv Invoice, req Request) ([]byte, error) {
 			p.CProd, p.CEAN, p.XProd, p.NCM, p.CFOP, p.UCom, fmt.Sprintf("%.4f", p.QCom), money(p.VUnCom), money(p.VProd),
 		}})
 	}
-	inf.Total.VProd, inf.Total.VNF = money(n.Total.ICMSTot.VProd), money(n.Total.ICMSTot.VNF)
+	inf.Total.VProd, inf.Total.VFrete, inf.Total.VNF = money(n.Total.ICMSTot.VProd), money(n.Total.ICMSTot.VFrete), money(n.Total.ICMSTot.VNF)
 	d.Prot.ChNFe, d.Prot.NProt = inv.Chave, inv.Autorizacao.NumeroProtocolo
 	d.Prot.DhRecbto = inv.Autorizacao.DataEvento.Format("2006-01-02T15:04:05-07:00")
 	d.Prot.CStat, d.Prot.XMotivo = inv.Autorizacao.CodigoStatus, inv.Autorizacao.MotivoStatus
@@ -128,7 +129,10 @@ func PDF(inv Invoice, req Request) []byte {
 		lines = append(lines, fmt.Sprintf("  %d. %s  NCM %s  CFOP %s  %g x %s = %s", d.NItem, d.Prod.XProd, d.Prod.NCM,
 			d.Prod.CFOP, d.Prod.QCom, money(d.Prod.VUnCom), money(d.Prod.VProd)))
 	}
-	lines = append(lines, "", "Valor total da nota: R$ "+money(n.Total.ICMSTot.VNF))
+	if n.Total.ICMSTot.VFrete > 0 {
+		lines = append(lines, "", "Frete: R$ "+money(n.Total.ICMSTot.VFrete))
+	}
+	lines = append(lines, "Valor total da nota: R$ "+money(n.Total.ICMSTot.VNF))
 	if inv.Ambiente == EnvSandbox {
 		lines = append(lines, "", "EMITIDA EM HOMOLOGACAO - SEM VALOR FISCAL")
 	}

@@ -46,6 +46,7 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         {
             json.TryAdd("recipient", JsonSerializer.SerializeToNode(Recipient));
             json.TryAdd("shipping_address", JsonSerializer.SerializeToNode(Address));
+            json.TryAdd("shipping", JsonSerializer.SerializeToNode(new { service = "economico" }));
         }
         using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders") { Content = JsonContent.Create(json) };
         request.Headers.Authorization = new("Bearer", token ?? fx.Identity.CustomerToken(body.Customer));
@@ -140,6 +141,57 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         }, await FieldsOf(invalid));
     }
 
+    [Fact]
+    public async Task Place_RequotesTheShipping_AddsItToTheTotal_AndPromisesTheDate()
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("SHIP-1", "Mouse", 9990));
+        using var response = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = item, quantity = 2 }));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        var order = JsonDocument.Parse(json).RootElement;
+        var shipping = order.GetProperty("shipping");
+        Assert.Equal(("economico", 2430L, 21), (shipping.GetProperty("service").GetString(),
+            shipping.GetProperty("price").GetProperty("amount_cents").GetInt64(), shipping.GetProperty("max_days").GetInt32()));
+        Assert.Equal(19980L, order.GetProperty("items_total").GetProperty("amount_cents").GetInt64());
+        Assert.Equal(19980L + 2430, order.GetProperty("total").GetProperty("amount_cents").GetInt64());
+        var promised = DateOnly.Parse(shipping.GetProperty("promised_by").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
+        Assert.True(promised > DateOnly.FromDateTime(DateTime.UtcNow.AddDays(21)), "21 dias úteis passam de 21 dias corridos");
+        // o fulfillment cotou o CEP e os SKUs do pedido
+        Assert.Contains(fx.Shipping.Calls, c => c.Zip == "01310100" && c.Items.Contains(("SHIP-1", 2)));
+        // o payments cobra o total com o frete
+        var placed = EventEnvelope.TryParse(Assert.Single(await OutboxForAsync(order.GetProperty("id").GetGuid())).Payload)!;
+        Assert.Equal(19980L + 2430, placed.Data.GetProperty("total").GetProperty("amount_cents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Place_WithAShippingTheZipDoesNotHave_Is422_AndWithTheQuoteDown_Is503()
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("SHIP-2", "Mouse", 9990));
+        using var unknown = await PlaceAsync(new PlaceBody(Guid.NewGuid(), new
+        {
+            items = new[] { new { product_id = item, quantity = 1 } },
+            payment = Pix,
+            shipping = new { service = "drone" },
+        }));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, unknown.StatusCode);
+        Assert.Contains("shipping.service", await FieldsOf(unknown));
+
+        var options = fx.Shipping.Options;
+        fx.Shipping.Options = null;
+        try
+        {
+            using var down = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = item, quantity = 1 }));
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, down.StatusCode);
+            Assert.NotNull(down.Headers.RetryAfter);
+        }
+        finally
+        {
+            fx.Shipping.Options = options;
+        }
+    }
+
     private static async Task<HashSet<string?>> FieldsOf(HttpResponseMessage response) =>
         JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("errors").EnumerateArray()
             .Select(e => e.GetProperty("field").GetString()).ToHashSet();
@@ -180,7 +232,7 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         var id = order.GetProperty("id").GetGuid();
         Assert.Equal($"/v1/orders/{id}", response.Headers.Location?.ToString());
         Assert.Equal("pending", order.GetProperty("status").GetString());
-        Assert.Equal(19990 * 2 + 2990, order.GetProperty("total").GetProperty("amount_cents").GetInt64());
+        Assert.Equal(19990 * 2 + 2990 + 2430, order.GetProperty("total").GetProperty("amount_cents").GetInt64());
         var first = order.GetProperty("items")[0];
         Assert.Equal("Fone Sonix", first.GetProperty("name").GetString());
         Assert.Equal(campaign, first.GetProperty("campaign_id").GetGuid());
@@ -337,7 +389,7 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         Assert.Equal(HttpStatusCode.OK, found.StatusCode);
         var json = await found.Content.ReadAsStringAsync(Ct);
         ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
-        Assert.Equal(3000, JsonDocument.Parse(json).RootElement.GetProperty("total").GetProperty("amount_cents").GetInt64());
+        Assert.Equal(3000 + 2430, JsonDocument.Parse(json).RootElement.GetProperty("total").GetProperty("amount_cents").GetInt64());
         // datas na precisão do banco: a resposta da criação bate com a leitura
         Assert.Equal(placedJson.GetProperty("created_at").GetString(),
             JsonDocument.Parse(json).RootElement.GetProperty("created_at").GetString());

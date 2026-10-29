@@ -272,6 +272,48 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                                 .HasColumnName("recipient_phone");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Shipping", "CompraFacil.Orders.Domain.Order.Shipping#OrderShipping", b1 =>
+                        {
+                            b1.Property<int>("MaxDays")
+                                .HasColumnType("integer")
+                                .HasColumnName("shipping_max_days");
+
+                            b1.Property<int>("MinDays")
+                                .HasColumnType("integer")
+                                .HasColumnName("shipping_min_days");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("shipping_name");
+
+                            b1.Property<DateOnly>("PromisedBy")
+                                .HasColumnType("date")
+                                .HasColumnName("shipping_promised_by");
+
+                            b1.Property<string>("Service")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("shipping_service");
+
+                            b1.ComplexProperty(typeof(Dictionary<string, object>), "Price", "CompraFacil.Orders.Domain.Order.Shipping#OrderShipping.Price#Money", b2 =>
+                                {
+                                    b2.IsRequired();
+
+                                    b2.Property<long>("AmountCents")
+                                        .HasColumnType("bigint")
+                                        .HasColumnName("shipping_price_cents");
+
+                                    b2.Property<string>("Currency")
+                                        .IsRequired()
+                                        .HasMaxLength(3)
+                                        .HasColumnType("character varying(3)")
+                                        .HasColumnName("shipping_price_currency");
+                                });
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "ShippingAddress", "CompraFacil.Orders.Domain.Order.ShippingAddress#ShippingAddress", b1 =>
                         {
                             b1.Property<string>("City")

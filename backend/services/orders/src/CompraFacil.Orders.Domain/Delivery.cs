@@ -42,3 +42,46 @@ public static class BrazilianDocuments
 
     public static bool IsValidZipCode(string? value) => value is { Length: 8 } && value.All(char.IsAsciiDigit);
 }
+
+/// <summary>
+/// O frete escolhido no checkout (#222): o serviço, o preço e o prazo em dias úteis como o fulfillment cotou, e
+/// a data que a loja promete ao cliente (o fim do prazo, contado do pedido).
+/// </summary>
+public sealed record OrderShipping
+{
+    public OrderShipping(string service, string name, Money price, int minDays, int maxDays, DateOnly promisedBy)
+    {
+        (Service, Name, Price, MinDays, MaxDays, PromisedBy) = (service, name, price, minDays, maxDays, promisedBy);
+    }
+
+    private OrderShipping()
+    {
+        // EF Core: o Money aninhado não entra pelo construtor
+    }
+
+    public string Service { get; init; } = "";
+    public string Name { get; init; } = "";
+    public Money Price { get; init; }
+    public int MinDays { get; init; }
+    public int MaxDays { get; init; }
+    public DateOnly PromisedBy { get; init; }
+
+    // Brasília: UTC-3 o ano todo desde o fim do horário de verão (2019). Fixo, porque a imagem do serviço
+    // (chiseled) não traz a base de fusos (tzdata)
+    private static readonly TimeSpan s_brasilia = TimeSpan.FromHours(-3);
+
+    /// <summary>A data prometida: o dia do pedido em Brasília mais o prazo máximo, só em dias úteis (sem feriados).</summary>
+    public static DateOnly Promise(DateTimeOffset placedAt, int businessDays)
+    {
+        var day = DateOnly.FromDateTime(placedAt.ToOffset(s_brasilia).DateTime);
+        for (var left = businessDays; left > 0;)
+        {
+            day = day.AddDays(1);
+            if (day.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
+            {
+                left--;
+            }
+        }
+        return day;
+    }
+}

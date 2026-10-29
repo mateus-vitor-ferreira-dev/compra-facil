@@ -48,7 +48,11 @@ public sealed class Invoice
     public string CustomerEmail { get; private set; } = "";
     public ShipTo ShipTo { get; private set; } = null!;
     public IReadOnlyList<InvoiceLine> Lines => _lines;
+    /// <summary>O total da nota: os itens mais o frete.</summary>
     public long TotalCents { get; private set; }
+
+    /// <summary>O frete cobrado do cliente (#222), que entra no valor da nota.</summary>
+    public long FreightCents { get; private set; }
 
     /// <summary>pix ou card: a forma de pagamento da nota (tPag).</summary>
     public string PaymentMethod { get; private set; } = "";
@@ -82,7 +86,7 @@ public sealed class Invoice
 
     public static Invoice Create(
         Guid orderId, Guid customerId, string customerEmail, ShipTo shipTo, IReadOnlyList<InvoiceLine> lines,
-        string paymentMethod, DateTimeOffset now)
+        string paymentMethod, DateTimeOffset now, long freightCents = 0)
     {
         ArgumentNullException.ThrowIfNull(shipTo);
         ArgumentNullException.ThrowIfNull(lines);
@@ -96,7 +100,8 @@ public sealed class Invoice
             CustomerId = customerId,
             CustomerEmail = customerEmail,
             ShipTo = shipTo,
-            TotalCents = lines.Sum(l => l.TotalCents),
+            FreightCents = freightCents,
+            TotalCents = lines.Sum(l => l.TotalCents) + freightCents,
             PaymentMethod = paymentMethod,
             Status = InvoiceStatus.Pending,
             CreatedAt = now,

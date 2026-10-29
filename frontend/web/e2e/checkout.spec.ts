@@ -21,6 +21,8 @@ async function fillDelivery(page: Page) {
   // achado o endereço, o foco vai para o número
   await expect(page.getByLabel("Número")).toBeFocused();
   await page.getByLabel("Número").fill("1000");
+  // com o CEP, o frete é cotado e o mais barato vem marcado
+  await expect(page.getByRole("radio", { name: /Econômico/ })).toBeChecked();
 }
 
 /** Paga com o cartão de teste; o titular decide o resultado no provedor (APRO aprova, FUND recusa). */
@@ -49,12 +51,16 @@ test("compra no cartão do começo ao fim, com a SAGA aparecendo ao vivo", async
   await signIn(page, "ana@exemplo.com");
   await expect(page).toHaveURL(/\/checkout$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Revise e faça o pedido");
-  await expect(page.getByRole("complementary", { name: "Resumo" })).toContainText("R$ 2.639,92");
+  // a Ana já comprou: o frete vem cotado com o CEP do último pedido, o mais barato marcado e somado
+  const summary = page.getByRole("complementary", { name: "Resumo" });
+  await expect(page.getByRole("radio", { name: /Econômico/ })).toBeChecked();
+  await expect(summary).toContainText("Frete econômico");
+  await expect(summary).toContainText("R$ 2.664,22");
 
   await payByCard(page);
   await expect(page.getByText("Visa", { exact: true })).toBeVisible();
-  await page.getByLabel("Parcelas").selectOption({ label: "3× de R$ 879,97 sem juros" });
-  await page.getByRole("button", { name: "Fazer o pedido de R$ 2.639,92" }).click();
+  await page.getByLabel("Parcelas").selectOption({ label: "3× de R$ 888,07 sem juros" });
+  await page.getByRole("button", { name: "Fazer o pedido de R$ 2.664,22" }).click();
   await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
   await expect(page.getByText("Recebemos o seu pedido.")).toBeVisible();
 
@@ -164,7 +170,7 @@ test("PIX: o código aparece no pedido e, pago, o pedido segue", async ({ page, 
     page.getByRole("list", { name: "Andamento do pedido" }).locator("[aria-current=step]"),
   ).toContainText("Esperando o PIX");
   await expect(panel.getByRole("textbox", { name: "Código PIX copia e cola" })).toHaveValue(/^000201/);
-  await expect(panel.getByRole("img", { name: /QR code do PIX de R\$ 2\.639,92/ })).toBeVisible();
+  await expect(panel.getByRole("img", { name: /QR code do PIX de R\$ 2\.664,22/ })).toBeVisible();
 
   // o banco confirma o pagamento: o painel sai e o pedido segue, sem recarregar
   const id = new URL(page.url()).pathname.split("/").pop();
@@ -268,4 +274,54 @@ test("quem já comprou recebe a entrega do último pedido preenchida", async ({ 
   await expect(page.getByLabel("CPF")).toHaveValue("529.982.247-25");
   await expect(page.getByLabel("CEP")).toHaveValue("01310-100");
   await expect(page.getByLabel("Estado")).toHaveValue("SP");
+});
+
+test("frete: trocar pelo expresso muda o total, e o pedido mostra o frete e a data prometida", async ({
+  page,
+}) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "ana@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+
+  const express = page.getByRole("radio", { name: /Expresso/ });
+  await expect(express).toBeVisible();
+  await expect(page.getByRole("group", { name: "Escolha o frete" })).toContainText(/chega entre/);
+  await express.check();
+  const summary = page.getByRole("complementary", { name: "Resumo" });
+  await expect(summary).toContainText("Frete expresso");
+  await expect(summary).toContainText("R$ 2.704,72"); // 2.639,92 + 64,80
+  await page.getByRole("button", { name: "Fazer o pedido de R$ 2.704,72" }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
+
+  await expect(page.getByRole("region", { name: "Entrega" })).toContainText(/Chega até \d+ de/);
+  await expect(page.getByText("Frete expresso")).toBeVisible();
+});
+
+test("CEP sem frete avisa, e o pedido não sai sem frete escolhido", async ({ page }) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "caio@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await page.getByLabel("CEP").fill("99999-999");
+  await expect(page.getByText("Nenhuma transportadora atende este CEP.")).toBeVisible();
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+  await expect(page).toHaveURL(/\/checkout$/);
+});
+
+test("o produto e o carrinho cotam o frete pelo CEP, e lembram o CEP", async ({ page }) => {
+  await page.goto(TV);
+  const product = page.getByRole("region", { name: "Frete e prazo" });
+  await product.getByLabel("CEP").fill("01310100");
+  await product.getByRole("button", { name: "Calcular" }).click();
+  await expect(product).toContainText("Econômico");
+  await expect(product).toContainText("R$ 24,30");
+  await expect(product).toContainText(/chega entre/);
+
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toBeVisible();
+  await page.goto("/carrinho");
+  const cart = page.getByRole("region", { name: "Frete e prazo" });
+  await expect(cart.getByLabel("CEP")).toHaveValue("01310-100");
+  await expect(cart).toContainText("Expresso"); // cotou sozinho com o CEP guardado
 });

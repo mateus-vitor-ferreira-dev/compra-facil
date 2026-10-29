@@ -12,6 +12,7 @@ import { EMPTY_DELIVERY, fromOrder } from "@/lib/delivery";
 import { env } from "@/lib/env";
 import { formatMoney } from "@/lib/format";
 import { listMyOrders } from "@/lib/orders-api";
+import { quoteShipping } from "@/lib/shipping-api";
 import { CheckoutForm } from "./checkout-form";
 
 export const metadata: Metadata = { title: "Pagamento", robots: { index: false } };
@@ -35,6 +36,10 @@ export default async function CheckoutPage() {
   // a entrega do último pedido: quem compra de novo só confere (sem ela, ou com o orders fora, começa vazia)
   const previous = await listMyOrders(token);
   const remembered = previous.ok ? previous.data.data.map(fromOrder).find((d) => d !== undefined) : undefined;
+  // o frete cotado já com o CEP de antes: sem JavaScript, o cliente vê e escolhe do mesmo jeito
+  const items = lines.flatMap((l) => (l.product ? [{ sku: l.product.sku, quantity: l.qty }] : []));
+  const zip = remembered?.zip_code.replace(/\D/g, "");
+  const quote = zip ? await quoteShipping(zip, items) : undefined;
 
   return (
     <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
@@ -43,8 +48,11 @@ export default async function CheckoutPage() {
 
       <CheckoutForm
         idempotencyKey={crypto.randomUUID()}
-        total={brl(summary.total)}
-        totalCents={summary.total}
+        itemsTotalCents={summary.total}
+        items={items}
+        initialQuote={
+          quote?.ok && quote.options.length ? { zip: quote.zipCode, options: quote.options } : undefined
+        }
         provider={{ url: env.PAYMENT_PROVIDER_URL, publicKey: env.PAYMENT_PUBLIC_KEY }}
         initialDelivery={remembered ?? { ...EMPTY_DELIVERY, name: account.name }}
         remembered={remembered !== undefined}
@@ -115,15 +123,7 @@ export default async function CheckoutPage() {
                   <dd className="tabular-nums">−{brl(summary.savings)}</dd>
                 </div>
               )}
-              <div className="border-line flex items-end justify-between gap-4 border-t pt-3">
-                <dt className="font-semibold">Total</dt>
-                <dd className="font-condensed text-3xl leading-none font-extrabold">{brl(summary.total)}</dd>
-              </div>
             </dl>
-            <p className="text-ink-soft mt-3 text-sm">
-              O preço fica congelado no pedido. Se algum mudou desde a revisão, o pedido não é feito e o
-              carrinho mostra o quê.
-            </p>
           </>
         }
       />

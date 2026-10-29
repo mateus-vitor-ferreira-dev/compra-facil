@@ -80,6 +80,8 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
         var sameState = string.Equals(to.State, issuer.State, StringComparison.OrdinalIgnoreCase);
         var cfop = sameState ? o.CfopInState : o.CfopOutOfState;
         decimal Reais(long cents) => cents / 100m;
+        var products = invoice.Lines.Sum(l => l.TotalCents);
+        var freight = Freight(invoice);
         return new
         {
             ambiente = o.Environment,
@@ -161,9 +163,11 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
                         qTrib = l.Quantity,
                         vUnTrib = Reais(l.UnitPriceCents),
                         indTot = 1,
+                        vFrete = freight[i] > 0 ? Reais(freight[i]) : (decimal?)null,
                     },
                 }).ToList(),
-                total = new { ICMSTot = new { vProd = Reais(invoice.TotalCents), vNF = Reais(invoice.TotalCents) } },
+                // o total: os produtos, o frete cobrado do cliente (#222) e a nota, que soma os dois
+                total = new { ICMSTot = new { vProd = Reais(products), vFrete = Reais(invoice.FreightCents), vNF = Reais(invoice.TotalCents) } },
                 transp = new { modFrete = 0 }, // frete por conta do emitente (o fornecedor manda)
                 pag = new
                 {
@@ -171,6 +175,22 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
                 },
             },
         };
+    }
+
+    /// <summary>O frete rateado entre os itens pelo valor de cada um (a NF-e pede o vFrete por item); o último leva a sobra.</summary>
+    private static long[] Freight(Invoice invoice)
+    {
+        var lines = invoice.Lines;
+        var products = lines.Sum(l => l.TotalCents);
+        var shares = new long[lines.Count];
+        long given = 0;
+        for (var i = 0; i < lines.Count - 1; i++)
+        {
+            shares[i] = products == 0 ? 0 : invoice.FreightCents * lines[i].TotalCents / products;
+            given += shares[i];
+        }
+        shares[^1] = invoice.FreightCents - given;
+        return shares;
     }
 
     private static readonly Dictionary<string, int> s_stateCodes = new(StringComparer.OrdinalIgnoreCase)
