@@ -48,6 +48,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/invoices/{order_id}/danfe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * O DANFE da nota do pedido, em PDF
+         * @description A nota fiscal do pedido (#221) para o cliente baixar, como o emissor a gera. Só o dono do pedido (o
+         *     `sub` do token) ou a equipe (role `admin`); a nota de outro cliente, a pendente e a rejeitada dão
+         *     404. A nota cancelada continua baixável (o DANFE dela mostra o cancelamento no emissor de verdade).
+         */
+        get: operations["getInvoiceDanfe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shipping/quote": {
         parameters: {
             query?: never;
@@ -405,6 +427,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["ValidationProblem"];
             };
         };
+        /** @description Recurso não encontrado. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Limite de requisições excedido (rate limit do gateway). */
         TooManyRequests: {
             headers: {
@@ -513,6 +544,43 @@ export interface operations {
             /** @description O fornecedor não respondeu; o inventory decide pelo espelho. */
             503: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getInvoiceDanfe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O DANFE. */
+            200: {
+                headers: {
+                    /** @description `attachment; filename=nfe-<número>.pdf`. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            /** @description O emissor da nota não respondeu; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {

@@ -503,6 +503,8 @@ services:
     image: compra-facil/notifications:${VERSION:-dev}
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      # o link do pedido nos e-mails (a nota fiscal aponta para o DANFE na página do pedido)
+      Store__BaseUrl: ${SITE_URL:-http://localhost:3000}/
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s

@@ -48,6 +48,25 @@ public sealed class OnOrderCancelled(INotificationRepository notifications, Time
     }
 }
 
+/// <summary>Registra o e-mail da nota fiscal autorizada, com o link do pedido (onde o cliente baixa o DANFE).</summary>
+public sealed class OnInvoiceIssued(
+    INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)
+    : IHandleEvent<InvoiceIssuedData>
+{
+    public async Task HandleAsync(InvoiceIssuedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.InvoiceIssuedAsync(data, store.Value.BaseUrl);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.InvoiceIssued,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
 /// <summary>Registra o e-mail com o link de confirmação da conta.</summary>
 public sealed class OnEmailConfirmationRequested(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<EmailConfirmationRequestedData>
 {

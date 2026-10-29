@@ -23,6 +23,8 @@ tags:
     description: Chamadas entre serviços, fora do gateway.
   - name: admin
     description: "Operação (role `admin`): pedidos parados no fornecedor; dead letter topic em todos os serviços."
+  - name: me
+    description: O que o cliente logado vê das notas dos pedidos dele.
   - name: shipping
     description: Frete e prazo por CEP (#222).
 
@@ -130,6 +132,55 @@ paths:
             application/problem+json:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+
+  /v1/me/invoices/{order_id}/danfe:
+    get:
+      tags: [me]
+      operationId: getInvoiceDanfe
+      summary: O DANFE da nota do pedido, em PDF
+      description: |
+        A nota fiscal do pedido (#221) para o cliente baixar, como o emissor a gera. Só o dono do pedido (o
+        `sub` do token) ou a equipe (role `admin`); a nota de outro cliente, a pendente e a rejeitada dão
+        404. A nota cancelada continua baixável (o DANFE dela mostra o cancelamento no emissor de verdade).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: O DANFE.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename=nfe-<número>.pdf`.'
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "503":
+          description: O emissor da nota não respondeu; vem com `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/shipping/quote:
     post:
       tags: [shipping]

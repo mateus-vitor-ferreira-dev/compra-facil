@@ -4,8 +4,8 @@ info:
   version: 1.0.0
   description: |
     O serviço **notifications** (time de Processamento de compras, ASP.NET Core) só consome eventos:
-    envia o e-mail de pedido confirmado ou cancelado e o de confirmação de e-mail da conta (Mailpit em
-    dev). Não publica nada.
+    envia o e-mail de pedido confirmado ou cancelado, o da nota fiscal emitida (com o link do pedido, onde
+    fica o DANFE) e o de confirmação de e-mail da conta (Mailpit em dev). Não publica nada.
 
     O e-mail de um mesmo `event_id` sai no máximo uma vez.
 defaultContentType: application/json
@@ -21,6 +21,8 @@ channels:
     $ref: "./orders.v1.yaml#/channels/orderEvents"
   accountEvents:
     $ref: "./identity.v1.yaml#/channels/accountEvents"
+  invoiceEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/invoiceEvents"
 
 operations:
   onOrderOutcome:
@@ -31,6 +33,20 @@ operations:
     messages:
       - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications
+
+  onInvoiceIssued:
+    action: receive
+    channel:
+      $ref: "#/channels/invoiceEvents"
+    summary: Manda ao cliente a nota fiscal emitida, com o link do pedido.
+    messages:
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceIssued"
     bindings:
       kafka:
         bindingVersion: 0.5.0

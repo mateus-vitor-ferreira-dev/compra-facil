@@ -138,14 +138,15 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private async Task ConfirmedAsync(Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null)
+    private async Task ConfirmedAsync(
+        Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null, Guid? customer = null)
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var handler = cutoff is null
             ? ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider)
             : ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider, cutoff);
         var item = new OrderItem(Guid.NewGuid(), "MOU-000001", "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
-        await handler.HandleAsync(new OrderConfirmedData(orderId, Guid.NewGuid(), email, [item], new Money(19980, "BRL"),
+        await handler.HandleAsync(new OrderConfirmedData(orderId, customer ?? Guid.NewGuid(), email, [item], new Money(19980, "BRL"),
                 new Recipient("Ana Souza", "52998224725", "11987654321"),
                 new ShippingAddress("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP")),
             new EventContext(Guid.NewGuid(), FulfillmentEvents.OrderConfirmed, FulfillmentEvents.OrdersTopic, "req", confirmedAt ?? DateTimeOffset.UtcNow), Ct);
@@ -463,5 +464,38 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
             await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
         }
         Assert.Null(await InvoiceAsync(id));
+    }
+
+    [Fact]
+    public async Task DANFE_so_para_o_dono_do_pedido_ou_a_equipe()
+    {
+        var (id, owner) = (Guid.NewGuid(), Guid.NewGuid());
+        await ConfirmedAsync(id, customer: owner);
+        using var client = fx.Factory.CreateClient();
+        async Task<HttpResponseMessage> Get(Guid order, string token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/v1/me/invoices/{order}/danfe");
+            request.Headers.Authorization = new("Bearer", token);
+            return await client.SendAsync(request, Ct);
+        }
+
+        using (var pending = await Get(id, fx.Identity.CustomerToken(owner)))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, pending.StatusCode); // antes de emitir, não há nota
+        }
+        await DispatchAsync();
+
+        using var mine = await Get(id, fx.Identity.CustomerToken(owner));
+        Assert.Equal(HttpStatusCode.OK, mine.StatusCode);
+        Assert.Equal("application/pdf", mine.Content.Headers.ContentType?.MediaType);
+        Assert.StartsWith("nfe-", mine.Content.Headers.ContentDisposition?.FileName, StringComparison.Ordinal);
+        Assert.StartsWith("%PDF", await mine.Content.ReadAsStringAsync(Ct), StringComparison.Ordinal);
+
+        using var other = await Get(id, fx.Identity.CustomerToken(Guid.NewGuid()));
+        Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
+        using var admin = await Get(id, fx.Identity.AdminToken());
+        Assert.Equal(HttpStatusCode.OK, admin.StatusCode);
+        using var anonymous = await client.GetAsync($"/v1/me/invoices/{id}/danfe", Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 }

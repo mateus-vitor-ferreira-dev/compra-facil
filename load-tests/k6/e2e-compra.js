@@ -16,7 +16,7 @@
 //   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved;
 //   7. nota fiscal recusada: cliente "+recusar-nota" (a SEFAZ simulada do invoice-sim rejeita) → o pedido
 //      pago não vai ao fornecedor, cancelled (invoice_failed) e a autorização do cartão cancelada.
-// No cenário 1, a nota fiscal sai antes do fornecedor e aparece no pedido.
+// No cenário 1, a nota fiscal sai antes do fornecedor, aparece no pedido, vai por e-mail e o DANFE baixa.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
 //
@@ -207,6 +207,10 @@ export default function (products) {
     });
     // o fornecedor aceitou: a autorização foi capturada
     check(paymentOf(orderId, 'approved'), { 'cartão capturado': (p) => !!p.captured_at });
+    // a nota fiscal: o e-mail com o link do pedido e o DANFE para o dono baixar pelo gateway
+    check(eventually('e-mail da nota fiscal', () => emailsTo(customer.email, 'Nota fiscal')), { 'e-mail da nota fiscal': (n) => n >= 1 });
+    const danfe = http.get(`${GATEWAY}/fulfillment/v1/me/invoices/${orderId}/danfe`, { headers: auth(customer.token), tags: { name: 'danfe' } });
+    check(danfe, { 'DANFE em PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf') });
 
     const mine = http.get(`${GATEWAY}/orders/v1/me/orders`, { headers: auth(customer.token), tags: { name: 'my-orders' } });
     check(mine, { 'pedido em Meus pedidos': (r) => r.status === 200 && r.json('data').some((o) => o.id === orderId) });
