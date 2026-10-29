@@ -31,6 +31,8 @@ public static class DependencyInjection
         builder.AddMessaging<NotificationsDbContext>("notifications", m => m
             .Handle<OrderConfirmedData, OnOrderConfirmed>(NotificationEvents.OrdersTopic, NotificationEvents.OrderConfirmed)
             .Handle<OrderCancelledData, OnOrderCancelled>(NotificationEvents.OrdersTopic, NotificationEvents.OrderCancelled)
+            .Handle<OrderReturnedData, OnOrderReturned>(NotificationEvents.OrdersTopic, NotificationEvents.OrderReturned)
+            .Handle<OrderRefundedData, OnOrderRefunded>(NotificationEvents.OrdersTopic, NotificationEvents.OrderRefunded)
             .Handle<InvoiceIssuedData, OnInvoiceIssued>(NotificationEvents.InvoicesTopic, NotificationEvents.InvoiceIssued)
             .Handle<EmailConfirmationRequestedData, OnEmailConfirmationRequested>(
                 NotificationEvents.AccountsTopic, NotificationEvents.EmailConfirmationRequested));

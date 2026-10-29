@@ -34,6 +34,7 @@ public static class DependencyInjection
             .Produces(PaymentEvents.Topic)
             .Handle<OrderPlacedData, OnOrderPlaced>(PaymentEvents.OrdersTopic, "OrderPlaced")
             .Handle<OrderCancelledData, OnOrderCancelled>(PaymentEvents.OrdersTopic, "OrderCancelled")
+            .Handle<OrderReturnedData, OnOrderReturned>(PaymentEvents.OrdersTopic, "OrderReturned")
             .Handle<StockReservedData, OnStockReserved>(PaymentEvents.ReservationsTopic, "StockReserved")
             .Handle<SupplierOrderPlacedData, OnSupplierOrderPlaced>(PaymentEvents.FulfillmentTopic, "SupplierOrderPlaced"));
         return builder;

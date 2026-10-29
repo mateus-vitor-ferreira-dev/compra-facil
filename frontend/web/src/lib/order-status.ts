@@ -20,6 +20,8 @@ export type OrderProgress = {
   shipped_at?: string | null;
   delivered_at?: string | null;
   refunded_at?: string | null;
+  /** O cliente se arrependeu (#223): pediu a devolução dentro dos 7 dias da entrega. */
+  return_requested_at?: string | null;
   payment?: Payment;
   created_at: string;
   updated_at: string;
@@ -76,6 +78,14 @@ export function orderStatus(order: StatusInput): { label: string; tone: Tone; de
       return { label: "Enviado", tone: "neutral", detail: "O pedido saiu para entrega." };
     case "delivered":
       return { label: "Entregue", tone: "success", detail: "O pedido foi entregue." };
+    case "returned":
+      return {
+        label: "Devolvido",
+        tone: "neutral",
+        detail: order.refunded_at
+          ? "Você desistiu da compra. O valor pago, com o frete, foi estornado."
+          : "Você desistiu da compra. Estamos estornando o valor pago, com o frete.",
+      };
     case "cancelled":
       return {
         label: "Cancelado",
@@ -108,19 +118,20 @@ export const orderNumber = (id: string) => id.replace(/-/g, "").slice(0, 8).toUp
 
 export type StepState = "done" | "current" | "failed" | "skipped" | "upcoming";
 export type Step = {
-  key: "placed" | "stock" | "payment" | "supplier" | "shipped" | "delivered" | "refund";
+  key: "placed" | "stock" | "payment" | "supplier" | "shipped" | "delivered" | "return" | "refund";
   label: string;
   state: StepState;
   at?: string;
 };
 
-const paid = (status: Status) => status === "confirmed" || status === "shipped" || status === "delivered";
+const paid = (status: Status) =>
+  status === "confirmed" || status === "shipped" || status === "delivered" || status === "returned";
 
 /**
  * As etapas da compra para o cliente acompanhar, cada uma com o nome do que está acontecendo (ou
  * aconteceu) e o horário real, quando o pedido o tem. Recebido, estoque e pagamento; depois de pago, o
  * fornecedor, o envio e a entrega. Cancelado antes de pagar, a linha para na etapa que falhou; cancelado
- * pelo fornecedor, a entrega dá lugar ao estorno.
+ * pelo fornecedor, a entrega dá lugar ao estorno. Devolvido (#223), a entrega ganha a devolução e o estorno.
  */
 export function orderSteps(order: OrderProgress): Step[] {
   const { status, cancellation_reason: reason, stock_reserved_at: reserved } = order;
@@ -177,24 +188,38 @@ export function orderSteps(order: OrderProgress): Step[] {
         : { key: "supplier", label: "Enviando ao fornecedor", state: "current" }
       : { key: "supplier", label: "Separado pelo fornecedor", state: "done", at: sent ?? undefined };
 
+  const refund: Step = order.refunded_at
+    ? { key: "refund", label: "Valor estornado", state: "done", at: order.refunded_at }
+    : { key: "refund", label: "Estornando o valor pago", state: "current" };
+
   if (supplierFailed) {
-    const refund: Step = order.refunded_at
-      ? { key: "refund", label: "Valor estornado", state: "done", at: order.refunded_at }
-      : { key: "refund", label: "Estornando o valor pago", state: "current" };
     return [placed, stock, payment, supplier, refund];
   }
 
+  const arrived = status === "delivered" || status === "returned";
   const shipped: Step =
     status === "shipped"
       ? { key: "shipped", label: "A caminho", state: "current", at: order.shipped_at ?? undefined }
-      : status === "delivered"
+      : arrived
         ? { key: "shipped", label: "Enviado", state: "done", at: order.shipped_at ?? undefined }
         : { key: "shipped", label: "Envio", state: "upcoming" };
 
   const delivered: Step =
     status === "delivered"
       ? { key: "delivered", label: "Entregue", state: "done", at: order.delivered_at ?? end }
-      : { key: "delivered", label: "Entrega", state: "upcoming" };
+      : status === "returned"
+        ? { key: "delivered", label: "Entregue", state: "done", at: order.delivered_at ?? undefined }
+        : { key: "delivered", label: "Entrega", state: "upcoming" };
+
+  if (status === "returned") {
+    const asked: Step = {
+      key: "return",
+      label: "Devolução pedida",
+      state: "done",
+      at: order.return_requested_at ?? undefined,
+    };
+    return [placed, stock, payment, supplier, shipped, delivered, asked, refund];
+  }
 
   return [placed, stock, payment, supplier, shipped, delivered];
 }
@@ -208,6 +233,8 @@ export function orderHeadline(order: OrderProgress): string {
       return "Pedido a caminho";
     case "delivered":
       return "Pedido entregue";
+    case "returned":
+      return order.refunded_at ? "Valor estornado" : "Devolução pedida";
     case "cancelled":
       return "Pedido cancelado";
     default:
@@ -216,9 +243,13 @@ export function orderHeadline(order: OrderProgress): string {
   }
 }
 
-/** Não muda mais: entregue, ou cancelado sem estorno pendente (o mesmo fim do stream do orders). */
+/**
+ * Não muda mais sozinho: entregue (só o cliente devolve), devolvido e estornado, ou cancelado sem estorno
+ * pendente (o mesmo fim do stream do orders).
+ */
 export const isFinal = (order: Pick<OrderProgress, "status" | "cancellation_reason" | "refunded_at">) =>
   order.status === "delivered" ||
+  (order.status === "returned" && !!order.refunded_at) ||
   (order.status === "cancelled" && !(paidThenCancelled(order.cancellation_reason) && !order.refunded_at));
 
 /** Cancelado depois de pago (o fornecedor ou a nota): o estorno ainda pode estar a caminho. */

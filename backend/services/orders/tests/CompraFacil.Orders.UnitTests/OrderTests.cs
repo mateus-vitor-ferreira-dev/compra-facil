@@ -204,6 +204,33 @@ public sealed class OrderTests
     }
 
     [Fact]
+    public void Return_WithinSevenDaysOfDelivery_AwaitsTheRefund_AndOnlyOnce()
+    {
+        var order = Paid();
+        Assert.Throws<DomainException>(() => order.RequestReturn(s_now)); // ainda não entregue
+        order.Deliver(s_now.AddDays(3));
+        Assert.Equal(s_now.AddDays(10), order.ReturnableUntil);
+
+        Assert.True(order.RequestReturn(s_now.AddDays(10))); // no último instante do prazo
+        Assert.False(order.RequestReturn(s_now.AddDays(10))); // pedir de novo não muda nada
+        Assert.Equal((OrderStatus.Returned, s_now.AddDays(10)), (order.Status, order.ReturnRequestedAt));
+        Assert.Null(order.ReturnableUntil);
+        Assert.True(order.AwaitingRefund);
+        Assert.True(order.MarkRefunded(s_now.AddDays(10).AddMinutes(1)));
+        Assert.False(order.AwaitingRefund);
+    }
+
+    [Fact]
+    public void Return_AfterSevenDays_IsRefused()
+    {
+        var order = Paid();
+        order.Deliver(s_now);
+        var e = Assert.Throws<DomainException>(() => order.RequestReturn(s_now.AddDays(7).AddSeconds(1)));
+        Assert.Contains("7 dias", e.Message, StringComparison.Ordinal);
+        Assert.Equal(OrderStatus.Delivered, order.Status);
+    }
+
+    [Fact]
     public void Supplier_DeliveredWithoutShipping_FillsTheSteps()
     {
         var order = Paid();

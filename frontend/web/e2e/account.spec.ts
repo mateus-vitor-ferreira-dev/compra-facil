@@ -78,7 +78,7 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   await signIn(page, "ana@exemplo.com");
   await expect(page).toHaveURL(/\/conta$/);
   const orders = page.getByRole("region", { name: "Meus pedidos" });
-  await expect(orders.getByRole("link")).toHaveCount(2);
+  await expect(orders.getByRole("link")).toHaveCount(3);
   await expect(orders).toContainText("Pedido 4F2A9C1B");
   await expect(orders).toContainText("Em preparação");
   await expect(orders).toContainText("Cancelado");
@@ -101,6 +101,28 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   await expect(page.getByText("2 × R$ 2.639,92")).toBeVisible();
 
   expect((await page.goto("/conta/pedidos/0199f6a0-0000-7000-8000-0000000fffff"))?.status()).toBe(404);
+});
+
+test("o pedido entregue aceita a desistência em 7 dias, com confirmação", async ({ page }) => {
+  await signIn(page, "ana@exemplo.com");
+  await expect(page).toHaveURL(/\/conta$/);
+  await page.goto("/conta/pedidos/9d1b6e3f-0000-7000-8000-000000000003");
+  const section = page.getByRole("region", { name: "Desistir da compra" });
+  await expect(section).toContainText("7 dias depois da entrega");
+
+  // a primeira tecla só abre a pergunta, com o valor e a forma do estorno; manter devolve o foco
+  await section.getByRole("button", { name: "Desistir da compra" }).click();
+  await expect(section.getByRole("heading", { name: "R$ 2.639,92 de volta" })).toBeFocused();
+  await expect(section).toContainText("no cartão usado na compra");
+  await section.getByRole("button", { name: "Manter o pedido" }).click();
+  await expect(section.getByRole("button", { name: "Desistir da compra" })).toBeFocused();
+
+  await section.getByRole("button", { name: "Desistir da compra" }).click();
+  await section.getByRole("button", { name: "Confirmar a desistência" }).click();
+  await expect(page).toHaveURL(/desistencia=1/);
+  await expect(page.getByRole("status").filter({ hasText: "Desistência registrada" })).toBeVisible();
+  await expect(page.getByText("Valor estornado", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("region", { name: "Desistir da compra" })).toHaveCount(0);
 });
 
 test("sair apaga a sessão e o cabeçalho volta a oferecer Entrar", async ({ page, context }) => {

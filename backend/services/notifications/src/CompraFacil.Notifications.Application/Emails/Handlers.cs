@@ -48,6 +48,40 @@ public sealed class OnOrderCancelled(INotificationRepository notifications, Time
     }
 }
 
+/// <summary>Registra o e-mail da devolução registrada (#223).</summary>
+public sealed class OnOrderReturned(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<OrderReturnedData>
+{
+    public async Task HandleAsync(OrderReturnedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ReturnedAsync(data);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderReturned,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>Registra o e-mail do estorno feito.</summary>
+public sealed class OnOrderRefunded(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<OrderRefundedData>
+{
+    public async Task HandleAsync(OrderRefundedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.RefundedAsync(data);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderRefunded,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
 /// <summary>Registra o e-mail da nota fiscal autorizada, com o link do pedido (onde o cliente baixa o DANFE).</summary>
 public sealed class OnInvoiceIssued(
     INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)

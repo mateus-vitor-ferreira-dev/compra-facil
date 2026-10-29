@@ -130,8 +130,10 @@ public sealed class OrderWatch(OrderChangeFeed.Subscription subscription, IOrder
     public static bool IsFinal(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
-        // cancelado depois de pago ainda muda uma vez, quando o estorno volta
-        return order.Status is OrderStatus.Delivered || (order.Status is OrderStatus.Cancelled && !order.AwaitingRefund);
+        // cancelado depois de pago, ou devolvido, ainda muda uma vez: quando o estorno volta. O entregue é final
+        // para o acompanhamento ao vivo (a devolução, dias depois, é uma ação do cliente na própria página)
+        return order.Status is OrderStatus.Delivered
+            || (order.Status is OrderStatus.Cancelled or OrderStatus.Returned && !order.AwaitingRefund);
     }
 
     public void Dispose() => subscription.Dispose();

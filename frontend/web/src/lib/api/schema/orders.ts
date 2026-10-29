@@ -69,6 +69,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/orders/{order_id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Devolver o pedido (arrependimento)
+         * @description O dono devolve o pedido entregue em até 7 dias corridos da entrega, sem justificar (CDC, art.
+         *     49; #223). O pedido vira `returned` e o `OrderReturned` faz o payments estornar na hora o total,
+         *     com o frete, sem esperar a devolução ao fornecedor. Pedir de novo devolve o mesmo pedido.
+         *     Antes da entrega ou fora do prazo: `409`, com o motivo.
+         */
+        post: operations["returnOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/orders/{order_id}/events": {
         parameters: {
             query?: never;
@@ -151,10 +174,11 @@ export interface components {
         /**
          * @description `pending`: reservando o estoque e cobrando · `confirmed`: pago, com o fornecedor ·
          *     `shipped`: despachado, com o rastreio · `delivered`: entregue · `cancelled`: não concluído
-         *     (ver `cancellation_reason`).
+         *     (ver `cancellation_reason`) · `returned`: devolvido no prazo de arrependimento (#223), com o
+         *     estorno em `refunded_at`.
          * @enum {string}
          */
-        OrderStatus: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+        OrderStatus: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled" | "returned";
         /**
          * @description `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
          *     `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
@@ -331,9 +355,20 @@ export interface components {
             /**
              * Format: date-time
              * @description Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed` ou
-             *     `invoice_failed`. Nulo nesse pedido é o estorno em andamento.
+             *     `invoice_failed`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
              */
             refunded_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Quando o cliente pediu a devolução (#223).
+             */
+            return_requested_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Até quando o pedido entregue pode ser devolvido (7 dias da entrega). Nulo se não foi entregue
+             *     ou já foi devolvido.
+             */
+            returnable_until?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -512,6 +547,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Conflito com o estado atual (duplicidade ou versão desatualizada). */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Kafka fora do ar; tente de novo. */
         KafkaUnavailable: {
             headers: {
@@ -681,6 +725,36 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    returnOrder: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O pedido devolvido. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Order"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
     };

@@ -180,6 +180,44 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
+  /v1/orders/{order_id}/return:
+    post:
+      tags: [orders]
+      operationId: returnOrder
+      summary: Devolver o pedido (arrependimento)
+      description: |
+        O dono devolve o pedido entregue em até 7 dias corridos da entrega, sem justificar (CDC, art.
+        49; #223). O pedido vira `returned` e o `OrderReturned` faz o payments estornar na hora o total,
+        com o frete, sem esperar a devolução ao fornecedor. Pedir de novo devolve o mesmo pedido.
+        Antes da entrega ou fora do prazo: `409`, com o motivo.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: O pedido devolvido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/orders/{order_id}/events:
     get:
       tags: [orders]
@@ -308,8 +346,9 @@ components:
       description: |
         `pending`: reservando o estoque e cobrando · `confirmed`: pago, com o fornecedor ·
         `shipped`: despachado, com o rastreio · `delivered`: entregue · `cancelled`: não concluído
-        (ver `cancellation_reason`).
-      enum: [pending, confirmed, shipped, delivered, cancelled]
+        (ver `cancellation_reason`) · `returned`: devolvido no prazo de arrependimento (#223), com o
+        estorno em `refunded_at`.
+      enum: [pending, confirmed, shipped, delivered, cancelled, returned]
 
     CancellationReason:
       type: string
@@ -610,7 +649,17 @@ components:
           format: date-time
           description: |
             Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed` ou
-            `invoice_failed`. Nulo nesse pedido é o estorno em andamento.
+            `invoice_failed`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
+        return_requested_at:
+          type: [string, "null"]
+          format: date-time
+          description: Quando o cliente pediu a devolução (#223).
+        returnable_until:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            Até quando o pedido entregue pode ser devolvido (7 dias da entrega). Nulo se não foi entregue
+            ou já foi devolvido.
         created_at:
           type: string
           format: date-time

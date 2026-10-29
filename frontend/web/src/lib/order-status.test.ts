@@ -199,3 +199,38 @@ describe("isFinal", () => {
     ).toBe(true);
   });
 });
+
+describe("devolução (#223)", () => {
+  const returned: OrderProgress = {
+    ...paid,
+    status: "returned",
+    sent_to_supplier_at: "2026-10-20T10:00:05Z",
+    shipped_at: "2026-10-21T10:00:00Z",
+    delivered_at: "2026-10-23T10:00:00Z",
+    return_requested_at: "2026-10-25T10:00:00Z",
+  };
+
+  it("a entrega ganha a devolução e o estorno, que fecha o pedido", () => {
+    expect(orderSteps(returned).map((s) => [s.key, s.label, s.state])).toEqual([
+      ["placed", "Pedido recebido", "done"],
+      ["stock", "Estoque reservado", "done"],
+      ["payment", "Pagamento aprovado", "done"],
+      ["supplier", "Separado pelo fornecedor", "done"],
+      ["shipped", "Enviado", "done"],
+      ["delivered", "Entregue", "done"],
+      ["return", "Devolução pedida", "done"],
+      ["refund", "Estornando o valor pago", "current"],
+    ]);
+    expect(orderStatus(returned)).toMatchObject({
+      label: "Devolvido",
+      detail: expect.stringContaining("Estamos estornando"),
+    });
+    expect(orderHeadline(returned)).toBe("Devolução pedida");
+    expect(isFinal(returned)).toBe(false);
+
+    const refunded = { ...returned, refunded_at: "2026-10-25T10:00:02Z" };
+    expect(orderSteps(refunded).at(-1)).toMatchObject({ label: "Valor estornado", state: "done" });
+    expect(orderHeadline(refunded)).toBe("Valor estornado");
+    expect(isFinal(refunded)).toBe(true);
+  });
+});
