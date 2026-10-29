@@ -77,6 +77,8 @@ for (const scheme of ["light", "dark"] as const) {
         "/admin/campanhas/nova",
         "/admin/falhas",
         "/admin/atrasos",
+        "/admin/fornecedor",
+        "/admin/produtos/0199f6a0-0000-7000-8000-000000000063",
       ]) {
         await page.goto(path);
         await audit(page, path);
