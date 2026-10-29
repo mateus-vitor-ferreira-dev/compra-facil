@@ -415,6 +415,10 @@ services:
       # o corte de pedidos é obrigatório fora do Development (os contêineres rodam como Production): aqui o
       # fornecedor é simulado, então aceita qualquer pedido; na produção é a data em que ela passa a vender
       Supplier__AcceptOrdersSince: "2000-01-01T00:00:00Z"
+      # prazos curtos para ver o atraso no painel em minutos (ana+atrasar@... fica preso no fornecedor);
+      # na produção valem os padrões (3 dias para despachar, 15 para entregar)
+      Supplier__Deadlines__ShipWithin: "00:02:00"
+      Supplier__Deadlines__DeliverWithin: "00:05:00"
 
   # o fornecedor de dropshipping simulado, no contrato do CJ (backend/services/supplier-sim); não vai à produção
   supplier-sim:

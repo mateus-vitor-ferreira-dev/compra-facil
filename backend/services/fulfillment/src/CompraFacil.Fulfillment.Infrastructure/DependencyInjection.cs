@@ -20,6 +20,7 @@ public static class DependencyInjection
 
         var supplier = builder.Configuration.GetSection("Supplier");
         builder.Services.Configure<SupplierOptions>(supplier);
+        builder.Services.Configure<SupplierDeadlines>(builder.Configuration.GetSection(SupplierDeadlines.Section));
         var since = supplier.GetValue<DateTimeOffset?>("AcceptOrdersSince");
         if (since is null && builder.Environment.IsProduction())
         {

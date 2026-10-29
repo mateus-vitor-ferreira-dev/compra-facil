@@ -23,5 +23,17 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
         return true;
     }
 
+    public async Task<List<SupplierOrder>> ListOverdueAsync(DateTimeOffset createdBefore, DateTimeOffset shippedBefore, int limit, CancellationToken ct)
+    {
+        var notShipped = await db.SupplierOrders.AsNoTracking()
+            .Where(o => (o.Status == SupplierOrderStatus.Pending || o.Status == SupplierOrderStatus.Placing || o.Status == SupplierOrderStatus.Placed)
+                && o.CreatedAt < createdBefore)
+            .OrderBy(o => o.CreatedAt).Take(limit).ToListAsync(ct);
+        var notDelivered = await db.SupplierOrders.AsNoTracking()
+            .Where(o => o.Status == SupplierOrderStatus.Shipped && o.ShippedAt < shippedBefore)
+            .OrderBy(o => o.ShippedAt).Take(limit).ToListAsync(ct);
+        return [.. notShipped, .. notDelivered];
+    }
+
     public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }
