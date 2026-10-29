@@ -1,3 +1,4 @@
+using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<SupplierOrderPlacer>();
         services.AddScoped<SupplierUpdates>();
         services.AddScoped<OverdueOrders>();
+        services.AddScoped<CatalogSync>();
         return services;
     }
 }

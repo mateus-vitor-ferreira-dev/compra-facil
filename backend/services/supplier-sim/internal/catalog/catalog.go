@@ -3,10 +3,15 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/url"
+	"sync"
 )
+
+// ErrUnknownProduct: o vid não está no feed.
+var ErrUnknownProduct = errors.New("produto desconhecido")
 
 // Product segue os campos do item de /product/list da CJ que a loja usa.
 type Product struct {
@@ -73,12 +78,21 @@ var seeds = []struct {
 	}},
 }
 
+// o catálogo muda pelas rotas /sim (custo novo, produto que saiu do feed); o resto só lê
 var (
+	mu       sync.Mutex
 	products []Product
-	byVID    = map[string]int64{}
+	byVID    map[string]int64
 )
 
-func init() {
+func init() { Reset() }
+
+// Reset volta o catálogo ao inicial: os 30 produtos, com os custos de fábrica.
+func Reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	products = products[:0]
+	byVID = map[string]int64{}
 	n := 0
 	for ci, cat := range seeds {
 		for _, s := range cat.items {
@@ -99,8 +113,38 @@ func init() {
 	}
 }
 
+// SetCost muda o custo de um produto (o fornecedor reajustou): aparece no feed e nos pedidos novos.
+func SetCost(vid string, cents int64) error {
+	mu.Lock()
+	defer mu.Unlock()
+	for i := range products {
+		if products[i].VID == vid {
+			products[i].SellPrice = FormatUSD(cents)
+			byVID[vid] = cents
+			return nil
+		}
+	}
+	return ErrUnknownProduct
+}
+
+// Remove tira o produto do feed (o fornecedor deixou de vender). Pedidos com o vid seguem com o
+// último custo, como qualquer vid fora do catálogo.
+func Remove(vid string) error {
+	mu.Lock()
+	defer mu.Unlock()
+	for i := range products {
+		if products[i].VID == vid {
+			products = append(products[:i], products[i+1:]...)
+			return nil
+		}
+	}
+	return ErrUnknownProduct
+}
+
 // Page devolve uma página (pageNum começa em 1) e o total de itens.
 func Page(pageNum, pageSize int) ([]Product, int) {
+	mu.Lock()
+	defer mu.Unlock()
 	total := len(products)
 	start := (pageNum - 1) * pageSize
 	if start >= total {
@@ -132,6 +176,8 @@ func (s *Stock) Available(vid string) int {
 // UnitCostCents é o custo unitário em centavos de dólar: o sellPrice para vids do catálogo,
 // um valor derivado do hash (US$ 3,00 a 60,00) para os demais.
 func UnitCostCents(vid string) int64 {
+	mu.Lock()
+	defer mu.Unlock()
 	if c, ok := byVID[vid]; ok {
 		return c
 	}

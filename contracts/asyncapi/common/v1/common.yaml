@@ -105,6 +105,12 @@ components:
           type: string
           format: uuid
           description: "`product_id`."
+    SupplierProductKey:
+      kafka:
+        bindingVersion: 0.5.0
+        key:
+          type: string
+          description: "`vid` do produto no fornecedor (um fornecedor por tópico, por ora)."
     CampaignKey:
       kafka:
         bindingVersion: 0.5.0

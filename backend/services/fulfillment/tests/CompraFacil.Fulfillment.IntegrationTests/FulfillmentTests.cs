@@ -24,17 +24,26 @@ public sealed class FakeSupplier : ISupplierGateway
     public List<SupplierOrderRequest> Calls { get; } = [];
     public string Name => "fake";
 
+    /// <summary>O feed que o fornecedor devolve; nulo = fora do ar.</summary>
+    public List<SupplierFeedItem>? Feed { get; set; } = [];
+
     public Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct)
     {
         Calls.Add(request);
         return Task.FromResult(Respond(request));
     }
+
+    public Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct) =>
+        Feed is { } feed
+            ? Task.FromResult<IReadOnlyList<SupplierFeedItem>>([.. feed])
+            : throw new SupplierUnavailableException("fornecedor fora do ar");
 }
 
 public sealed class FulfillmentFixture : IAsyncLifetime
 {
     public const string Secret = "segredo-dos-testes";
     private readonly PostgresFixture _postgres = new();
+    public TestIdentity Identity { get; } = new();
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public FakeSupplier Supplier { get; } = new();
 
@@ -45,7 +54,9 @@ public sealed class FulfillmentFixture : IAsyncLifetime
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Kafka:Enabled", "false")
             .UseSetting("Supplier:DispatcherEnabled", "false")
+            .UseSetting("Supplier:CatalogSyncEnabled", "false")
             .UseSetting("Supplier:WebhookSecret", Secret)
+            .UseSetting("Auth:Jwks", Identity.Jwks)
             .ConfigureTestServices(s =>
             {
                 s.RemoveAll<ISupplierGateway>();
@@ -58,6 +69,7 @@ public sealed class FulfillmentFixture : IAsyncLifetime
     {
         await Factory.DisposeAsync();
         await _postgres.DisposeAsync();
+        Identity.Dispose();
     }
 }
 

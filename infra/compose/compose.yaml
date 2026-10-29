@@ -419,6 +419,8 @@ services:
       # na produção valem os padrões (3 dias para despachar, 15 para entregar)
       Supplier__Deadlines__ShipWithin: "00:02:00"
       Supplier__Deadlines__DeliverWithin: "00:05:00"
+      # o feed do simulado a cada minuto (na produção, de hora em hora): mudar o custo nele aparece logo
+      Supplier__CatalogSyncInterval: "00:01:00"
 
   # o fornecedor de dropshipping simulado, no contrato do CJ (backend/services/supplier-sim); não vai à produção
   supplier-sim:

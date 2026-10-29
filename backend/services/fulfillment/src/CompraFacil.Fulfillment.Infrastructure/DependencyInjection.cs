@@ -1,5 +1,6 @@
 using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
+using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Infrastructure.Persistence;
 using CompraFacil.Fulfillment.Infrastructure.Supplier;
@@ -17,6 +18,7 @@ public static class DependencyInjection
     {
         builder.AddPostgres<FulfillmentDbContext>();
         builder.Services.AddScoped<ISupplierOrderRepository, SupplierOrderRepository>();
+        builder.Services.AddScoped<ISupplierProductRepository, SupplierProductRepository>();
 
         var supplier = builder.Configuration.GetSection("Supplier");
         builder.Services.Configure<SupplierOptions>(supplier);
@@ -41,10 +43,16 @@ public static class DependencyInjection
         {
             builder.Services.AddHostedService<SupplierDispatcher>();
         }
+        if (supplier.GetValue("CatalogSyncEnabled", defaultValue: true))
+        {
+            builder.Services.AddHostedService<CatalogSyncJob>();
+        }
 
-        // contracts/asyncapi/fulfillment.v1.yaml: o pedido confirmado vai ao fornecedor; o que ele conta vira evento
+        // contracts/asyncapi/fulfillment.v1.yaml: o pedido confirmado vai ao fornecedor; o que ele conta vira
+        // evento, e o feed dele também
         builder.AddMessaging<FulfillmentDbContext>("fulfillment", m => m
             .Produces(FulfillmentEvents.Topic)
+            .Produces(SupplierCatalogEvents.Topic)
             .Handle<OrderConfirmedData, OnOrderConfirmed>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderConfirmed));
         return builder;
     }

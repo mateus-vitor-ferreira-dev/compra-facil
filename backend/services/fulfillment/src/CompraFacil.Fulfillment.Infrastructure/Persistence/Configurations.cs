@@ -49,3 +49,20 @@ internal sealed class SupplierWebhookConfiguration : IEntityTypeConfiguration<Su
         builder.Property(w => w.MessageId).HasMaxLength(64);
     }
 }
+
+/// <summary>O retrato do feed do fornecedor: o que veio na última leitura de cada produto.</summary>
+internal sealed class SupplierProductConfiguration : IEntityTypeConfiguration<SupplierProduct>
+{
+    public void Configure(EntityTypeBuilder<SupplierProduct> builder)
+    {
+        builder.ToTable("supplier_products");
+        builder.HasKey(p => new { p.Supplier, p.Vid });
+        builder.Property(p => p.Supplier).HasMaxLength(32);
+        builder.Property(p => p.Vid).HasMaxLength(64);
+        builder.Property(p => p.Sku).HasMaxLength(64);
+        builder.Property(p => p.Name).HasMaxLength(300);
+        builder.Property(p => p.Category).HasMaxLength(120);
+        builder.Property(p => p.Currency).HasMaxLength(3);
+        builder.Property(p => p.ImageUrl).HasMaxLength(1000);
+    }
+}

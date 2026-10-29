@@ -146,6 +146,37 @@ func TestProductsAndStock(t *testing.T) {
 	assert.Zero(t, stock[0].StorageNum)
 }
 
+func TestSimChangesTheFeed(t *testing.T) {
+	e := newEnv(t, slow)
+	t.Cleanup(catalog.Reset)
+	type page struct {
+		Total int               `json:"total"`
+		List  []catalog.Product `json:"list"`
+	}
+
+	_, env := e.do(http.MethodPut, "/sim/products/SIM-V-002/cost", map[string]string{"sellPrice": "35.10"}, false)
+	assert.Equal(t, CodeSuccess, env.Code)
+	_, env = e.do(http.MethodPut, "/sim/products/SIM-V-002/cost", map[string]string{"sellPrice": "abc"}, false)
+	assert.Equal(t, CodeInvalidParams, env.Code)
+	_, env = e.do(http.MethodDelete, "/sim/products/SIM-V-001", nil, false)
+	assert.Equal(t, CodeSuccess, env.Code)
+	_, env = e.do(http.MethodDelete, "/sim/products/NAO-EXISTE", nil, false)
+	assert.Equal(t, CodeInvalidParams, env.Code)
+
+	_, env = e.do(http.MethodGet, "/api2.0/v1/product/list?pageNum=1&pageSize=1", nil, true)
+	var p page
+	decodeData(t, env, &p)
+	assert.Equal(t, 29, p.Total)
+	assert.Equal(t, "SIM-V-002", p.List[0].VID)
+	assert.Equal(t, "35.10", p.List[0].SellPrice)
+
+	_, env = e.do(http.MethodPost, "/sim/catalog/reset", nil, false)
+	assert.Equal(t, CodeSuccess, env.Code)
+	_, env = e.do(http.MethodGet, "/api2.0/v1/product/list?pageNum=1&pageSize=1", nil, true)
+	decodeData(t, env, &p)
+	assert.Equal(t, 30, p.Total)
+}
+
 func TestCreateIdempotent(t *testing.T) {
 	e := newEnv(t, slow)
 	body := createBody("PED-1", "", "SIM-V-001", 2, "SKU-LOJA", 1)

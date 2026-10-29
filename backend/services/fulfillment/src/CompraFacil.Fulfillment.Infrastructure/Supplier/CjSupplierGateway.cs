@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -20,6 +21,13 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     private const int OutOfStock = 1603001;
     private const int OrderRejected = 1603002;
 
+    // o máximo do product/list; 100 páginas (20 mil itens) é o teto de um catálogo curado
+    private const int FeedPageSize = 200;
+    private const int MaxFeedPages = 100;
+
+    /// <summary>Os valores do CJ são em dólar.</summary>
+    private const string FeedCurrency = "USD";
+
     public string Name => options.Value.Name;
 
     public async Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct)
@@ -34,7 +42,10 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
             Remark: Scenario(request.CustomerEmail),
             Products: [.. request.Items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
 
-        var envelope = await SendAsync(body, retryOnInvalidToken: true, ct);
+        var envelope = await SendAsync<CreateOrderResult>(() => new HttpRequestMessage(HttpMethod.Post, "shopping/order/createOrderV2")
+        {
+            Content = JsonContent.Create(body, options: CjJson.Options),
+        }, retryOnInvalidToken: true, ct);
         if (envelope.Result && envelope.Data is { } data && !string.IsNullOrEmpty(data.OrderId))
         {
             return new SupplierPlacement.Accepted(data.OrderId);
@@ -48,27 +59,53 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         };
     }
 
-    private async Task<Envelope<CreateOrderResult>> SendAsync(CreateOrderRequest body, bool retryOnInvalidToken, CancellationToken ct)
+    public async Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct)
+    {
+        var items = new List<SupplierFeedItem>();
+        for (var page = 1; page <= MaxFeedPages; page++)
+        {
+            var path = $"product/list?pageNum={page}&pageSize={FeedPageSize}";
+            var envelope = await SendAsync<ProductPage>(() => new HttpRequestMessage(HttpMethod.Get, path), retryOnInvalidToken: true, ct);
+            if (!envelope.Result || envelope.Data?.List is not { } list)
+            {
+                throw new SupplierUnavailableException($"o fornecedor não deu o feed: {envelope.Code} {envelope.Message}");
+            }
+            items.AddRange(list.Select(ToFeedItem).OfType<SupplierFeedItem>());
+            if (list.Count < FeedPageSize || page * FeedPageSize >= envelope.Data.Total)
+            {
+                return items;
+            }
+        }
+        throw new SupplierUnavailableException($"o feed do fornecedor passou de {MaxFeedPages} páginas");
+    }
+
+    /// <summary>Item sem vid ou sem preço válido não entra (sem custo não há preço de venda).</summary>
+    private static SupplierFeedItem? ToFeedItem(FeedProduct p) =>
+        string.IsNullOrWhiteSpace(p.Vid) || string.IsNullOrWhiteSpace(p.ProductNameEn)
+            || !decimal.TryParse(p.SellPrice, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var price) || price <= 0
+            ? null
+            : new SupplierFeedItem(p.Vid, p.ProductSku ?? p.Vid, p.ProductNameEn, p.CategoryName ?? "",
+                (long)Math.Round(price * 100, MidpointRounding.AwayFromZero), FeedCurrency,
+                string.IsNullOrWhiteSpace(p.ProductImage) ? null : p.ProductImage, p.ProductWeight);
+
+    private async Task<Envelope<T>> SendAsync<T>(Func<HttpRequestMessage> request, bool retryOnInvalidToken, CancellationToken ct)
     {
         try
         {
-            using var message = new HttpRequestMessage(HttpMethod.Post, "shopping/order/createOrderV2")
-            {
-                Content = JsonContent.Create(body, options: CjJson.Options),
-            };
+            using var message = request();
             message.Headers.Add("CJ-Access-Token", await tokens.GetAsync(http, ct));
             using var response = await http.SendAsync(message, ct);
             if ((int)response.StatusCode >= 500)
             {
                 throw new SupplierUnavailableException($"fornecedor respondeu {(int)response.StatusCode}");
             }
-            var envelope = await response.Content.ReadFromJsonAsync<Envelope<CreateOrderResult>>(CjJson.Options, ct)
+            var envelope = await response.Content.ReadFromJsonAsync<Envelope<T>>(CjJson.Options, ct)
                 ?? throw new SupplierUnavailableException("resposta vazia do fornecedor");
             if (envelope.Code == InvalidToken || response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 tokens.Invalidate();
                 return retryOnInvalidToken
-                    ? await SendAsync(body, retryOnInvalidToken: false, ct)
+                    ? await SendAsync<T>(request, retryOnInvalidToken: false, ct)
                     : throw new SupplierUnavailableException("o fornecedor recusou o token");
             }
             return envelope;
@@ -105,6 +142,11 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         string OrderNumber, string ShippingCountryCode, string ShippingCustomerName, string Email, string Remark, IReadOnlyList<CreateOrderProduct> Products);
 
     private sealed record CreateOrderResult(string? OrderId, string? OrderNumber, string? OrderStatus);
+
+    private sealed record ProductPage(int Total, IReadOnlyList<FeedProduct>? List);
+
+    private sealed record FeedProduct(
+        string? Vid, string? ProductSku, string? ProductNameEn, string? SellPrice, string? CategoryName, string? ProductImage, int? ProductWeight);
 }
 
 /// <summary>O envelope de toda resposta do CJ.</summary>
