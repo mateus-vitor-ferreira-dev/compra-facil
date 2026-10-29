@@ -1,0 +1,51 @@
+# Mesmas regras do catalog, sem as exceções de GORM/gRPC/gen que aqui não existem.
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose
+    - errorlint
+    - gocritic
+    - gosec
+    - noctx
+    - revive
+    - sloglint
+    - testifylint
+    - unconvert
+    - wrapcheck
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true # tipos exportados internos não precisam de doc obrigatória
+    wrapcheck:
+      # erros de domínio (ErrNotFound, OutOfStockError...) sobem de propósito sem embrulho
+      ignore-package-globs:
+        - github.com/mateus-vitor-ferreira-dev/compra-facil/*
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - .JSON(
+    sloglint:
+      kv-only: false
+      attr-only: false
+      no-global: default
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [gosec, wrapcheck]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/mateus-vitor-ferreira-dev/compra-facil
