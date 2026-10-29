@@ -125,7 +125,17 @@ const adjustments = new Map();
 const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
 
 // o painel: situação e versão de cada produto (a versão é o ETag)
-for (const p of products) Object.assign(p, { status: "active", version: 1 });
+for (const p of products) Object.assign(p, { status: "active", version: 1, supplier: null });
+// o headset vem do fornecedor de dropshipping (#217)
+products.at(-1).supplier = {
+  name: "cj",
+  vid: "SIM-V-004",
+  cost: { amount_cents: 1890, currency: "USD" },
+  synced_at: "2026-10-29T12:00:00Z",
+  removed_at: null,
+};
+// regras de margem do painel (#217): a padrão começa como a da configuração (updated_at nulo)
+const pricing = { default: { margin_percent: 80, min_price_cents: 1990, updated_at: null }, rules: [] };
 const adminKeys = new Set(); // Idempotency-Key dos ajustes de estoque
 const adminCampaigns = [];
 // dead letter topics: o inventory com duas mensagens; orders e notifications vazios
@@ -153,6 +163,7 @@ const deadLetterQueues = {
   orders: [],
   notifications: [],
   fulfillment: [],
+  catalog: [],
 }; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
@@ -649,7 +660,7 @@ createServer(async (req, res) => {
     return send(res, 200, { id_token: fakeJwt({ ...grant, email_verified: true }), token_type: "Bearer" });
   }
   const dlt = url.pathname.match(
-    /^\/(orders|inventory|payments|notifications|fulfillment)\/v1\/admin\/dead-letters(\/replay)?$/,
+    /^\/(orders|inventory|payments|notifications|fulfillment|catalog)\/v1\/admin\/dead-letters(\/replay)?$/,
   );
   if (dlt) {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
@@ -663,6 +674,35 @@ createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/overdue") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     return send(res, 200, { data: overdueOrders() });
+  }
+  if (url.pathname.startsWith("/catalog/v1/admin/pricing-rules")) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    if (req.method === "GET") {
+      return send(res, 200, { ...pricing, exchange_rates: { USD: "5.40" } });
+    }
+    const category = url.pathname.match(/\/categories\/([0-9a-f-]{36})$/)?.[1];
+    if (req.method === "DELETE") {
+      const before = pricing.rules.length;
+      pricing.rules = pricing.rules.filter((r) => r.category_id !== category);
+      return before === pricing.rules.length
+        ? problem(res, 404, "Recurso não encontrado")
+        : send(res, 200, { repriced: 1 });
+    }
+    const body = await json(req);
+    const rule = { ...body, updated_at: new Date().toISOString() };
+    if (category) {
+      pricing.rules = [
+        ...pricing.rules.filter((r) => r.category_id !== category),
+        { category_id: category, ...rule },
+      ];
+    } else {
+      pricing.default = rule;
+    }
+    return send(res, 200, { rule: category ? { category_id: category, ...rule } : rule, repriced: 1 });
+  }
+  if (req.method === "POST" && url.pathname === "/fulfillment/v1/admin/supplier-catalog/sync") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, { created: 2, updated: 1, removed: 0, unchanged: 27 });
   }
   if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
     return admin(req, res, url);

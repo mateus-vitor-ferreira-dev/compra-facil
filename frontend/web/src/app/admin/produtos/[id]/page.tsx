@@ -9,7 +9,7 @@ import { StockForm } from "@/components/admin/stock-form";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { StateMessage } from "@/components/ui/state";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { getProduct, getStock } from "@/lib/admin-api";
+import { getProduct, getStock, type AdminProduct as AdminProductType } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { reaisInput } from "@/lib/money-input";
@@ -17,6 +17,52 @@ import { removeProduct } from "../actions";
 import { categoryOptions } from "../category-options";
 
 export const metadata: Metadata = { title: "Produto" };
+
+const when = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "America/Sao_Paulo",
+});
+const usd = (cents: number, currency: string) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
+
+/** De onde vem o produto de dropshipping (#217): o custo dele e o que o feed fez por último. */
+function SupplierInfo({ supplier: s }: { supplier: NonNullable<AdminProductType["supplier"]> }) {
+  return (
+    <section aria-labelledby="fornecedor" className="space-y-3">
+      <h2 id="fornecedor" className="text-xl font-semibold tracking-tight">
+        Do fornecedor
+      </h2>
+      {s.removed_at && (
+        <p role="note" className="border-danger bg-surface rounded-md border-l-4 p-3 text-sm">
+          <span className="font-semibold">Saiu do feed em {when.format(new Date(s.removed_at))}.</span> O
+          fornecedor parou de vender, e o produto ficou inativo. Ele volta à venda sozinho se o fornecedor
+          voltar.
+        </p>
+      )}
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-ink-soft">Fornecedor</dt>
+        <dd className="font-medium uppercase">{s.name}</dd>
+        <dt className="text-ink-soft">Variante</dt>
+        <dd className="font-medium break-all">{s.vid}</dd>
+        <dt className="text-ink-soft">Custo</dt>
+        <dd className="font-condensed text-lg leading-tight font-extrabold">
+          {usd(s.cost.amount_cents, s.cost.currency)}
+        </dd>
+        <dt className="text-ink-soft">Atualizado</dt>
+        <dd>{when.format(new Date(s.synced_at))}</dd>
+      </dl>
+      <p className="text-ink-soft text-sm">
+        O preço sai do custo pela{" "}
+        <Link href="/admin/fornecedor" className="text-ink font-semibold underline underline-offset-4">
+          margem do fornecedor
+        </Link>{" "}
+        e é recalculado quando o custo muda: um preço editado aqui vale até o próximo reajuste. Nome,
+        descrição e foto são da loja; o feed não os muda.
+      </p>
+    </section>
+  );
+}
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -121,6 +167,8 @@ export default async function AdminProduct({ params, searchParams }: Props) {
             </p>
             <StockForm productId={p.id} idempotencyKey={crypto.randomUUID()} />
           </section>
+
+          {p.supplier && <SupplierInfo supplier={p.supplier} />}
 
           <section aria-labelledby="campanha" className="space-y-1">
             <h2 id="campanha" className="text-xl font-semibold tracking-tight">
