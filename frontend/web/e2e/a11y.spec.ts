@@ -62,7 +62,7 @@ for (const scheme of ["light", "dark"] as const) {
       await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
       await expect(page).toHaveURL(/\/conta\/pedidos\//);
       await audit(page, "pedido ao vivo");
-      await expect(page.getByRole("status")).toContainText("Pedido confirmado", { timeout: 10_000 });
+      await expect(page.getByRole("status")).toContainText("Pagamento aprovado", { timeout: 10_000 });
       await audit(page, "pedido confirmado");
     });
 

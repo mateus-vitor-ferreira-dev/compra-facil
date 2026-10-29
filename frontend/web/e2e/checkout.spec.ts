@@ -37,10 +37,11 @@ test("compra do começo ao fim, com a SAGA aparecendo ao vivo", async ({ page })
   const steps = page.getByRole("list", { name: "Andamento do pedido" });
   // a cobrança aparece como etapa própria antes do fim
   await expect(steps.locator("[aria-current=step]")).toContainText("Cobrando o pagamento");
-  await expect(page.getByRole("status")).toContainText("Pedido confirmado", { timeout: 10_000 });
+  await expect(page.getByRole("status")).toContainText("Pagamento aprovado", { timeout: 10_000 });
   await expect(steps).toContainText("Estoque reservado");
   await expect(steps).toContainText("Pagamento aprovado");
-  await expect(steps.locator("[aria-current=step]")).toHaveCount(0);
+  // pago, o pedido segue para o fornecedor
+  await expect(steps.locator("[aria-current=step]")).toContainText("Enviando ao fornecedor");
 
   // o carrinho foi esvaziado
   await page.goto("/carrinho");
