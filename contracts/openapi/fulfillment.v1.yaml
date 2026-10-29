@@ -19,6 +19,8 @@ servers:
 tags:
   - name: webhooks
     description: Chamadas do fornecedor.
+  - name: internal
+    description: Chamadas entre serviços, fora do gateway.
   - name: admin
     description: "Operação (role `admin`): pedidos parados no fornecedor; dead letter topic em todos os serviços."
 
@@ -62,6 +64,70 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/internal/supplier-stock/check:
+    post:
+      tags: [internal]
+      operationId: checkSupplierStock
+      summary: Confere no fornecedor, agora, a disponibilidade das variantes de um pedido
+      description: |
+        Usada pelo inventory antes de reservar e cobrar um pedido com produtos de fornecedor (#218). A
+        leitura também atualiza o espelho (`SupplierStockChanged`). **Interna**: o gateway não a expõe, só
+        a rede dos serviços chega nela.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [vid, quantity]
+                    properties:
+                      vid:
+                        type: string
+                        minLength: 1
+                      quantity:
+                        type: integer
+                        minimum: 1
+      responses:
+        "200":
+          description: A disponibilidade de cada variante.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [vid, available, known]
+                      properties:
+                        vid:
+                          type: string
+                        available:
+                          type: integer
+                          minimum: 0
+                        known:
+                          type: boolean
+                          description: Falso se a variante não está no feed do fornecedor.
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não respondeu; o inventory decide pelo espelho.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
   /v1/admin/supplier-orders/overdue:
     get:
       tags: [admin]
@@ -274,7 +340,9 @@ components:
 
     SupplierWebhook:
       type: object
-      description: Formato do CJ Dropshipping (mensagens de pedido com `messageType` UPDATE).
+      description: |
+        Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido) ou `STOCK` (a
+        disponibilidade de uma variante, #218).
       required: [messageId, type, messageType, params]
       properties:
         messageId:
@@ -283,14 +351,21 @@ components:
           maxLength: 64
         type:
           type: string
-          description: "`ORDER`; outros tipos são ignorados."
+          description: "`ORDER` ou `STOCK`; outros tipos são ignorados."
         messageType:
           type: string
           description: "`UPDATE`."
         params:
           type: object
-          required: [orderNumber, orderStatus]
+          description: "`ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios."
           properties:
+            vid:
+              type: string
+              description: "`STOCK`: a variante."
+            storageNum:
+              type: integer
+              minimum: 0
+              description: "`STOCK`: unidades disponíveis agora."
             orderId:
               type: [string, "null"]
               description: Id do pedido no fornecedor.

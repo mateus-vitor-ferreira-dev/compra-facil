@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<SupplierUpdates>();
         services.AddScoped<OverdueOrders>();
         services.AddScoped<CatalogSync>();
+        services.AddScoped<SupplierStock>();
         return services;
     }
 }

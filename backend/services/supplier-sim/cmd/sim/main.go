@@ -86,7 +86,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           handler.NewRouter(tokens, stock, orders, log),
+		Handler:           handler.NewRouter(tokens, stock, orders, hooks, log),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

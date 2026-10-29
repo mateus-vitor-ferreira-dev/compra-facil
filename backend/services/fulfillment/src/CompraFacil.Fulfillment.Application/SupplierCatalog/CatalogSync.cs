@@ -15,7 +15,12 @@ public interface ISupplierProductRepository
 
     Task<List<SupplierProduct>> ListAsync(string supplier, CancellationToken ct);
 
+    /// <summary>Os produtos destes vids (rastreados, para alterar); vid fora do retrato não volta.</summary>
+    Task<List<SupplierProduct>> GetManyAsync(string supplier, IReadOnlyCollection<string> vids, CancellationToken ct);
+
     void Add(SupplierProduct product);
+
+    Task SaveChangesAsync(CancellationToken ct);
 }
 
 public sealed record CatalogSyncResult(int Created, int Updated, int Removed, int Unchanged);
@@ -39,6 +44,17 @@ public sealed partial class CatalogSync(
         var feed = (await supplier.ListProductsAsync(ct))
             .GroupBy(i => i.Vid).Select(g => g.Last()) // vid repetido no feed: vale o último
             .ToDictionary(i => i.Vid);
+        // a disponibilidade de cada variante; sem ela (fornecedor lento), o catálogo segue e o estoque espera
+        IReadOnlyDictionary<string, int>? stock = null;
+        var stockAt = clock.GetUtcNow();
+        try
+        {
+            stock = feed.Count == 0 ? null : await supplier.GetStockAsync([.. feed.Keys], ct);
+        }
+        catch (SupplierUnavailableException e)
+        {
+            LogStockUnavailable(logger, e, supplier.Name);
+        }
         CatalogSyncResult? result = null;
         var ran = await products.RunExclusiveAsync(async () =>
         {
@@ -55,6 +71,7 @@ public sealed partial class CatalogSync(
                 {
                     product = SupplierProduct.Create(supplier.Name, item, now);
                     products.Add(product);
+                    known[item.Vid] = product;
                     Publish(product, SupplierProductChange.Updated);
                     created++;
                     continue;
@@ -70,6 +87,13 @@ public sealed partial class CatalogSync(
                 if (change == SupplierProductChange.Removed)
                 {
                     removed++;
+                }
+            }
+            foreach (var (vid, available) in stock ?? new Dictionary<string, int>())
+            {
+                if (known.TryGetValue(vid, out var product) && product.UpdateStock(available, stockAt))
+                {
+                    SupplierStock.Publish(outbox, product);
                 }
             }
             result = new CatalogSyncResult(created, updated, removed, unchanged);
@@ -103,6 +127,9 @@ public sealed partial class CatalogSync(
         }
     }
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "estoque do fornecedor {Supplier} não respondeu; o catálogo segue, a disponibilidade fica para a próxima leitura")]
+    private static partial void LogStockUnavailable(ILogger logger, Exception e, string supplier);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "catálogo do fornecedor {Supplier}: {Created} novos, {Updated} alterados, {Removed} fora do feed, {Unchanged} iguais")]
     private static partial void LogSynced(ILogger logger, string supplier, int created, int updated, int removed, int unchanged);
 }
@@ -113,6 +140,7 @@ public static class SupplierCatalogEvents
     public const string Topic = "fulfillment.supplier-product.v1";
     public const string SupplierProductUpdated = nameof(SupplierProductUpdated);
     public const string SupplierProductRemoved = nameof(SupplierProductRemoved);
+    public const string SupplierStockChanged = nameof(SupplierStockChanged);
 }
 
 /// <summary>O produto como está no feed agora (novo, de volta ou alterado). Chave = vid.</summary>

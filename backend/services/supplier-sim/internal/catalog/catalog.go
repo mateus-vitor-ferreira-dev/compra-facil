@@ -158,19 +158,43 @@ func Page(pageNum, pageSize int) ([]Product, int) {
 
 // Stock informa o estoque de um vid. Qualquer vid é aceito (hoje a loja manda o próprio SKU),
 // com quantidade derivada do hash: estável entre subidas, entre 5 e 200.
+// SetStock fixa a disponibilidade de um vid (rota /sim), por cima da derivada do hash.
 type Stock struct {
 	outOfStock map[string]bool
+
+	mu       sync.Mutex
+	override map[string]int
 }
 
 func NewStock(outOfStock map[string]bool) *Stock {
-	return &Stock{outOfStock: outOfStock}
+	return &Stock{outOfStock: outOfStock, override: map[string]int{}}
 }
 
 func (s *Stock) Available(vid string) int {
+	s.mu.Lock()
+	n, fixed := s.override[vid]
+	s.mu.Unlock()
+	if fixed {
+		return n
+	}
 	if s.outOfStock[vid] {
 		return 0
 	}
 	return int(5 + hash(vid)%196)
+}
+
+// SetStock fixa a disponibilidade do vid (0 = esgotou no fornecedor).
+func (s *Stock) SetStock(vid string, n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.override[vid] = max(n, 0)
+}
+
+// ResetStock volta todos os vids ao estoque derivado do hash.
+func (s *Stock) ResetStock() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.override = map[string]int{}
 }
 
 // UnitCostCents é o custo unitário em centavos de dólar: o sellPrice para vids do catálogo,

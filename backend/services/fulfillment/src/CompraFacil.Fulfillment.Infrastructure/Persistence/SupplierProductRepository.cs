@@ -30,5 +30,10 @@ internal sealed class SupplierProductRepository(FulfillmentDbContext db) : ISupp
     public Task<List<SupplierProduct>> ListAsync(string supplier, CancellationToken ct) =>
         db.SupplierProducts.Where(p => p.Supplier == supplier).ToListAsync(ct);
 
+    public Task<List<SupplierProduct>> GetManyAsync(string supplier, IReadOnlyCollection<string> vids, CancellationToken ct) =>
+        db.SupplierProducts.Where(p => p.Supplier == supplier && vids.Contains(p.Vid)).ToListAsync(ct);
+
     public void Add(SupplierProduct product) => db.SupplierProducts.Add(product);
+
+    public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

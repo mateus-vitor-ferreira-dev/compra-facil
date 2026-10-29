@@ -32,7 +32,7 @@ func TestWebhookSequence(t *testing.T) {
 	seq := map[string][]string{}
 	var failed bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var m webhook.Message
+		var m webhook.OrderMessage
 		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return

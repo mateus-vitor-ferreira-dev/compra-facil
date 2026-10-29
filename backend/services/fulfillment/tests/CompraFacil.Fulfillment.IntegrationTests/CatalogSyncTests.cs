@@ -30,7 +30,8 @@ public sealed class CatalogSyncTests(FulfillmentFixture fx) : IClassFixture<Fulf
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var events = await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().Set<OutboxMessage>()
-            .Where(m => m.Topic == SupplierCatalogEvents.Topic).OrderBy(m => m.Id).ToListAsync(Ct);
+            .Where(m => m.Topic == SupplierCatalogEvents.Topic && m.EventType != SupplierCatalogEvents.SupplierStockChanged)
+            .OrderBy(m => m.Id).ToListAsync(Ct);
         foreach (var e in events)
         {
             ContractAssert.AssertEvent("fulfillment.v1.yaml", e.EventType, e.Payload);

@@ -208,6 +208,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("vid");
 
+                    b.Property<int?>("Available")
+                        .HasColumnType("integer")
+                        .HasColumnName("available");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -252,6 +256,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("sku");
+
+                    b.Property<DateTimeOffset?>("StockCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("stock_checked_at");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
