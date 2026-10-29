@@ -24,6 +24,7 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
             Content = JsonContent.Create(new
             {
                 items = new[] { new { product_id = product, quantity = 2 } },
+                payment = new { method = "pix" },
             }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());

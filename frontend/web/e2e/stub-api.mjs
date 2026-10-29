@@ -29,6 +29,7 @@ const orderOf = (id, status, reason, qty, unit) => ({
   ],
   total: { amount_cents: unit * qty, currency: "BRL" },
   payment_id: null,
+  payment: { method: "card", installments: 1, pix: null },
   created_at: "2026-10-20T15:00:00Z",
   updated_at: "2026-10-20T15:01:00Z",
 });
@@ -432,13 +433,42 @@ const byKey = new Map(); // `${email}:${Idempotency-Key}` -> id
 const TRACE = "4bf92f3577b34da6a3ce929d0e0e4736";
 const ANA = "0199f6a0-0000-7000-8000-000000000a1a";
 
-/** O pedido no instante `now`: reservando, cobrando e, no fim, confirmado ou cancelado. */
+/**
+ * O pedido no instante `now`: reservando, cobrando e, no fim, confirmado ou cancelado. No PIX, a cobrança
+ * gera o código e espera: o teste paga (POST /__pix/{id}/pay) ou deixa vencer.
+ */
 function orderAt(entry, now = Date.now()) {
   const { order, reserveAt, endAt, outcome } = entry;
   if (outcome === "out_of_stock" && now >= reserveAt) {
     return { ...order, status: "cancelled", cancellation_reason: "out_of_stock", updated_at: iso(reserveAt) };
   }
   const reserved = now >= reserveAt ? { stock_reserved_at: iso(reserveAt), updated_at: iso(reserveAt) } : {};
+  if (order.payment.method === "pix" && now >= endAt) {
+    const pix = {
+      qr_code: `00020101021226820014br.gov.bcb.pix2560pix.example/qr/${order.id}5204000053039865802BR6304ABCD`,
+      qr_code_base64: QR_PNG,
+      ticket_url: `http://localhost:${port}/sim/pix/${order.id}`,
+      expires_at: iso(endAt + entry.pixMs),
+    };
+    const waiting = { ...order, ...reserved, payment: { ...order.payment, pix }, updated_at: iso(endAt) };
+    if (entry.paidAt) {
+      return {
+        ...waiting,
+        status: "confirmed",
+        payment_id: crypto.randomUUID(),
+        updated_at: iso(entry.paidAt),
+      };
+    }
+    if (now >= endAt + entry.pixMs) {
+      return {
+        ...waiting,
+        status: "cancelled",
+        cancellation_reason: "payment_failed",
+        updated_at: iso(endAt + entry.pixMs),
+      };
+    }
+    return waiting;
+  }
   if (now < endAt) return { ...order, ...reserved };
   return outcome === "payment_failed"
     ? {
@@ -451,6 +481,34 @@ function orderAt(entry, now = Date.now()) {
     : { ...order, ...reserved, status: "confirmed", payment_id: crypto.randomUUID(), updated_at: iso(endAt) };
 }
 const iso = (ms) => new Date(ms).toISOString();
+// um PNG de 1×1: o teste confere que o QR aparece, não que ele é lido
+const QR_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+// ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
+const cardTokens = new Map(); // token -> titular
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+async function tokenize(req, res, url) {
+  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
+  if (req.method === "OPTIONS") return res.writeHead(204).end();
+  if (url.searchParams.get("public_key") !== "TEST-sim-public-key")
+    return send(res, 401, { message: "invalid public key" });
+  const { card_number: number, cardholder } = await json(req);
+  if (!/^4\d{15}$|^5\d{15}$/.test(String(number))) {
+    return send(res, 400, { message: "invalid card: número", error: "invalid_card" });
+  }
+  const id = crypto.randomUUID().replace(/-/g, "");
+  cardTokens.set(id, String(cardholder?.name ?? "").toUpperCase());
+  return send(res, 201, {
+    id,
+    payment_method_id: number.startsWith("4") ? "visa" : "master",
+    last_four_digits: number.slice(-4),
+  });
+}
 
 // os pedidos atrasados no fornecedor (#219): um preso no fornecedor e um envio que não chegou
 function overdueOrders() {
@@ -499,8 +557,12 @@ async function placeOrder(req, res, email) {
   const key = req.headers["idempotency-key"];
   if (!key) return problem(res, 400, "Requisição malformada");
   const existing = byKey.get(`${email}:${key}`);
-  const { items } = await json(req);
+  const { items, payment } = await json(req);
   if (existing) return send(res, 202, orderAt(placed.get(existing)));
+  // como o orders: cartão sem o token do provedor (ou com um token já usado) é recusado
+  if (!payment || (payment.method === "card" && !cardTokens.has(payment.card_token))) {
+    return problem(res, 422, "Dados inválidos");
+  }
   // "instavel@..." pega o catálogo fora e sem cópia local: 503 com Retry-After e o trace para o suporte
   if (email.startsWith("instavel@")) {
     res.setHeader("Retry-After", "7");
@@ -542,17 +604,22 @@ async function placeOrder(req, res, email) {
     items: orderItems,
     total: { amount_cents: total, currency: "BRL" },
     payment_id: null,
+    payment: { method: payment.method, installments: payment.installments ?? 1, pix: null },
     stock_reserved_at: null,
     created_at: iso(now),
     updated_at: iso(now),
   };
-  // o gateway falso recusa acima de R$ 50.000,00; o inventory, acima do saldo
+  // o titular decide o cartão, como no provedor (FUND: sem saldo); o inventory recusa acima do saldo
+  const holder = payment.method === "card" ? cardTokens.get(payment.card_token) : "";
+  cardTokens.delete(payment.card_token);
   const outcome = lines.some((l) => l.quantity > stock(l.product.id))
     ? "out_of_stock"
-    : total > 5_000_000
+    : holder === "FUND"
       ? "payment_failed"
       : "confirmed";
-  placed.set(id, { order, owner: email, reserveAt: now + 800, endAt: now + 1600, outcome });
+  // "pix-curto@...": o PIX vence em segundos, para o teste ver o prazo acabar
+  const pixMs = email.startsWith("pix-curto@") ? 4_000 : 30 * 60_000;
+  placed.set(id, { order, owner: email, reserveAt: now + 800, endAt: now + 1600, outcome, pixMs });
   byKey.set(`${email}:${key}`, id);
   stats.ordersPlaced++;
   stats.ordersByKey[key] = (stats.ordersByKey[key] ?? 0) + 1;
@@ -706,6 +773,15 @@ createServer(async (req, res) => {
   }
   if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
     return admin(req, res, url);
+  }
+  if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  // o banco do cliente pagando o PIX
+  const pixPay = url.pathname.match(/^\/__pix\/([0-9a-f-]{36})\/pay$/);
+  if (req.method === "POST" && pixPay) {
+    const entry = placed.get(pixPay[1]);
+    if (!entry || entry.order.payment.method !== "pix") return problem(res, 404, "Recurso não encontrado");
+    entry.paidAt = Date.now();
+    return res.writeHead(204).end();
   }
   const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})(\/events)?$/);
   if (req.method === "GET" && order) {

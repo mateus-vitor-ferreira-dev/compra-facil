@@ -23,6 +23,11 @@ const schema = z.object({
   // os endereços do Google; trocados só nos testes (o stub faz o papel do Google)
   GOOGLE_AUTH_URL: z.url().default("https://accounts.google.com/o/oauth2/v2/auth"),
   GOOGLE_TOKEN_URL: z.url().default("https://oauth2.googleapis.com/token"),
+  // o provedor de pagamento (#220): o navegador tokeniza o cartão direto nele, com a chave pública, e os
+  // dados do cartão não passam pela loja. São os únicos valores daqui que a página recebe (não são segredo).
+  // Em dev e no CI, o payment-sim; em produção, https://api.mercadopago.com e a public key da conta
+  PAYMENT_PROVIDER_URL: z.url().default("http://localhost:8092"),
+  PAYMENT_PUBLIC_KEY: z.string().min(1).default("TEST-sim-public-key"),
 });
 
 export const env = schema.parse({
@@ -35,4 +40,6 @@ export const env = schema.parse({
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || undefined,
   GOOGLE_AUTH_URL: process.env.GOOGLE_AUTH_URL || undefined,
   GOOGLE_TOKEN_URL: process.env.GOOGLE_TOKEN_URL || undefined,
+  PAYMENT_PROVIDER_URL: process.env.PAYMENT_PROVIDER_URL || undefined,
+  PAYMENT_PUBLIC_KEY: process.env.PAYMENT_PUBLIC_KEY || undefined,
 });

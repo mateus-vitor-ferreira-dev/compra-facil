@@ -20,7 +20,9 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     /// <summary>Corpo do pedido (só itens) e o cliente cujo token vai junto.</summary>
     private sealed record PlaceBody(Guid Customer, object Json);
 
-    private static PlaceBody Body(Guid customerId, params object[] items) => new(customerId, new { items });
+    private static object Pix => new { method = "pix" };
+
+    private static PlaceBody Body(Guid customerId, params object[] items) => new(customerId, new { items, payment = Pix });
 
     private async Task<HttpResponseMessage> PlaceAsync(PlaceBody body, string? key = null, string? requestId = null, string? token = null)
     {
@@ -208,7 +210,8 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/ValidationProblem", problem);
         var fields = JsonDocument.Parse(problem).RootElement.GetProperty("errors").EnumerateArray()
             .Select(e => e.GetProperty("field").GetString()).ToHashSet();
-        Assert.Superset(new HashSet<string?> { "items", "items[0].quantity", "items[1].expected_unit_price_cents" }, fields);
+        // sem o meio de pagamento também (#220): o checkout sempre escolhe PIX ou cartão
+        Assert.Superset(new HashSet<string?> { "items", "items[0].quantity", "items[1].expected_unit_price_cents", "payment" }, fields);
         Assert.Equal(calls, fx.Catalog.Calls);
     }
 
@@ -346,7 +349,7 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
 
         // cliente antigo ainda mandando customer_id/customer_email: valem os do token
         using var response = await PlaceAsync(
-            new PlaceBody(customer, new { customer_id = someoneElse, customer_email = "outro@exemplo.com", items = new[] { new { product_id = product, quantity = 1 } } }),
+            new PlaceBody(customer, new { customer_id = someoneElse, customer_email = "outro@exemplo.com", items = new[] { new { product_id = product, quantity = 1 } }, payment = Pix }),
             token: fx.Identity.CustomerToken(customer, "bia@exemplo.com"));
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);

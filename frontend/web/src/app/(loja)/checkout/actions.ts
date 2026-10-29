@@ -9,7 +9,7 @@ import { loginHref } from "@/lib/auth/return-to";
 import { readCart, writeCart } from "@/lib/cart";
 import { emptyCart } from "@/lib/cart-rules";
 import { env } from "@/lib/env";
-import { placeOrder } from "@/lib/orders-api";
+import { placeOrder, type PlaceOrderPayment } from "@/lib/orders-api";
 
 export type CheckoutState = {
   error?: {
@@ -29,6 +29,37 @@ const lastOrder = z.object({ key: z.uuid(), id: z.uuid() });
 
 const orderHref = (id: string) => `/conta/pedidos/${id}?novo=1`;
 
+/** O meio de pagamento do formulário: PIX, ou o token do cartão que a página pegou no provedor. */
+const paymentForm = z.discriminatedUnion("method", [
+  z.object({ method: z.literal("pix") }),
+  z.object({
+    method: z.literal("card"),
+    card_token: z.string().min(1).max(128),
+    card_brand: z.string().min(1).max(16),
+    installments: z.coerce.number().int().min(1).max(12),
+  }),
+]);
+
+function readPayment(form: FormData): PlaceOrderPayment | CheckoutState {
+  const parsed = paymentForm.safeParse({
+    method: form.get("method") ?? "pix",
+    card_token: form.get("card_token") || undefined,
+    card_brand: form.get("card_brand") || undefined,
+    installments: form.get("installments") ?? undefined,
+  });
+  if (parsed.success) return parsed.data.method === "pix" ? { method: "pix", installments: 1 } : parsed.data;
+  // sem JavaScript, a página não tokeniza o cartão: o formulário chega com "cartão" e sem token
+  return {
+    error: {
+      title: "O pedido não foi feito",
+      message:
+        form.get("method") === "card"
+          ? "O cartão é conferido pelo navegador, e esta página está sem JavaScript. Ative o JavaScript ou pague com PIX."
+          : "Escolha como pagar e confirme de novo.",
+    },
+  };
+}
+
 export async function confirmOrder(_: CheckoutState, form: FormData): Promise<CheckoutState> {
   const key = z.uuid().safeParse(form.get("idempotency_key"));
   if (!key.success) {
@@ -39,6 +70,8 @@ export async function confirmOrder(_: CheckoutState, form: FormData): Promise<Ch
       },
     };
   }
+  const payment = readPayment(form);
+  if (!("method" in payment)) return payment;
   const token = await accessToken();
   if (!token) redirect(loginHref("/checkout"));
 
@@ -52,6 +85,7 @@ export async function confirmOrder(_: CheckoutState, form: FormData): Promise<Ch
   const result = await placeOrder(
     token,
     cart.items.map((i) => ({ product_id: i.id, quantity: i.qty, expected_unit_price_cents: i.seen })),
+    payment,
     key.data,
   );
 

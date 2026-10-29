@@ -174,12 +174,12 @@ export interface components {
             url?: string | null;
         };
         PlaceOrderRequest: {
-            payment?: components["schemas"]["PlaceOrderPayment"];
+            payment: components["schemas"]["PlaceOrderPayment"];
             /** @description Um item por produto (sem repetir `product_id`). */
             items: components["schemas"]["PlaceOrderItem"][];
         };
         /**
-         * @description Como pagar (#220). Ausente, o pedido é pago por PIX (o QR aparece no pedido). Cartão: o
+         * @description Como pagar (#220). PIX: o QR aparece no pedido, para pagar em 30 minutos. Cartão: o
          *     `card_token` do provedor (o cartão é tokenizado no checkout; os dados dele não passam pela loja),
          *     a bandeira e as parcelas.
          */

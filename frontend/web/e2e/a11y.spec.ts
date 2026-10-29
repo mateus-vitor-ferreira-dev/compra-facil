@@ -59,10 +59,21 @@ for (const scheme of ["light", "dark"] as const) {
         await audit(page, path);
       }
       await page.goto("/checkout");
+      // o cartão com os erros nos campos
+      await page.getByRole("radio", { name: /Cartão de crédito/ }).check();
+      await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+      await expect(page.getByLabel("Número do cartão")).toBeFocused();
+      await audit(page, "checkout no cartão");
+      // o PIX: o painel com o QR e o copia e cola, e o pedido pago
+      await page.getByRole("radio", { name: /PIX/ }).check();
       await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
       await expect(page).toHaveURL(/\/conta\/pedidos\//);
       await audit(page, "pedido ao vivo");
-      await expect(page.getByRole("status")).toContainText("Pagamento aprovado", { timeout: 10_000 });
+      await expect(page.getByRole("region", { name: "Valor do PIX" })).toBeVisible({ timeout: 10_000 });
+      await audit(page, "PIX a pagar");
+      const id = new URL(page.url()).pathname.split("/").pop();
+      await page.request.post(`http://localhost:4010/__pix/${id}/pay`);
+      await expect(page.getByRole("status").first()).toContainText("Pagamento aprovado", { timeout: 10_000 });
       await audit(page, "pedido confirmado");
     });
 

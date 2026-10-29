@@ -2,9 +2,19 @@
 
 import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { isFinal, isSettled, orderHeadline, orderStatus, orderSteps, type Step } from "@/lib/order-status";
+import { formatMoney } from "@/lib/format";
+import {
+  awaitingPix,
+  isFinal,
+  isSettled,
+  orderHeadline,
+  orderStatus,
+  orderSteps,
+  type Step,
+} from "@/lib/order-status";
 import type { Order } from "@/lib/orders-api";
 import { cn } from "@/lib/utils";
+import { PixPayment } from "./pix-payment";
 
 const time = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
@@ -32,7 +42,7 @@ const STEP_MS = 700;
 
 /**
  * A compra andando: a manchete diz o que acontece agora e a linha de etapas marca cada passo com o
- * horário real. Enquanto o pedido anda (pagamento, fornecedor, envio, estorno), ouve o stream do orders
+ * horário real. No PIX, o painel de pagamento aparece entre as duas até o banco confirmar. Enquanto o pedido anda (pagamento, fornecedor, envio, estorno), ouve o stream do orders
  * pelo BFF (EventSource, que reconecta sozinho com Last-Event-ID) e fecha no estado final.
  */
 export function OrderLive({ initial }: { initial: Order }) {
@@ -102,6 +112,14 @@ export function OrderLive({ initial }: { initial: Order }) {
         </p>
         <p className="text-ink-soft">{status.detail}</p>
       </div>
+
+      {awaitingPix(shown) && shown.payment.pix && (
+        <PixPayment
+          pix={shown.payment.pix}
+          amount={formatMoney(shown.total)}
+          startedAt={shown.stock_reserved_at ?? shown.created_at}
+        />
+      )}
 
       <ol aria-label="Andamento do pedido" className="max-w-sm">
         {steps.map((step, i) => (
