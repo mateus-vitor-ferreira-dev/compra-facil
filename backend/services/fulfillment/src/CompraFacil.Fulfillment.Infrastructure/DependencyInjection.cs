@@ -41,6 +41,10 @@ public static class DependencyInjection
             http.BaseAddress = o.BaseUrl;
             http.Timeout = o.Timeout;
         });
+        // o frete e o prazo por CEP (#222)
+        builder.Services.AddSingleton(builder.Configuration.GetSection(Application.Shipping.ShippingSettings.Section)
+            .Get<Application.Shipping.ShippingSettings>() ?? new Application.Shipping.ShippingSettings());
+
         // a nota fiscal (#221): emitida pelo despachante antes do fornecedor, cancelada no estorno
         var invoice = builder.Configuration.GetSection("Invoice");
         builder.Services.Configure<InvoiceOptions>(invoice);

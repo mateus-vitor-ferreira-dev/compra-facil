@@ -34,9 +34,18 @@ public interface ISupplierGateway
     /// <summary>O feed inteiro (todas as páginas). Falha em qualquer página sai como <see cref="SupplierUnavailableException"/>.</summary>
     Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct);
 
+    /// <summary>
+    /// As opções de envio do fornecedor ao CEP, com o preço em centavos de dólar e o prazo em dias úteis.
+    /// Falha sai como <see cref="SupplierUnavailableException"/>.
+    /// </summary>
+    Task<IReadOnlyList<SupplierFreightOption>> QuoteFreightAsync(string zipCode, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct);
+
     /// <summary>Unidades disponíveis agora de cada vid. Falha em qualquer um sai como <see cref="SupplierUnavailableException"/>.</summary>
     Task<IReadOnlyDictionary<string, int>> GetStockAsync(IReadOnlyCollection<string> vids, CancellationToken ct);
 }
+
+/// <summary>Uma opção de envio do fornecedor: o serviço dele, o preço em centavos de dólar e o prazo em dias úteis.</summary>
+public sealed record SupplierFreightOption(string Service, long PriceUsdCents, int MinDays, int MaxDays);
 
 public sealed class SupplierUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
 

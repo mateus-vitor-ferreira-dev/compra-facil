@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/catalog"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/freight"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/order"
 )
 
@@ -54,6 +55,7 @@ func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, no
 	authed.POST("/shopping/order/createOrderV2", a.createOrder)
 	authed.GET("/shopping/order/getOrderDetail", a.orderDetail)
 	authed.DELETE("/shopping/order/deleteOrder", a.deleteOrder)
+	authed.POST("/logistic/freightCalculate", a.freightCalculate)
 	return r
 }
 
@@ -66,6 +68,28 @@ func (a *API) accessLog(c *gin.Context) {
 	}
 	a.log.Info("requisição", "method", c.Request.Method, "path", c.Request.URL.Path,
 		"status", c.Writer.Status(), "duration_ms", time.Since(start).Milliseconds())
+}
+
+type freightRequest struct {
+	StartCountryCode string         `json:"startCountryCode"`
+	EndCountryCode   string         `json:"endCountryCode"`
+	Zip              string         `json:"zip"`
+	Products         []freight.Item `json:"products"`
+}
+
+// freightCalculate cota o frete do pedido ao CEP (#222), como o CJ: as opções com preço e prazo.
+func (a *API) freightCalculate(c *gin.Context) {
+	var req freightRequest
+	if c.ShouldBindJSON(&req) != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	options, err := freight.Quote(req.EndCountryCode, req.Zip, req.Products)
+	if err != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	ok(c, options)
 }
 
 func (a *API) productList(c *gin.Context) {

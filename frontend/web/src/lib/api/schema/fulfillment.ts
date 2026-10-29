@@ -70,6 +70,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/shipping/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Frete e prazo por CEP
+         * @description As opções de envio para o CEP (#222, Decreto 7.962: o cliente vê frete e prazo antes de pagar), da
+         *     mais barata para a mais cara. O fornecedor cota em dólar; a loja converte pelo câmbio do catálogo
+         *     (`Shipping:UsdToBrl`) e soma o processamento dela (`Shipping:ProcessingDays`) ao prazo, em dias
+         *     úteis. Pública: a página do produto e o carrinho cotam sem login. O orders confere por aqui o frete
+         *     do pedido.
+         */
+        post: operations["quoteShipping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/overdue": {
         parameters: {
             query?: never;
@@ -164,6 +188,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ShippingQuoteRequest: {
+            /**
+             * @description O CEP, com ou sem hífen.
+             * @example 01310-100
+             */
+            zip_code: string;
+            items: {
+                /** @description O SKU da loja (o vid no fornecedor). */
+                sku: string;
+                quantity: number;
+            }[];
+        };
+        ShippingQuote: {
+            zip_code: string;
+            options: components["schemas"]["ShippingOption"][];
+        };
+        ShippingOption: {
+            /** @description O serviço (ex.: `economico`, `expresso`), o que o pedido escolhe. */
+            id: string;
+            /** @description O nome que o cliente vê. */
+            name: string;
+            /** Format: int64 */
+            price_cents: number;
+            /** @description Dias úteis, já com o processamento da loja. */
+            min_days: number;
+            max_days: number;
+        };
         CatalogSyncResult: {
             /** @description Produtos novos no feed. */
             created: number;
@@ -385,6 +436,17 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Limite de requisições excedido (rate limit do gateway). */
+        TooManyRequests: {
+            headers: {
+                /** @description Segundos até poder tentar de novo. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Token válido, mas sem a permissão necessária. */
         Forbidden: {
             headers: {
@@ -516,6 +578,43 @@ export interface operations {
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
             /** @description O emissor da nota não respondeu; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    quoteShipping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShippingQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description As opções de envio. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingQuote"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+            /** @description O fornecedor não cotou; vem com `Retry-After`. */
             503: {
                 headers: {
                     "Retry-After"?: number;

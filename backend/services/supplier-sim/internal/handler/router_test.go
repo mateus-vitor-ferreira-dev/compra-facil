@@ -388,3 +388,24 @@ func TestOrderNotFound(t *testing.T) {
 	_, env = e.do(http.MethodDelete, "/api2.0/v1/shopping/order/deleteOrder?orderId=nada", nil, true)
 	assert.Equal(t, CodeNotFound, env.Code)
 }
+
+func TestFreightCalculate(t *testing.T) {
+	e := newEnv(t, slow)
+	_, env := e.do(http.MethodPost, "/api2.0/v1/logistic/freightCalculate", map[string]any{
+		"startCountryCode": "CN", "endCountryCode": "BR", "zip": "01310100",
+		"products": []map[string]any{{"vid": "SIM-V-001", "quantity": 2}},
+	}, true)
+	require.True(t, env.Result, env.Message)
+	var options []struct {
+		LogisticName  string  `json:"logisticName"`
+		LogisticPrice float64 `json:"logisticPrice"`
+		LogisticAging string  `json:"logisticAging"`
+	}
+	decodeData(t, env, &options)
+	require.Len(t, options, 2)
+	assert.Equal(t, "CJPacket Ordinary", options[0].LogisticName)
+	assert.Positive(t, options[0].LogisticPrice)
+
+	_, env = e.do(http.MethodPost, "/api2.0/v1/logistic/freightCalculate", map[string]any{"endCountryCode": "BR", "zip": "123"}, true)
+	assert.Equal(t, CodeInvalidParams, env.Code)
+}

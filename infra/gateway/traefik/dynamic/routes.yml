@@ -48,6 +48,19 @@ http:
       entryPoints: [web]
       service: fulfillment
       middlewares: [cors, security-headers, strip-bff-key, strip-service-prefix]
+    # a cotação de frete (#222): pública, então com o mesmo limite das leituras do catálogo
+    fulfillment-shipping:
+      rule: PathPrefix(`/fulfillment/v1/shipping`)
+      entryPoints: [web]
+      service: fulfillment
+      middlewares: [cors, security-headers, strip-bff-key, catalog-problem-429, catalog-rate-limit, strip-service-prefix]
+{{- if env "BFF_GATEWAY_KEY" }}
+    fulfillment-shipping-bff:
+      rule: PathPrefix(`/fulfillment/v1/shipping`) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
+      entryPoints: [web]
+      service: fulfillment
+      middlewares: [cors, security-headers, strip-bff-key, catalog-problem-429, catalog-rate-limit-bff, strip-service-prefix]
+{{- end }}
     # o DANFE das notas do cliente logado (#221)
     fulfillment-me:
       rule: PathPrefix(`/fulfillment/v1/me`)

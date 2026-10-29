@@ -34,6 +34,20 @@ public sealed class FakeSupplier : ISupplierGateway
         return Task.FromResult(Respond(request));
     }
 
+    /// <summary>As opções de frete que o fornecedor cota; nulo = fora do ar.</summary>
+    public List<SupplierFreightOption>? Freight { get; set; } =
+        [new("CJ Express", 1200, 6, 10), new("CJPacket Ordinary", 450, 12, 20), new("Serviço desconhecido", 100, 30, 40)];
+
+    public List<(string Zip, IReadOnlyList<SupplierOrderItem> Items)> FreightCalls { get; } = [];
+
+    public Task<IReadOnlyList<SupplierFreightOption>> QuoteFreightAsync(string zipCode, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct)
+    {
+        FreightCalls.Add((zipCode, items));
+        return Freight is { } freight
+            ? Task.FromResult<IReadOnlyList<SupplierFreightOption>>([.. freight])
+            : throw new SupplierUnavailableException("frete fora do ar");
+    }
+
     /// <summary>O estoque por vid que o fornecedor responde (vid ausente: 0); nulo = fora do ar.</summary>
     public Dictionary<string, int>? Stock { get; set; } = [];
 
