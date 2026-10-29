@@ -54,6 +54,47 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
 
     [Fact]
+    public async Task Place_WithCard_SendsTheTokenToThePayments_WithoutKeepingIt()
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("PAY-1", "Mouse", 9990));
+        var customer = Guid.NewGuid();
+        using var response = await PlaceAsync(new PlaceBody(customer, new
+        {
+            items = new[] { new { product_id = item, quantity = 1 } },
+            payment = new { method = "card", card_token = "tok_123", card_brand = "visa", installments = 3 },
+        }));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        Assert.DoesNotContain("tok_123", json, StringComparison.Ordinal);
+        var order = JsonDocument.Parse(json).RootElement;
+        Assert.Equal(("card", 3), (order.GetProperty("payment").GetProperty("method").GetString(), order.GetProperty("payment").GetProperty("installments").GetInt32()));
+
+        var placed = EventEnvelope.TryParse(Assert.Single(await OutboxForAsync(order.GetProperty("id").GetGuid())).Payload)!;
+        var payment = placed.Data.GetProperty("payment");
+        Assert.Equal(("tok_123", "visa"), (payment.GetProperty("card_token").GetString(), payment.GetProperty("card_brand").GetString()));
+        Assert.Equal("ana@exemplo.com", placed.Data.GetProperty("customer_email").GetString());
+    }
+
+    [Theory]
+    [InlineData("card", null, 1)]       // cartão sem token
+    [InlineData("card", "tok", 13)]     // até 12x
+    [InlineData("pix", null, 2)]        // PIX é à vista
+    [InlineData("boleto", null, 1)]     // meio que não existe
+    public async Task Place_RejectsAnInvalidPayment(string method, string? token, int installments)
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("PAY-2", "Mouse", 9990));
+        using var response = await PlaceAsync(new PlaceBody(Guid.NewGuid(), new
+        {
+            items = new[] { new { product_id = item, quantity = 1 } },
+            payment = new { method, card_token = token, card_brand = "visa", installments },
+        }));
+
+        Assert.True(response.StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.BadRequest, response.StatusCode.ToString());
+    }
+
+    [Fact]
     public async Task Place_Returns202Pending_FreezesPrices_AndPublishesOrderPlaced()
     {
         var campaign = Guid.NewGuid();

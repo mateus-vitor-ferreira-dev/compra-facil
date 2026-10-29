@@ -141,6 +141,10 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("idempotency_key");
 
+                    b.Property<int>("Installments")
+                        .HasColumnType("integer")
+                        .HasColumnName("installments");
+
                     b.Property<string>("PaymentFailureReason")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
@@ -149,6 +153,12 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                     b.Property<Guid?>("PaymentId")
                         .HasColumnType("uuid")
                         .HasColumnName("payment_id");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("payment_method");
 
                     b.Property<DateTimeOffset?>("RefundedAt")
                         .HasColumnType("timestamp with time zone")
@@ -192,6 +202,29 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("items");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Pix", "CompraFacil.Orders.Domain.Order.Pix#OrderPix", b1 =>
+                        {
+                            b1.Property<DateTimeOffset>("ExpiresAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("pix_expires_at");
+
+                            b1.Property<string>("QrCode")
+                                .IsRequired()
+                                .HasMaxLength(512)
+                                .HasColumnType("character varying(512)")
+                                .HasColumnName("pix_qr_code");
+
+                            b1.Property<string>("QrCodeBase64")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("pix_qr_code_base64");
+
+                            b1.Property<string>("TicketUrl")
+                                .HasMaxLength(512)
+                                .HasColumnType("character varying(512)")
+                                .HasColumnName("pix_ticket_url");
+                        });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Total", "CompraFacil.Orders.Domain.Order.Total#Money", b1 =>
                         {

@@ -174,8 +174,32 @@ export interface components {
             url?: string | null;
         };
         PlaceOrderRequest: {
+            payment?: components["schemas"]["PlaceOrderPayment"];
             /** @description Um item por produto (sem repetir `product_id`). */
             items: components["schemas"]["PlaceOrderItem"][];
+        };
+        /**
+         * @description Como pagar (#220). Ausente, o pedido é pago por PIX (o QR aparece no pedido). Cartão: o
+         *     `card_token` do provedor (o cartão é tokenizado no checkout; os dados dele não passam pela loja),
+         *     a bandeira e as parcelas.
+         */
+        PlaceOrderPayment: {
+            method: components["schemas"]["PaymentMethod"];
+            /** @description Obrigatório no cartão; de uso único. */
+            card_token?: string;
+            /** @description Bandeira, como o provedor devolveu na tokenização (ex.: `visa`). */
+            card_brand?: string;
+            /**
+             * @description Parcelas no cartão; PIX é à vista.
+             * @default 1
+             */
+            installments: number;
+        };
+        OrderPayment: {
+            method: components["schemas"]["PaymentMethod"];
+            installments: number;
+            /** @description O PIX a pagar, depois que o payments o gera; nulo no cartão e antes disso. */
+            pix: components["schemas"]["Pix"] | null;
         };
         PlaceOrderItem: {
             /** Format: uuid */
@@ -202,6 +226,7 @@ export interface components {
              * @description Preenchido quando o payments processa a cobrança.
              */
             payment_id?: string | null;
+            payment: components["schemas"]["OrderPayment"];
             /**
              * Format: date-time
              * @description Quando o inventory reservou o estoque. Com o pedido `pending`, nulo é a etapa da reserva e
@@ -243,6 +268,8 @@ export interface components {
             /** Format: uuid */
             campaign_id?: string | null;
         };
+        /** @enum {string} */
+        PaymentMethod: "pix" | "card";
         /** @description Valor monetário em centavos, para evitar erro de ponto flutuante. */
         Money: {
             /**
@@ -256,6 +283,19 @@ export interface components {
              * @example BRL
              */
             currency: string;
+        };
+        Pix: {
+            /** @description O "copia e cola" (BR Code). */
+            qr_code: string;
+            /** @description O QR em PNG, em base64. */
+            qr_code_base64: string;
+            /**
+             * Format: uri
+             * @description A página de pagamento do provedor.
+             */
+            ticket_url?: string | null;
+            /** Format: date-time */
+            expires_at: string;
         };
         /** @description Erro no formato ProblemDetails (RFC 9457), servido como `application/problem+json`. */
         Problem: {

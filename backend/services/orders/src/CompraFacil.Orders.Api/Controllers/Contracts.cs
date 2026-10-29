@@ -7,7 +7,12 @@ namespace CompraFacil.Orders.Api.Controllers;
 // ausência virar 422 do validador (com o nome do campo), e não um 400 genérico de binding.
 
 // o cliente e o e-mail vêm do token; customer_id/customer_email de clientes antigos são ignorados
-public sealed record PlaceOrderRequest(IReadOnlyList<PlaceOrderItemRequest>? Items);
+public sealed record PlaceOrderRequest(IReadOnlyList<PlaceOrderItemRequest>? Items, PlaceOrderPaymentRequest? Payment);
+
+/// <summary>Como pagar: pix, ou card com o card_token do provedor (tokenizado no checkout), a bandeira e as parcelas.</summary>
+public sealed record PlaceOrderPaymentRequest(PaymentMethod? Method, string? CardToken, string? CardBrand, int? Installments);
+
+public sealed record OrderPaymentResponse(PaymentMethod Method, int Installments, OrderPix? Pix);
 
 public sealed record PlaceOrderItemRequest(Guid? ProductId, int? Quantity, long? ExpectedUnitPriceCents);
 
@@ -19,6 +24,7 @@ public sealed record OrderResponse(
     IReadOnlyList<OrderItemData> Items,
     Money Total,
     Guid? PaymentId,
+    OrderPaymentResponse Payment,
     DateTimeOffset? StockReservedAt,
     DateTimeOffset? SentToSupplierAt,
     Tracking? Tracking,
@@ -32,7 +38,7 @@ public sealed record OrderResponse(
     {
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.CustomerId, o.Status, o.CancellationReason, [.. o.Items.Select(OrderItemData.From)],
-            o.Total, o.PaymentId, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt,
+            o.Total, o.PaymentId, new OrderPaymentResponse(o.PaymentMethod, o.Installments, o.Pix), o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt,
             o.CreatedAt, o.UpdatedAt);
     }
 }

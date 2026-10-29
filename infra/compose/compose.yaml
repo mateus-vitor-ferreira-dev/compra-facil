@@ -386,6 +386,10 @@ services:
         APP_VERSION: ${VERSION:-dev}
     image: compra-facil/payments:${VERSION:-dev}
     environment:
+      # o provedor de pagamento é o simulado (backend/services/payment-sim), no contrato do Mercado Pago
+      Payments__MercadoPago__BaseUrl: http://payment-sim:8090/
+      Payments__MercadoPago__WebhookSecret: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
+      Payments__MercadoPago__NotificationUrl: http://payments:8004/v1/webhooks/payments
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317

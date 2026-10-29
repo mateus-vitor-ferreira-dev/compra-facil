@@ -339,6 +339,8 @@ components:
       required: [items]
       additionalProperties: false
       properties:
+        payment:
+          $ref: "#/components/schemas/PlaceOrderPayment"
         items:
           type: array
           minItems: 1
@@ -346,6 +348,48 @@ components:
           description: Um item por produto (sem repetir `product_id`).
           items:
             $ref: "#/components/schemas/PlaceOrderItem"
+
+    PlaceOrderPayment:
+      type: object
+      description: |
+        Como pagar (#220). Ausente, o pedido é pago por PIX (o QR aparece no pedido). Cartão: o
+        `card_token` do provedor (o cartão é tokenizado no checkout; os dados dele não passam pela loja),
+        a bandeira e as parcelas.
+      required: [method]
+      additionalProperties: false
+      properties:
+        method:
+          $ref: "./payments.v1.yaml#/components/schemas/PaymentMethod"
+        card_token:
+          type: string
+          maxLength: 128
+          description: Obrigatório no cartão; de uso único.
+        card_brand:
+          type: string
+          maxLength: 16
+          description: "Bandeira, como o provedor devolveu na tokenização (ex.: `visa`)."
+        installments:
+          type: integer
+          minimum: 1
+          maximum: 12
+          default: 1
+          description: Parcelas no cartão; PIX é à vista.
+
+    OrderPayment:
+      type: object
+      required: [method, installments, pix]
+      properties:
+        method:
+          $ref: "./payments.v1.yaml#/components/schemas/PaymentMethod"
+        installments:
+          type: integer
+          minimum: 1
+          maximum: 12
+        pix:
+          description: O PIX a pagar, depois que o payments o gera; nulo no cartão e antes disso.
+          oneOf:
+            - $ref: "./payments.v1.yaml#/components/schemas/Pix"
+            - type: "null"
 
     PlaceOrderItem:
       type: object
@@ -369,7 +413,7 @@ components:
 
     Order:
       type: object
-      required: [id, customer_id, status, items, total, created_at, updated_at]
+      required: [id, customer_id, status, items, total, payment, created_at, updated_at]
       properties:
         id:
           type: string
@@ -393,6 +437,8 @@ components:
           type: [string, "null"]
           format: uuid
           description: Preenchido quando o payments processa a cobrança.
+        payment:
+          $ref: "#/components/schemas/OrderPayment"
         stock_reserved_at:
           type: [string, "null"]
           format: date-time

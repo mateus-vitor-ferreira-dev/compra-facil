@@ -32,16 +32,19 @@ public sealed class PaymentsController(PaymentQueries queries) : ControllerBase
         PaymentResponse.From(await queries.GetAsync(paymentId, ct));
 }
 
+public sealed record PixResponse(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
+
 public sealed record PaymentResponse(
-    Guid Id, Guid OrderId, Money Amount, PaymentStatus Status, FailureReason? FailureReason,
-    string Provider, string? ProviderReference, string? RefundReference, DateTimeOffset? RefundedAt,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
+    Guid Id, Guid OrderId, Money Amount, PaymentStatus Status, FailureReason? FailureReason, PaymentMethod Method, int Installments,
+    string Provider, string? ProviderReference, string? CardLastFour, PixResponse? Pix, long FeeCents, long RefundedCents,
+    DateTimeOffset? CapturedAt, DateTimeOffset? RefundedAt, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
 {
     public static PaymentResponse From(Payment p)
     {
         ArgumentNullException.ThrowIfNull(p);
-        return new(p.Id, p.OrderId, p.Amount, p.Status, p.FailureReason, p.Provider, p.ProviderReference, p.RefundReference, p.RefundedAt,
-            p.CreatedAt, p.UpdatedAt);
+        return new(p.Id, p.OrderId, p.Amount, p.Status, p.FailureReason, p.Method, p.Installments, p.Provider, p.ProviderReference,
+            p.CardLastFour, p.Pix is { } x ? new PixResponse(x.QrCode, x.QrCodeBase64, x.TicketUrl, x.ExpiresAt) : null,
+            p.FeeCents, p.RefundedCents, p.CapturedAt, p.RefundedAt, p.CreatedAt, p.UpdatedAt);
     }
 }
 
