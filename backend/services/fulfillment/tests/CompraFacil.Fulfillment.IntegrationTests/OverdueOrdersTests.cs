@@ -23,6 +23,7 @@ public sealed class OverdueFixture : IAsyncLifetime
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Kafka:Enabled", "false")
             .UseSetting("Supplier:DispatcherEnabled", "false")
+            .UseSetting("Supplier:CatalogSyncEnabled", "false")
             .UseSetting("Supplier:Deadlines:ShipWithin", "3.00:00:00")
             .UseSetting("Supplier:Deadlines:DeliverWithin", "15.00:00:00")
             .UseSetting("Auth:Jwks", Identity.Jwks));

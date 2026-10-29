@@ -104,6 +104,42 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-catalog/sync:
+    post:
+      tags: [admin]
+      operationId: syncSupplierCatalog
+      summary: Lê o feed do fornecedor agora
+      description: |
+        A mesma leitura que o fulfillment faz de tempos em tempos (`Supplier:CatalogSyncInterval`): o que
+        mudou desde a anterior vira `SupplierProductUpdated` ou `SupplierProductRemoved`, e o catalog
+        atualiza a loja. Feed vazio ou com erro não tira nada de venda (503).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: O que a leitura encontrou.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogSyncResult"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "409":
+          description: Outra leitura do feed está rodando (o job ou outro operador).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não respondeu, ou devolveu o feed vazio; nada mudou.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
   /v1/admin/dead-letters:
     get:
       tags: [admin]
@@ -163,6 +199,26 @@ paths:
 
 components:
   schemas:
+    CatalogSyncResult:
+      type: object
+      required: [created, updated, removed, unchanged]
+      properties:
+        created:
+          type: integer
+          minimum: 0
+          description: Produtos novos no feed.
+        updated:
+          type: integer
+          minimum: 0
+          description: Alterados ou de volta ao feed.
+        removed:
+          type: integer
+          minimum: 0
+          description: Saíram do feed.
+        unchanged:
+          type: integer
+          minimum: 0
+
     OverdueSupplierOrder:
       type: object
       required: [order_id, status, stage, due_at, supplier, customer_email, attempts, created_at]

@@ -113,4 +113,47 @@ public sealed class CjSupplierGatewayTests
         using var json = JsonDocument.Parse(stub.Requests.Last().Body);
         Assert.Equal("[recusar-depois]", json.RootElement.GetProperty("remark").GetString());
     }
+
+    [Fact]
+    public async Task Feed_le_todas_as_paginas_e_pula_item_sem_preco()
+    {
+        object Page(int from, int count, int total) => new
+        {
+            code = 200,
+            result = true,
+            message = "Success",
+            data = new
+            {
+                total,
+                list = Enumerable.Range(from, count).Select(n => new
+                {
+                    vid = $"V-{n}",
+                    productSku = $"CJ{n}",
+                    productNameEn = $"Item {n}",
+                    sellPrice = n == 3 ? "abc" : "12.40",
+                    categoryName = "Mouse",
+                    productImage = "",
+                    productWeight = 80,
+                }),
+            },
+        };
+        var (gateway, stub) = Gateway((req, _) => req.RequestUri!.Query.Contains("pageNum=1", StringComparison.Ordinal)
+            ? Json(Page(1, 200, 201))
+            : Json(Page(201, 1, 201)));
+
+        var feed = await gateway.ListProductsAsync(Ct);
+
+        Assert.Equal(200, feed.Count); // 201 itens, um sem preço válido
+        Assert.DoesNotContain(feed, i => i.Vid == "V-3");
+        Assert.Equal(new SupplierFeedItem("V-1", "CJ1", "Item 1", "Mouse", 1240, "USD", null, 80), feed[0]);
+        Assert.Equal(2, stub.Requests.Count(r => r.Path.EndsWith("product/list", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Feed_com_erro_e_passageiro()
+    {
+        var (gateway, _) = Gateway((_, _) => Json(new { code = 1600100, result = false, message = "Invalid params" }));
+
+        await Assert.ThrowsAsync<SupplierUnavailableException>(() => gateway.ListProductsAsync(Ct));
+    }
 }

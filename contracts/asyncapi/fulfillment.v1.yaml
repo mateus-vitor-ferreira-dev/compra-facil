@@ -44,6 +44,26 @@ channels:
         topicConfiguration:
           cleanup.policy: [delete]
           retention.ms: 604800000
+  supplierProductEvents:
+    address: fulfillment.supplier-product.v1
+    title: Catálogo do fornecedor
+    description: |
+      O feed do fornecedor, lido de tempos em tempos (e pelo botão do painel): só o que mudou desde a
+      leitura anterior. Chave = `vid`. O catalog aplica a regra de margem e cria, reprecifica ou tira de
+      venda o produto da loja.
+    messages:
+      SupplierProductUpdated:
+        $ref: "#/components/messages/SupplierProductUpdated"
+      SupplierProductRemoved:
+        $ref: "#/components/messages/SupplierProductRemoved"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: fulfillment.supplier-product.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
   # Canal de outro serviço que o fulfillment consome (definido no contrato do dono)
   orderEvents:
     $ref: "./orders.v1.yaml#/channels/orderEvents"
@@ -59,6 +79,15 @@ operations:
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderShipped"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderDelivered"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
+
+  publishSupplierProductEvents:
+    action: send
+    channel:
+      $ref: "#/channels/supplierProductEvents"
+    summary: Publica o que mudou no feed do fornecedor (outbox, na transação da leitura).
+    messages:
+      - $ref: "#/channels/supplierProductEvents/messages/SupplierProductUpdated"
+      - $ref: "#/channels/supplierProductEvents/messages/SupplierProductRemoved"
 
   onOrderConfirmed:
     action: receive
@@ -248,3 +277,91 @@ components:
                     type: string
                     format: date-time
                     description: Quando o pedido foi dado como não atendido.
+
+    SupplierProductUpdated:
+      name: SupplierProductUpdated
+      title: Produto do fornecedor novo ou alterado
+      summary: |
+        O produto como está no feed agora: novo, de volta ao feed, ou com custo, nome, categoria, foto ou
+        peso diferentes da leitura anterior.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/SupplierProductKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierProductUpdated
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [supplier, vid, sku, name, category, cost, updated_at]
+                properties:
+                  supplier:
+                    type: string
+                    description: "Nome do fornecedor (ex.: `cj`)."
+                  vid:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                    description: Id da variante no fornecedor; é o que vai no pedido a ele.
+                  sku:
+                    type: string
+                    description: SKU do produto no fornecedor.
+                  name:
+                    type: string
+                    description: Nome no feed (na língua do fornecedor).
+                  category:
+                    type: string
+                    description: Categoria do fornecedor; o catalog a traduz para a da loja.
+                  cost:
+                    description: Custo unitário, na moeda do fornecedor.
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  image_url:
+                    type: [string, "null"]
+                    format: uri
+                  weight_grams:
+                    type: [integer, "null"]
+                    minimum: 0
+                  updated_at:
+                    type: string
+                    format: date-time
+
+    SupplierProductRemoved:
+      name: SupplierProductRemoved
+      title: Produto saiu do feed do fornecedor
+      summary: O fornecedor deixou de vender; o catalog tira o produto de venda.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/SupplierProductKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierProductRemoved
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [supplier, vid, removed_at]
+                properties:
+                  supplier:
+                    type: string
+                  vid:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  removed_at:
+                    type: string
+                    format: date-time

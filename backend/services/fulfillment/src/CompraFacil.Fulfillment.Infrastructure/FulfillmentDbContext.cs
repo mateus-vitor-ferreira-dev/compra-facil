@@ -9,6 +9,7 @@ namespace CompraFacil.Fulfillment.Infrastructure;
 public sealed class FulfillmentDbContext(DbContextOptions<FulfillmentDbContext> options) : DbContext(options)
 {
     public DbSet<SupplierOrder> SupplierOrders => Set<SupplierOrder>();
+    public DbSet<SupplierProduct> SupplierProducts => Set<SupplierProduct>();
     internal DbSet<SupplierWebhook> SupplierWebhooks => Set<SupplierWebhook>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) => modelBuilder

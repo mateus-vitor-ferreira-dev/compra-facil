@@ -39,6 +39,11 @@ public sealed class SupplierOptions
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(1);
     public int BatchSize { get; set; } = 10;
 
+    /// <summary>Lê o feed do fornecedor de tempos em tempos (o painel também pede uma leitura na hora).</summary>
+    public bool CatalogSyncEnabled { get; set; } = true;
+
+    public TimeSpan CatalogSyncInterval { get; set; } = TimeSpan.FromHours(1);
+
     /// <summary>Quanto um pedido reservado (Placing) espera antes de outro despachante reenviar.</summary>
     public TimeSpan ClaimLease { get; set; } = TimeSpan.FromMinutes(2);
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPage(t *testing.T) {
@@ -39,4 +40,25 @@ func TestUnitCost(t *testing.T) {
 	assert.LessOrEqual(t, c, int64(6000))
 	assert.Equal(t, "0.05", FormatUSD(5))
 	assert.Equal(t, "120.00", FormatUSD(12000))
+}
+
+func TestSetCostRemoveAndReset(t *testing.T) {
+	t.Cleanup(Reset)
+
+	require.NoError(t, SetCost("SIM-V-001", 1500))
+	first, _ := Page(1, 1)
+	assert.Equal(t, "15.00", first[0].SellPrice)
+	assert.Equal(t, int64(1500), UnitCostCents("SIM-V-001"))
+
+	require.NoError(t, Remove("SIM-V-001"))
+	_, total := Page(1, 50)
+	assert.Equal(t, 29, total)
+	require.ErrorIs(t, Remove("SIM-V-001"), ErrUnknownProduct)
+	require.ErrorIs(t, SetCost("SIM-V-001", 100), ErrUnknownProduct)
+	assert.Equal(t, int64(1500), UnitCostCents("SIM-V-001")) // pedido com o vid ainda tem custo
+
+	Reset()
+	first, total = Page(1, 1)
+	assert.Equal(t, 30, total)
+	assert.Equal(t, "12.40", first[0].SellPrice)
 }

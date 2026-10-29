@@ -196,6 +196,77 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.ToTable("supplier_orders", (string)null);
                 });
 
+            modelBuilder.Entity("CompraFacil.Fulfillment.Domain.SupplierProduct", b =>
+                {
+                    b.Property<string>("Supplier")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("supplier");
+
+                    b.Property<string>("Vid")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("vid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("category");
+
+                    b.Property<long>("CostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cost_cents");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<DateTimeOffset>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_seen_at");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("image_url");
+
+                    b.Property<bool>("InFeed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("in_feed");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sku");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("WeightGrams")
+                        .HasColumnType("integer")
+                        .HasColumnName("weight_grams");
+
+                    b.HasKey("Supplier", "Vid")
+                        .HasName("pk_supplier_products");
+
+                    b.ToTable("supplier_products", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Fulfillment.Infrastructure.Persistence.SupplierWebhook", b =>
                 {
                     b.Property<string>("MessageId")

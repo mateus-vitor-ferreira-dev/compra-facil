@@ -25,6 +25,9 @@ public interface ISupplierGateway
     string Name { get; }
 
     Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct);
+
+    /// <summary>O feed inteiro (todas as páginas). Falha em qualquer página sai como <see cref="SupplierUnavailableException"/>.</summary>
+    Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct);
 }
 
 public sealed class SupplierUnavailableException(string message, Exception? inner = null) : Exception(message, inner);

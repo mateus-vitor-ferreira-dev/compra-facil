@@ -43,7 +43,14 @@ Sucesso é `code 200, result true, message "Success"`. Erros de negócio voltam 
 | `GET /shopping/order/getOrderDetail?orderId=` | |
 | `DELETE /shopping/order/deleteOrder?orderId=` | Cancela em CREATED/UNSHIPPED; repetir num cancelado devolve sucesso. |
 
-Fora do prefixo e sem token: `GET /health` e `GET /sim/orders` (depuração: todos os pedidos).
+Fora do prefixo e sem token: `GET /health`, `GET /sim/orders` (depuração: todos os pedidos) e as rotas que
+mudam o feed, para demonstrar e testar a importação do catálogo:
+
+| Método e rota | Efeito |
+|---|---|
+| `PUT /sim/products/{vid}/cost` | `{"sellPrice":"15.90"}`: o fornecedor reajustou o custo (feed e pedidos novos). |
+| `DELETE /sim/products/{vid}` | O produto sai do feed (o fornecedor deixou de vender). |
+| `POST /sim/catalog/reset` | Volta aos 30 produtos com os custos de fábrica. |
 As rotas do prefixo, exceto `getAccessToken`, exigem o header `CJ-Access-Token`.
 
 | Código | Mensagem | Quando |

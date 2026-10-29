@@ -2,9 +2,11 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +33,10 @@ func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, lo
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	// depuração, sem token: ver o estado de todos os pedidos de uma vez
 	r.GET("/sim/orders", func(c *gin.Context) { ok(c, a.orders.List()) })
+	// demonstração e testes, sem token: o fornecedor reajusta um custo ou deixa de vender um produto
+	r.PUT("/sim/products/:vid/cost", a.setCost)
+	r.DELETE("/sim/products/:vid", a.removeProduct)
+	r.POST("/sim/catalog/reset", func(c *gin.Context) { catalog.Reset(); ok(c, nil) })
 
 	v1 := r.Group("/api2.0/v1")
 	v1.POST("/authentication/getAccessToken", tokens.getAccessToken)
@@ -60,6 +66,58 @@ func (a *API) productList(c *gin.Context) {
 	pageSize := min(queryInt(c, "pageSize", 20), maxPageSize)
 	list, total := catalog.Page(pageNum, pageSize)
 	ok(c, gin.H{"pageNum": pageNum, "pageSize": pageSize, "total": total, "list": list})
+}
+
+type costRequest struct {
+	SellPrice string `json:"sellPrice" binding:"required"`
+}
+
+func (a *API) setCost(c *gin.Context) {
+	var req costRequest
+	if c.ShouldBindJSON(&req) != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	cents, err := parseUSD(req.SellPrice)
+	if err != nil || cents <= 0 {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	if err := catalog.SetCost(c.Param("vid"), cents); err != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Unknown product")
+		return
+	}
+	a.log.Info("custo reajustado", "vid", c.Param("vid"), "sell_price", catalog.FormatUSD(cents))
+	ok(c, gin.H{"vid": c.Param("vid"), "sellPrice": catalog.FormatUSD(cents)})
+}
+
+func (a *API) removeProduct(c *gin.Context) {
+	if err := catalog.Remove(c.Param("vid")); err != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Unknown product")
+		return
+	}
+	a.log.Info("produto tirado do feed", "vid", c.Param("vid"))
+	ok(c, nil)
+}
+
+// parseUSD lê "12.40" (o formato dos valores da CJ) em centavos.
+func parseUSD(s string) (int64, error) {
+	whole, frac, found := strings.Cut(s, ".")
+	if !found {
+		frac = "00"
+	}
+	if len(frac) != 2 {
+		return 0, errors.New("duas casas decimais")
+	}
+	w, err := strconv.ParseInt(whole, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parte inteira de %q: %w", s, err)
+	}
+	f, err := strconv.ParseInt(frac, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("centavos de %q: %w", s, err)
+	}
+	return w*100 + f, nil
 }
 
 type stockEntry struct {
