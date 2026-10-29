@@ -466,6 +466,22 @@ services:
       timeout: 3s
       retries: 3
 
+  # o emissor de NF-e (ADR 0007, #221): em dev, o simulado no formato da Nuvem Fiscal; não vai para a VPS
+  invoice-sim:
+    build:
+      context: ../../backend/services/invoice-sim
+    image: compra-facil/invoice-sim:${VERSION:-dev}
+    environment:
+      SIM_CLIENT_ID: ${INVOICE_SIM_CLIENT_ID:-sim-client}
+      SIM_CLIENT_SECRET: ${INVOICE_SIM_CLIENT_SECRET:-sim-secret}
+    ports:
+      - "127.0.0.1:${INVOICE_SIM_PORT:-8094}:8090"
+    healthcheck:
+      test: ["CMD", "/app/sim", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   notifications:
     <<: *dotnet-service
     build:
