@@ -431,6 +431,8 @@ services:
       Supplier__Deadlines__DeliverWithin: "00:05:00"
       # o feed do simulado a cada minuto (na produção, de hora em hora): mudar o custo nele aparece logo
       Supplier__CatalogSyncInterval: "00:01:00"
+      # o frete (#222) cotado pelo fornecedor em dólar, no mesmo câmbio do catálogo (supplier.usd_brl)
+      Shipping__UsdToBrl: "5.40"
       # a nota fiscal (#221) pelo emissor simulado, no contrato da Nuvem Fiscal (ana+recusar-nota@... faz a
       # SEFAZ simulada rejeitar)
       Invoice__AuthUrl: http://invoice-sim:8090/oauth/token

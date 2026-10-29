@@ -91,6 +91,33 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         throw new SupplierUnavailableException($"o feed do fornecedor passou de {MaxFeedPages} páginas");
     }
 
+    /// <summary>O freightCalculate do CJ: da China ao CEP, com o preço em dólar e o prazo "mín-máx" em dias.</summary>
+    public async Task<IReadOnlyList<SupplierFreightOption>> QuoteFreightAsync(string zipCode, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var body = new FreightRequest("CN", "BR", zipCode, [.. items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
+        var envelope = await SendAsync<IReadOnlyList<FreightOption>>(() => new HttpRequestMessage(HttpMethod.Post, "logistic/freightCalculate")
+        {
+            Content = JsonContent.Create(body, options: CjJson.Options),
+        }, retryOnInvalidToken: true, ct);
+        if (!envelope.Result || envelope.Data is not { } options)
+        {
+            throw new SupplierUnavailableException($"o fornecedor não cotou o frete: {envelope.Code} {envelope.Message}");
+        }
+        return [.. options.Select(ToFreight).OfType<SupplierFreightOption>()];
+    }
+
+    /// <summary>Opção sem nome, sem preço ou com o prazo fora do formato "12-20" não entra.</summary>
+    private static SupplierFreightOption? ToFreight(FreightOption o)
+    {
+        var days = (o.LogisticAging ?? "").Split('-', 2);
+        return !string.IsNullOrWhiteSpace(o.LogisticName) && o.LogisticPrice is > 0
+            && int.TryParse(days[0], NumberStyles.None, CultureInfo.InvariantCulture, out var min)
+            && int.TryParse(days.Length > 1 ? days[1] : days[0], NumberStyles.None, CultureInfo.InvariantCulture, out var max)
+            ? new SupplierFreightOption(o.LogisticName, (long)Math.Round(o.LogisticPrice.Value * 100, MidpointRounding.AwayFromZero), min, Math.Max(min, max))
+            : null;
+    }
+
     // consultas de estoque simultâneas (uma por variante, como a API do CJ pede)
     private const int StockParallelism = 4;
 
@@ -178,6 +205,10 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         [property: JsonPropertyName("consigneeID")] string ConsigneeId,
         string? InvoiceKey, string? InvoiceXml,
         string Email, string Remark, IReadOnlyList<CreateOrderProduct> Products);
+
+    private sealed record FreightRequest(string StartCountryCode, string EndCountryCode, string Zip, IReadOnlyList<CreateOrderProduct> Products);
+
+    private sealed record FreightOption(string? LogisticName, decimal? LogisticPrice, string? LogisticAging);
 
     private sealed record CreateOrderResult(string? OrderId, string? OrderNumber, string? OrderStatus);
 

@@ -23,6 +23,8 @@ tags:
     description: Chamadas entre serviços, fora do gateway.
   - name: admin
     description: "Operação (role `admin`): pedidos parados no fornecedor; dead letter topic em todos os serviços."
+  - name: shipping
+    description: Frete e prazo por CEP (#222).
 
 paths:
   /v1/webhooks/supplier:
@@ -128,6 +130,47 @@ paths:
             application/problem+json:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+  /v1/shipping/quote:
+    post:
+      tags: [shipping]
+      operationId: quoteShipping
+      summary: Frete e prazo por CEP
+      description: |
+        As opções de envio para o CEP (#222, Decreto 7.962: o cliente vê frete e prazo antes de pagar), da
+        mais barata para a mais cara. O fornecedor cota em dólar; a loja converte pelo câmbio do catálogo
+        (`Shipping:UsdToBrl`) e soma o processamento dela (`Shipping:ProcessingDays`) ao prazo, em dias
+        úteis. Pública: a página do produto e o carrinho cotam sem login. O orders confere por aqui o frete
+        do pedido.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShippingQuoteRequest"
+      responses:
+        "200":
+          description: As opções de envio.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShippingQuote"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não cotou; vem com `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+
   /v1/admin/supplier-orders/overdue:
     get:
       tags: [admin]
@@ -265,6 +308,67 @@ paths:
 
 components:
   schemas:
+    ShippingQuoteRequest:
+      type: object
+      required: [zip_code, items]
+      additionalProperties: false
+      properties:
+        zip_code:
+          type: string
+          description: O CEP, com ou sem hífen.
+          examples: ["01310-100"]
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [sku, quantity]
+            additionalProperties: false
+            properties:
+              sku:
+                type: string
+                minLength: 1
+                description: O SKU da loja (o vid no fornecedor).
+              quantity:
+                type: integer
+                minimum: 1
+                maximum: 99
+
+    ShippingQuote:
+      type: object
+      required: [zip_code, options]
+      properties:
+        zip_code:
+          type: string
+          pattern: "^[0-9]{8}$"
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShippingOption"
+
+    ShippingOption:
+      type: object
+      required: [id, name, price_cents, min_days, max_days]
+      properties:
+        id:
+          type: string
+          description: "O serviço (ex.: `economico`, `expresso`), o que o pedido escolhe."
+        name:
+          type: string
+          description: O nome que o cliente vê.
+        price_cents:
+          type: integer
+          format: int64
+          minimum: 0
+        min_days:
+          type: integer
+          minimum: 1
+          description: Dias úteis, já com o processamento da loja.
+        max_days:
+          type: integer
+          minimum: 1
+
     CatalogSyncResult:
       type: object
       required: [created, updated, removed, unchanged]
