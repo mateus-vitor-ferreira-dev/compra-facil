@@ -76,6 +76,7 @@ for (const scheme of ["light", "dark"] as const) {
         "/admin/campanhas",
         "/admin/campanhas/nova",
         "/admin/falhas",
+        "/admin/atrasos",
       ]) {
         await page.goto(path);
         await audit(page, path);

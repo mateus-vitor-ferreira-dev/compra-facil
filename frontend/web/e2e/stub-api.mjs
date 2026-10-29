@@ -152,6 +152,7 @@ const deadLetterQueues = {
   ],
   orders: [],
   notifications: [],
+  fulfillment: [],
 }; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
@@ -439,6 +440,48 @@ function orderAt(entry, now = Date.now()) {
     : { ...order, ...reserved, status: "confirmed", payment_id: crypto.randomUUID(), updated_at: iso(endAt) };
 }
 const iso = (ms) => new Date(ms).toISOString();
+
+// os pedidos atrasados no fornecedor (#219): um preso no fornecedor e um envio que não chegou
+function overdueOrders() {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  return [
+    {
+      order_id: "5b8e1f20-0000-7000-8000-000000000001",
+      status: "placed",
+      stage: "shipping",
+      due_at: iso(now - 4 * day),
+      supplier: "cj",
+      supplier_order_id: "CJ2410290001",
+      customer_email: "bia@exemplo.com",
+      attempts: 0,
+      last_error: null,
+      tracking: null,
+      created_at: iso(now - 7 * day),
+      placed_at: iso(now - 7 * day),
+      shipped_at: null,
+    },
+    {
+      order_id: "9d2c7a40-0000-7000-8000-000000000002",
+      status: "shipped",
+      stage: "delivery",
+      due_at: iso(now - 5 * 60 * 60 * 1000),
+      supplier: "cj",
+      supplier_order_id: "CJ2410100002",
+      customer_email: "caio@exemplo.com",
+      attempts: 0,
+      last_error: null,
+      tracking: {
+        number: "BR123456789CJ",
+        provider: "Correios",
+        url: "https://t.17track.net/en#nums=BR123456789CJ",
+      },
+      created_at: iso(now - 20 * day),
+      placed_at: iso(now - 20 * day),
+      shipped_at: iso(now - 15 * day - 5 * 60 * 60 * 1000),
+    },
+  ];
+}
 const eventId = (o) => String(Date.parse(o.updated_at));
 
 async function placeOrder(req, res, email) {
@@ -606,7 +649,7 @@ createServer(async (req, res) => {
     return send(res, 200, { id_token: fakeJwt({ ...grant, email_verified: true }), token_type: "Bearer" });
   }
   const dlt = url.pathname.match(
-    /^\/(orders|inventory|payments|notifications)\/v1\/admin\/dead-letters(\/replay)?$/,
+    /^\/(orders|inventory|payments|notifications|fulfillment)\/v1\/admin\/dead-letters(\/replay)?$/,
   );
   if (dlt) {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
@@ -616,6 +659,10 @@ createServer(async (req, res) => {
     // reprocessadas, falham de novo e voltam para a fila (são mensagens envenenadas)
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
+  }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/overdue") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, { data: overdueOrders() });
   }
   if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
     return admin(req, res, url);

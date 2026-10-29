@@ -20,7 +20,7 @@ tags:
   - name: webhooks
     description: Chamadas do fornecedor.
   - name: admin
-    description: Operação (role `admin`); dead letter topic em todos os serviços.
+    description: "Operação (role `admin`): pedidos parados no fornecedor; dead letter topic em todos os serviços."
 
 paths:
   /v1/webhooks/supplier:
@@ -60,6 +60,48 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/overdue:
+    get:
+      tags: [admin]
+      operationId: listOverdueSupplierOrders
+      summary: Pedidos parados além do prazo do fornecedor
+      description: |
+        Os pedidos pagos que o fornecedor não despachou dentro do prazo de separação
+        (`Supplier:Deadlines:ShipWithin`, padrão 3 dias, contado do pedido pago) e os enviados que não
+        chegaram dentro do prazo de transporte (`Supplier:Deadlines:DeliverWithin`, padrão 15 dias,
+        contado do envio). Os mais atrasados primeiro. Para a equipe cobrar o fornecedor e avisar o
+        cliente: a loja responde pelo prazo que prometeu.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Pedidos atrasados.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OverdueSupplierOrder"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
   /v1/admin/dead-letters:
@@ -121,6 +163,59 @@ paths:
 
 components:
   schemas:
+    OverdueSupplierOrder:
+      type: object
+      required: [order_id, status, stage, due_at, supplier, customer_email, attempts, created_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+          description: O pedido da loja (o mesmo `order_id` do orders).
+        status:
+          type: string
+          description: |
+            `pending`: na fila para o fornecedor (ou esperando nova tentativa) · `placing`: sendo enviado ·
+            `placed`: aceito e não despachado · `shipped`: despachado e não entregue.
+          enum: [pending, placing, placed, shipped]
+        stage:
+          type: string
+          description: "`shipping`: o fornecedor não despachou no prazo · `delivery`: o envio não chegou no prazo."
+          enum: [shipping, delivery]
+        due_at:
+          type: string
+          format: date-time
+          description: Quando o prazo da etapa venceu.
+        supplier:
+          type: string
+        supplier_order_id:
+          type: [string, "null"]
+          description: O pedido no fornecedor, depois de aceito.
+        customer_email:
+          type: string
+          format: email
+        attempts:
+          type: integer
+          minimum: 0
+          description: Tentativas de envio ao fornecedor que falharam (fornecedor fora, timeout).
+        last_error:
+          type: [string, "null"]
+          description: O erro da última tentativa.
+        tracking:
+          description: Rastreio, no `shipped`.
+          oneOf:
+            - $ref: "./orders.v1.yaml#/components/schemas/Tracking"
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+          description: Quando o pedido pago chegou ao fulfillment.
+        placed_at:
+          type: [string, "null"]
+          format: date-time
+        shipped_at:
+          type: [string, "null"]
+          format: date-time
+
     SupplierWebhook:
       type: object
       description: Formato do CJ Dropshipping (mensagens de pedido com `messageType` UPDATE).
