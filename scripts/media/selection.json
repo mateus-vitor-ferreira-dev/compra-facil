@@ -196,6 +196,11 @@
   "commons:186337584",
   "pixabay:9828774"
  ],
+ "bicicletas-eletricas": [
+  "pixabay:1531263",
+  "figma:c5da1279-d938-48b2-9795-f810193be86c",
+  "figma:19c86494-e077-4587-b4a7-941198bae5ff"
+ ],
  "halteres": [
   "pixabay:5013986",
   "pixabay:595529",
@@ -208,9 +213,49 @@
   "commons:590288",
   "commons:64599035"
  ],
+ "esteiras": [
+  "commons:169463611",
+  "figma:55f5356d-b133-4005-847a-654062e24dc2",
+  "figma:be247d4b-cf8c-40df-9e78-cace0c992a05"
+ ],
  "puffs": [
   "figma:76f9a578-c943-491d-8a16-60324df0567b",
   "figma:22ade7cd-5496-4ba5-970a-0e9b386348d5",
   "figma:59f49244-2a85-4e80-8886-ebe66e484890"
+ ],
+ "travesseiros": [
+  "figma:458cf1d5-823a-4a2f-bcd9-243d7f2ad5bc",
+  "figma:d4176266-ff32-4daa-b7e3-8195f03201e0",
+  "figma:8bee1200-8397-453a-a62e-bd69ef9bc1dd"
+ ],
+ "capacetes": [
+  "figma:a5aa13e4-7185-4804-a977-a8fb50853f2c",
+  "figma:b9e67c40-22ab-44fb-887f-51311de2fc56",
+  "figma:672321b9-a952-451e-b503-1732893767fa"
+ ],
+ "tapetes-de-yoga": [
+  "figma:43553f05-9f6a-4299-9e31-888bb05cf12b",
+  "figma:b75a59b8-4170-4b08-b6e4-16ec618cb91c",
+  "figma:c5f22bee-26db-4162-9968-5c78f81a2d5a"
+ ],
+ "bicicletas-ergometricas": [
+  "figma:e4d0643d-ba76-4e66-8891-0be5e000e2a4",
+  "figma:e9c5ea15-abae-4abf-9da7-226ac6640d28",
+  "figma:b112891b-3eb7-4a5f-9b34-9ef228eec001"
+ ],
+ "batons": [
+  "figma:2e23aa14-6f20-474a-97e8-45746051209d",
+  "figma:e7d24875-a300-412f-8178-8ce436f9f89e",
+  "figma:b220afb7-5066-4c88-862d-22a88c8f3707"
+ ],
+ "bases-e-corretivos": [
+  "figma:eb75e826-91b5-4969-81e7-b630c04d1076",
+  "figma:39a68a03-b0f5-4065-baf8-18e340956244",
+  "figma:33369cc2-0111-4748-93ce-6b5777bcf6a0"
+ ],
+ "paletas-de-sombra": [
+  "figma:5ce0c755-915e-40f1-b41e-83564aa5d7de",
+  "figma:1f4541dd-3934-42ee-ac5b-e0a7a3b137cd",
+  "figma:8c54cc8b-c117-46f0-b332-bbd50a62c276"
  ]
 }
