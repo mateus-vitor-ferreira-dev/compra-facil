@@ -505,11 +505,14 @@ async function placeOrder(req, res, email) {
   return send(res, 202, order);
 }
 
+// como o orders: pago não é o fim (o pedido segue o fornecedor); o stub não passa do confirmado
+const isFinal = (o) => o.status === "delivered" || o.status === "cancelled";
+
 /** GET .../events: o estado atual e cada mudança, em Server-Sent Events, até o estado final. */
 function streamOrder(req, res, entry) {
   const last = req.headers["last-event-id"];
   let current = orderAt(entry);
-  if (current.status !== "pending" && last === eventId(current)) return res.writeHead(204).end();
+  if (isFinal(current) && last === eventId(current)) return res.writeHead(204).end();
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
   res.write("retry: 3000\n\n");
   const emit = (o) => res.write(`id: ${eventId(o)}\nevent: order\ndata: ${JSON.stringify(o)}\n\n`);
@@ -520,7 +523,7 @@ function streamOrder(req, res, entry) {
       current = next;
       emit(current);
     }
-    if (current.status !== "pending") {
+    if (isFinal(current)) {
       clearInterval(timer);
       res.end();
     }

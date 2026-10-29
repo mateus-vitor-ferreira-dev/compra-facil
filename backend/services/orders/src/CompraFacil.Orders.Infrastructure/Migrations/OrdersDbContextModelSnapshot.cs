@@ -131,6 +131,10 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_id");
 
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
+
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -146,11 +150,23 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("payment_id");
 
+                    b.Property<DateTimeOffset?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refunded_at");
+
                     b.Property<string>("RequestHash")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("request_hash");
+
+                    b.Property<DateTimeOffset?>("SentToSupplierAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_to_supplier_at");
+
+                    b.Property<DateTimeOffset?>("ShippedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("shipped_at");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -190,6 +206,25 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                                 .HasMaxLength(3)
                                 .HasColumnType("character varying(3)")
                                 .HasColumnName("total_currency");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Tracking", "CompraFacil.Orders.Domain.Order.Tracking#Tracking", b1 =>
+                        {
+                            b1.Property<string>("Number")
+                                .IsRequired()
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("tracking_number");
+
+                            b1.Property<string>("Provider")
+                                .HasMaxLength(64)
+                                .HasColumnType("character varying(64)")
+                                .HasColumnName("tracking_provider");
+
+                            b1.Property<string>("Url")
+                                .HasMaxLength(512)
+                                .HasColumnType("character varying(512)")
+                                .HasColumnName("tracking_url");
                         });
 
                     b.HasKey("Id")

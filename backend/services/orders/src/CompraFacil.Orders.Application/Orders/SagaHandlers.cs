@@ -117,3 +117,99 @@ public sealed class OnPaymentFailed(OrderOutcome outcome) : IHandleEvent<Payment
             (order, now) => order.Cancel(CancellationReason.PaymentFailed, now, data.PaymentId, data.FailureReason), ct);
     }
 }
+
+/// <summary>
+/// Depois de pago, o pedido segue o fornecedor (eventos do fulfillment) e o estorno (do payments). Cada
+/// transição grava o pedido e o evento juntos; a que não muda nada (repetida, atrasada, de pedido que já
+/// terminou) não publica.
+/// </summary>
+public sealed partial class OrderProgress(IOrderRepository orders, IOutbox outbox, TimeProvider clock, ILogger<OrderProgress> logger)
+{
+    /// <summary>Aplica a transição; <paramref name="publish"/> dá o evento dela (tipo e data), ou nulo se não publica.</summary>
+    public Task ApplyAsync(Guid orderId, string because, Func<Order, DateTimeOffset, bool> transition,
+        Func<Order, (string Type, object Data)?> publish, CancellationToken ct) =>
+        OptimisticConcurrency.RetryAsync(orders.Reset, async () =>
+        {
+            var order = await orders.GetForUpdateAsync(orderId, ct);
+            if (order is null)
+            {
+                LogUnknownOrder(logger, orderId, because);
+                return false;
+            }
+            if (!transition(order, clock.GetUtcNow()))
+            {
+                LogIgnored(logger, orderId, order.Status, because);
+                return false;
+            }
+            if (publish(order) is { } e)
+            {
+                outbox.Add(OrderEvents.Topic, order.Id.ToString(), e.Type, e.Data);
+            }
+            await orders.SaveChangesAsync(ct);
+            OrdersMetrics.Progressed.Add(1, new KeyValuePair<string, object?>("step", because));
+            return true;
+        });
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "{Because} para pedido desconhecido {OrderId}; ignorado")]
+    private static partial void LogUnknownOrder(ILogger logger, Guid orderId, string because);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{Because} para o pedido {OrderId}, que está {Status}; nada muda")]
+    private static partial void LogIgnored(ILogger logger, Guid orderId, OrderStatus status, string because);
+}
+
+/// <summary>SupplierOrderPlaced → o fornecedor aceitou. Não publica (o pedido ao vivo relê o banco).</summary>
+public sealed class OnSupplierOrderPlaced(OrderProgress progress) : IHandleEvent<SupplierOrderPlacedData>
+{
+    public Task HandleAsync(SupplierOrderPlacedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return progress.ApplyAsync(data.OrderId, "SupplierOrderPlaced", (order, now) => order.MarkSentToSupplier(now), _ => null, ct);
+    }
+}
+
+/// <summary>SupplierOrderShipped → enviado, com o rastreio → OrderShipped.</summary>
+public sealed class OnSupplierOrderShipped(OrderProgress progress) : IHandleEvent<SupplierOrderShippedData>
+{
+    public Task HandleAsync(SupplierOrderShippedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var tracking = new Tracking(data.TrackingNumber, data.TrackingProvider, data.TrackingUrl);
+        return progress.ApplyAsync(data.OrderId, "SupplierOrderShipped", (order, now) => order.Ship(tracking, now),
+            order => (OrderEvents.OrderShipped, OrderShippedData.From(order)), ct);
+    }
+}
+
+/// <summary>SupplierOrderDelivered → entregue → OrderDelivered: fim feliz.</summary>
+public sealed class OnSupplierOrderDelivered(OrderProgress progress) : IHandleEvent<SupplierOrderDeliveredData>
+{
+    public Task HandleAsync(SupplierOrderDeliveredData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return progress.ApplyAsync(data.OrderId, "SupplierOrderDelivered", (order, now) => order.Deliver(now),
+            order => (OrderEvents.OrderDelivered, OrderDeliveredData.From(order)), ct);
+    }
+}
+
+/// <summary>
+/// SupplierOrderFailed → cancelado já pago → OrderCancelled (supplier_failed), que faz o payments
+/// estornar e o notifications avisar. A reserva já virou baixa: o inventory não tem o que liberar.
+/// </summary>
+public sealed class OnSupplierOrderFailed(OrderProgress progress) : IHandleEvent<SupplierOrderFailedData>
+{
+    public Task HandleAsync(SupplierOrderFailedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return progress.ApplyAsync(data.OrderId, "SupplierOrderFailed", (order, now) => order.FailAtSupplier(now),
+            order => (OrderEvents.OrderCancelled, OrderCancelledData.From(order)), ct);
+    }
+}
+
+/// <summary>PaymentRefunded → o estorno do pedido cancelado depois de pago voltou ao cliente.</summary>
+public sealed class OnPaymentRefunded(OrderProgress progress) : IHandleEvent<PaymentRefundedData>
+{
+    public Task HandleAsync(PaymentRefundedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return progress.ApplyAsync(data.OrderId, "PaymentRefunded", (order, now) => order.MarkRefunded(now), _ => null, ct);
+    }
+}

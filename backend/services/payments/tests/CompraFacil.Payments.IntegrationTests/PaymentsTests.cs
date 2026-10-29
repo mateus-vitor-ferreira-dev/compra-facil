@@ -144,6 +144,44 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
     }
 
     [Fact]
+    public async Task CancelledAfterApproval_RefundsOnce_AndPublishesPaymentRefunded()
+    {
+        // o fornecedor não atendeu o pedido pago: o OrderCancelled (supplier_failed) estorna
+        var order = Guid.NewGuid();
+        var gateway = fx.Factory.Services.GetRequiredService<FakePaymentGateway>();
+        await OrderPlacedAsync(order, 7990);
+        await StockReservedAsync(order);
+        var refunds = gateway.RefundsMade;
+
+        await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(order));
+        await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(order)); // repetido
+
+        var payment = Assert.Single(await PaymentsOfAsync(order));
+        Assert.Equal(PaymentStatus.Refunded, payment.Status);
+        Assert.StartsWith("fake_re_", payment.RefundReference, StringComparison.Ordinal);
+        Assert.Equal(refunds + 1, gateway.RefundsMade);
+        var events = await EventsOfAsync(order);
+        Assert.Equal([PaymentEvents.PaymentApproved, PaymentEvents.PaymentRefunded], events.OrderBy(e => e.Id).Select(e => e.EventType));
+        var refunded = events.Single(e => e.EventType == PaymentEvents.PaymentRefunded);
+        ContractAssert.AssertEvent("payments.v1.yaml", PaymentEvents.PaymentRefunded, refunded.Payload);
+        var data = EventEnvelope.TryParse(refunded.Payload)!.DataAs<PaymentRefundedData>();
+        Assert.Equal((payment.Id, new Money(7990, "BRL"), payment.RefundReference), (data.PaymentId, data.Amount, data.RefundReference));
+    }
+
+    [Fact]
+    public async Task CancelledAfterDecline_HasNothingToRefund()
+    {
+        var order = Guid.NewGuid();
+        await OrderPlacedAsync(order, 5_000, PaymentsFixture.DeclinedCustomer);
+        await StockReservedAsync(order);
+
+        await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(order));
+
+        Assert.Equal(PaymentStatus.Failed, Assert.Single(await PaymentsOfAsync(order)).Status);
+        Assert.Equal(PaymentEvents.PaymentFailed, Assert.Single(await EventsOfAsync(order)).EventType);
+    }
+
+    [Fact]
     public async Task RepeatedEvents_ChargeOnce()
     {
         var order = Guid.NewGuid();

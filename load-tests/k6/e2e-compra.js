@@ -1,11 +1,14 @@
 // Teste ponta a ponta da compra (#83), pelo gateway, com o ambiente inteiro no ar (compose).
 //
-// Três cenários, cada um com o próprio produto criado pelo admin do catálogo (o teste não depende
+// Quatro cenários, cada um com o próprio produto criado pelo admin do catálogo (o teste não depende
 // do seed nem do estoque que outros testes consumiram):
-//   1. compra confirmada: reserva → cobrança aprovada → pedido confirmed, reserva committed, e-mail;
+//   1. compra confirmada: reserva → cobrança aprovada → pedido confirmed, reserva committed, e-mail; e
+//      segue o fornecedor simulado até delivered, com o rastreio;
 //   2. estoque insuficiente: estoque zerado pelo admin do inventory → cancelled (out_of_stock);
 //   3. pagamento recusado: produto acima do limite do gateway fake (Payments:Fake:MaxApprovedAmountCents)
-//      → cancelled (payment_failed), cobrança failed (insufficient_funds) e a reserva devolvida ao estoque.
+//      → cancelled (payment_failed), cobrança failed (insufficient_funds) e a reserva devolvida ao estoque;
+//   4. fornecedor recusa: cliente "+recusar" (o fulfillment repassa o cenário ao simulado) → pago,
+//      cancelled (supplier_failed), cobrança refunded, refunded_at no pedido e o e-mail do cancelamento.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
 //
@@ -85,6 +88,7 @@ export function setup() {
     happy: createProduct(token, categoryId, 'ok'),
     noStock: createProduct(token, categoryId, 'sem-estoque'),
     declined: createProduct(token, categoryId, 'recusado', ABOVE_FAKE_LIMIT_CENTS),
+    supplierRejected: createProduct(token, categoryId, 'fornecedor-recusa'),
   };
 
   // zera o estoque do produto do cenário 2
@@ -111,6 +115,14 @@ function finalOrder(orderId, customer) {
   return eventually(`pedido ${orderId} sair de pending`, () => {
     const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
     return res.status === 200 && res.json('status') !== 'pending' ? res.json() : null;
+  });
+}
+
+// o pedido pago andando pelo fornecedor, até o status dado
+function orderReaching(orderId, customer, status) {
+  return eventually(`pedido ${orderId} chegar a ${status}`, () => {
+    const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+    return res.status === 200 && res.json('status') === status ? res.json() : null;
   });
 }
 
@@ -150,6 +162,13 @@ export default function (products) {
     // o cadastro publicou o pedido de confirmação de e-mail (outbox do identity) e o notifications o mandou
     check(eventually('e-mail de confirmação da conta', () => emailsTo(customer.email, 'Confirme o seu e-mail')),
       { 'e-mail de confirmação da conta': (n) => n === 1 });
+
+    // o fornecedor simulado aceita, envia e entrega sozinho (SIM_*_DELAY, uns 17 s no compose)
+    check(orderReaching(orderId, customer, 'delivered'), {
+      'pedido delivered': (o) => o.status === 'delivered',
+      'com o rastreio': (o) => !!(o.tracking && o.tracking.number),
+      'aceito pelo fornecedor antes do envio': (o) => !!o.sent_to_supplier_at && o.sent_to_supplier_at <= o.shipped_at,
+    });
 
     const mine = http.get(`${GATEWAY}/orders/v1/me/orders`, { headers: auth(customer.token), tags: { name: 'my-orders' } });
     check(mine, { 'pedido em Meus pedidos': (r) => r.status === 200 && r.json('data').some((o) => o.id === orderId) });
@@ -192,5 +211,22 @@ export default function (products) {
       const s = stockOf(products.declined);
       return s && s.available === before ? s : null;
     }), { 'estoque disponível de volta': (s) => s.available === before });
+  });
+
+  group('4. fornecedor recusa', () => {
+    const customer = newCustomer(IDENTITY, 'e2e-fornecedor', 'recusar');
+    const orderId = placeOrder(products.supplierRejected, customer);
+    check(finalOrder(orderId, customer), { 'pedido pago (confirmed)': (o) => o.status === 'confirmed' });
+    // compensação: o fornecedor recusou o pedido pago, e o cliente é estornado
+    const order = eventually('pedido cancelado e estornado', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('refunded_at') ? res.json() : null;
+    });
+    check(order, {
+      'pedido cancelled': (o) => o.status === 'cancelled',
+      'motivo supplier_failed': (o) => o.cancellation_reason === 'supplier_failed',
+    });
+    check(paymentOf(orderId), { 'cobrança refunded': (p) => p.status === 'refunded' && !!p.refund_reference });
+    check(eventually('e-mail do cancelamento', () => emailsTo(customer.email, 'cancelado')), { 'e-mail do cancelamento': (n) => n >= 1 });
   });
 }

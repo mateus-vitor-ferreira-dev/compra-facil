@@ -141,4 +141,93 @@ public sealed class OrderTests
         Assert.Equal(OrderStatus.Confirmed, confirmed.Status);
         Assert.Equal(OrderStatus.Cancelled, cancelled.Status);
     }
+
+    private static Order Paid()
+    {
+        var order = Pending();
+        order.Confirm(Guid.NewGuid(), s_now.AddMinutes(1));
+        return order;
+    }
+
+    private static readonly Tracking s_tracking = new("BR1", "Correios", null);
+
+    [Fact]
+    public void Supplier_TakesThePaidOrderToDelivered()
+    {
+        var order = Paid();
+
+        Assert.True(order.MarkSentToSupplier(s_now.AddMinutes(2)));
+        Assert.False(order.MarkSentToSupplier(s_now.AddMinutes(3)));
+        Assert.True(order.Ship(s_tracking, s_now.AddDays(1)));
+        Assert.True(order.Deliver(s_now.AddDays(3)));
+
+        Assert.Equal(OrderStatus.Delivered, order.Status);
+        Assert.Equal((s_now.AddMinutes(2), s_now.AddDays(1), s_now.AddDays(3)), (order.SentToSupplierAt, order.ShippedAt, order.DeliveredAt));
+        Assert.Equal(s_tracking, order.Tracking);
+    }
+
+    [Fact]
+    public void Supplier_DeliveredWithoutShipping_FillsTheSteps()
+    {
+        var order = Paid();
+
+        Assert.True(order.Deliver(s_now.AddDays(2)));
+
+        Assert.Equal((s_now.AddDays(2), s_now.AddDays(2)), (order.SentToSupplierAt, order.ShippedAt));
+    }
+
+    [Fact]
+    public void Supplier_IgnoresPendingAndFinishedOrders()
+    {
+        var pending = Pending();
+        Assert.False(pending.MarkSentToSupplier(s_now));
+        Assert.False(pending.Ship(s_tracking, s_now));
+        Assert.False(pending.Deliver(s_now));
+        Assert.False(pending.FailAtSupplier(s_now));
+
+        var delivered = Paid();
+        delivered.Deliver(s_now);
+        Assert.False(delivered.Ship(s_tracking, s_now));
+        Assert.False(delivered.FailAtSupplier(s_now));
+        Assert.Equal(OrderStatus.Delivered, delivered.Status);
+    }
+
+    [Fact]
+    public void SupplierFailure_CancelsThePaidOrder_UntilRefunded()
+    {
+        var order = Paid();
+
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1)));
+        Assert.Equal((OrderStatus.Cancelled, CancellationReason.SupplierFailed), (order.Status, order.CancellationReason));
+        Assert.True(order.AwaitingRefund);
+
+        Assert.True(order.MarkRefunded(s_now.AddHours(2)));
+        Assert.False(order.MarkRefunded(s_now.AddHours(3)));
+        Assert.Equal(s_now.AddHours(2), order.RefundedAt);
+        Assert.False(order.AwaitingRefund);
+    }
+
+    [Fact]
+    public void SupplierFailure_AfterShipping_IsIgnored()
+    {
+        var order = Paid();
+        order.Ship(s_tracking, s_now);
+
+        Assert.False(order.FailAtSupplier(s_now));
+        Assert.Equal(OrderStatus.Shipped, order.Status);
+    }
+
+    [Fact]
+    public void PendingOrder_CannotBeCancelledBySupplier() =>
+        Assert.Throws<DomainException>(() => Pending().Cancel(CancellationReason.SupplierFailed, s_now));
+
+    [Fact]
+    public void Refund_OnlyForTheOrderCancelledAfterPayment()
+    {
+        var order = Pending();
+        order.Cancel(CancellationReason.OutOfStock, s_now);
+
+        Assert.False(order.MarkRefunded(s_now));
+        Assert.Null(order.RefundedAt);
+    }
 }

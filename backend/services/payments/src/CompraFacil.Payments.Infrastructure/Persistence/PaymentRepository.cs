@@ -18,6 +18,9 @@ internal sealed class PaymentRepository(PaymentsDbContext db) : IPaymentReposito
     public Task<Payment?> GetPaymentAsync(Guid id, CancellationToken ct) =>
         db.Payments.AsNoTracking().SingleOrDefaultAsync(p => p.Id == id, ct);
 
+    public Task<Payment?> GetPaymentForUpdateAsync(Guid id, CancellationToken ct) =>
+        db.Payments.SingleOrDefaultAsync(p => p.Id == id, ct);
+
     public Task<List<Payment>> ListByOrderAsync(Guid orderId, CancellationToken ct) =>
         db.Payments.AsNoTracking().Where(p => p.OrderId == orderId).OrderBy(p => p.CreatedAt).ToListAsync(ct);
 

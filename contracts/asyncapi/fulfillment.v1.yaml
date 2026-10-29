@@ -12,8 +12,8 @@ info:
     `SupplierOrderDelivered`, ou `SupplierOrderFailed` (sem estoque, recusado, cancelado pelo
     fornecedor ou fornecedor fora do ar depois de todas as tentativas).
 
-    Ainda ninguém consome estes eventos: a SAGA do pedido com o fornecedor (#219) é quem vai reagir
-    (estorno na falha, status do pedido, e-mails de envio e entrega).
+    O orders consome estes eventos (a SAGA do pedido com o fornecedor): o status do pedido, e na falha
+    o cancelamento que faz o payments estornar o cliente.
 defaultContentType: application/json
 
 servers:

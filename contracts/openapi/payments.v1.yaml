@@ -141,8 +141,8 @@ components:
   schemas:
     PaymentStatus:
       type: string
-      description: "`processing`: enviado ao gateway · `approved` · `failed`."
-      enum: [processing, approved, failed]
+      description: "`processing`: enviado ao gateway · `approved` · `failed` · `refunded`: aprovado e devolvido ao cliente."
+      enum: [processing, approved, failed, refunded]
 
     FailureReason:
       type: string
@@ -172,6 +172,12 @@ components:
         provider_reference:
           type: [string, "null"]
           description: "ID da cobrança no gateway (ex.: `pi_...` no Stripe)."
+        refund_reference:
+          type: [string, "null"]
+          description: ID do estorno no gateway, no `refunded`.
+        refunded_at:
+          type: [string, "null"]
+          format: date-time
         created_at:
           type: string
           format: date-time

@@ -79,7 +79,7 @@ export interface paths {
         /**
          * O pedido ao vivo (Server-Sent Events)
          * @description Stream `text/event-stream` com o estado atual do pedido e cada mudança da SAGA, até o estado final
-         *     (`confirmed` ou `cancelled`), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
+         *     (`delivered`, ou `cancelled` sem estorno pendente), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
          *
          *     - Cada evento é `event: order`, com `id` (muda a cada transição) e `data` com o `Order` em JSON.
          *     - Linhas `: keep-alive` a cada 15 s, sem dado: mantêm a conexão aberta no gateway e em proxies.
@@ -148,13 +148,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @enum {string} */
-        OrderStatus: "pending" | "confirmed" | "cancelled";
         /**
-         * @description `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança.
+         * @description `pending`: reservando o estoque e cobrando · `confirmed`: pago, com o fornecedor ·
+         *     `shipped`: despachado, com o rastreio · `delivered`: entregue · `cancelled`: não concluído
+         *     (ver `cancellation_reason`).
          * @enum {string}
          */
-        CancellationReason: "out_of_stock" | "payment_failed";
+        OrderStatus: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+        /**
+         * @description `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
+         *     `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
+         *     (`refunded_at`).
+         * @enum {string}
+         */
+        CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed";
+        Tracking: {
+            /** @description Código de rastreio. */
+            number: string;
+            /** @description Transportadora. */
+            provider?: string | null;
+            /**
+             * Format: uri
+             * @description Onde acompanhar a entrega.
+             */
+            url?: string | null;
+        };
         PlaceOrderRequest: {
             /** @description Um item por produto (sem repetir `product_id`). */
             items: components["schemas"]["PlaceOrderItem"][];
@@ -190,6 +208,23 @@ export interface components {
              *     preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
              */
             stock_reserved_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Quando o fornecedor aceitou o pedido pago (`confirmed`, antes de `shipped`).
+             */
+            sent_to_supplier_at?: string | null;
+            /** @description Rastreio do envio; nulo antes de `shipped`. */
+            tracking?: components["schemas"]["Tracking"] | null;
+            /** Format: date-time */
+            shipped_at?: string | null;
+            /** Format: date-time */
+            delivered_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`. Nulo nesse
+             *     pedido é o estorno em andamento.
+             */
+            refunded_at?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

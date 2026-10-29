@@ -187,6 +187,15 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("provider_reference");
 
+                    b.Property<string>("RefundReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("refund_reference");
+
+                    b.Property<DateTimeOffset?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refunded_at");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)

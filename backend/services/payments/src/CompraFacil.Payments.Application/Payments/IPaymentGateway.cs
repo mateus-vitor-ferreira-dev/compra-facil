@@ -16,6 +16,12 @@ public sealed record ChargeApproved(string ProviderReference) : ChargeResult;
 
 public sealed record ChargeDeclined(FailureReason Reason, string? ProviderReference) : ChargeResult;
 
+/// <summary>Estorno do valor todo de uma cobrança aprovada.</summary>
+/// <param name="IdempotencyKey">Mesma chave = mesmo estorno (usamos o payment_id).</param>
+/// <param name="ProviderReference">A cobrança no gateway.</param>
+/// <param name="Amount">Valor cobrado, devolvido inteiro.</param>
+public sealed record RefundRequest(string IdempotencyKey, string ProviderReference, Money Amount);
+
 /// <summary>Gateway sem resposta (timeout, 5xx): não é recusa, a cobrança é tentada de novo.</summary>
 public sealed class PaymentGatewayUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
 
@@ -30,4 +36,8 @@ public interface IPaymentGateway
 
     /// <exception cref="PaymentGatewayUnavailableException">Falha temporária; tentar de novo.</exception>
     Task<ChargeResult> ChargeAsync(ChargeRequest request, CancellationToken ct);
+
+    /// <summary>Devolve a cobrança ao cliente e diz o ID do estorno; idempotente pela chave.</summary>
+    /// <exception cref="PaymentGatewayUnavailableException">Falha temporária; tentar de novo.</exception>
+    Task<string> RefundAsync(RefundRequest request, CancellationToken ct);
 }

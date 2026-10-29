@@ -14,6 +14,14 @@ info:
     5. `PaymentFailed` → `cancelled` (`payment_failed`) → `OrderCancelled`, que faz o inventory
        liberar a reserva (compensação).
 
+    Depois de pago, o pedido segue o fornecedor (fulfillment, ADR 0007):
+
+    6. `SupplierOrderPlaced` → segue `confirmed`, com `sent_to_supplier_at`; não publica nada;
+    7. `SupplierOrderShipped` → `shipped`, com o rastreio → `OrderShipped`;
+    8. `SupplierOrderDelivered` → `delivered` → `OrderDelivered`;
+    9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`) → `OrderCancelled`, que faz o payments
+       estornar o cliente (compensação); `PaymentRefunded` → `refunded_at`.
+
     Também consome `catalog.product.v1` e `catalog.campaign.v1` para manter o snapshot local de
     produtos e campanhas, usado só quando o gRPC do catálogo está fora.
 defaultContentType: application/json
@@ -36,6 +44,10 @@ channels:
         $ref: "#/components/messages/OrderConfirmed"
       OrderCancelled:
         $ref: "#/components/messages/OrderCancelled"
+      OrderShipped:
+        $ref: "#/components/messages/OrderShipped"
+      OrderDelivered:
+        $ref: "#/components/messages/OrderDelivered"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -49,6 +61,8 @@ channels:
     $ref: "./inventory.v1.yaml#/channels/reservationEvents"
   paymentEvents:
     $ref: "./payments.v1.yaml#/channels/paymentEvents"
+  supplierOrderEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/supplierOrderEvents"
   productEvents:
     $ref: "./catalog.v1.yaml#/channels/productEvents"
   campaignEvents:
@@ -64,6 +78,8 @@ operations:
       - $ref: "#/channels/orderEvents/messages/OrderPlaced"
       - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+      - $ref: "#/channels/orderEvents/messages/OrderShipped"
+      - $ref: "#/channels/orderEvents/messages/OrderDelivered"
 
   onReservationResult:
     action: receive
@@ -80,10 +96,24 @@ operations:
     action: receive
     channel:
       $ref: "#/channels/paymentEvents"
-    summary: Confirma (aprovado) ou cancela (recusado) o pedido.
+    summary: Confirma (aprovado) ou cancela (recusado) o pedido; marca o estorno do cancelado depois de pago.
     messages:
       - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
+      - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
+    bindings:
+      $ref: "#/components/operationBindings/OrdersGroup"
+
+  onSupplierOrderEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/supplierOrderEvents"
+    summary: Leva o pedido pago pelo fornecedor (aceito, enviado, entregue) ou o cancela, se ele não atender.
+    messages:
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderPlaced"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderShipped"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderDelivered"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"
 
@@ -202,7 +232,8 @@ components:
       title: Pedido cancelado
       summary: |
         Fim da SAGA com compensação. O inventory libera a reserva, se houver (com `out_of_stock` não
-        há), o payments descarta a cobrança pendente e o notifications avisa o cliente.
+        há; com `supplier_failed` ela já virou baixa), o payments descarta a cobrança pendente ou, com
+        `supplier_failed`, estorna o que foi pago, e o notifications avisa o cliente.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -231,10 +262,78 @@ components:
                   reason:
                     $ref: "../openapi/orders.v1.yaml#/components/schemas/CancellationReason"
                   payment_failure_reason:
-                    description: Repassado do `PaymentFailed`; `null` quando `reason` é `out_of_stock`.
+                    description: Repassado do `PaymentFailed`; `null` nos outros motivos.
                     oneOf:
                       - $ref: "../openapi/payments.v1.yaml#/components/schemas/FailureReason"
                       - type: "null"
+
+    OrderShipped:
+      name: OrderShipped
+      title: Pedido enviado
+      summary: O fornecedor despachou o pedido; o cliente acompanha pelo rastreio.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: OrderShipped
+              event_version:
+                const: 1
+              producer:
+                const: orders
+              data:
+                type: object
+                required: [order_id, customer_id, customer_email, tracking, shipped_at]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  customer_id:
+                    $ref: "#/components/schemas/CustomerId"
+                  customer_email:
+                    $ref: "#/components/schemas/CustomerEmail"
+                  tracking:
+                    $ref: "../openapi/orders.v1.yaml#/components/schemas/Tracking"
+                  shipped_at:
+                    type: string
+                    format: date-time
+
+    OrderDelivered:
+      name: OrderDelivered
+      title: Pedido entregue
+      summary: Fim feliz da SAGA com o fornecedor.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: OrderDelivered
+              event_version:
+                const: 1
+              producer:
+                const: orders
+              data:
+                type: object
+                required: [order_id, customer_id, customer_email, delivered_at]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  customer_id:
+                    $ref: "#/components/schemas/CustomerId"
+                  customer_email:
+                    $ref: "#/components/schemas/CustomerEmail"
+                  delivered_at:
+                    type: string
+                    format: date-time
 
   schemas:
     OrderId:

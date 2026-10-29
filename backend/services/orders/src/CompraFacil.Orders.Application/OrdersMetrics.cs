@@ -15,6 +15,10 @@ public static class OrdersMetrics
     public static readonly Counter<long> Finished = s_meter.CreateCounter<long>(
         "compra_facil.orders.finished", unit: "{order}", description: "SAGAs finalizadas por status e motivo.");
 
+    /// <summary>Passos depois do pagamento (fornecedor e estorno), pelo evento que os causou.</summary>
+    public static readonly Counter<long> Progressed = s_meter.CreateCounter<long>(
+        "compra_facil.orders.progressed", unit: "{order}", description: "Pedidos que andaram depois de pagos, por etapa.");
+
     /// <summary>Valor dos pedidos confirmados, em centavos.</summary>
     public static readonly Counter<long> ConfirmedAmount = s_meter.CreateCounter<long>(
         "compra_facil.orders.confirmed_amount", unit: "{cent}", description: "Receita dos pedidos confirmados (centavos).");

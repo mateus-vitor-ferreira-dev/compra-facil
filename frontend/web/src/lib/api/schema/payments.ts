@@ -86,10 +86,10 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description `processing`: enviado ao gateway · `approved` · `failed`.
+         * @description `processing`: enviado ao gateway · `approved` · `failed` · `refunded`: aprovado e devolvido ao cliente.
          * @enum {string}
          */
-        PaymentStatus: "processing" | "approved" | "failed";
+        PaymentStatus: "processing" | "approved" | "failed" | "refunded";
         /** @enum {string} */
         FailureReason: "card_declined" | "insufficient_funds" | "fraud_suspected" | "gateway_error";
         Payment: {
@@ -104,6 +104,10 @@ export interface components {
             provider: "fake" | "stripe";
             /** @description ID da cobrança no gateway (ex.: `pi_...` no Stripe). */
             provider_reference?: string | null;
+            /** @description ID do estorno no gateway, no `refunded`. */
+            refund_reference?: string | null;
+            /** Format: date-time */
+            refunded_at?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

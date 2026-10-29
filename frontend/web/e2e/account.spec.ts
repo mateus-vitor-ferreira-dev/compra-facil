@@ -80,7 +80,7 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   const orders = page.getByRole("region", { name: "Meus pedidos" });
   await expect(orders.getByRole("link")).toHaveCount(2);
   await expect(orders).toContainText("Pedido 4F2A9C1B");
-  await expect(orders).toContainText("Confirmado");
+  await expect(orders).toContainText("Em preparação");
   await expect(orders).toContainText("Cancelado");
 
   await orders.getByRole("link", { name: /Pedido 7C3E5D2A/ }).click();

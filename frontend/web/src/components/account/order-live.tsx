@@ -2,7 +2,7 @@
 
 import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { isFinal, orderHeadline, orderStatus, orderSteps, type Step } from "@/lib/order-status";
+import { isFinal, isSettled, orderHeadline, orderStatus, orderSteps, type Step } from "@/lib/order-status";
 import type { Order } from "@/lib/orders-api";
 import { cn } from "@/lib/utils";
 
@@ -12,14 +12,28 @@ const time = new Intl.DateTimeFormat("pt-BR", {
   second: "2-digit",
   timeZone: "America/Sao_Paulo",
 });
+const dayAndTime = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "America/Sao_Paulo",
+});
+const day = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" });
+
+/** A compra leva segundos (a hora com os segundos basta); o envio e a entrega, dias: aí vai o dia junto. */
+function when(at: string, placedAt: string) {
+  const date = new Date(at);
+  return day.format(date) === day.format(new Date(placedAt)) ? time.format(date) : dayAndTime.format(date);
+}
 
 // cada etapa fica pelo menos isto na tela: a SAGA inteira leva cerca de um segundo
 const STEP_MS = 700;
 
 /**
  * A compra andando: a manchete diz o que acontece agora e a linha de etapas marca cada passo com o
- * horário real. Enquanto o pedido está pendente, ouve o stream do orders pelo BFF (EventSource, que
- * reconecta sozinho com Last-Event-ID) e fecha no estado final.
+ * horário real. Enquanto o pedido anda (pagamento, fornecedor, envio, estorno), ouve o stream do orders
+ * pelo BFF (EventSource, que reconecta sozinho com Last-Event-ID) e fecha no estado final.
  */
 export function OrderLive({ initial }: { initial: Order }) {
   const [shown, setShown] = useState(initial);
@@ -29,7 +43,7 @@ export function OrderLive({ initial }: { initial: Order }) {
   const lastSeen = useRef(initial.updated_at);
 
   useEffect(() => {
-    if (isFinal(initial.status)) return;
+    if (isFinal(initial)) return;
     const source = new EventSource(`/api/pedidos/${initial.id}/eventos`);
     source.addEventListener("order", (event) => {
       const next = JSON.parse((event as MessageEvent<string>).data) as Order;
@@ -37,26 +51,27 @@ export function OrderLive({ initial }: { initial: Order }) {
         lastSeen.current = next.updated_at;
         setQueue((q) => [...q, next]);
       }
-      if (isFinal(next.status)) source.close();
+      if (isFinal(next)) source.close();
     });
     // fechado de vez (sessão vencida, pedido sumiu, serviço fora): a tela avisa; reconectando, espera
     source.onerror = () => {
       if (source.readyState === EventSource.CLOSED) setLost(true);
     };
     return () => source.close();
-  }, [initial.id, initial.status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- o stream é por pedido; o estado inicial só decide se abre
+  }, [initial.id]);
 
   // uma etapa por vez, para o cliente ver a reserva e a cobrança mesmo quando chegam juntas
   useEffect(() => {
     const [next, ...rest] = queue;
     if (!next) return;
     const timer = setTimeout(() => {
-      // o pedido terminou com o estoque reservado, mas a etapa da cobrança não chegou a ser mostrada
+      // o pagamento terminou com o estoque reservado, mas a etapa da cobrança não chegou a ser mostrada
       if (
-        isFinal(next.status) &&
+        isSettled(next.status) &&
         next.stock_reserved_at &&
         !shown.stock_reserved_at &&
-        !isFinal(shown.status)
+        !isSettled(shown.status)
       ) {
         setShown({ ...shown, stock_reserved_at: next.stock_reserved_at, updated_at: next.stock_reserved_at });
         return;
@@ -68,9 +83,9 @@ export function OrderLive({ initial }: { initial: Order }) {
   }, [queue, shown]);
 
   const steps = orderSteps(shown);
-  const status = orderStatus(shown.status, shown.cancellation_reason, shown.stock_reserved_at ?? null);
+  const status = orderStatus({ ...shown, stock_reserved_at: shown.stock_reserved_at ?? null });
   const headline = orderHeadline(shown);
-  const final = isFinal(shown.status);
+  const final = isFinal(shown);
 
   return (
     <section aria-labelledby="andamento" className="space-y-6">
@@ -79,7 +94,7 @@ export function OrderLive({ initial }: { initial: Order }) {
           id="andamento"
           className={cn(
             "font-condensed text-3xl leading-none font-extrabold tracking-tight sm:text-4xl",
-            shown.status === "confirmed" && "text-success",
+            shown.status === "delivered" && "text-success",
             shown.status === "cancelled" && "text-danger",
           )}
         >
@@ -90,7 +105,7 @@ export function OrderLive({ initial }: { initial: Order }) {
 
       <ol aria-label="Andamento do pedido" className="max-w-sm">
         {steps.map((step, i) => (
-          <StepItem key={step.key} step={step} last={i === steps.length - 1} />
+          <StepItem key={step.key} step={step} last={i === steps.length - 1} placedAt={shown.created_at} />
         ))}
       </ol>
 
@@ -112,7 +127,7 @@ export function OrderLive({ initial }: { initial: Order }) {
   );
 }
 
-function StepItem({ step, last }: { step: Step; last: boolean }) {
+function StepItem({ step, last, placedAt }: { step: Step; last: boolean; placedAt: string }) {
   const done = step.state === "done";
   const quiet = step.state === "upcoming" || step.state === "skipped";
   return (
@@ -161,7 +176,7 @@ function StepItem({ step, last }: { step: Step; last: boolean }) {
         </p>
         {step.at && (
           <time dateTime={step.at} className="text-ink-soft text-sm tabular-nums">
-            {time.format(new Date(step.at))}
+            {when(step.at, placedAt)}
           </time>
         )}
       </div>

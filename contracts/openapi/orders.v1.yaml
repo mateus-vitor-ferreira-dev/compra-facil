@@ -187,7 +187,7 @@ paths:
       summary: O pedido ao vivo (Server-Sent Events)
       description: |
         Stream `text/event-stream` com o estado atual do pedido e cada mudança da SAGA, até o estado final
-        (`confirmed` ou `cancelled`), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
+        (`delivered`, ou `cancelled` sem estorno pendente), quando a conexão fecha. Mesmas regras de acesso do `getOrder`.
 
         - Cada evento é `event: order`, com `id` (muda a cada transição) e `data` com o `Order` em JSON.
         - Linhas `: keep-alive` a cada 15 s, sem dado: mantêm a conexão aberta no gateway e em proxies.
@@ -305,12 +305,34 @@ components:
   schemas:
     OrderStatus:
       type: string
-      enum: [pending, confirmed, cancelled]
+      description: |
+        `pending`: reservando o estoque e cobrando · `confirmed`: pago, com o fornecedor ·
+        `shipped`: despachado, com o rastreio · `delivered`: entregue · `cancelled`: não concluído
+        (ver `cancellation_reason`).
+      enum: [pending, confirmed, shipped, delivered, cancelled]
 
     CancellationReason:
       type: string
-      description: "`out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança."
-      enum: [out_of_stock, payment_failed]
+      description: |
+        `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
+        `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
+        (`refunded_at`).
+      enum: [out_of_stock, payment_failed, supplier_failed]
+
+    Tracking:
+      type: object
+      required: [number]
+      properties:
+        number:
+          type: string
+          description: Código de rastreio.
+        provider:
+          type: [string, "null"]
+          description: Transportadora.
+        url:
+          type: [string, "null"]
+          format: uri
+          description: Onde acompanhar a entrega.
 
     PlaceOrderRequest:
       type: object
@@ -377,6 +399,27 @@ components:
           description: |
             Quando o inventory reservou o estoque. Com o pedido `pending`, nulo é a etapa da reserva e
             preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
+        sent_to_supplier_at:
+          type: [string, "null"]
+          format: date-time
+          description: Quando o fornecedor aceitou o pedido pago (`confirmed`, antes de `shipped`).
+        tracking:
+          description: Rastreio do envio; nulo antes de `shipped`.
+          oneOf:
+            - $ref: "#/components/schemas/Tracking"
+            - type: "null"
+        shipped_at:
+          type: [string, "null"]
+          format: date-time
+        delivered_at:
+          type: [string, "null"]
+          format: date-time
+        refunded_at:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`. Nulo nesse
+            pedido é o estorno em andamento.
         created_at:
           type: string
           format: date-time

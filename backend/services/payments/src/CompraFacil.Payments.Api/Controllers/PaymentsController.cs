@@ -34,12 +34,14 @@ public sealed class PaymentsController(PaymentQueries queries) : ControllerBase
 
 public sealed record PaymentResponse(
     Guid Id, Guid OrderId, Money Amount, PaymentStatus Status, FailureReason? FailureReason,
-    string Provider, string? ProviderReference, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
+    string Provider, string? ProviderReference, string? RefundReference, DateTimeOffset? RefundedAt,
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
 {
     public static PaymentResponse From(Payment p)
     {
         ArgumentNullException.ThrowIfNull(p);
-        return new(p.Id, p.OrderId, p.Amount, p.Status, p.FailureReason, p.Provider, p.ProviderReference, p.CreatedAt, p.UpdatedAt);
+        return new(p.Id, p.OrderId, p.Amount, p.Status, p.FailureReason, p.Provider, p.ProviderReference, p.RefundReference, p.RefundedAt,
+            p.CreatedAt, p.UpdatedAt);
     }
 }
 

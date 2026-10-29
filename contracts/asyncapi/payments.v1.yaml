@@ -12,7 +12,9 @@ info:
 
     Quando os dois chegaram, **em qualquer ordem** (são tópicos diferentes), cobra o `total` no gateway
     de pagamento (fake em dev; Stripe em modo teste, opcional) e publica `PaymentApproved` ou
-    `PaymentFailed`. `OrderCancelled` antes da cobrança descarta a pendência (caso da reserva recusada).
+    `PaymentFailed`. `OrderCancelled` antes da cobrança descarta a pendência (caso da reserva recusada);
+    depois da cobrança aprovada (o fornecedor não atendeu, `supplier_failed`), estorna o valor todo e
+    publica `PaymentRefunded`. O estorno também acontece no máximo uma vez por pagamento.
 
     Cada pedido é cobrado no máximo uma vez: evento repetido para o mesmo `order_id` não gera nova
     cobrança.
@@ -34,6 +36,8 @@ channels:
         $ref: "#/components/messages/PaymentApproved"
       PaymentFailed:
         $ref: "#/components/messages/PaymentFailed"
+      PaymentRefunded:
+        $ref: "#/components/messages/PaymentRefunded"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -57,12 +61,13 @@ operations:
     messages:
       - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
+      - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
 
   onOrderEvents:
     action: receive
     channel:
       $ref: "#/channels/orderEvents"
-    summary: Grava a cobrança pendente (placed) ou a descarta se ainda não foi feita (cancelled).
+    summary: Grava a cobrança pendente (placed); no cancelled, a descarta se ainda não foi feita ou estorna a aprovada.
     messages:
       - $ref: "#/channels/orderEvents/messages/OrderPlaced"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
@@ -161,6 +166,47 @@ components:
                     $ref: "#/components/schemas/Provider"
                   failure_reason:
                     $ref: "../openapi/payments.v1.yaml#/components/schemas/FailureReason"
+
+    PaymentRefunded:
+      name: PaymentRefunded
+      title: Pagamento estornado
+      summary: O valor do pedido cancelado depois de pago voltou ao cliente. O orders marca o estorno.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PaymentRefunded
+              event_version:
+                const: 1
+              producer:
+                const: payments
+              data:
+                type: object
+                required: [order_id, payment_id, amount, provider, refund_reference, refunded_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  payment_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    description: Valor devolvido (o cobrado, inteiro).
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  provider:
+                    $ref: "#/components/schemas/Provider"
+                  refund_reference:
+                    type: string
+                    description: ID do estorno no gateway.
+                  refunded_at:
+                    type: string
+                    format: date-time
 
   schemas:
     Provider:
