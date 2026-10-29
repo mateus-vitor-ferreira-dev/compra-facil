@@ -1,6 +1,6 @@
 import "server-only";
 import { updateTag } from "next/cache";
-import { api, type CatalogSchemas } from "@/lib/api/client";
+import { api, type CatalogSchemas, type FulfillmentSchemas } from "@/lib/api/client";
 import type { components as InventorySchemas } from "@/lib/api/schema/inventory";
 
 /**
@@ -231,9 +231,14 @@ export type DeadLetter = InventorySchemas["schemas"]["DeadLetter"];
 
 /** Os serviços que consomem eventos, cada um com a própria dead letter topic (ADR 0003). */
 export const DLT_SERVICES = [
-  { key: "orders", label: "Pedidos", consumes: "estoque reservado e resultado do pagamento" },
+  {
+    key: "orders",
+    label: "Pedidos",
+    consumes: "estoque reservado, resultado do pagamento, estorno e o andamento no fornecedor",
+  },
   { key: "inventory", label: "Estoque", consumes: "pedidos feitos, confirmados e cancelados" },
-  { key: "payments", label: "Pagamentos", consumes: "pedidos feitos e estoque reservado" },
+  { key: "payments", label: "Pagamentos", consumes: "pedidos feitos e cancelados, estoque reservado" },
+  { key: "fulfillment", label: "Fornecedor", consumes: "pedidos confirmados" },
   {
     key: "notifications",
     label: "Avisos por e-mail",
@@ -242,7 +247,7 @@ export const DLT_SERVICES = [
 ] as const;
 export type DltService = (typeof DLT_SERVICES)[number]["key"];
 
-// os quatro expõem as mesmas rotas (BuildingBlocks: MapDeadLetters); o tipo é o do inventory
+// todos expõem as mesmas rotas (BuildingBlocks: MapDeadLetters); o tipo é o do inventory
 function dltClient(token: string, service: DltService) {
   return api[service]({ token }) as unknown as ReturnType<typeof api.inventory>;
 }
@@ -259,4 +264,22 @@ export function deadLetters(token: string, service: DltService) {
 /** Devolve as pendentes ao primeiro tópico de retry do serviço; falhando de novo, voltam para a DLT. */
 export function replayDeadLetters(token: string, service: DltService) {
   return run(() => dltClient(token, service).POST("/v1/admin/dead-letters/replay", {}));
+}
+
+// ---------- pedidos atrasados no fornecedor ----------
+
+export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"];
+
+/**
+ * Os pedidos parados além do prazo do fornecedor (despacho ou entrega), os mais atrasados primeiro, e o
+ * momento da leitura (de quando o atraso é contado).
+ */
+export async function overdueOrders(token: string) {
+  const result = await run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/supplier-orders/overdue", {
+      params: { query: { limit: 200 } },
+      cache: "no-store",
+    }),
+  );
+  return { result, readAt: Date.now() };
 }
