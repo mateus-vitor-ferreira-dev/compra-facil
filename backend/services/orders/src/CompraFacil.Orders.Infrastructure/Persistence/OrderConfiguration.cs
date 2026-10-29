@@ -27,6 +27,23 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             pix.Property(x => x.TicketUrl).HasColumnName("pix_ticket_url").HasMaxLength(512);
             pix.Property(x => x.ExpiresAt).HasColumnName("pix_expires_at");
         });
+        // quem recebe e onde (#221): nulos só nos pedidos de antes do checkout pedir o endereço
+        builder.ComplexProperty(o => o.Recipient, r =>
+        {
+            r.Property(x => x.Name).HasColumnName("recipient_name").HasMaxLength(60);
+            r.Property(x => x.Cpf).HasColumnName("recipient_cpf").HasMaxLength(11);
+            r.Property(x => x.Phone).HasColumnName("recipient_phone").HasMaxLength(11);
+        });
+        builder.ComplexProperty(o => o.ShippingAddress, a =>
+        {
+            a.Property(x => x.ZipCode).HasColumnName("shipping_zip_code").HasMaxLength(8);
+            a.Property(x => x.Street).HasColumnName("shipping_street").HasMaxLength(60);
+            a.Property(x => x.Number).HasColumnName("shipping_number").HasMaxLength(60);
+            a.Property(x => x.Complement).HasColumnName("shipping_complement").HasMaxLength(60);
+            a.Property(x => x.District).HasColumnName("shipping_district").HasMaxLength(60);
+            a.Property(x => x.City).HasColumnName("shipping_city").HasMaxLength(60);
+            a.Property(x => x.State).HasColumnName("shipping_state").HasMaxLength(2);
+        });
         // rastreio: opcional, só existe depois do envio
         builder.ComplexProperty(o => o.Tracking, t =>
         {

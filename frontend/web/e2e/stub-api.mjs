@@ -10,6 +10,20 @@ const stats = { refresh: 0, revoke: 0, ordersPlaced: 0, ordersByKey: {} };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
 
+// a entrega dos pedidos da Ana (#221): o checkout dela já vem preenchido com ela
+const ANA_DELIVERY = {
+  recipient: { name: "Ana Souza", cpf: "52998224725", phone: "11987654321" },
+  shipping_address: {
+    zip_code: "01310100",
+    street: "Avenida Paulista",
+    number: "1000",
+    complement: "Apto 12",
+    district: "Bela Vista",
+    city: "São Paulo",
+    state: "SP",
+  },
+};
+
 // pedidos da Ana: um confirmado e um cancelado por falta de estoque
 const orderOf = (id, status, reason, qty, unit) => ({
   id,
@@ -30,6 +44,7 @@ const orderOf = (id, status, reason, qty, unit) => ({
   total: { amount_cents: unit * qty, currency: "BRL" },
   payment_id: null,
   payment: { method: "card", installments: 1, pix: null },
+  ...ANA_DELIVERY,
   created_at: "2026-10-20T15:00:00Z",
   updated_at: "2026-10-20T15:01:00Z",
 });
@@ -557,10 +572,15 @@ async function placeOrder(req, res, email) {
   const key = req.headers["idempotency-key"];
   if (!key) return problem(res, 400, "Requisição malformada");
   const existing = byKey.get(`${email}:${key}`);
-  const { items, payment } = await json(req);
+  const { items, payment, recipient, shipping_address } = await json(req);
   if (existing) return send(res, 202, orderAt(placed.get(existing)));
   // como o orders: cartão sem o token do provedor (ou com um token já usado) é recusado
-  if (!payment || (payment.method === "card" && !cardTokens.has(payment.card_token))) {
+  if (
+    !payment ||
+    !recipient?.cpf ||
+    !/^\d{8}$/.test(shipping_address?.zip_code ?? "") ||
+    (payment.method === "card" && !cardTokens.has(payment.card_token))
+  ) {
     return problem(res, 422, "Dados inválidos");
   }
   // "instavel@..." pega o catálogo fora e sem cópia local: 503 com Retry-After e o trace para o suporte
@@ -605,6 +625,8 @@ async function placeOrder(req, res, email) {
     total: { amount_cents: total, currency: "BRL" },
     payment_id: null,
     payment: { method: payment.method, installments: payment.installments ?? 1, pix: null },
+    recipient,
+    shipping_address,
     stock_reserved_at: null,
     created_at: iso(now),
     updated_at: iso(now),
@@ -775,6 +797,15 @@ createServer(async (req, res) => {
     return admin(req, res, url);
   }
   if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  // o ViaCEP: um CEP da Paulista, um de cidade pequena (sem rua) e o resto não existe
+  const cep = url.pathname.match(/^\/cep\/(\d{8})\/json\/$/);
+  if (req.method === "GET" && cep) {
+    const known = {
+      "01310100": { logradouro: "Avenida Paulista", bairro: "Bela Vista", localidade: "São Paulo", uf: "SP" },
+      37200000: { logradouro: "", bairro: "", localidade: "Lavras", uf: "MG" },
+    }[cep[1]];
+    return send(res, 200, known ?? { erro: "true" });
+  }
   // o banco do cliente pagando o PIX
   const pixPay = url.pathname.match(/^\/__pix\/([0-9a-f-]{36})\/pay$/);
   if (req.method === "POST" && pixPay) {

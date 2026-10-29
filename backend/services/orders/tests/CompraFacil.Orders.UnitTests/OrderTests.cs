@@ -9,8 +9,12 @@ public sealed class OrderTests
     private static OrderItem Item(int quantity = 2, long cents = 1990, Guid? productId = null) =>
         new(productId ?? Guid.NewGuid(), "SKU-1", "Fone", quantity, new Money(cents, "BRL"), CampaignId: null);
 
+    private static readonly Recipient s_recipient = new("Ana Souza", "52998224725", "11987654321");
+    private static readonly ShippingAddress s_address = new("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP");
+
     private static Order Pending(params OrderItem[] items) =>
-        Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", items.Length == 0 ? [Item()] : items, "chave-123", "hash", s_now);
+        Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", items.Length == 0 ? [Item()] : items, "chave-123", "hash", s_now,
+            s_recipient, s_address);
 
     [Fact]
     public void Place_StartsPending_WithTotalOfLines()
@@ -28,9 +32,30 @@ public sealed class OrderTests
     public void Place_RejectsEmptyTooManyAndRepeated()
     {
         var p = Guid.NewGuid();
-        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [], "k", "h", s_now));
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [], "k", "h", s_now, s_recipient, s_address));
         Assert.Throws<DomainException>(() => Pending([.. Enumerable.Range(0, Order.MaxItems + 1).Select(_ => Item())]));
         Assert.Throws<DomainException>(() => Pending(Item(productId: p), Item(productId: p)));
+    }
+
+    [Theory]
+    [InlineData("52998224725", true)]
+    [InlineData("529.982.247-25", true)]
+    [InlineData("52998224724", false)]  // verificador errado
+    [InlineData("11111111111", false)]  // todos iguais
+    [InlineData("5299822472", false)]   // 10 dígitos
+    public void Cpf_ChecksTheVerifierDigits(string cpf, bool valid) =>
+        Assert.Equal(valid, BrazilianDocuments.IsValidCpf(cpf));
+
+    [Fact]
+    public void Place_KeepsWhoReceivesAndWhere_AndRejectsAnInvalidCpfOrState()
+    {
+        var order = Pending();
+        Assert.Equal(s_recipient, order.Recipient);
+        Assert.Equal(s_address, order.ShippingAddress);
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
+            s_recipient with { Cpf = "52998224724" }, s_address));
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
+            s_recipient, s_address with { State = "XX" }));
     }
 
     [Theory]

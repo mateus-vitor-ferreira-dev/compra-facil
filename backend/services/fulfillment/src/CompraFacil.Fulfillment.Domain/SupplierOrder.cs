@@ -30,6 +30,11 @@ public static class SupplierFailureReasons
 /// <summary>Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome e a quantidade.</summary>
 public sealed record SupplierOrderItem(string Sku, string Name, int Quantity);
 
+/// <summary>Para quem e para onde o fornecedor manda (#221): o nome, o CPF (o consigneeID do CJ), o telefone e o endereço.</summary>
+public sealed record ShipTo(
+    string Name, string Cpf, string Phone, string ZipCode, string Street, string Number, string? Complement,
+    string District, string City, string State);
+
 /// <summary>Rastreio do envio, como o fornecedor manda.</summary>
 public sealed record Tracking(string Number, string? Provider, string? Url);
 
@@ -62,6 +67,9 @@ public sealed class SupplierOrder
     public string CustomerEmail { get; private set; } = "";
     private readonly List<SupplierOrderItem> _items = [];
     public IReadOnlyList<SupplierOrderItem> Items => _items;
+
+    /// <summary>Nulo só nos pedidos confirmados antes de o checkout pedir o endereço.</summary>
+    public ShipTo? ShipTo { get; private set; }
     public SupplierOrderStatus Status { get; private set; }
     public string Supplier { get; private set; } = "";
     public string? SupplierOrderId { get; private set; }
@@ -80,7 +88,8 @@ public sealed class SupplierOrder
     public DateTimeOffset? FailedAt { get; private set; }
     public uint Version { get; private set; }
 
-    public static SupplierOrder Create(Guid orderId, string customerEmail, IReadOnlyList<SupplierOrderItem> items, string supplier, DateTimeOffset now)
+    public static SupplierOrder Create(
+        Guid orderId, string customerEmail, IReadOnlyList<SupplierOrderItem> items, string supplier, DateTimeOffset now, ShipTo? shipTo = null)
     {
         ArgumentNullException.ThrowIfNull(items);
         if (items.Count == 0)
@@ -91,6 +100,7 @@ public sealed class SupplierOrder
         {
             Id = orderId,
             CustomerEmail = customerEmail,
+            ShipTo = shipTo,
             Supplier = supplier,
             Status = SupplierOrderStatus.Pending,
             CreatedAt = now,

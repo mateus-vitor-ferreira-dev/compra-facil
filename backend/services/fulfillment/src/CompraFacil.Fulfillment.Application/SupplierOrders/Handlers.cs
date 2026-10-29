@@ -28,7 +28,7 @@ public sealed partial class OnOrderConfirmed(
             return; // o mesmo pedido de novo (evento repetido)
         }
         var items = data.Items.Select(i => new SupplierOrderItem(i.Sku, i.Name, i.Quantity)).ToList();
-        orders.Add(SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, clock.GetUtcNow()));
+        orders.Add(SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, clock.GetUtcNow(), data.ShipTo));
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "pedido {OrderId} confirmado em {ConfirmedAt}, antes do corte {Since}: não vai ao fornecedor")]
@@ -45,7 +45,7 @@ public sealed partial class SupplierOrderPlacer(ISupplierGateway supplier, IOutb
         SupplierOrderChange change;
         try
         {
-            var result = await supplier.PlaceOrderAsync(new SupplierOrderRequest(order.Id, order.CustomerEmail, order.Items), ct);
+            var result = await supplier.PlaceOrderAsync(new SupplierOrderRequest(order.Id, order.CustomerEmail, order.Items, order.ShipTo), ct);
             change = result switch
             {
                 SupplierPlacement.Accepted a => order.MarkPlaced(a.SupplierOrderId, clock.GetUtcNow()),

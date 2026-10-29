@@ -28,6 +28,8 @@ const schema = z.object({
   // Em dev e no CI, o payment-sim; em produção, https://api.mercadopago.com e a public key da conta
   PAYMENT_PROVIDER_URL: z.url().default("http://localhost:8092"),
   PAYMENT_PUBLIC_KEY: z.string().min(1).default("TEST-sim-public-key"),
+  // o endereço do CEP no checkout (#221); trocado só nos testes (o stub faz o papel do ViaCEP)
+  CEP_LOOKUP_URL: z.url().default("https://viacep.com.br/ws"),
 });
 
 export const env = schema.parse({
@@ -42,4 +44,5 @@ export const env = schema.parse({
   GOOGLE_TOKEN_URL: process.env.GOOGLE_TOKEN_URL || undefined,
   PAYMENT_PROVIDER_URL: process.env.PAYMENT_PROVIDER_URL || undefined,
   PAYMENT_PUBLIC_KEY: process.env.PAYMENT_PUBLIC_KEY || undefined,
+  CEP_LOOKUP_URL: process.env.CEP_LOOKUP_URL || undefined,
 });

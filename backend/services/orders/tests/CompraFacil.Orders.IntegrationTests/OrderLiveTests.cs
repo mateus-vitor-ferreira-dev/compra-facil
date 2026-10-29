@@ -25,7 +25,13 @@ public sealed class LiveClient(OrdersFixture fx)
         var customer = Guid.NewGuid();
         using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders")
         {
-            Content = JsonContent.Create(new { items = new[] { new { product_id = product, quantity = 1 } }, payment = new { method = "pix" } }),
+            Content = JsonContent.Create(new
+            {
+                items = new[] { new { product_id = product, quantity = 1 } },
+                payment = new { method = "pix" },
+                recipient = new { name = "Ana Souza", cpf = "52998224725", phone = "11987654321" },
+                shipping_address = new { zip_code = "01310100", street = "Avenida Paulista", number = "1000", district = "Bela Vista", city = "São Paulo", state = "SP" }
+            }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
         request.Headers.Authorization = new("Bearer", fx.Identity.CustomerToken(customer));

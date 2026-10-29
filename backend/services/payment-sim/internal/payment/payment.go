@@ -141,7 +141,7 @@ type Provider struct {
 	now    func() time.Time
 
 	mu           sync.Mutex
-	seq          int64
+	seq, base    int64
 	payments     map[int64]*Payment
 	tokens       map[string]*CardToken
 	byKey        map[string]int64  // X-Idempotency-Key → pagamento
@@ -165,7 +165,10 @@ func (p *Provider) resetLocked() {
 	for _, t := range p.timers {
 		t.Stop()
 	}
-	p.seq, p.timers = 1_000_000_000, nil
+	// os ids partem do horário (ms): o simulador guarda tudo em memória, e reiniciado não pode repetir o
+	// id de um pagamento que a loja já tem no banco (no Mercado Pago, o id nunca se repete)
+	p.base = p.now().UnixMilli()
+	p.seq, p.timers = p.base, nil
 	p.payments, p.tokens = map[int64]*Payment{}, map[string]*CardToken{}
 	p.byKey, p.refundsByKey = map[string]int64{}, map[string]Refund{}
 }
@@ -351,7 +354,7 @@ func (p *Provider) List() []Payment {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	out := make([]Payment, 0, len(p.payments))
-	for id := p.seq; id > 1_000_000_000; id-- {
+	for id := p.seq; id > p.base; id-- {
 		if pay, ok := p.payments[id]; ok {
 			out = append(out, *pay)
 		}

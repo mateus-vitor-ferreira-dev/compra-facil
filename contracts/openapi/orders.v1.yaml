@@ -319,6 +319,62 @@ components:
         (`refunded_at`).
       enum: [out_of_stock, payment_failed, supplier_failed]
 
+    Recipient:
+      type: object
+      description: |
+        Quem recebe o pedido (#221): o nome e o CPF vão na nota fiscal; o telefone, à transportadora. O
+        CPF e o telefone podem ir com máscara; o pedido guarda só os dígitos.
+      required: [name, cpf, phone]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 60
+        cpf:
+          type: string
+          description: Com os dígitos verificadores certos.
+          examples: ["52998224725"]
+        phone:
+          type: string
+          description: Com DDD, 10 ou 11 dígitos.
+          examples: ["11987654321"]
+
+    ShippingAddress:
+      type: object
+      description: Onde entregar, nos tamanhos da NF-e (60 caracteres por campo).
+      required: [zip_code, street, number, district, city, state]
+      additionalProperties: false
+      properties:
+        zip_code:
+          type: string
+          description: CEP; o pedido guarda os 8 dígitos.
+          examples: ["01310100"]
+        street:
+          type: string
+          minLength: 1
+          maxLength: 60
+        number:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Texto ("S/N" vale).
+        complement:
+          type: [string, "null"]
+          maxLength: 60
+        district:
+          type: string
+          minLength: 1
+          maxLength: 60
+        city:
+          type: string
+          minLength: 1
+          maxLength: 60
+        state:
+          type: string
+          description: UF.
+          pattern: "^[A-Za-z]{2}$"
+
     Tracking:
       type: object
       required: [number]
@@ -336,9 +392,13 @@ components:
 
     PlaceOrderRequest:
       type: object
-      required: [items, payment]
+      required: [items, payment, recipient, shipping_address]
       additionalProperties: false
       properties:
+        recipient:
+          $ref: "#/components/schemas/Recipient"
+        shipping_address:
+          $ref: "#/components/schemas/ShippingAddress"
         payment:
           $ref: "#/components/schemas/PlaceOrderPayment"
         items:
@@ -445,6 +505,16 @@ components:
           description: |
             Quando o inventory reservou o estoque. Com o pedido `pending`, nulo é a etapa da reserva e
             preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
+        recipient:
+          description: Quem recebe; nulo só nos pedidos de antes de o checkout pedir o endereço (#221).
+          oneOf:
+            - $ref: "#/components/schemas/Recipient"
+            - type: "null"
+        shipping_address:
+          description: Onde entregar; nulo só nos pedidos de antes do #221.
+          oneOf:
+            - $ref: "#/components/schemas/ShippingAddress"
+            - type: "null"
         sent_to_supplier_at:
           type: [string, "null"]
           format: date-time

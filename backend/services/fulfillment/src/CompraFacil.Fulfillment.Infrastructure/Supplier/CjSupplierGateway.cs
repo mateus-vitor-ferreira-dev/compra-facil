@@ -33,11 +33,20 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     public async Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
+        // sem o destino (pedido de antes do #221), vai só o e-mail, e o fornecedor recusa por falta de endereço
+        var to = request.ShipTo;
         var body = new CreateOrderRequest(
             OrderNumber: request.OrderNumber.ToString(),
             ShippingCountryCode: "BR",
-            // o endereço de entrega entra no pedido com o checkout completo (#221, #222)
-            ShippingCustomerName: request.CustomerEmail,
+            ShippingProvince: to?.State ?? "",
+            ShippingCity: to?.City ?? "",
+            ShippingCustomerName: to?.Name ?? request.CustomerEmail,
+            ShippingAddress: to is null ? "" : $"{to.Street}, {to.Number} - {to.District}",
+            ShippingAddress2: to?.Complement ?? "",
+            HouseNumber: to?.Number ?? "",
+            ShippingZip: to?.ZipCode ?? "",
+            ShippingPhone: to?.Phone ?? "",
+            ConsigneeId: to?.Cpf ?? "",
             Email: request.CustomerEmail,
             Remark: Scenario(request.CustomerEmail),
             Products: [.. request.Items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
@@ -161,7 +170,10 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     private sealed record CreateOrderProduct(string Vid, int Quantity);
 
     private sealed record CreateOrderRequest(
-        string OrderNumber, string ShippingCountryCode, string ShippingCustomerName, string Email, string Remark, IReadOnlyList<CreateOrderProduct> Products);
+        string OrderNumber, string ShippingCountryCode, string ShippingProvince, string ShippingCity, string ShippingCustomerName,
+        string ShippingAddress, string ShippingAddress2, string HouseNumber, string ShippingZip, string ShippingPhone,
+        [property: JsonPropertyName("consigneeID")] string ConsigneeId,
+        string Email, string Remark, IReadOnlyList<CreateOrderProduct> Products);
 
     private sealed record CreateOrderResult(string? OrderId, string? OrderNumber, string? OrderStatus);
 

@@ -56,16 +56,27 @@ type Item struct {
 	UnitPrice string `json:"unitPrice"`
 }
 
-type CreateRequest struct {
-	OrderNumber          string `json:"orderNumber"`
+// Shipping é para onde o fornecedor manda, como no createOrderV2 do CJ (consigneeID: o CPF, que a
+// alfândega brasileira exige).
+type Shipping struct {
 	ShippingCountryCode  string `json:"shippingCountryCode"`
+	ShippingProvince     string `json:"shippingProvince"`
+	ShippingCity         string `json:"shippingCity"`
 	ShippingCustomerName string `json:"shippingCustomerName"`
 	ShippingAddress      string `json:"shippingAddress"`
+	ShippingAddress2     string `json:"shippingAddress2"`
+	HouseNumber          string `json:"houseNumber"`
 	ShippingZip          string `json:"shippingZip"`
 	ShippingPhone        string `json:"shippingPhone"`
-	Email                string `json:"email"`
-	Remark               string `json:"remark"`
-	Products             []struct {
+	ConsigneeID          string `json:"consigneeID"`
+}
+
+type CreateRequest struct {
+	OrderNumber string `json:"orderNumber"`
+	Shipping
+	Email    string `json:"email"`
+	Remark   string `json:"remark"`
+	Products []struct {
 		VID      string `json:"vid"`
 		Quantity int    `json:"quantity"`
 	} `json:"products"`
@@ -89,6 +100,7 @@ type Order struct {
 	DisputeID        *string   `json:"disputeId"`
 	Remark           string    `json:"remark"`
 	Products         []Item    `json:"products"`
+	Shipping
 }
 
 type Delays struct {
@@ -137,7 +149,7 @@ func (s *Simulator) Close() {
 // Recusas não guardam nada: repetir o mesmo orderNumber reavalia o pedido.
 func (s *Simulator) Create(req CreateRequest) (Order, error) {
 	req.OrderNumber = strings.TrimSpace(req.OrderNumber)
-	if req.OrderNumber == "" || len(req.Products) == 0 {
+	if req.OrderNumber == "" || len(req.Products) == 0 || !req.complete() {
 		return Order{}, ErrInvalidParams
 	}
 	for _, p := range req.Products {
@@ -179,6 +191,7 @@ func (s *Simulator) Create(req CreateRequest) (Order, error) {
 		IsSandbox:     1,
 		Remark:        req.Remark,
 		Products:      items,
+		Shipping:      req.Shipping,
 	}
 	s.byID[o.OrderID] = o
 	s.byNumber[o.OrderNumber] = o.OrderID
@@ -186,6 +199,17 @@ func (s *Simulator) Create(req CreateRequest) (Order, error) {
 	s.wg.Add(1)
 	go s.lifecycle(o.OrderID, req.Remark)
 	return s.snapshot(o), nil
+}
+
+// complete: o CJ não aceita pedido sem para onde mandar (país, CEP, endereço, nome, telefone e, no
+// Brasil, o CPF).
+func (sh Shipping) complete() bool {
+	for _, v := range []string{sh.ShippingCountryCode, sh.ShippingZip, sh.ShippingAddress, sh.ShippingCustomerName, sh.ShippingPhone} {
+		if strings.TrimSpace(v) == "" {
+			return false
+		}
+	}
+	return sh.ShippingCountryCode != "BR" || strings.TrimSpace(sh.ConsigneeID) != ""
 }
 
 func (s *Simulator) Get(orderID string) (Order, error) {

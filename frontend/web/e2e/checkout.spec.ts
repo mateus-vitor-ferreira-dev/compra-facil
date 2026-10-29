@@ -11,6 +11,18 @@ async function addToCart(page: Page, path: string) {
   await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toBeVisible();
 }
 
+/** A entrega de quem compra pela primeira vez (a Ana já tem, do pedido anterior). */
+async function fillDelivery(page: Page) {
+  await page.getByLabel("Nome de quem recebe").fill("Bia Lima");
+  await page.getByLabel("CPF").fill("52998224725");
+  await page.getByLabel("Celular").fill("11987654321");
+  await page.getByLabel("CEP").fill("01310100");
+  await expect(page.getByLabel("Rua")).toHaveValue("Avenida Paulista");
+  // achado o endereço, o foco vai para o número
+  await expect(page.getByLabel("Número")).toBeFocused();
+  await page.getByLabel("Número").fill("1000");
+}
+
 /** Paga com o cartão de teste; o titular decide o resultado no provedor (APRO aprova, FUND recusa). */
 async function payByCard(page: Page, holder = "APRO") {
   await page.getByRole("radio", { name: /Cartão de crédito/ }).check();
@@ -98,6 +110,7 @@ test("catálogo fora: o erro diz quando tentar de novo e mostra o código para o
   await signIn(page, "instavel@exemplo.com");
   await addToCart(page, TV);
   await page.goto("/checkout");
+  await fillDelivery(page);
   await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
 
   const alert = page.getByRole("alert").filter({ hasText: "O pedido não foi feito" });
@@ -165,6 +178,7 @@ test("PIX vencido: o painel avisa e o pedido é cancelado sem cobrar", async ({ 
   await signIn(page, "pix-curto@exemplo.com");
   await addToCart(page, TV);
   await page.goto("/checkout");
+  await fillDelivery(page);
   await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
 
   await expect(page.getByRole("region", { name: "Valor do PIX" })).toBeVisible({ timeout: 10_000 });
@@ -210,4 +224,48 @@ test("o número do cartão não vai para a loja: só o token do provedor", async
   await expect(page).toHaveURL(/\/conta\/pedidos\//);
   expect(sent.join("\n")).not.toContain("4509");
   expect(sent.join("\n")).not.toMatch(/"123"|security_code/);
+});
+
+test("entrega: o CEP preenche o endereço, os erros ficam no campo e o pedido mostra onde entregar", async ({
+  page,
+}) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "bia@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+
+  // primeira compra: só o nome da conta; o resto, a pessoa digita
+  await page.getByLabel("CPF").fill("529.982.247-24");
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+  await expect(page.getByLabel("CPF")).toHaveAccessibleDescription(/não existe/);
+  await expect(page).toHaveURL(/\/checkout$/);
+
+  // CEP de cidade pequena: vem só a cidade e o estado
+  await page.getByLabel("CEP").fill("37200-000");
+  await expect(page.getByLabel("Cidade")).toHaveValue("Lavras");
+  await expect(page.getByLabel("Estado")).toHaveValue("MG");
+  await page.getByLabel("CEP").fill("99999999");
+  await expect(page.getByText("Não achamos este CEP")).toBeVisible();
+
+  await fillDelivery(page);
+  await expect(page.getByLabel("Bairro")).toHaveValue("Bela Vista");
+  await page.getByLabel("Complemento (opcional)").fill("Apto 12");
+  await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
+
+  const delivery = page.getByRole("region", { name: "Entrega" });
+  await expect(delivery).toContainText("Bia Lima");
+  await expect(delivery).toContainText("Avenida Paulista, 1000, Apto 12");
+  await expect(delivery).toContainText("CEP 01310-100");
+});
+
+test("quem já comprou recebe a entrega do último pedido preenchida", async ({ page }) => {
+  await page.goto("/entrar?voltar=%2Fcarrinho");
+  await signIn(page, "ana@exemplo.com");
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await expect(page.getByText("Os dados do seu último pedido")).toBeVisible();
+  await expect(page.getByLabel("CPF")).toHaveValue("529.982.247-25");
+  await expect(page.getByLabel("CEP")).toHaveValue("01310-100");
+  await expect(page.getByLabel("Estado")).toHaveValue("SP");
 });

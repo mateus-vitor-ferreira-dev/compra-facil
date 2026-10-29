@@ -49,7 +49,8 @@ public sealed class CjSupplierGatewayTests
     }
 
     private static SupplierOrderRequest Request(string email = "ana@exemplo.com") =>
-        new(Guid.NewGuid(), email, [new SupplierOrderItem("MOU-000001", "Mouse", 2)]);
+        new(Guid.NewGuid(), email, [new SupplierOrderItem("MOU-000001", "Mouse", 2)],
+            new ShipTo("Ana Souza", "52998224725", "11987654321", "01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP"));
 
     [Fact]
     public async Task Aceite_traz_o_id_e_o_token_e_reaproveitado()
@@ -66,6 +67,14 @@ public sealed class CjSupplierGatewayTests
         using var json = JsonDocument.Parse(order.Body);
         Assert.Equal("MOU-000001", json.RootElement.GetProperty("products")[0].GetProperty("vid").GetString());
         Assert.Equal(2, json.RootElement.GetProperty("products")[0].GetProperty("quantity").GetInt32());
+        // o destino nos campos do createOrderV2 (o CPF é o consigneeID)
+        var body = json.RootElement;
+        Assert.Equal(
+            ("Ana Souza", "Avenida Paulista, 1000 - Bela Vista", "Apto 12", "01310100", "SP", "São Paulo", "11987654321", "52998224725"),
+            (body.GetProperty("shippingCustomerName").GetString(), body.GetProperty("shippingAddress").GetString(),
+             body.GetProperty("shippingAddress2").GetString(), body.GetProperty("shippingZip").GetString(),
+             body.GetProperty("shippingProvince").GetString(), body.GetProperty("shippingCity").GetString(),
+             body.GetProperty("shippingPhone").GetString(), body.GetProperty("consigneeID").GetString()));
     }
 
     [Theory]

@@ -162,6 +162,39 @@ export interface components {
          * @enum {string}
          */
         CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed";
+        /**
+         * @description Quem recebe o pedido (#221): o nome e o CPF vão na nota fiscal; o telefone, à transportadora. O
+         *     CPF e o telefone podem ir com máscara; o pedido guarda só os dígitos.
+         */
+        Recipient: {
+            name: string;
+            /**
+             * @description Com os dígitos verificadores certos.
+             * @example 52998224725
+             */
+            cpf: string;
+            /**
+             * @description Com DDD, 10 ou 11 dígitos.
+             * @example 11987654321
+             */
+            phone: string;
+        };
+        /** @description Onde entregar, nos tamanhos da NF-e (60 caracteres por campo). */
+        ShippingAddress: {
+            /**
+             * @description CEP; o pedido guarda os 8 dígitos.
+             * @example 01310100
+             */
+            zip_code: string;
+            street: string;
+            /** @description Texto ("S/N" vale). */
+            number: string;
+            complement?: string | null;
+            district: string;
+            city: string;
+            /** @description UF. */
+            state: string;
+        };
         Tracking: {
             /** @description Código de rastreio. */
             number: string;
@@ -174,6 +207,8 @@ export interface components {
             url?: string | null;
         };
         PlaceOrderRequest: {
+            recipient: components["schemas"]["Recipient"];
+            shipping_address: components["schemas"]["ShippingAddress"];
             payment: components["schemas"]["PlaceOrderPayment"];
             /** @description Um item por produto (sem repetir `product_id`). */
             items: components["schemas"]["PlaceOrderItem"][];
@@ -233,6 +268,10 @@ export interface components {
              *     preenchido é a da cobrança. Nulo também no pedido cancelado por `out_of_stock`.
              */
             stock_reserved_at?: string | null;
+            /** @description Quem recebe; nulo só nos pedidos de antes de o checkout pedir o endereço (#221). */
+            recipient?: components["schemas"]["Recipient"] | null;
+            /** @description Onde entregar; nulo só nos pedidos de antes do */
+            shipping_address?: components["schemas"]["ShippingAddress"] | null;
             /**
              * Format: date-time
              * @description Quando o fornecedor aceitou o pedido pago (`confirmed`, antes de `shipped`).

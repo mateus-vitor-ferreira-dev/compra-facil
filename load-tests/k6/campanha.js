@@ -16,6 +16,7 @@
 import http from 'k6/http';
 import { check, fail } from 'k6';
 import { newCustomers } from './identity.js';
+import { DELIVERY } from './delivery.js';
 
 const CATALOG_URL = __ENV.CATALOG_URL || 'http://catalog:8001';
 const ORDERS_URL = __ENV.ORDERS_URL || 'http://orders:8002';
@@ -136,6 +137,7 @@ export function buy(data) {
   const res = http.post(`${ORDERS_URL}/v1/orders`, JSON.stringify({
     items: [{ product_id: pick(data.hot), quantity: 1 }],
     payment: { method: 'pix' }, // a carga mede o aceite; o PIX fica pendente até expirar
+    ...DELIVERY,
   }), {
     headers: { 'Content-Type': 'application/json', 'Idempotency-Key': uuid(), Authorization: `Bearer ${pick(data.customers)}` },
     tags: { name: 'order' },
