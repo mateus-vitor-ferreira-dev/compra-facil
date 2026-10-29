@@ -154,6 +154,9 @@ categoria na loja.
 | `bicicletas-urbanas-6` | 879px | bike, bicycle, retro, cruising, ladies' bicycle, transportation, nature, activity, leisure, cycle, fun, summer, ride, outdoor, recreation, exercise, light blue, gray exercise, gray bike, gray fun, gray lady | PublicDomainPictures | [Licença Pixabay](https://pixabay.com/service/license-summary/) | [pixabay](https://pixabay.com/photos/bike-bicycle-retro-cruising-20964/) |
 | `bicicletas-urbanas-7` | 1200px | Lulu Bike City side view | Glurois | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [commons](https://commons.wikimedia.org/wiki/File:Lulu_Bike_City_side_view.jpg) |
 | `bicicletas-urbanas-8` | 853px | bicycle, to go biking, transport, cargo bike, bike tour, wheel, meadow, nature, landscape, field | Alexas_Fotos | [Licença Pixabay](https://pixabay.com/service/license-summary/) | [pixabay](https://pixabay.com/photos/bicycle-to-go-biking-transport-9828774/) |
+| `bicicletas-eletricas-1` | 784px | electrical, e-bike, bike, white, background, e-bike, e-bike, e-bike, e-bike, e-bike | bicicleta | [Licença Pixabay](https://pixabay.com/service/license-summary/) | [pixabay](https://pixabay.com/photos/electrical-e-bike-bike-white-1531263/) |
+| `bicicletas-eletricas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `bicicletas-eletricas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
 | `halteres-1` | 853px | fitness, gym, muscles, dumbbell, dumbbells, gym, dumbbell, dumbbell, dumbbell, dumbbell, dumbbell, dumbbells | TomCam | [Licença Pixabay](https://pixabay.com/service/license-summary/) | [pixabay](https://pixabay.com/photos/fitness-gym-muscles-dumbbell-5013986/) |
 | `halteres-2` | 853px | physiotherapy, weight training, dumbbells, exercise balls, weight loss, workout, health, gym, therapist, physiotherapist, healthcare, fitness, wellness, rehabilitation, healing, therapeutic, weight loss, weight loss, workout, health, gym, gym, gym, gym, gym, fitness, fitness, fitness | stevepb | [Licença Pixabay](https://pixabay.com/service/license-summary/) | [pixabay](https://pixabay.com/photos/physiotherapy-weight-training-595529/) |
 | `halteres-3` | 854px | sports, dumbbell, training, fitness, power, exercises, strength | Bna55 | [Licença Pixabay](https://pixabay.com/service/license-summary/) | [pixabay](https://pixabay.com/photos/sports-dumbbell-training-fitness-7392271/) |
@@ -162,6 +165,30 @@ categoria na loja.
 | `kettlebells-2` | 853px | kettlebell, crossfit, equipment, workout, training, gym, strong, fit, 8 kg, healthy, exercise, strength, sports, athletic, active, fitness, athlete, kettlebell, kettlebell, kettlebell, kettlebell, kettlebell, crossfit, gym, gym | alexdobrasil70 | [Licença Pixabay](https://pixabay.com/service/license-summary/) | [pixabay](https://pixabay.com/photos/kettlebell-crossfit-equipment-5679666/) |
 | `kettlebells-3` | 960px | Kettlebell truebalance romeike | Detlef Romeike | [CC BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5) | [commons](https://commons.wikimedia.org/wiki/File:Kettlebell_truebalance_romeike.jpg) |
 | `kettlebells-4` | 960px | Kettlebell voor fitness 6 kg | Richardkiwi | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0) | [commons](https://commons.wikimedia.org/wiki/File:Kettlebell_voor_fitness_6_kg.jpg) |
+| `esteiras-1` | 1164px | Treadmill from Viking Sport, side | W.carter | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0) | [commons](https://commons.wikimedia.org/wiki/File:Treadmill_from_Viking_Sport,_side.jpg) |
+| `esteiras-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `esteiras-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
 | `puffs-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
 | `puffs-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
 | `puffs-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `travesseiros-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `travesseiros-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `travesseiros-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `capacetes-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `capacetes-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `capacetes-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `tapetes-de-yoga-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `tapetes-de-yoga-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `tapetes-de-yoga-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `bicicletas-ergometricas-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `bicicletas-ergometricas-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `bicicletas-ergometricas-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `batons-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `batons-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `batons-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `bases-e-corretivos-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `bases-e-corretivos-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `bases-e-corretivos-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `paletas-de-sombra-1` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `paletas-de-sombra-2` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |
+| `paletas-de-sombra-3` | 1024px | Foto de produto gerada por IA | — | Gerada por IA, sem marca | IA (Figma) |

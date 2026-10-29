@@ -3085,6 +3085,72 @@
    }
   ]
  },
+ "bicicletas-eletricas-1": {
+  "width": 784,
+  "height": 784,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-eletricas-1.cd5c38a1-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-eletricas-1.cd5c38a1-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-eletricas-1.cd5c38a1-640.webp"
+   },
+   {
+    "width": 784,
+    "file": "bicicletas-eletricas-1.cd5c38a1-784.webp"
+   }
+  ]
+ },
+ "bicicletas-eletricas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-eletricas-2.f7561327-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-eletricas-2.f7561327-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-eletricas-2.f7561327-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bicicletas-eletricas-2.f7561327-1024.webp"
+   }
+  ]
+ },
+ "bicicletas-eletricas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-eletricas-3.18a56002-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-eletricas-3.18a56002-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-eletricas-3.18a56002-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bicicletas-eletricas-3.18a56002-1024.webp"
+   }
+  ]
+ },
  "halteres-1": {
   "width": 853,
   "height": 853,
@@ -3265,6 +3331,76 @@
    }
   ]
  },
+ "esteiras-1": {
+  "width": 1164,
+  "height": 1164,
+  "variants": [
+   {
+    "width": 320,
+    "file": "esteiras-1.e9410894-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "esteiras-1.e9410894-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "esteiras-1.e9410894-640.webp"
+   },
+   {
+    "width": 960,
+    "file": "esteiras-1.e9410894-960.webp"
+   },
+   {
+    "width": 1164,
+    "file": "esteiras-1.e9410894-1164.webp"
+   }
+  ]
+ },
+ "esteiras-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "esteiras-2.8cdbb9b1-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "esteiras-2.8cdbb9b1-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "esteiras-2.8cdbb9b1-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "esteiras-2.8cdbb9b1-1024.webp"
+   }
+  ]
+ },
+ "esteiras-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "esteiras-3.f1932e52-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "esteiras-3.f1932e52-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "esteiras-3.f1932e52-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "esteiras-3.f1932e52-1024.webp"
+   }
+  ]
+ },
  "puffs-1": {
   "width": 1024,
   "height": 1024,
@@ -3328,6 +3464,468 @@
    {
     "width": 1024,
     "file": "puffs-3.10ea54e2-1024.webp"
+   }
+  ]
+ },
+ "travesseiros-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "travesseiros-1.a7319656-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "travesseiros-1.a7319656-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "travesseiros-1.a7319656-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "travesseiros-1.a7319656-1024.webp"
+   }
+  ]
+ },
+ "travesseiros-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "travesseiros-2.a32db4a0-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "travesseiros-2.a32db4a0-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "travesseiros-2.a32db4a0-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "travesseiros-2.a32db4a0-1024.webp"
+   }
+  ]
+ },
+ "travesseiros-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "travesseiros-3.bb057d7e-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "travesseiros-3.bb057d7e-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "travesseiros-3.bb057d7e-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "travesseiros-3.bb057d7e-1024.webp"
+   }
+  ]
+ },
+ "capacetes-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "capacetes-1.450c17f2-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "capacetes-1.450c17f2-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "capacetes-1.450c17f2-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "capacetes-1.450c17f2-1024.webp"
+   }
+  ]
+ },
+ "capacetes-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "capacetes-2.9b410504-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "capacetes-2.9b410504-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "capacetes-2.9b410504-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "capacetes-2.9b410504-1024.webp"
+   }
+  ]
+ },
+ "capacetes-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "capacetes-3.e4b3a327-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "capacetes-3.e4b3a327-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "capacetes-3.e4b3a327-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "capacetes-3.e4b3a327-1024.webp"
+   }
+  ]
+ },
+ "tapetes-de-yoga-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tapetes-de-yoga-1.fc2036c8-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tapetes-de-yoga-1.fc2036c8-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tapetes-de-yoga-1.fc2036c8-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tapetes-de-yoga-1.fc2036c8-1024.webp"
+   }
+  ]
+ },
+ "tapetes-de-yoga-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tapetes-de-yoga-2.8d6348ef-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tapetes-de-yoga-2.8d6348ef-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tapetes-de-yoga-2.8d6348ef-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tapetes-de-yoga-2.8d6348ef-1024.webp"
+   }
+  ]
+ },
+ "tapetes-de-yoga-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "tapetes-de-yoga-3.5ff6c793-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "tapetes-de-yoga-3.5ff6c793-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "tapetes-de-yoga-3.5ff6c793-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "tapetes-de-yoga-3.5ff6c793-1024.webp"
+   }
+  ]
+ },
+ "bicicletas-ergometricas-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-ergometricas-1.4118029b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-ergometricas-1.4118029b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-ergometricas-1.4118029b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bicicletas-ergometricas-1.4118029b-1024.webp"
+   }
+  ]
+ },
+ "bicicletas-ergometricas-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-ergometricas-2.153c904a-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-ergometricas-2.153c904a-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-ergometricas-2.153c904a-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bicicletas-ergometricas-2.153c904a-1024.webp"
+   }
+  ]
+ },
+ "bicicletas-ergometricas-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bicicletas-ergometricas-3.e678691b-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bicicletas-ergometricas-3.e678691b-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bicicletas-ergometricas-3.e678691b-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bicicletas-ergometricas-3.e678691b-1024.webp"
+   }
+  ]
+ },
+ "batons-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "batons-1.b4a03411-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "batons-1.b4a03411-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "batons-1.b4a03411-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "batons-1.b4a03411-1024.webp"
+   }
+  ]
+ },
+ "batons-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "batons-2.c136f0f9-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "batons-2.c136f0f9-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "batons-2.c136f0f9-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "batons-2.c136f0f9-1024.webp"
+   }
+  ]
+ },
+ "batons-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "batons-3.7e4f50c1-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "batons-3.7e4f50c1-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "batons-3.7e4f50c1-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "batons-3.7e4f50c1-1024.webp"
+   }
+  ]
+ },
+ "bases-e-corretivos-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bases-e-corretivos-1.b86b26a0-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bases-e-corretivos-1.b86b26a0-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bases-e-corretivos-1.b86b26a0-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bases-e-corretivos-1.b86b26a0-1024.webp"
+   }
+  ]
+ },
+ "bases-e-corretivos-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bases-e-corretivos-2.234c1186-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bases-e-corretivos-2.234c1186-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bases-e-corretivos-2.234c1186-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bases-e-corretivos-2.234c1186-1024.webp"
+   }
+  ]
+ },
+ "bases-e-corretivos-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "bases-e-corretivos-3.50d927af-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "bases-e-corretivos-3.50d927af-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "bases-e-corretivos-3.50d927af-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "bases-e-corretivos-3.50d927af-1024.webp"
+   }
+  ]
+ },
+ "paletas-de-sombra-1": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "paletas-de-sombra-1.804d5625-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "paletas-de-sombra-1.804d5625-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "paletas-de-sombra-1.804d5625-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "paletas-de-sombra-1.804d5625-1024.webp"
+   }
+  ]
+ },
+ "paletas-de-sombra-2": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "paletas-de-sombra-2.90a2c343-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "paletas-de-sombra-2.90a2c343-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "paletas-de-sombra-2.90a2c343-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "paletas-de-sombra-2.90a2c343-1024.webp"
+   }
+  ]
+ },
+ "paletas-de-sombra-3": {
+  "width": 1024,
+  "height": 1024,
+  "variants": [
+   {
+    "width": 320,
+    "file": "paletas-de-sombra-3.4188c3f6-320.webp"
+   },
+   {
+    "width": 480,
+    "file": "paletas-de-sombra-3.4188c3f6-480.webp"
+   },
+   {
+    "width": 640,
+    "file": "paletas-de-sombra-3.4188c3f6-640.webp"
+   },
+   {
+    "width": 1024,
+    "file": "paletas-de-sombra-3.4188c3f6-1024.webp"
    }
   ]
  }
