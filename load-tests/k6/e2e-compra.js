@@ -4,7 +4,8 @@
 // do seed nem do estoque que outros testes consumiram):
 //   1. compra confirmada no cartão (titular APRO no payment-sim): reserva → cartão autorizado → pedido
 //      confirmed, reserva committed, e-mail; segue o fornecedor simulado até delivered, com o rastreio, e o
-//      cartão é capturado quando o fornecedor aceita;
+//      cartão é capturado quando o fornecedor aceita; depois o cliente desiste (#223) e o valor todo, com o
+//      frete, é estornado, com os e-mails da devolução e do estorno;
 //   2. estoque insuficiente: estoque zerado pelo admin do inventory → cancelled (out_of_stock);
 //   3. pagamento recusado: cartão do titular FUND → cancelled (payment_failed), cobrança failed
 //      (insufficient_funds) e a reserva devolvida ao estoque;
@@ -219,6 +220,17 @@ export default function (products) {
     const stranger = newCustomer(IDENTITY, 'e2e-outro');
     const peek = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(stranger.token), tags: { name: 'order-status' } });
     check(peek, { 'outro cliente não vê o pedido (404)': (r) => r.status === 404 });
+
+    // arrependimento (#223): o entregue volta em 7 dias, e o cartão capturado é estornado com o frete
+    const back = http.post(`${GATEWAY}/orders/v1/orders/${orderId}/return`, null, { headers: auth(customer.token), tags: { name: 'order-return' } });
+    check(back, { 'desistência aceita (returned)': (r) => r.status === 200 && r.json('status') === 'returned' });
+    check(eventually('pedido devolvido estornado', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('refunded_at') ? res.json() : null;
+    }), { 'devolvido e estornado': (o) => o.status === 'returned' && !!o.return_requested_at });
+    check(paymentOf(orderId, 'refunded'), { 'estorno do valor todo': (p) => p.refunded_cents === p.amount.amount_cents });
+    check(eventually('e-mail da devolução', () => emailsTo(customer.email, 'Devolução do pedido')), { 'e-mail da devolução': (n) => n >= 1 });
+    check(eventually('e-mail do estorno', () => emailsTo(customer.email, 'Estorno do pedido')), { 'e-mail do estorno': (n) => n >= 1 });
   });
 
   group('2. estoque insuficiente', () => {

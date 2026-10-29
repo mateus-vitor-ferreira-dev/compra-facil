@@ -245,6 +245,7 @@ public sealed class OnPaymentRefunded(OrderProgress progress) : IHandleEvent<Pay
         // estorno parcial (devolução de um item, pelo painel) não é o estorno do pedido cancelado
         return data.Full == false
             ? Task.CompletedTask
-            : progress.ApplyAsync(data.OrderId, "PaymentRefunded", (order, now) => order.MarkRefunded(now), _ => null, ct);
+            : progress.ApplyAsync(data.OrderId, "PaymentRefunded", (order, now) => order.MarkRefunded(now),
+                order => (OrderEvents.OrderRefunded, OrderRefundedData.From(order)), ct);
     }
 }

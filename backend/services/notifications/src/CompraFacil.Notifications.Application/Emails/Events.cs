@@ -6,6 +6,8 @@ public static class NotificationEvents
     public const string OrdersTopic = "orders.order.v1";
     public const string OrderConfirmed = nameof(OrderConfirmed);
     public const string OrderCancelled = nameof(OrderCancelled);
+    public const string OrderReturned = nameof(OrderReturned);
+    public const string OrderRefunded = nameof(OrderRefunded);
 
     public const string InvoicesTopic = "fulfillment.invoice.v1";
     public const string InvoiceIssued = nameof(InvoiceIssued);
@@ -39,3 +41,9 @@ public sealed class StoreOptions
     public const string Section = "Store";
     public Uri BaseUrl { get; set; } = new("http://localhost:3000/");
 }
+
+/// <summary>data do OrderReturned (só os campos usados no e-mail): a devolução no prazo de arrependimento.</summary>
+public sealed record OrderReturnedData(Guid OrderId, string CustomerEmail, Money Total);
+
+/// <summary>data do OrderRefunded: o estorno feito; reason: returned | supplier_failed | invoice_failed.</summary>
+public sealed record OrderRefundedData(Guid OrderId, string CustomerEmail, Money Amount, string Reason);

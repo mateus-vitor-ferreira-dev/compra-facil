@@ -27,6 +27,9 @@ public sealed record StockReservedData(Guid OrderId);
 
 public sealed record OrderCancelledData(Guid OrderId);
 
+/// <summary>data do OrderReturned (só o usado): o pedido devolvido no prazo de arrependimento.</summary>
+public sealed record OrderReturnedData(Guid OrderId);
+
 public sealed record SupplierOrderPlacedData(Guid OrderId);
 
 // ---- publicados ----

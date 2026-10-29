@@ -24,7 +24,7 @@ const ANA_DELIVERY = {
   },
 };
 
-// pedidos da Ana: um confirmado e um cancelado por falta de estoque
+// pedidos da Ana: um confirmado, um cancelado por falta de estoque e um entregue há 2 dias (#223)
 const orderOf = (id, status, reason, qty, unit) => ({
   id,
   customer_id: "0199f6a0-0000-7000-8000-000000000a1a",
@@ -63,6 +63,12 @@ const orders = [
     },
   },
   orderOf("7c3e5d2a-0000-7000-8000-000000000002", "cancelled", "out_of_stock", 2, 263992),
+  {
+    ...orderOf("9d1b6e3f-0000-7000-8000-000000000003", "delivered", null, 1, 263992),
+    delivered_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    returnable_until: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+    return_requested_at: null,
+  },
 ];
 
 const categories = [
@@ -680,7 +686,7 @@ async function placeOrder(req, res, email) {
 }
 
 // como o orders: pago não é o fim (o pedido segue o fornecedor); o stub não passa do confirmado
-const isFinal = (o) => o.status === "delivered" || o.status === "cancelled";
+const isFinal = (o) => o.status === "delivered" || o.status === "cancelled" || o.status === "returned";
 
 /** GET .../events: o estado atual e cada mudança, em Server-Sent Events, até o estado final. */
 function streamOrder(req, res, entry) {
@@ -863,6 +869,27 @@ createServer(async (req, res) => {
     if (!entry || entry.order.payment.method !== "pix") return problem(res, 404, "Recurso não encontrado");
     entry.paidAt = Date.now();
     return res.writeHead(204).end();
+  }
+  // a desistência (#223): o entregue vira devolvido, e o stub já o dá por estornado
+  const ret = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})\/return$/);
+  if (req.method === "POST" && ret) {
+    const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
+    if (!email) return problem(res, 401, "Não autenticado");
+    const found = email === "ana@exemplo.com" && orders.find((o) => o.id === ret[1]);
+    if (!found) return problem(res, 404, "Recurso não encontrado");
+    if (found.status === "delivered") {
+      const now = new Date().toISOString();
+      Object.assign(found, {
+        status: "returned",
+        return_requested_at: now,
+        returnable_until: null,
+        refunded_at: now,
+        updated_at: now,
+      });
+    } else if (found.status !== "returned") {
+      return problem(res, 409, "O pedido não pode ser devolvido");
+    }
+    return send(res, 200, found);
   }
   const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})(\/events)?$/);
   if (req.method === "GET" && order) {

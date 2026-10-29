@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { z } from "zod";
 import { OrderLive } from "@/components/account/order-live";
+import { ReturnOrder } from "@/components/account/return-order";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
@@ -29,12 +30,15 @@ type Props = {
 
 /**
  * Um pedido: a compra andando ao vivo (ou como terminou, com o motivo se cancelou), os itens com o
- * preço congelado e o total. `?novo=1`: o cliente acabou de fazer o pedido no checkout.
+ * preço congelado e o total. `?novo=1`: o cliente acabou de fazer o pedido no checkout; `?desistencia=1`,
+ * acabou de desistir dele (#223).
  */
 export default async function OrderPage({ params, searchParams }: Props) {
   await connection();
   const { id } = await params;
-  const justPlaced = (await searchParams).novo === "1";
+  const query = await searchParams;
+  const justPlaced = query.novo === "1";
+  const justReturned = query.desistencia === "1";
   const { token } = await requireAccount(`/conta/pedidos/${id}`);
   if (!z.uuid().safeParse(id).success) notFound();
   const result = await getOrder(token, id);
@@ -66,12 +70,18 @@ export default async function OrderPage({ params, searchParams }: Props) {
       />
       <div className="mt-4 space-y-1">
         {justPlaced && <p className="font-semibold">Recebemos o seu pedido.</p>}
+        {justReturned && order.status === "returned" && (
+          <p role="status" className="font-semibold">
+            Desistência registrada. O estorno já foi pedido.
+          </p>
+        )}
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Pedido {orderNumber(order.id)}</h1>
         <p className="text-ink-soft">Feito em {dateTime.format(new Date(order.created_at))}</p>
       </div>
 
       <div className="mt-8">
-        <OrderLive initial={order} />
+        {/* a desistência muda o pedido parado na entrega: remontado, o stream reabre e mostra o estorno */}
+        <OrderLive key={order.status} initial={order} />
       </div>
 
       <section aria-labelledby="itens" className="mt-10">
@@ -122,12 +132,15 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <h2 id="entrega" className="text-xl font-semibold tracking-tight">
             Entrega
           </h2>
-          {order.shipping && order.status !== "cancelled" && order.status !== "delivered" && (
-            // a data que a loja prometeu: é por ela que o cliente cobra, e o painel mede o atraso
-            <p className="font-condensed pb-1 text-2xl font-extrabold tracking-tight">
-              Chega até {promised(order.shipping.promised_by)}
-            </p>
-          )}
+          {order.shipping &&
+            order.status !== "cancelled" &&
+            order.status !== "delivered" &&
+            order.status !== "returned" && (
+              // a data que a loja prometeu: é por ela que o cliente cobra, e o painel mede o atraso
+              <p className="font-condensed pb-1 text-2xl font-extrabold tracking-tight">
+                Chega até {promised(order.shipping.promised_by)}
+              </p>
+            )}
           <p className="font-medium">{order.recipient.name}</p>
           <address className="text-ink-soft not-italic">
             {addressLines(order.shipping_address).map((line) => (
@@ -138,6 +151,8 @@ export default async function OrderPage({ params, searchParams }: Props) {
           </address>
         </section>
       )}
+
+      {order.status === "delivered" && <ReturnOrder order={order} />}
 
       {order.invoice && (
         <section aria-labelledby="nota" className="mt-10 space-y-1">

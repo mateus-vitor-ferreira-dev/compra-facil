@@ -317,6 +317,25 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
     }
 
     [Fact]
+    public async Task ReturnedOrder_RefundsThePaidAmount_Once()
+    {
+        // arrependimento (#223): o pedido entregue volta e o valor todo é estornado
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 6430, payment: null);
+        var payment = await PaymentOfAsync(order);
+        fx.Provider.Set(payment.ProviderReference!, ProviderStatus.Approved);
+        await NotifyAsync(payment.ProviderReference!);
+
+        await HandleAsync<OrderReturnedData, OnOrderReturned>(new OrderReturnedData(order));
+        await HandleAsync<OrderReturnedData, OnOrderReturned>(new OrderReturnedData(order)); // repetido
+        payment = await PaymentOfAsync(order);
+        Assert.Equal((PaymentStatus.Refunded, 6430L), (payment.Status, payment.RefundedCents));
+        var refunded = await LastAsync<PaymentRefundedData>(order, PaymentEvents.PaymentRefunded);
+        Assert.Equal((RefundKind.Refund, true, 6430L), (refunded.Kind, refunded.Full, refunded.Amount.AmountCents));
+        Assert.Single(await EventsOfAsync(order), e => e.EventType == PaymentEvents.PaymentRefunded);
+    }
+
+    [Fact]
     public async Task ProviderDown_ChargesOnTheRetry_WithTheSameKey()
     {
         var order = Guid.NewGuid();

@@ -12,6 +12,9 @@ public enum OrderStatus
 
     Delivered,
     Cancelled,
+
+    /// <summary>Devolvido no prazo de arrependimento (CDC, art. 49): o cliente é estornado na hora, com o frete.</summary>
+    Returned,
 }
 
 /// <summary>Por que um pedido foi cancelado (contrato: CancellationReason).</summary>
@@ -104,11 +107,21 @@ public sealed class Order
     public DateTimeOffset? ShippedAt { get; private set; }
     public DateTimeOffset? DeliveredAt { get; private set; }
 
+    /// <summary>Quando o cliente pediu a devolução (arrependimento, #223).</summary>
+    public DateTimeOffset? ReturnRequestedAt { get; private set; }
+
+    /// <summary>O prazo de arrependimento: 7 dias corridos depois da entrega (CDC, art. 49).</summary>
+    public static readonly TimeSpan ReturnWindow = TimeSpan.FromDays(7);
+
+    /// <summary>Até quando o cliente pode devolver; nulo se o pedido não foi entregue.</summary>
+    public DateTimeOffset? ReturnableUntil => Status == OrderStatus.Delivered && DeliveredAt is { } d ? d + ReturnWindow : null;
+
     /// <summary>Quando o payments devolveu o valor ao cliente (pedido cancelado depois de pago).</summary>
     public DateTimeOffset? RefundedAt { get; private set; }
 
     /// <summary>Cancelado depois de pago e o estorno ainda não voltou.</summary>
-    public bool AwaitingRefund => Status == OrderStatus.Cancelled && CancelledAfterPayment && RefundedAt is null;
+    public bool AwaitingRefund =>
+        ((Status == OrderStatus.Cancelled && CancelledAfterPayment) || Status == OrderStatus.Returned) && RefundedAt is null;
 
     /// <summary>Cancelado depois de pago (o fornecedor ou a nota): o cliente é estornado.</summary>
     public bool CancelledAfterPayment => CancellationReason is Domain.CancellationReason.SupplierFailed or Domain.CancellationReason.InvoiceFailed;
@@ -306,6 +319,30 @@ public sealed class Order
             return false;
         }
         Invoice = Invoice with { CancelledAt = cancelledAt };
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// O cliente se arrependeu: devolve o pedido entregue, em até 7 dias, sem justificar. False se já estava
+    /// devolvido (o mesmo pedido de novo); fora do prazo ou antes da entrega, <see cref="DomainException"/>.
+    /// </summary>
+    public bool RequestReturn(DateTimeOffset now)
+    {
+        if (Status == OrderStatus.Returned)
+        {
+            return false;
+        }
+        if (Status != OrderStatus.Delivered || DeliveredAt is null)
+        {
+            throw new DomainException("só o pedido entregue pode ser devolvido");
+        }
+        if (now > DeliveredAt.Value + ReturnWindow)
+        {
+            throw new DomainException($"o prazo de devolução, de {ReturnWindow.TotalDays:0} dias depois da entrega, já passou");
+        }
+        Status = OrderStatus.Returned;
+        ReturnRequestedAt = now;
         UpdatedAt = now;
         return true;
     }

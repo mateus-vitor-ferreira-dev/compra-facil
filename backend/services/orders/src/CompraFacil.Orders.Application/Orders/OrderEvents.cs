@@ -11,6 +11,8 @@ public static class OrderEvents
     public const string OrderCancelled = nameof(OrderCancelled);
     public const string OrderShipped = nameof(OrderShipped);
     public const string OrderDelivered = nameof(OrderDelivered);
+    public const string OrderReturned = nameof(OrderReturned);
+    public const string OrderRefunded = nameof(OrderRefunded);
 
     public const string ReservationsTopic = "inventory.reservation.v1";
     public const string PaymentsTopic = "payments.payment.v1";
@@ -79,6 +81,35 @@ public sealed record OrderShippedData(Guid OrderId, Guid CustomerId, string Cust
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.Tracking!, order.ShippedAt!.Value);
+    }
+}
+
+/// <summary>
+/// data do OrderReturned (#223): o cliente devolveu no prazo de arrependimento. O payments estorna o total (com
+/// o frete), o fulfillment abre a devolução ao fornecedor e o notifications avisa.
+/// </summary>
+public sealed record OrderReturnedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, DateTimeOffset ReturnRequestedAt)
+{
+    public static OrderReturnedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, [.. order.Items.Select(OrderItemData.From)], order.Total,
+            order.ReturnRequestedAt!.Value);
+    }
+}
+
+/// <summary>data do OrderRefunded: o dinheiro do pedido voltou ao cliente (devolução, fornecedor ou nota recusada).</summary>
+public sealed record OrderRefundedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, Money Amount, string Reason, DateTimeOffset RefundedAt)
+{
+    public static OrderRefundedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        var reason = order.Status == OrderStatus.Returned
+            ? "returned"
+            : order.CancellationReason == CancellationReason.InvoiceFailed ? "invoice_failed" : "supplier_failed";
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.Total, reason, order.RefundedAt!.Value);
     }
 }
 

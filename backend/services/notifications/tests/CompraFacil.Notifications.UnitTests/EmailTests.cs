@@ -54,6 +54,27 @@ public sealed class EmailTests
         Assert.EndsWith($"https://loja.example/conta/pedidos/{order}", email.TextBody, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Returned_SaysTheRefundIsAlreadyOnItsWay_WithTheFreight()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.ReturnedAsync(new OrderReturnedData(order, "ana@exemplo.com", new Money(266422, "BRL")));
+        Assert.Equal("Devolução do pedido 0000ABCD registrada", email.Subject);
+        Assert.Contains("O estorno de R$ 2.664,22, com o frete, já foi pedido", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("returned", "devolução que você pediu")]
+    [InlineData("supplier_failed", "fornecedor")]
+    [InlineData("invoice_failed", "nota fiscal")]
+    public async Task Refunded_SaysWhy(string reason, string expected)
+    {
+        var email = await EmailComposer.RefundedAsync(new OrderRefundedData(Guid.NewGuid(), "ana@exemplo.com", new Money(4990, "BRL"), reason));
+        Assert.StartsWith("Estorno do pedido", email.Subject, StringComparison.Ordinal);
+        Assert.Contains("R$ 49,90", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains(expected, email.TextBody, StringComparison.Ordinal);
+    }
+
     private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
     private static EmailConfirmationRequestedData Confirmation(string url, string name = "Ana <b>Souza</b>", double hours = 24) =>

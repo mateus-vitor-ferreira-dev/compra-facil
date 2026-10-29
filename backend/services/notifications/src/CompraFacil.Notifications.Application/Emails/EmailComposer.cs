@@ -20,6 +20,32 @@ public static partial class EmailComposer
     private static readonly IFluidTemplate s_cancelled = Load("order-cancelled");
     private static readonly IFluidTemplate s_confirmEmail = Load("confirm-email");
     private static readonly IFluidTemplate s_invoiceIssued = Load("invoice-issued");
+    private static readonly IFluidTemplate s_returned = Load("order-returned");
+    private static readonly IFluidTemplate s_refunded = Load("order-refunded");
+
+    /// <summary>A devolução registrada (#223): o estorno já pedido, sem esperar o fornecedor.</summary>
+    public static async Task<ComposedEmail> ReturnedAsync(OrderReturnedData order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        var number = OrderNumber(order.OrderId);
+        var html = await s_returned.RenderAsync(Context(new { order_number = number, total = Brl(order.Total) }), s_html);
+        return new ComposedEmail($"Devolução do pedido {number} registrada", html, ToText(html));
+    }
+
+    /// <summary>O estorno feito: do pedido devolvido ou do cancelado depois de pago.</summary>
+    public static async Task<ComposedEmail> RefundedAsync(OrderRefundedData refund)
+    {
+        ArgumentNullException.ThrowIfNull(refund);
+        var number = OrderNumber(refund.OrderId);
+        var reason = refund.Reason switch
+        {
+            "returned" => "é a devolução que você pediu.",
+            "invoice_failed" => "não conseguimos emitir a nota fiscal do pedido.",
+            _ => "o fornecedor não conseguiu atender o pedido.",
+        };
+        var html = await s_refunded.RenderAsync(Context(new { order_number = number, amount = Brl(refund.Amount), reason }), s_html);
+        return new ComposedEmail($"Estorno do pedido {number} feito", html, ToText(html));
+    }
 
     public static async Task<ComposedEmail> ConfirmedAsync(OrderConfirmedData order)
     {

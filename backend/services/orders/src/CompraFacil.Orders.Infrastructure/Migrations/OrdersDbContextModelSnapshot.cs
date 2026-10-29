@@ -170,6 +170,10 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("request_hash");
 
+                    b.Property<DateTimeOffset?>("ReturnRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("return_requested_at");
+
                     b.Property<DateTimeOffset?>("SentToSupplierAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("sent_to_supplier_at");

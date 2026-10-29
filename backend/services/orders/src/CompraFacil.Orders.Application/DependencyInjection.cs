@@ -12,6 +12,7 @@ public static class DependencyInjection
     {
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
         services.AddScoped<PlaceOrder>();
+        services.AddScoped<ReturnOrder>();
         services.AddScoped<OrderQueries>();
         services.AddSingleton<OrderChangeFeed>();
         services.AddScoped<OrderLive>();
