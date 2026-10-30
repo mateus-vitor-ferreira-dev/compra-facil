@@ -393,6 +393,11 @@ export interface components {
              */
             image_url?: string | null;
             image?: components["schemas"]["ProductImage"] | null;
+            /**
+             * @description Todas as fotos, na ordem da galeria; a primeira é igual a `image` e, sem foto, a lista é vazia.
+             *     Vem só no detalhe do produto: a listagem usa `image`.
+             */
+            images?: components["schemas"]["ProductImage"][];
             /** @description Preço de tabela. */
             price: components["schemas"]["Money"];
             /** @description Preço cobrado agora (igual a `price` quando não há campanha ativa). */
@@ -505,8 +510,17 @@ export interface components {
             brand?: string | null;
             /** Format: uuid */
             category_id: string;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description A primeira foto, que aparece nos cards da vitrine.
+             */
             image_url?: string | null;
+            /**
+             * @description As outras fotos, na ordem da galeria, sem repetir nenhuma. Ausente, mantém as que estão gravadas;
+             *     vazia, remove. Uma foto que já estava no produto continua com as variantes dela, mesmo mudando de
+             *     posição, inclusive para `image_url`. Exige `image_url`.
+             */
+            more_image_urls?: string[];
             /** Format: int64 */
             price_cents: number;
             status: components["schemas"]["ProductStatus"];

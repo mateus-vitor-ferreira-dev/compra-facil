@@ -260,3 +260,51 @@ func TestProductRepository_ImageVariants_KeptForTheSameURL_DroppedForANewOne(t *
 	assert.Equal(t, other, *changed.ImageURL)
 	assert.Nil(t, changed.Image)
 }
+
+func TestProductRepository_Update_GalleryKeepsEachPhotoVariants(t *testing.T) {
+	repo := NewProductRepository(testDB)
+	cat := mustCategory(t, "tv-galeria", nil)
+	photo := func(name string) (string, *domain.ProductImage) {
+		url := "http://localhost/media/produtos/" + name + "-683.webp"
+		return url, &domain.ProductImage{Width: 683, Height: 683, Variants: []domain.ImageVariant{{Width: 683, URL: url}}}
+	}
+	urlA, imageA := photo("a")
+	urlB, imageB := photo("b")
+	p := mustProduct(t, "TV-GAL", cat.ID, func(p *domain.Product) {
+		p.ImageURL, p.Image = &urlA, imageA
+		p.Gallery = []domain.GalleryImage{{URL: urlB, Image: imageB}}
+	})
+	load := func() domain.Product {
+		got, err := repo.GetByID(ctx, p.ID, time.Now())
+		require.NoError(t, err)
+		return got
+	}
+	got := load()
+	assert.Equal(t, []domain.GalleryImage{{URL: urlB, Image: imageB}}, got.Gallery)
+
+	// nil mantém a galeria gravada
+	got.Gallery = nil
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got = load()
+	require.Len(t, got.Gallery, 1)
+
+	// a segunda vira a primeira, cada uma com as suas variantes, e entra uma URL nova, sem variantes
+	const added = "https://cdn.example.com/nova.jpg"
+	got.ImageURL, got.Image = &urlB, nil
+	got.Gallery = []domain.GalleryImage{{URL: added}, {URL: urlA}}
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got = load()
+	assert.Equal(t, imageB, got.Image)
+	assert.Equal(t, []domain.GalleryImage{{URL: added}, {URL: urlA, Image: imageA}}, got.Gallery)
+
+	// vazia remove; sem a primeira foto, o produto fica sem nenhuma
+	got.Gallery = []domain.GalleryImage{}
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got = load()
+	assert.Empty(t, got.Gallery)
+	got.ImageURL, got.Gallery = nil, nil
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got = load()
+	assert.Nil(t, got.Image)
+	assert.Empty(t, got.Gallery)
+}

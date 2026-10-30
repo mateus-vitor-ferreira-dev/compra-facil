@@ -111,7 +111,7 @@ func seed(ctx context.Context, conn *pgx.Conn, opts options, now time.Time) (sta
 
 	products := generateProducts(rng, subs, opts.products, now, opts.mediaURL)
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"products"},
-		[]string{"id", "sku", "name", "description", "brand", "category_id", "image_url", "image", "price_cents", "currency", "status", "created_at", "updated_at"},
+		[]string{"id", "sku", "name", "description", "brand", "category_id", "image_url", "image", "gallery", "price_cents", "currency", "status", "created_at", "updated_at"},
 		pgx.CopyFromSlice(len(products), func(i int) ([]any, error) { return products[i].row(), nil }),
 	); err != nil {
 		return st, fmt.Errorf("copiando produtos: %w", err)
@@ -218,6 +218,7 @@ type seedProduct struct {
 	subSlug    string
 	imageURL   string
 	image      *domain.ProductImage
+	gallery    []domain.GalleryImage
 	price      int64
 	status     string
 	createdAt  time.Time
@@ -230,7 +231,7 @@ func (p seedProduct) domain() domain.Product {
 		imageURL = &p.imageURL
 	}
 	return domain.Product{
-		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, Brand: &p.brand, CategoryID: p.categoryID, ImageURL: imageURL, Image: p.image,
+		ID: p.id, SKU: p.sku, Name: p.name, Description: p.desc, Brand: &p.brand, CategoryID: p.categoryID, ImageURL: imageURL, Image: p.image, Gallery: p.gallery,
 		PriceCents: p.price, Currency: "BRL",
 		Status: domain.ProductStatus(p.status), Version: 1, CreatedAt: p.createdAt, UpdatedAt: p.createdAt,
 	}
@@ -243,7 +244,12 @@ func (p seedProduct) row() []any {
 		imageURL = p.imageURL
 		image, _ = json.Marshal(p.image) // tipos simples: não falha
 	}
-	return []any{p.id, p.sku, p.name, p.desc, p.brand, p.categoryID, imageURL, image, p.price, "BRL", p.status, p.createdAt, p.createdAt}
+	gallery := p.gallery
+	if gallery == nil {
+		gallery = []domain.GalleryImage{}
+	}
+	galleryJSON, _ := json.Marshal(gallery) // idem
+	return []any{p.id, p.sku, p.name, p.desc, p.brand, p.categoryID, imageURL, image, galleryJSON, p.price, "BRL", p.status, p.createdAt, p.createdAt}
 }
 
 func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, mediaURL string) []seedProduct {
@@ -297,6 +303,7 @@ func assignPhotos(products []seedProduct, photos map[string]photo, mediaURL stri
 		sort.Slice(idx, func(a, b int) bool { return products[idx[a]].createdAt.After(products[idx[b]].createdAt) })
 		for n, i := range idx {
 			products[i].imageURL, products[i].image = photoFor(photos, mediaURL, products[i].subSlug, n)
+			products[i].gallery = galleryFor(photos, mediaURL, products[i].subSlug, n)
 		}
 	}
 }

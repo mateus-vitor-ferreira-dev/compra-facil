@@ -2,12 +2,15 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/events"
@@ -36,7 +39,7 @@ const (
 	// marcas na faceta do filtro
 	maxBrands = 50
 
-	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.price_cents,
+	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.gallery, p.price_cents,
 		p.currency, p.status, p.version, p.created_at, p.updated_at,
 		p.supplier, p.supplier_vid, p.cost_cents, p.cost_currency, p.supplier_synced_at, p.supplier_removed_at,
 		cat.slug AS category_slug, cat.name AS category_name,
@@ -49,6 +52,44 @@ type ProductRepository struct{ db *gorm.DB }
 func NewProductRepository(db *gorm.DB) *ProductRepository { return &ProductRepository{db: db} }
 
 var _ domain.ProductRepository = (*ProductRepository)(nil)
+
+// keepPhotoVariants monta as colunas image e gallery de um Update. O PUT só traz URLs: cada foto que já
+// estava no produto (mesmo trocando de posição) continua com as variantes dela, e URL nova fica sem. Sem a
+// primeira foto, o produto fica sem nenhuma; Gallery nil mantém as outras fotos gravadas.
+func keepPhotoVariants(before productRecord, p *domain.Product) (image, gallery clause.Expr, err error) {
+	known := map[string]*domain.ProductImage{}
+	if before.ImageURL != nil {
+		known[*before.ImageURL] = before.Image
+	}
+	for _, g := range before.Gallery {
+		known[g.URL] = g.Image
+	}
+
+	var first *domain.ProductImage
+	photos := []domain.GalleryImage{}
+	if p.ImageURL != nil {
+		first = known[*p.ImageURL]
+		wanted := p.Gallery
+		if wanted == nil {
+			wanted = before.Gallery
+		}
+		for _, g := range wanted {
+			if g.URL != *p.ImageURL {
+				photos = append(photos, domain.GalleryImage{URL: g.URL, Image: known[g.URL]})
+			}
+		}
+	}
+	firstJSON, err := json.Marshal(first)
+	if err != nil {
+		return image, gallery, fmt.Errorf("foto do produto: %w", err)
+	}
+	photosJSON, err := json.Marshal(photos)
+	if err != nil {
+		return image, gallery, fmt.Errorf("galeria do produto: %w", err)
+	}
+	// NULLIF: sem variantes conhecidas, a coluna fica NULL, não o JSON null
+	return gorm.Expr("NULLIF(?::jsonb, 'null'::jsonb)", string(firstJSON)), gorm.Expr("?::jsonb", string(photosJSON)), nil
+}
 
 // Create grava o produto e o ProductCreated na mesma transação.
 func (r *ProductRepository) Create(ctx context.Context, p *domain.Product) error {
@@ -77,8 +118,12 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expec
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// lê o preço anterior travando a linha: ninguém altera entre a leitura e o UPDATE
 		var before productRecord
-		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency").
+		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency", "image_url", "image", "gallery").
 			Where("id = ?", p.ID).Take(&before).Error; err != nil {
+			return err
+		}
+		image, gallery, err := keepPhotoVariants(before, p)
+		if err != nil {
 			return err
 		}
 		res := tx.Model(&productRecord{}).
@@ -89,9 +134,8 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expec
 				"description": rec.Description,
 				"category_id": rec.CategoryID,
 				"image_url":   rec.ImageURL,
-				// as variantes eram da foto anterior: URL nova (definida pelo admin) fica sem elas. No
-				// SET, image_url ainda é o valor de antes do UPDATE
-				"image":       gorm.Expr("CASE WHEN image_url IS NOT DISTINCT FROM ? THEN image END", rec.ImageURL),
+				"image":       image,
+				"gallery":     gallery,
 				"price_cents": rec.PriceCents,
 				"currency":    rec.Currency,
 				"status":      rec.Status,

@@ -373,6 +373,19 @@ func TestGetProduct_Image(t *testing.T) {
 	t.Run("sem foto", func(t *testing.T) {
 		p := sampleProduct(false)
 		p.ImageURL = nil
-		assert.Nil(t, get(t, p)["image"])
+		body := get(t, p)
+		assert.Nil(t, body["image"])
+		assert.Empty(t, body["images"])
+	})
+	t.Run("a galeria: todas as fotos, a primeira igual a image", func(t *testing.T) {
+		p := sampleProduct(false)
+		p.Gallery = []domain.GalleryImage{{URL: "https://cdn.example.com/lado.jpg"}}
+
+		body := get(t, p)
+
+		images := body["images"].([]any)
+		require.Len(t, images, 2)
+		assert.Equal(t, body["image"], images[0])
+		assert.Equal(t, "https://cdn.example.com/lado.jpg", images[1].(map[string]any)["url"])
 	})
 }
