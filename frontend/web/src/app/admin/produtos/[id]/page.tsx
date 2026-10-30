@@ -133,7 +133,7 @@ export default async function AdminProduct({ params, searchParams }: Props) {
             brand: p.brand ?? "",
             description: p.description ?? "",
             category_id: p.category.id,
-            image_url: p.image_url ?? "",
+            image_urls: p.images?.map((i) => i.url) ?? (p.image_url ? [p.image_url] : []),
             price: reaisInput(p.price.amount_cents),
             status: p.status,
           }}

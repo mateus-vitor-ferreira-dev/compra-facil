@@ -36,10 +36,10 @@ test("e-mail não confirmado oferece mandar o link de novo", async ({ page }) =>
 
 test("?voltar= só leva a páginas da loja", async ({ page }) => {
   await signIn(page, "ana@exemplo.com", "senha-boa-123", "/entrar?voltar=//evil.example");
-  await expect(page).toHaveURL("http://localhost:3000/conta");
+  await expect(page).toHaveURL("/conta");
 
   await page.getByRole("button", { name: "Sair" }).click();
-  await expect(page).toHaveURL("http://localhost:3000/");
+  await expect(page).toHaveURL("/");
   await signIn(page, "ana@exemplo.com", "senha-boa-123", "/entrar?voltar=%2Fcarrinho");
   await expect(page).toHaveURL(/\/carrinho$/);
 });
@@ -147,7 +147,7 @@ test("o pedido entregue aceita a desistência em 7 dias, com confirmação", asy
 test("sair apaga a sessão e o cabeçalho volta a oferecer Entrar", async ({ page, context }) => {
   await signIn(page, "ana@exemplo.com");
   await page.getByRole("button", { name: "Sair" }).click();
-  await expect(page).toHaveURL("http://localhost:3000/");
+  await expect(page).toHaveURL("/");
   await expect(page.getByRole("banner").getByRole("link", { name: "Entrar" })).toBeVisible();
   expect(
     (await context.cookies()).filter((c) => c.name.startsWith("cf_") && c.name !== "cf_cart"),

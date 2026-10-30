@@ -6,6 +6,7 @@ import { TextField } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/utils";
 import { FormError } from "./form-error";
+import { ProductPhotos } from "./product-photos";
 import { STATUS_LABEL } from "./product-status";
 
 export type ProductFormValues = {
@@ -16,7 +17,8 @@ export type ProductFormValues = {
   brand: string;
   description: string;
   category_id: string;
-  image_url: string;
+  /** a primeira é a dos cards da vitrine */
+  image_urls: string[];
   price: string;
   status: "draft" | "active" | "inactive";
 };
@@ -132,14 +134,7 @@ export function ProductForm({
           </p>
         )}
       </div>
-      <TextField
-        label="Foto (URL)"
-        name="image_url"
-        type="url"
-        defaultValue={v.image_url}
-        error={err.image_url}
-        hint="Endereço https da foto. Vazio usa o ícone da categoria."
-      />
+      <ProductPhotos initial={initial.image_urls} error={err.photos} />
 
       <div role="radiogroup" aria-labelledby="situacao" className="space-y-2">
         <p id="situacao" className="font-medium">

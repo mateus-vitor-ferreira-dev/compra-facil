@@ -120,3 +120,31 @@ test("sitemap lista as categorias", async ({ request }) => {
   expect(xml).toContain("/categoria/fones</loc>");
   expect(xml).toContain("/ofertas</loc>");
 });
+
+test("galeria do produto: miniaturas e setas trocam a foto", async ({ page }) => {
+  await page.goto("/produto/0199f6a0-0000-7000-8000-000000000000");
+  const fotos = page.getByRole("group", { name: /^Fotos de / });
+  const rail = fotos.getByRole("group", { name: /Foto em destaque/ });
+  const left = () => rail.evaluate((el) => Math.round(el.scrollLeft / el.clientWidth));
+
+  const third = fotos.getByRole("button", { name: "Ver a foto 3 de 3" });
+  await third.click();
+  await expect(third).toHaveAttribute("aria-current", "true");
+  await expect.poll(left).toBe(2);
+
+  await third.press("ArrowLeft");
+  const second = fotos.getByRole("button", { name: "Ver a foto 2 de 3" });
+  await expect(second).toBeFocused();
+  await expect.poll(left).toBe(1);
+  await expect(fotos.getByText("Foto 2 de 3")).toBeAttached();
+});
+
+test("galeria no celular: arrastar a faixa marca a miniatura", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto("/produto/0199f6a0-0000-7000-8000-000000000000");
+  const fotos = page.getByRole("group", { name: /^Fotos de / });
+  await fotos.getByRole("group", { name: /Foto em destaque/ }).evaluate((el) => {
+    el.scrollBy({ left: el.clientWidth, behavior: "instant" });
+  });
+  await expect(fotos.getByRole("button", { name: "Ver a foto 2 de 3" })).toHaveAttribute("aria-current", "true");
+});
