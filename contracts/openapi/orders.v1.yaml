@@ -405,6 +405,25 @@ components:
           format: date-time
           description: Quando a nota foi cancelada (o pedido foi estornado por inteiro).
 
+    OrderReturnInvoice:
+      type: object
+      description: A NF-e de devolução (#223), quando o cliente desiste da compra. Referencia a nota de venda.
+      required: [access_key, number, series, issued_at]
+      properties:
+        access_key:
+          type: string
+          pattern: "^[0-9]{44}$"
+          description: A chave de acesso, para consultar a nota na SEFAZ.
+        number:
+          type: integer
+          minimum: 1
+        series:
+          type: integer
+          minimum: 0
+        issued_at:
+          type: string
+          format: date-time
+
     Recipient:
       type: object
       description: |
@@ -628,6 +647,11 @@ components:
           description: A nota fiscal, depois que o fulfillment a emite; nula antes disso.
           oneOf:
             - $ref: "#/components/schemas/OrderInvoice"
+            - type: "null"
+        return_invoice:
+          description: A nota de devolução, depois que o cliente desiste da compra e o fulfillment a emite.
+          oneOf:
+            - $ref: "#/components/schemas/OrderReturnInvoice"
             - type: "null"
         sent_to_supplier_at:
           type: [string, "null"]

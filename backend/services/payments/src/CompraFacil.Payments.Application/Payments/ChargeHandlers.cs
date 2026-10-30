@@ -75,10 +75,10 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
             new PaymentFailedData(p.OrderId, p.Id, p.Amount, p.Provider, reason));
     }
 
-    public void Refunded(Payment p, long amountCents, RefundKind kind) =>
+    public void Refunded(Payment p, long amountCents, RefundKind kind, string? reason = null) =>
         outbox.Add(PaymentEvents.Topic, Key(p), PaymentEvents.PaymentRefunded,
             new PaymentRefundedData(p.OrderId, p.Id, new Money(amountCents, p.Amount.Currency), p.RefundedCents, p.Provider,
-                p.RefundReference, p.RefundedAt!.Value, kind, kind == RefundKind.Void || p.Status == PaymentStatus.Refunded));
+                p.RefundReference, p.RefundedAt!.Value, kind, kind == RefundKind.Void || p.Status == PaymentStatus.Refunded, reason));
 
     private static string Key(Payment p) => p.OrderId.ToString();
 }
@@ -258,7 +258,7 @@ public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome ou
                 payment.Void(clock.GetUtcNow());
                 if (wasAuthorized)
                 {
-                    outcome.Refunded(payment, payment.Amount.AmountCents, RefundKind.Void);
+                    outcome.Refunded(payment, payment.Amount.AmountCents, RefundKind.Void, reason);
                     return "void";
                 }
                 return null;
@@ -268,7 +268,7 @@ public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome ou
                 var refund = await provider.RefundAsync(payment.ProviderReference!, left, key, ct);
                 if (payment.Refund(refund.AmountCents, key, refund.Reference, clock.GetUtcNow()))
                 {
-                    outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund);
+                    outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund, reason);
                     return "refund";
                 }
                 return null;

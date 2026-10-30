@@ -234,6 +234,17 @@ export default function (products) {
     check(paymentOf(orderId, 'refunded'), { 'estorno do valor todo': (p) => p.refunded_cents === p.amount.amount_cents });
     check(eventually('e-mail da devolução', () => emailsTo(customer.email, 'Devolução do pedido')), { 'e-mail da devolução': (n) => n >= 1 });
     check(eventually('e-mail do estorno', () => emailsTo(customer.email, 'Estorno do pedido')), { 'e-mail do estorno': (n) => n >= 1 });
+    // a nota de venda continua valendo e sai a de devolução, referenciando-a
+    const returned = eventually('nota de devolução', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('return_invoice') ? res.json() : null;
+    });
+    check(returned, {
+      'nota de devolução emitida': (o) => /^[0-9]{44}$/.test(o.return_invoice.access_key),
+      'nota de venda não cancelada': (o) => !o.invoice.cancelled_at,
+    });
+    const returnDanfe = http.get(`${GATEWAY}/fulfillment/v1/me/invoices/${orderId}/return-danfe`, { headers: auth(customer.token), tags: { name: 'danfe' } });
+    check(returnDanfe, { 'DANFE da devolução em PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf') });
   });
 
   group('2. estoque insuficiente', () => {

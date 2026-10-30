@@ -28,6 +28,11 @@ public sealed class InvoiceOptions
     public string CfopInState { get; set; } = "5120";
     public string CfopOutOfState { get; set; } = "6120";
 
+    /// <summary>A nota de devolução (#223): entrada, 1.202 para o mesmo estado da loja, 2.202 para outro.</summary>
+    public string ReturnOperationNature { get; set; } = "Devolução de venda de mercadoria adquirida de terceiros";
+    public string ReturnCfopInState { get; set; } = "1202";
+    public string ReturnCfopOutOfState { get; set; } = "2202";
+
     public InvoiceIssuerParty Issuer { get; set; } = new();
 }
 

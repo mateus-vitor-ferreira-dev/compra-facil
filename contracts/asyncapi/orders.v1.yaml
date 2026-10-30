@@ -24,8 +24,8 @@ info:
        rejeitou a nota) → `OrderCancelled`, que faz o payments estornar o cliente (compensação);
        `PaymentRefunded` → `refunded_at`.
 
-    A nota fiscal (`fulfillment.invoice.v1`, #221): `InvoiceIssued` grava a nota no pedido e
-    `InvoiceCancelled`, o cancelamento dela; nenhum dos dois publica.
+    A nota fiscal (`fulfillment.invoice.v1`, #221): `InvoiceIssued` grava a nota no pedido,
+    `InvoiceCancelled`, o cancelamento dela, e `InvoiceReturnIssued`, a nota de devolução; nenhum publica.
 
     Também consome `catalog.product.v1` e `catalog.campaign.v1` para manter o snapshot local de
     produtos e campanhas, usado só quando o gRPC do catálogo está fora.
@@ -139,6 +139,7 @@ operations:
     messages:
       - $ref: "#/channels/invoiceEvents/messages/InvoiceIssued"
       - $ref: "#/channels/invoiceEvents/messages/InvoiceCancelled"
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceReturnIssued"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"
 

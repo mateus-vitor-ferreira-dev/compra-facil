@@ -12,7 +12,7 @@ conferir os campos na documentação dela: este simulador não foi validado cont
 | `PORT` | `8090` | Porta HTTP (no compose, `127.0.0.1:8094`). |
 | `SIM_CLIENT_ID`, `SIM_CLIENT_SECRET` | `sim-client`, `sim-secret` | As credenciais do `POST /oauth/token`. |
 | `SIM_TOKEN_TTL` | `1h` | Validade do token. |
-| `SIM_ALLOWED_CFOP` | `5120,6120` | CFOPs aceitos (venda à ordem: dentro e fora do estado). |
+| `SIM_ALLOWED_CFOP` | `5120,6120,1202,2202` | CFOPs aceitos (venda à ordem e devolução, dentro e fora do estado). |
 | `SIM_CANCEL_WINDOW` | `24h` | Até quando a nota autorizada pode ser cancelada. |
 
 ## API
@@ -39,7 +39,8 @@ Erros no formato da Nuvem Fiscal: `{"error": {"code", "message"}}`.
 | 778 | NCM sem 8 dígitos |
 | 543 | CFOP fora de `SIM_ALLOWED_CFOP` |
 | 610 | Total da nota diferente da soma dos itens |
-| 866 | Pagamentos menores que o total |
+| 866 | Pagamentos menores que o total (não vale para a devolução, que não recebe nada) |
+| 267 | Devolução (`finNFe` 4) sem `NFref.refNFe` de uma nota autorizada (código próprio do simulador) |
 | 999 | E-mail do destinatário com `+recusar-nota` (para testar a compensação) |
 
 ## Rotas de demonstração (sem token)

@@ -25,6 +25,7 @@ public enum InvoiceChange
     Issued,
     Rejected,
     Cancelled,
+    ReturnIssued,
 }
 
 /// <summary>
@@ -80,6 +81,20 @@ public sealed class Invoice
 
     /// <summary>O emissor recusou o cancelamento (ex.: fora do prazo): fica para a equipe resolver.</summary>
     public string? CancelError { get; private set; }
+
+    /// <summary>O cliente desistiu da compra (#223): a nota de devolução está pedida; o laço dela a pega.</summary>
+    public DateTimeOffset? ReturnRequestedAt { get; private set; }
+    public DateTimeOffset? ReturnClaimedAt { get; private set; }
+
+    /// <summary>A NF-e de devolução: referencia esta nota, que continua valendo (a SEFAZ só cancela em 24 h).</summary>
+    public string? ReturnProviderId { get; private set; }
+    public string? ReturnAccessKey { get; private set; }
+    public int? ReturnNumber { get; private set; }
+    public int? ReturnSeries { get; private set; }
+    public DateTimeOffset? ReturnIssuedAt { get; private set; }
+
+    /// <summary>A SEFAZ rejeitou a nota de devolução: fica para a equipe resolver.</summary>
+    public string? ReturnError { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
     public uint Version { get; private set; }
@@ -159,4 +174,28 @@ public sealed class Invoice
     }
 
     public void MarkCancelFailed(string error) => CancelError = error.Length > 500 ? error[..500] : error;
+
+    /// <summary>O cliente desistiu da compra: pede a nota de devolução. False se não há nota autorizada ou já foi pedida.</summary>
+    public bool RequestReturn(DateTimeOffset now)
+    {
+        if (Status != InvoiceStatus.Authorized || ReturnRequestedAt is not null)
+        {
+            return false;
+        }
+        ReturnRequestedAt = now;
+        return true;
+    }
+
+    public InvoiceChange MarkReturnIssued(string providerId, string accessKey, int number, int series, DateTimeOffset issuedAt)
+    {
+        if (ReturnAccessKey is not null)
+        {
+            return InvoiceChange.None;
+        }
+        (ReturnProviderId, ReturnAccessKey, ReturnNumber, ReturnSeries, ReturnIssuedAt) = (providerId, accessKey, number, series, issuedAt);
+        ReturnError = null;
+        return InvoiceChange.ReturnIssued;
+    }
+
+    public void MarkReturnFailed(string error) => ReturnError = error.Length > 500 ? error[..500] : error;
 }

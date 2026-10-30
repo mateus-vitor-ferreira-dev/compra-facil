@@ -240,6 +240,14 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
             withInvoice.GetProperty("invoice").GetProperty("number").GetInt32()));
         Assert.Equal([OrderEvents.OrderConfirmed], await EventTypesAsync(order)); // a nota não publica
 
+        var returnKey = new string('4', 44);
+        await HandleAsync<InvoiceReturnIssuedData, OnInvoiceReturnIssued>(new InvoiceReturnIssuedData(order, returnKey, 2001, 1, DateTimeOffset.UtcNow));
+        var withReturn = await GetOrderAsync(order);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", withReturn.GetRawText());
+        Assert.Equal((returnKey, 2001), (withReturn.GetProperty("return_invoice").GetProperty("access_key").GetString(),
+            withReturn.GetProperty("return_invoice").GetProperty("number").GetInt32()));
+        Assert.Equal(JsonValueKind.Null, withReturn.GetProperty("invoice").GetProperty("cancelled_at").ValueKind);
+
         await HandleAsync<InvoiceCancelledData, OnInvoiceCancelled>(new InvoiceCancelledData(order, DateTimeOffset.UtcNow));
         Assert.NotEqual(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("invoice").GetProperty("cancelled_at").ValueKind);
 

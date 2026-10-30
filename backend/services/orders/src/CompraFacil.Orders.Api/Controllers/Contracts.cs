@@ -60,6 +60,7 @@ public sealed record OrderResponse(
     Recipient? Recipient,
     ShippingAddress? ShippingAddress,
     OrderInvoice? Invoice,
+    OrderReturnInvoice? ReturnInvoice,
     DateTimeOffset? StockReservedAt,
     DateTimeOffset? SentToSupplierAt,
     Tracking? Tracking,
@@ -76,7 +77,7 @@ public sealed record OrderResponse(
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.CustomerId, o.Status, o.CancellationReason, [.. o.Items.Select(OrderItemData.From)],
             o.Items.Aggregate(Money.Zero(o.Total.Currency), (sum, i) => sum.Plus(i.LineTotal)), OrderShippingResponse.From(o.Shipping),
-            o.Total, o.PaymentId, new OrderPaymentResponse(o.PaymentMethod, o.Installments, o.Pix), o.Recipient, o.ShippingAddress, o.Invoice, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt, o.ReturnRequestedAt, o.ReturnableUntil,
+            o.Total, o.PaymentId, new OrderPaymentResponse(o.PaymentMethod, o.Installments, o.Pix), o.Recipient, o.ShippingAddress, o.Invoice, o.ReturnInvoice, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt, o.ReturnRequestedAt, o.ReturnableUntil,
             o.CreatedAt, o.UpdatedAt);
     }
 }

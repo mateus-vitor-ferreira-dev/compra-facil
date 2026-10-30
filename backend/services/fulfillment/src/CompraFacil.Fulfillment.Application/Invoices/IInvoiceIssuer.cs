@@ -19,6 +19,12 @@ public interface IInvoiceIssuer
 {
     Task<InvoiceIssue> IssueAsync(Invoice invoice, CancellationToken ct);
 
+    /// <summary>
+    /// A NF-e de devolução da nota autorizada (#223): entrada, referenciando a chave da nota de venda. Como a
+    /// emissão, repetir devolve a mesma nota.
+    /// </summary>
+    Task<InvoiceIssue> IssueReturnAsync(Invoice invoice, CancellationToken ct);
+
     /// <summary>O XML autorizado (nfeProc), para o fornecedor.</summary>
     Task<string> GetXmlAsync(string providerId, CancellationToken ct);
 

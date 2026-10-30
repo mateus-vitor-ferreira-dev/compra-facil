@@ -295,6 +295,11 @@ components:
                     enum: [refund, void]
                   full:
                     type: boolean
+                  reason:
+                    type: [string, "null"]
+                    description: |
+                      Por que o dinheiro voltou; nulo no estorno pelo painel. `return`: o cliente desistiu da compra
+                      (#223), e o fulfillment emite a nota de devolução em vez de cancelar a de venda.
 
   schemas:
     Provider:

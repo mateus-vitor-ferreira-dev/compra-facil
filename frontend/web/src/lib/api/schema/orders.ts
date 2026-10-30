@@ -215,6 +215,15 @@ export interface components {
              */
             cancelled_at?: string | null;
         };
+        /** @description A NF-e de devolução (#223), quando o cliente desiste da compra. Referencia a nota de venda. */
+        OrderReturnInvoice: {
+            /** @description A chave de acesso, para consultar a nota na SEFAZ. */
+            access_key: string;
+            number: number;
+            series: number;
+            /** Format: date-time */
+            issued_at: string;
+        };
         /**
          * @description Quem recebe o pedido (#221): o nome e o CPF vão na nota fiscal; o telefone, à transportadora. O
          *     CPF e o telefone podem ir com máscara; o pedido guarda só os dígitos.
@@ -341,6 +350,8 @@ export interface components {
             shipping_address?: components["schemas"]["ShippingAddress"] | null;
             /** @description A nota fiscal, depois que o fulfillment a emite; nula antes disso. */
             invoice?: components["schemas"]["OrderInvoice"] | null;
+            /** @description A nota de devolução, depois que o cliente desiste da compra e o fulfillment a emite. */
+            return_invoice?: components["schemas"]["OrderReturnInvoice"] | null;
             /**
              * Format: date-time
              * @description Quando o fornecedor aceitou o pedido pago (`confirmed`, antes de `shipped`).

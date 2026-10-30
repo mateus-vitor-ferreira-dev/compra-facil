@@ -27,14 +27,27 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
     public async Task<InvoiceIssue> IssueAsync(Invoice invoice, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(invoice);
+        return await EmitAsync(invoice.Id.ToString(), Body(invoice, options.Value, isReturn: false), ct);
+    }
+
+    public async Task<InvoiceIssue> IssueReturnAsync(Invoice invoice, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(invoice);
+        return await EmitAsync(ReturnReference(invoice), Body(invoice, options.Value, isReturn: true), ct);
+    }
+
+    /// <summary>A devolução tem a própria referência: a do pedido é a nota de venda.</summary>
+    private static string ReturnReference(Invoice invoice) => $"{invoice.Id}-devolucao";
+
+    private async Task<InvoiceIssue> EmitAsync(string reference, object body, CancellationToken ct)
+    {
         var o = options.Value;
-        var reference = invoice.Id.ToString();
         var found = await SendAsync<Page>(() => new HttpRequestMessage(HttpMethod.Get,
             $"nfe?ambiente={Uri.EscapeDataString(o.Environment)}&referencia={Uri.EscapeDataString(reference)}"), ct);
         var existing = found?.Data is { Count: > 0 } list ? list[0] : null;
         var dfe = existing ?? await SendAsync<Dfe>(() => new HttpRequestMessage(HttpMethod.Post, "nfe")
         {
-            Content = JsonContent.Create(Body(invoice, o), options: Json.Write),
+            Content = JsonContent.Create(body, options: Json.Write),
         }, ct) ?? throw new InvoiceIssuerUnavailableException("resposta vazia do emissor");
         return dfe.Status switch
         {
@@ -73,35 +86,38 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
         }
     }
 
-    private object Body(Invoice invoice, InvoiceOptions o)
+    private object Body(Invoice invoice, InvoiceOptions o, bool isReturn)
     {
         var to = invoice.ShipTo;
         var issuer = o.Issuer;
         var sameState = string.Equals(to.State, issuer.State, StringComparison.OrdinalIgnoreCase);
-        var cfop = sameState ? o.CfopInState : o.CfopOutOfState;
+        var cfop = isReturn
+            ? (sameState ? o.ReturnCfopInState : o.ReturnCfopOutOfState)
+            : (sameState ? o.CfopInState : o.CfopOutOfState);
         decimal Reais(long cents) => cents / 100m;
         var products = invoice.Lines.Sum(l => l.TotalCents);
         var freight = Freight(invoice);
         return new
         {
             ambiente = o.Environment,
-            referencia = invoice.Id.ToString(),
+            referencia = isReturn ? ReturnReference(invoice) : invoice.Id.ToString(),
             infNFe = new
             {
                 versao = "4.00",
                 ide = new
                 {
                     cUF = StateCode(issuer.State),
-                    natOp = o.OperationNature,
+                    natOp = isReturn ? o.ReturnOperationNature : o.OperationNature,
                     mod = 55,
                     serie = o.Series,
                     dhEmi = clock.GetUtcNow().ToString("yyyy-MM-ddTHH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
-                    tpNF = 1, // saída
+                    tpNF = isReturn ? 0 : 1, // entrada na devolução, saída na venda
                     idDest = sameState ? 1 : 2, // operação interna ou interestadual
                     cMunFG = issuer.CityCode,
                     tpImp = 1,
                     tpEmis = 1,
-                    finNFe = 1, // normal
+                    finNFe = isReturn ? 4 : 1, // devolução ou normal
+                    NFref = isReturn ? new[] { new { refNFe = invoice.AccessKey } } : null, // a nota de venda
                     indFinal = 1, // consumidor final
                     indPres = 2, // venda pela internet
                 },
@@ -171,7 +187,13 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
                 transp = new { modFrete = 0 }, // frete por conta do emitente (o fornecedor manda)
                 pag = new
                 {
-                    detPag = new[] { new { tPag = s_paymentCodes.GetValueOrDefault(invoice.PaymentMethod, "99"), vPag = Reais(invoice.TotalCents) } },
+                    // a devolução não recebe nada (90 = sem pagamento): o estorno ao cliente é fora da nota
+                    detPag = new[]
+                    {
+                        isReturn
+                            ? new { tPag = "90", vPag = 0m }
+                            : new { tPag = s_paymentCodes.GetValueOrDefault(invoice.PaymentMethod, "99"), vPag = Reais(invoice.TotalCents) },
+                    },
                 },
             },
         };

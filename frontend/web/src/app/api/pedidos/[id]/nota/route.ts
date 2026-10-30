@@ -7,9 +7,9 @@ import { env } from "@/lib/env";
 type Context = { params: Promise<{ id: string }> };
 
 /**
- * O DANFE da nota fiscal do pedido (#221), para o cliente baixar: o BFF pede ao fulfillment
- * (`/fulfillment/v1/me/invoices/{id}/danfe`) com o token do cookie e repassa o PDF. A nota de outro
- * cliente, ou a que ainda não saiu, dá 404 lá.
+ * O DANFE da nota fiscal do pedido (#221), ou o da nota de devolução com `?tipo=devolucao` (#223), para o
+ * cliente baixar: o BFF pede ao fulfillment (`/fulfillment/v1/me/invoices/{id}/danfe`) com o token do cookie
+ * e repassa o PDF. A nota de outro cliente, ou a que ainda não saiu, dá 404 lá.
  */
 export async function GET(request: Request, { params }: Context): Promise<Response> {
   const { id } = await params;
@@ -17,9 +17,10 @@ export async function GET(request: Request, { params }: Context): Promise<Respon
   const token = await accessToken();
   if (!token) return problem(401, "Não autenticado", "entre na conta para baixar a nota");
 
+  const document = new URL(request.url).searchParams.get("tipo") === "devolucao" ? "return-danfe" : "danfe";
   let upstream: Response;
   try {
-    upstream = await fetch(`${env.API_URL.replace(/\/$/, "")}/fulfillment/v1/me/invoices/${id}/danfe`, {
+    upstream = await fetch(`${env.API_URL.replace(/\/$/, "")}/fulfillment/v1/me/invoices/${id}/${document}`, {
       headers: {
         ...gatewayHeaders(request.headers),
         Authorization: `Bearer ${token}`,

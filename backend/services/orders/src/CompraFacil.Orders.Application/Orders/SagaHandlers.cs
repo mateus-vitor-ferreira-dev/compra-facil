@@ -215,6 +215,17 @@ public sealed class OnInvoiceIssued(OrderProgress progress) : IHandleEvent<Invoi
     }
 }
 
+/// <summary>InvoiceReturnIssued → a nota de devolução foi autorizada: o cliente a vê no pedido. Não publica.</summary>
+public sealed class OnInvoiceReturnIssued(OrderProgress progress) : IHandleEvent<InvoiceReturnIssuedData>
+{
+    public Task HandleAsync(InvoiceReturnIssuedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var invoice = new OrderReturnInvoice(data.AccessKey, data.Number, data.Series, data.IssuedAt);
+        return progress.ApplyAsync(data.OrderId, "InvoiceReturnIssued", (order, now) => order.RecordReturnInvoice(invoice, now), _ => null, ct);
+    }
+}
+
 /// <summary>InvoiceCancelled → a nota foi cancelada depois do estorno. Não publica.</summary>
 public sealed class OnInvoiceCancelled(OrderProgress progress) : IHandleEvent<InvoiceCancelledData>
 {
