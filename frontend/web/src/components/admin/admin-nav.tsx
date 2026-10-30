@@ -10,6 +10,7 @@ export const ADMIN_SECTIONS = [
   { href: "/admin/campanhas", label: "Campanhas" },
   { href: "/admin/fornecedor", label: "Fornecedor" },
   { href: "/admin/atrasos", label: "Pedidos atrasados" },
+  { href: "/admin/devolucoes", label: "Devoluções" },
   { href: "/admin/falhas", label: "Mensagens com falha" },
 ] as const;
 

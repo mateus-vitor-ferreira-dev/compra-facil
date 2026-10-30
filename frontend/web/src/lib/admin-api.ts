@@ -273,6 +273,7 @@ export function replayDeadLetters(token: string, service: DltService) {
 // ---------- pedidos atrasados no fornecedor ----------
 
 export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"];
+export type SupplierReturn = FulfillmentSchemas["schemas"]["SupplierReturn"];
 
 /**
  * Os pedidos parados além do prazo do fornecedor (despacho ou entrega), os mais atrasados primeiro, e o
@@ -281,6 +282,17 @@ export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"]
 export async function overdueOrders(token: string) {
   const result = await run(() =>
     api.fulfillment({ token }).GET("/v1/admin/supplier-orders/overdue", {
+      params: { query: { limit: 200 } },
+      cache: "no-store",
+    }),
+  );
+  return { result, readAt: Date.now() };
+}
+
+/** As devoluções ao fornecedor que pedem atenção (#223), e o momento da leitura. */
+export async function supplierReturns(token: string) {
+  const result = await run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/supplier-returns", {
       params: { query: { limit: 200 } },
       cache: "no-store",
     }),
