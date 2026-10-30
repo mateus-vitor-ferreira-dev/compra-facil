@@ -80,20 +80,22 @@ func (h *AdminHandler) Register(r gin.IRouter) {
 // ---------- produtos ----------
 
 type productInputDTO struct {
-	SKU         string               `json:"sku"`
-	Name        string               `json:"name"`
-	Description string               `json:"description"`
-	Brand       *string              `json:"brand"`
-	CategoryID  uuid.UUID            `json:"category_id"`
-	ImageURL    *string              `json:"image_url"`
-	PriceCents  int64                `json:"price_cents"`
-	Status      domain.ProductStatus `json:"status"`
+	SKU         string    `json:"sku"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Brand       *string   `json:"brand"`
+	CategoryID  uuid.UUID `json:"category_id"`
+	ImageURL    *string   `json:"image_url"`
+	// MoreImageURLs: as outras fotos, na ordem; ausente mantém as gravadas
+	MoreImageURLs []string             `json:"more_image_urls"`
+	PriceCents    int64                `json:"price_cents"`
+	Status        domain.ProductStatus `json:"status"`
 }
 
 func (in productInputDTO) toService() service.ProductInput {
 	return service.ProductInput{
 		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
-		ImageURL: in.ImageURL, PriceCents: in.PriceCents, Status: in.Status,
+		ImageURL: in.ImageURL, MoreImageURLs: in.MoreImageURLs, PriceCents: in.PriceCents, Status: in.Status,
 	}
 }
 
@@ -129,7 +131,7 @@ func (h *AdminHandler) createProduct(c *gin.Context) {
 	h.audit(c, "produto criado", "product_id", p.ID)
 	c.Header("Location", "/v1/admin/products/"+p.ID.String())
 	c.Header("ETag", etag(p.Version))
-	c.JSON(http.StatusCreated, toAdminProductDTO(p))
+	c.JSON(http.StatusCreated, toAdminProductDetailDTO(p))
 }
 
 func (h *AdminHandler) getProduct(c *gin.Context) {
@@ -143,7 +145,7 @@ func (h *AdminHandler) getProduct(c *gin.Context) {
 		return
 	}
 	c.Header("ETag", etag(p.Version))
-	c.JSON(http.StatusOK, toAdminProductDTO(p))
+	c.JSON(http.StatusOK, toAdminProductDetailDTO(p))
 }
 
 func (h *AdminHandler) updateProduct(c *gin.Context) {
@@ -166,7 +168,7 @@ func (h *AdminHandler) updateProduct(c *gin.Context) {
 	}
 	h.audit(c, "produto alterado", "product_id", p.ID)
 	c.Header("ETag", etag(p.Version))
-	c.JSON(http.StatusOK, toAdminProductDTO(p))
+	c.JSON(http.StatusOK, toAdminProductDetailDTO(p))
 }
 
 func (h *AdminHandler) deleteProduct(c *gin.Context) {

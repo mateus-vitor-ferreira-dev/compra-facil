@@ -22,6 +22,9 @@ var photosJSON []byte
 // tipo sem nenhuma ainda é aceito: a loja mostra o ícone da categoria até as fotos chegarem.
 const minPhotosPerSubcategory = 3
 
+// maxPhotosPerProduct: quantas fotos do tipo a galeria de um produto mostra (#207).
+const maxPhotosPerProduct = 4
+
 type photo struct {
 	Width    int `json:"width"`
 	Height   int `json:"height"`
@@ -69,4 +72,15 @@ func photoFor(photos map[string]photo, mediaURL, subSlug string, n int) (string,
 		img.Variants[i] = domain.ImageVariant{Width: v.Width, URL: base + v.File}
 	}
 	return img.Variants[len(img.Variants)-1].URL, img
+}
+
+// galleryFor são as fotos seguintes à foto n do tipo, em ciclo e sem repetir: com a primeira, a galeria
+// tem até maxPhotosPerProduct.
+func galleryFor(photos map[string]photo, mediaURL, subSlug string, n int) []domain.GalleryImage {
+	var gallery []domain.GalleryImage
+	for k := 1; k < min(photoCount(photos, subSlug), maxPhotosPerProduct); k++ {
+		url, image := photoFor(photos, mediaURL, subSlug, n+k)
+		gallery = append(gallery, domain.GalleryImage{URL: url, Image: image})
+	}
+	return gallery
 }
