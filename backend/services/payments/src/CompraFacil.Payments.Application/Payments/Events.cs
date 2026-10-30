@@ -44,7 +44,7 @@ public sealed record PaymentPendingData(Guid OrderId, Guid PaymentId, Money Amou
 
 /// <summary>Pago (PIX) ou com o valor garantido (cartão autorizado): o pedido é confirmado.</summary>
 public sealed record PaymentApprovedData(
-    Guid OrderId, Guid PaymentId, Money Amount, string Provider, string? ProviderReference, PaymentMethod Method, int Installments, bool Captured);
+    Guid OrderId, Guid PaymentId, Money Amount, string Provider, string? ProviderReference, PaymentMethod Method, int Installments, bool Captured, long FeeCents = 0);
 
 public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, Money Amount, string Provider, FailureReason FailureReason);
 

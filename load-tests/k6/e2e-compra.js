@@ -226,6 +226,12 @@ export default function (products) {
     const peek = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(stranger.token), tags: { name: 'order-status' } });
     check(peek, { 'outro cliente não vê o pedido (404)': (r) => r.status === 404 });
 
+    // a margem (#225): o produto do cenário não veio do fornecedor, então a conta fica sem custo, mas com a taxa
+    const margins = http.get(`${GATEWAY}/fulfillment/v1/admin/order-margins?limit=200`, { headers: auth(login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD)), tags: { name: 'order-margins' } });
+    check(margins.json('data').find((m) => m.order_id === orderId), {
+      'margem com o que foi pago e a taxa': (m) => m.revenue_cents > 0 && m.fee_cents > 0 && m.margin_cents === null,
+    });
+
     // arrependimento (#223): o entregue volta em 7 dias, e o cartão capturado é estornado com o frete
     const back = http.post(`${GATEWAY}/orders/v1/orders/${orderId}/return`, null, { headers: auth(customer.token), tags: { name: 'order-return' } });
     check(back, { 'desistência aceita (returned)': (r) => r.status === 200 && r.json('status') === 'returned' });

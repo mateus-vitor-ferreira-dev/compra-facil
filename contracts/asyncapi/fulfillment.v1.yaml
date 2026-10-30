@@ -6,6 +6,8 @@ info:
     Eventos do serviço **fulfillment** (time de Processamento de compras, ASP.NET Core), dono da
     integração com o fornecedor de dropshipping (ADR 0007).
 
+    Consome `PaymentApproved`, pela taxa do provedor, para a margem real do pedido (#225).
+
     Consome `OrderConfirmed`: o pedido pago entra numa fila e um despachante o envia ao fornecedor
     (idempotente pelo número do pedido). O que o fornecedor responde e avisa por webhook vira evento,
     sempre para a frente: `SupplierOrderPlaced` → `SupplierOrderShipped` (com o rastreio) →

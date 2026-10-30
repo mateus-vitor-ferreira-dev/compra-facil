@@ -269,6 +269,47 @@ paths:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
 
+  /v1/admin/order-margins:
+    get:
+      tags: [admin]
+      operationId: listOrderMargins
+      summary: A margem real dos pedidos mais recentes
+      description: |
+        O que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete repassado ao fornecedor e a
+        taxa do pagamento. Em centavos de real. A margem é nula no pedido estornado, e se faltar um dos valores
+        (produto que não veio do fornecedor, ou pedido de antes desta conta).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Pedidos, dos mais recentes aos mais antigos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrderMargin"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/admin/supplier-orders/failed:
     get:
       tags: [admin]
@@ -690,6 +731,44 @@ components:
           format: date-time
         shipped_at:
           type: [string, "null"]
+          format: date-time
+
+    OrderMargin:
+      type: object
+      description: A conta de um pedido, em centavos de real.
+      required: [order_id, outcome, customer_email, created_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          enum: [in_progress, delivered, cancelled, returned]
+        revenue_cents:
+          type: [integer, "null"]
+          format: int64
+          description: O que o cliente pagou, com o frete.
+        product_cost_cents:
+          type: [integer, "null"]
+          format: int64
+          description: O custo dos produtos, no câmbio da compra. Nulo se algum não veio do fornecedor.
+        freight_cents:
+          type: [integer, "null"]
+          format: int64
+          description: O frete cobrado, repassado ao fornecedor pelo preço que ele cotou.
+        fee_cents:
+          type: [integer, "null"]
+          format: int64
+          description: A taxa do provedor de pagamento.
+        margin_cents:
+          type: [integer, "null"]
+          format: int64
+          description: Pode ser negativa. Nula se faltar um dos valores, ou se o cliente foi estornado.
+        customer_email:
+          type: string
+          format: email
+        created_at:
+          type: string
           format: date-time
 
     FailedSupplierOrder:

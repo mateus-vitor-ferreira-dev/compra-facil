@@ -275,6 +275,7 @@ export function replayDeadLetters(token: string, service: DltService) {
 export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"];
 export type SupplierReturn = FulfillmentSchemas["schemas"]["SupplierReturn"];
 export type FailedOrder = FulfillmentSchemas["schemas"]["FailedSupplierOrder"];
+export type OrderMargin = FulfillmentSchemas["schemas"]["OrderMargin"];
 
 /**
  * Os pedidos parados além do prazo do fornecedor (despacho ou entrega), os mais atrasados primeiro, e o
@@ -288,6 +289,16 @@ export async function overdueOrders(token: string) {
     }),
   );
   return { result, readAt: Date.now() };
+}
+
+/** A margem real dos pedidos mais recentes (#225). */
+export function orderMargins(token: string) {
+  return run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/order-margins", {
+      params: { query: { limit: 200 } },
+      cache: "no-store",
+    }),
+  );
 }
 
 /** Os pedidos que não chegaram ao fornecedor nos últimos 30 dias (#225). */
