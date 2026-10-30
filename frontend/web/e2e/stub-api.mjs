@@ -578,6 +578,65 @@ async function tokenize(req, res, url) {
   });
 }
 
+// as devoluções ao fornecedor (#223): uma recusada, com a nota rejeitada, uma parada e uma no prazo
+function supplierReturns() {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const base = {
+    supplier: "cj",
+    supplier_order_id: "CJ2410290001",
+    items: [{ sku: "SIM-V-001", name: "Fone de ouvido", quantity: 1 }],
+    attempts: 0,
+    last_error: null,
+    resolution_reason: null,
+    invoice_error: null,
+    resolved_at: null,
+  };
+  return [
+    {
+      ...base,
+      order_id: "7a1c2e90-0000-7000-8000-000000000001",
+      status: "pending",
+      overdue: true,
+      due_at: iso(now - 2 * day),
+      dispute_id: null,
+      return_code: null,
+      customer_email: "bia@exemplo.com",
+      attempts: 3,
+      last_error: "fornecedor respondeu 503",
+      requested_at: iso(now - 17 * day),
+      opened_at: null,
+    },
+    {
+      ...base,
+      order_id: "8b2d3fa1-0000-7000-8000-000000000002",
+      status: "open",
+      overdue: false,
+      due_at: iso(now + 10 * day),
+      dispute_id: "DSP1000000002",
+      return_code: "RMA00000002",
+      customer_email: "caio@exemplo.com",
+      requested_at: iso(now - 5 * day),
+      opened_at: iso(now - 5 * day),
+    },
+    {
+      ...base,
+      order_id: "6c3e4ab2-0000-7000-8000-000000000003",
+      status: "rejected",
+      overdue: false,
+      due_at: iso(now + 12 * day),
+      dispute_id: "DSP1000000003",
+      return_code: "RMA00000003",
+      customer_email: "dani@exemplo.com",
+      resolution_reason: "produto fora da política de devolução do fornecedor",
+      invoice_error: "267: sem referência",
+      requested_at: iso(now - 3 * day),
+      opened_at: iso(now - 3 * day),
+      resolved_at: iso(now - 1 * day),
+    },
+  ];
+}
+
 // os pedidos atrasados no fornecedor (#219): um preso no fornecedor e um envio que não chegou
 function overdueOrders() {
   const day = 24 * 60 * 60 * 1000;
@@ -824,6 +883,10 @@ createServer(async (req, res) => {
     // reprocessadas, falham de novo e voltam para a fila (são mensagens envenenadas)
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
+  }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-returns") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, { data: supplierReturns() });
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/overdue") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
