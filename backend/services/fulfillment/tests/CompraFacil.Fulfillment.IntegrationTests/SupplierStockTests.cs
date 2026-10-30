@@ -88,6 +88,17 @@ public sealed class SupplierStockTests(FulfillmentFixture fx) : IClassFixture<Fu
         Assert.Equal(("S-1", 0), (await StockEventsAsync())[^1]);
         Assert.Equal(3, (await StockEventsAsync()).Count);
 
+        // o webhook traz a hora em segundos: não perde para uma leitura feita antes dele, no mesmo segundo
+        DateTimeOffset readAt;
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var product = await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().Set<SupplierProduct>()
+                .SingleAsync(p => p.Vid == "S-2", Ct);
+            readAt = product.StockCheckedAt!.Value;
+        }
+        await WebhookAsync(Stock("S-2", 5, new DateTimeOffset(readAt.Ticks - (readAt.Ticks % TimeSpan.TicksPerSecond), TimeSpan.Zero)));
+        Assert.Equal(("S-2", 5), (await StockEventsAsync())[^1]);
+
         // 4. a conferência do pedido: lê no fornecedor agora e espelha
         fx.Supplier.Stock = new() { ["S-1"] = 4, ["S-3"] = 7 };
         using var client = fx.Factory.CreateClient();
