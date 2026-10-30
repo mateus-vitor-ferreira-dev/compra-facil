@@ -146,5 +146,8 @@ test("galeria no celular: arrastar a faixa marca a miniatura", async ({ page }) 
   await fotos.getByRole("group", { name: /Foto em destaque/ }).evaluate((el) => {
     el.scrollBy({ left: el.clientWidth, behavior: "instant" });
   });
-  await expect(fotos.getByRole("button", { name: "Ver a foto 2 de 3" })).toHaveAttribute("aria-current", "true");
+  await expect(fotos.getByRole("button", { name: "Ver a foto 2 de 3" })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
 });

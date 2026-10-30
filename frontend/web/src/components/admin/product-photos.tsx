@@ -35,8 +35,8 @@ export function ProductPhotos({ initial, error }: { initial: string[]; error?: s
     <fieldset className="space-y-2" aria-describedby={error ? "fotos-erro" : "fotos-dica"}>
       <legend className="font-medium">Fotos</legend>
       <p id="fotos-dica" className="text-ink-soft text-sm">
-        Endereço https de cada foto. A primeira aparece nos cards da vitrine; sem nenhuma, o produto usa o ícone
-        da categoria.
+        Endereço https de cada foto. A primeira aparece nos cards da vitrine; sem nenhuma, o produto usa o
+        ícone da categoria.
       </p>
       <ol className="space-y-2">
         {rows.map((row, i) => (
@@ -70,7 +70,12 @@ export function ProductPhotos({ initial, error }: { initial: string[]; error?: s
             >
               <ArrowDown aria-hidden="true" className="size-4" />
             </button>
-            <button type="button" aria-label={`Remover a foto ${i + 1}`} onClick={() => remove(i)} className={action}>
+            <button
+              type="button"
+              aria-label={`Remover a foto ${i + 1}`}
+              onClick={() => remove(i)}
+              className={action}
+            >
               <Trash2 aria-hidden="true" className="size-4" />
             </button>
           </li>

@@ -25,7 +25,10 @@ export type FormState = {
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
 // os nomes dos campos da API, na língua do formulário
-const FIELD = { price_cents: "price", image_url: "photos", more_image_urls: "photos" } as Record<string, string>;
+const FIELD = { price_cents: "price", image_url: "photos", more_image_urls: "photos" } as Record<
+  string,
+  string
+>;
 
 function failure(error: AdminError, values: Record<string, string>): FormState {
   if (error.fields) {

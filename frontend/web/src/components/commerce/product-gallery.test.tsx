@@ -11,9 +11,7 @@ const photo = (name: string) => ({
   ],
 });
 const images = [photo("a"), photo("b"), photo("c")];
-const gallery = () => (
-  <ProductGallery images={images} alt="Smart TV" categorySlug="tv" sizes="50vw" />
-);
+const gallery = () => <ProductGallery images={images} alt="Smart TV" categorySlug="tv" sizes="50vw" />;
 
 describe("ProductGallery", () => {
   beforeEach(() => {

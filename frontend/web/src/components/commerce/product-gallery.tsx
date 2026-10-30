@@ -38,9 +38,12 @@ export function ProductGallery({
 
   const onKeyDown = (event: KeyboardEvent) => {
     const last = images.length - 1;
-    const target = { ArrowRight: Math.min(current + 1, last), ArrowLeft: Math.max(current - 1, 0), Home: 0, End: last }[
-      event.key
-    ];
+    const target = {
+      ArrowRight: Math.min(current + 1, last),
+      ArrowLeft: Math.max(current - 1, 0),
+      Home: 0,
+      End: last,
+    }[event.key];
     if (target === undefined) return;
     event.preventDefault(); // a faixa rolaria sozinha também
     show(target);
@@ -58,7 +61,7 @@ export function ProductGallery({
           const { scrollLeft, clientWidth } = e.currentTarget;
           if (clientWidth > 0) setCurrent(Math.round(scrollLeft / clientWidth));
         }}
-        className="flex snap-x snap-mandatory overflow-x-auto rounded-md [scrollbar-width:none] focus-visible:outline-2 motion-safe:scroll-smooth [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto rounded-md focus-visible:outline-2 motion-safe:scroll-smooth [&::-webkit-scrollbar]:hidden"
       >
         {images.map((image, i) => (
           <div key={image.url} className="w-full shrink-0 snap-center snap-always">
@@ -73,7 +76,7 @@ export function ProductGallery({
         ))}
       </div>
 
-      <ul className="flex gap-2 overflow-x-auto p-0.5 [scrollbar-width:none]">
+      <ul className="flex [scrollbar-width:none] gap-2 overflow-x-auto p-0.5">
         {images.map((image, i) => (
           <li key={image.url} className="shrink-0">
             <button
@@ -89,7 +92,13 @@ export function ProductGallery({
                 i === current ? "border-ink" : "hover:border-ink/40 border-transparent",
               )}
             >
-              <ProductImage image={image} alt="" categorySlug={categorySlug} sizes="80px" className="rounded-sm" />
+              <ProductImage
+                image={image}
+                alt=""
+                categorySlug={categorySlug}
+                sizes="80px"
+                className="rounded-sm"
+              />
             </button>
           </li>
         ))}
