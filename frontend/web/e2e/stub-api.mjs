@@ -884,6 +884,28 @@ createServer(async (req, res) => {
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
   }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/order-margins") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const row = (id, outcome, revenue, cost, freight, fee, margin) => ({
+      order_id: id,
+      outcome,
+      revenue_cents: revenue,
+      product_cost_cents: cost,
+      freight_cents: freight,
+      fee_cents: fee,
+      margin_cents: margin,
+      customer_email: "bia@exemplo.com",
+      created_at: "2026-10-20T15:00:00Z",
+    });
+    return send(res, 200, {
+      data: [
+        row("a1000000-0000-7000-8000-000000000001", "delivered", 12000, 6000, 2000, 598, 3402),
+        row("a2000000-0000-7000-8000-000000000002", "in_progress", 5000, 4800, 1000, 249, -1049),
+        row("a3000000-0000-7000-8000-000000000003", "delivered", 9000, null, 1000, 90, null),
+        row("a4000000-0000-7000-8000-000000000004", "returned", 7000, 3000, 1000, 70, null),
+      ],
+    });
+  }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/failed") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     return send(res, 200, {

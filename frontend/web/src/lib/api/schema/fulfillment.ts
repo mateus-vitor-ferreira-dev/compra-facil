@@ -115,6 +115,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/order-margins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A margem real dos pedidos mais recentes
+         * @description O que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete repassado ao fornecedor e a
+         *     taxa do pagamento. Em centavos de real. A margem é nula no pedido estornado, e se faltar um dos valores
+         *     (produto que não veio do fornecedor, ou pedido de antes desta conta).
+         */
+        get: operations["listOrderMargins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/failed": {
         parameters: {
             query?: never;
@@ -372,6 +394,42 @@ export interface components {
             placed_at?: string | null;
             /** Format: date-time */
             shipped_at?: string | null;
+        };
+        /** @description A conta de um pedido, em centavos de real. */
+        OrderMargin: {
+            /** Format: uuid */
+            order_id: string;
+            /** @enum {string} */
+            outcome: "in_progress" | "delivered" | "cancelled" | "returned";
+            /**
+             * Format: int64
+             * @description O que o cliente pagou, com o frete.
+             */
+            revenue_cents?: number | null;
+            /**
+             * Format: int64
+             * @description O custo dos produtos, no câmbio da compra. Nulo se algum não veio do fornecedor.
+             */
+            product_cost_cents?: number | null;
+            /**
+             * Format: int64
+             * @description O frete cobrado, repassado ao fornecedor pelo preço que ele cotou.
+             */
+            freight_cents?: number | null;
+            /**
+             * Format: int64
+             * @description A taxa do provedor de pagamento.
+             */
+            fee_cents?: number | null;
+            /**
+             * Format: int64
+             * @description Pode ser negativa. Nula se faltar um dos valores, ou se o cliente foi estornado.
+             */
+            margin_cents?: number | null;
+            /** Format: email */
+            customer_email: string;
+            /** Format: date-time */
+            created_at: string;
         };
         /** @description Um pedido que não chegou ao fornecedor. O cliente já foi estornado. */
         FailedSupplierOrder: {
@@ -834,6 +892,34 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listOrderMargins: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedidos, dos mais recentes aos mais antigos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrderMargin"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
         };
     };
     listFailedSupplierOrders: {

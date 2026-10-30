@@ -14,7 +14,8 @@ namespace CompraFacil.Fulfillment.Application.SupplierOrders;
 /// </summary>
 public sealed partial class OnOrderConfirmed(
     ISupplierOrderRepository orders, IInvoiceRepository invoices, ISupplierProductRepository products, InvoiceSettings invoicing,
-    ISupplierGateway supplier, OrderCutoff cutoff, TimeProvider clock, ILogger<OnOrderConfirmed> logger) : IHandleEvent<OrderConfirmedData>
+    ISupplierGateway supplier, OrderCutoff cutoff, Shipping.ShippingSettings shipping, TimeProvider clock, ILogger<OnOrderConfirmed> logger)
+    : IHandleEvent<OrderConfirmedData>
 {
     public async Task HandleAsync(OrderConfirmedData data, EventContext context, CancellationToken ct)
     {
@@ -33,18 +34,35 @@ public sealed partial class OnOrderConfirmed(
         }
         var now = clock.GetUtcNow();
         var items = data.Items.Select(i => new SupplierOrderItem(i.Sku, i.Name, i.Quantity)).ToList();
-        orders.Add(SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, now, data.ShipTo, data.Shipping?.PromisedBy));
+        var order = SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, now, data.ShipTo, data.Shipping?.PromisedBy);
+        // o SKU da loja é o vid do fornecedor: dele saem o custo e o NCM
+        var supplied = (await products.GetManyAsync(supplier.Name, [.. data.Items.Select(i => i.Sku)], ct)).ToDictionary(p => p.Vid);
+        order.RecordEconomics(data.Total.AmountCents, data.Shipping?.Price.AmountCents ?? 0, ProductCost(data.Items, supplied));
+        orders.Add(order);
         if (invoicing.Enabled && data.ShipTo is { } shipTo)
         {
-            // o NCM sai da categoria do produto no fornecedor (o SKU da loja é o vid dele)
-            var categories = (await products.GetManyAsync(supplier.Name, [.. data.Items.Select(i => i.Sku)], ct))
-                .ToDictionary(p => p.Vid, p => p.Category);
             var lines = data.Items.Select(i => new InvoiceLine(
-                i.Sku, i.Name, invoicing.NcmFor(categories.GetValueOrDefault(i.Sku)), i.Quantity,
+                i.Sku, i.Name, invoicing.NcmFor(supplied.GetValueOrDefault(i.Sku)?.Category), i.Quantity,
                 i.UnitPrice.AmountCents, i.LineTotal.AmountCents)).ToList();
             invoices.Add(Invoice.Create(data.OrderId, data.CustomerId, data.CustomerEmail, shipTo, lines, data.PaymentMethod ?? "pix", now,
                 data.Shipping?.Price.AmountCents ?? 0));
         }
+    }
+
+    /// <summary>O custo em reais, no câmbio de agora; nulo se algum produto não veio do fornecedor.</summary>
+    private long? ProductCost(IReadOnlyList<OrderItem> items, Dictionary<string, SupplierProduct> supplied)
+    {
+        long total = 0;
+        foreach (var item in items)
+        {
+            if (!supplied.TryGetValue(item.Sku, out var product))
+            {
+                return null;
+            }
+            var rate = string.Equals(product.Currency, "USD", StringComparison.OrdinalIgnoreCase) ? shipping.UsdToBrl : 1m;
+            total += (long)Math.Ceiling(product.CostCents * rate) * item.Quantity;
+        }
+        return total;
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "pedido {OrderId} confirmado em {ConfirmedAt}, antes do corte {Since}: não vai ao fornecedor")]

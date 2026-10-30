@@ -97,6 +97,19 @@ public sealed class SupplierOrder
     public DateTimeOffset? FailedAt { get; private set; }
     public uint Version { get; private set; }
 
+    /// <summary>O que o cliente pagou, com o frete (#225); nulo nos pedidos de antes disso.</summary>
+    public long? RevenueCents { get; private set; }
+
+    /// <summary>O frete cobrado, que a loja repassa ao fornecedor pelo preço que ele cotou.</summary>
+    public long? FreightCents { get; private set; }
+
+    /// <summary>O custo dos produtos em reais, no câmbio da compra; nulo se algum não veio do fornecedor.</summary>
+    public long? ProductCostCents { get; private set; }
+
+    /// <summary>Fixa os valores da compra: o custo e o câmbio mudam depois, e a margem do pedido, não.</summary>
+    public void RecordEconomics(long revenueCents, long freightCents, long? productCostCents) =>
+        (RevenueCents, FreightCents, ProductCostCents) = (revenueCents, freightCents, productCostCents);
+
     public static SupplierOrder Create(
         Guid orderId, string customerEmail, IReadOnlyList<SupplierOrderItem> items, string supplier, DateTimeOffset now, ShipTo? shipTo = null,
         DateOnly? promisedBy = null)

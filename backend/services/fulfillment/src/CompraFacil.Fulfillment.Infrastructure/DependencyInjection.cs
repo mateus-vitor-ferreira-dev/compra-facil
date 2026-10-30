@@ -21,6 +21,7 @@ public static class DependencyInjection
         builder.AddPostgres<FulfillmentDbContext>();
         builder.Services.AddScoped<ISupplierOrderRepository, SupplierOrderRepository>();
         builder.Services.AddScoped<ISupplierReturnRepository, SupplierReturnRepository>();
+        builder.Services.AddScoped<IOrderMarginRepository, OrderMarginRepository>();
         builder.Services.AddScoped<ISupplierProductRepository, SupplierProductRepository>();
 
         var supplier = builder.Configuration.GetSection("Supplier");
@@ -91,6 +92,7 @@ public static class DependencyInjection
             .Produces(InvoiceEvents.Topic)
             .Handle<OrderConfirmedData, OnOrderConfirmed>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderConfirmed)
             .Handle<PaymentRefundedData, OnPaymentRefunded>(InvoiceEvents.PaymentsTopic, InvoiceEvents.PaymentRefunded)
+            .Handle<PaymentApprovedData, OnPaymentApproved>(InvoiceEvents.PaymentsTopic, "PaymentApproved")
             .Handle<OrderReturnedData, OnOrderReturned>(FulfillmentEvents.OrdersTopic, InvoiceEvents.OrderReturned));
         return builder;
     }

@@ -66,7 +66,7 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
 
     private void Approved(Payment p, bool captured) =>
         outbox.Add(PaymentEvents.Topic, Key(p), PaymentEvents.PaymentApproved,
-            new PaymentApprovedData(p.OrderId, p.Id, p.Amount, p.Provider, p.ProviderReference, p.Method, p.Installments, captured));
+            new PaymentApprovedData(p.OrderId, p.Id, p.Amount, p.Provider, p.ProviderReference, p.Method, p.Installments, captured, p.FeeCents));
 
     private void Failed(Payment p, FailureReason reason, string? reference, DateTimeOffset now)
     {

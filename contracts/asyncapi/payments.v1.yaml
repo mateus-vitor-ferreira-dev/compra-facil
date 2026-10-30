@@ -202,6 +202,11 @@ components:
                     type: integer
                     minimum: 1
                     maximum: 12
+                  fee_cents:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    description: A taxa do provedor neste pagamento, para a margem real do pedido (#225).
                   captured:
                     type: boolean
                     description: Falso no cartão só autorizado.

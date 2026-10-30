@@ -173,13 +173,13 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private async Task ConfirmedAsync(
-        Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null, Guid? customer = null)
+        Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null, Guid? customer = null, string sku = "MOU-000001")
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var handler = cutoff is null
             ? ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider)
             : ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider, cutoff);
-        var item = new OrderItem(Guid.NewGuid(), "MOU-000001", "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
+        var item = new OrderItem(Guid.NewGuid(), sku, "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
         await handler.HandleAsync(new OrderConfirmedData(orderId, customer ?? Guid.NewGuid(), email, [item], new Money(19980, "BRL"),
                 new Recipient("Ana Souza", "52998224725", "11987654321"),
                 new ShippingAddress("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP"),
@@ -678,6 +678,71 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         {
             fx.Supplier.Respond = r => new SupplierPlacement.Accepted("CJ" + r.OrderNumber.ToString("N")[..10]);
         }
+    }
+
+    private async Task PaymentApprovedAsync(Guid id, long fee)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var handler = ActivatorUtilities.CreateInstance<OnPaymentApproved>(scope.ServiceProvider);
+        await handler.HandleAsync(new PaymentApprovedData(id, fee),
+            new EventContext(Guid.NewGuid(), "PaymentApproved", InvoiceEvents.PaymentsTopic, "req", DateTimeOffset.UtcNow), Ct);
+        await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
+    }
+
+    private async Task<Dictionary<Guid, JsonElement>> MarginsAsync()
+    {
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/order-margins?limit=200");
+        request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1order-margins/get/responses/200/content/application~1json/schema", json);
+        return JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().ToDictionary(m => m.GetProperty("order_id").GetGuid(), m => m.Clone());
+    }
+
+    [Fact]
+    public async Task Margem_so_sai_com_a_conta_completa_e_o_estornado_fica_de_fora()
+    {
+        // o produto que não veio do fornecedor não tem custo: a taxa chega antes do pedido, e a margem fica nula
+        var (unknownCost, returned) = (Guid.NewGuid(), Guid.NewGuid());
+        await PaymentApprovedAsync(unknownCost, 300);
+        await PaymentApprovedAsync(unknownCost, 300); // a captura do cartão repete
+        await ConfirmedAsync(unknownCost);
+        await PaymentApprovedAsync(returned, 200);
+        await ConfirmedAsync(returned);
+        await DispatchAsync();
+        await ReturnedAsync(returned);
+
+        var margins = await MarginsAsync();
+        var row = margins[unknownCost];
+        Assert.Equal(300, row.GetProperty("fee_cents").GetInt64());
+        Assert.True(row.GetProperty("revenue_cents").GetInt64() > 0);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("product_cost_cents").ValueKind);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("margin_cents").ValueKind);
+        Assert.Equal("returned", margins[returned].GetProperty("outcome").GetString());
+        Assert.Equal(JsonValueKind.Null, margins[returned].GetProperty("margin_cents").ValueKind);
+    }
+
+    [Fact]
+    public async Task Margem_e_o_pago_menos_custo_no_cambio_da_compra_frete_e_taxa()
+    {
+        var id = Guid.NewGuid();
+        fx.Supplier.Feed = [new SupplierFeedItem("MARGEM-1", "CJMARGEM", "Mouse", "Mouse", 520, "USD", null, null)];
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<CompraFacil.Fulfillment.Application.SupplierCatalog.CatalogSync>().RunAsync(Ct);
+        }
+        fx.Supplier.Feed = [];
+        await PaymentApprovedAsync(id, 995);
+        await ConfirmedAsync(id, sku: "MARGEM-1");
+
+        var row = (await MarginsAsync())[id];
+        var rate = fx.Factory.Services.GetRequiredService<CompraFacil.Fulfillment.Application.Shipping.ShippingSettings>().UsdToBrl;
+        var cost = (long)Math.Ceiling(520 * rate) * 2;
+        Assert.Equal(cost, row.GetProperty("product_cost_cents").GetInt64());
+        Assert.Equal(2430, row.GetProperty("freight_cents").GetInt64());
+        Assert.Equal(19980 - cost - 2430 - 995, row.GetProperty("margin_cents").GetInt64());
     }
 
     [Fact]

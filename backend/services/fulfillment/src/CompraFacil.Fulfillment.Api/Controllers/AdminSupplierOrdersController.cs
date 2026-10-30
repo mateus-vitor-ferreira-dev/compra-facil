@@ -12,8 +12,21 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 [ApiController]
 [Produces("application/json")]
 [Authorize(Policy = JwtAuth.AdminPolicy)]
-public sealed class AdminSupplierOrdersController(OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions) : ControllerBase
+public sealed class AdminSupplierOrdersController(
+    OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions, OrderMargins margins) : ControllerBase
 {
+    /// <summary>listOrderMargins: a margem real dos pedidos mais recentes (#225).</summary>
+    [HttpGet("v1/admin/order-margins")]
+    public async Task<OrderMarginList> ListMargins([FromQuery] int? limit, CancellationToken ct)
+    {
+        var n = limit ?? 50;
+        if (n is < 1 or > OrderMargins.MaxLimit)
+        {
+            throw new ValidationException([new ValidationFailure("Limit", $"deve estar entre 1 e {OrderMargins.MaxLimit}")]);
+        }
+        return new OrderMarginList([.. (await margins.ListAsync(n, ct)).Select(OrderMarginItem.From)]);
+    }
+
     private const int MaxFailed = 200;
 
     /// <summary>listFailedSupplierOrders: os que falharam nos últimos 30 dias (#225).</summary>
@@ -101,6 +114,26 @@ public sealed record OverdueSupplierOrder(
             o.LastError, o.Tracking, o.CreatedAt, o.PlacedAt, o.ShippedAt);
     }
 }
+
+public sealed record OrderMarginItem(
+    Guid OrderId,
+    OrderOutcome Outcome,
+    long? RevenueCents,
+    long? ProductCostCents,
+    long? FreightCents,
+    long? FeeCents,
+    long? MarginCents,
+    string CustomerEmail,
+    DateTimeOffset CreatedAt)
+{
+    public static OrderMarginItem From(OrderMargin m)
+    {
+        ArgumentNullException.ThrowIfNull(m);
+        return new(m.Order.Id, m.Outcome, m.RevenueCents, m.ProductCostCents, m.FreightCents, m.FeeCents, m.MarginCents, m.Order.CustomerEmail, m.Order.CreatedAt);
+    }
+}
+
+public sealed record OrderMarginList(IReadOnlyList<OrderMarginItem> Data);
 
 public sealed record FailedSupplierOrder(
     Guid OrderId,
