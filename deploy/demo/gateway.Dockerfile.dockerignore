@@ -1,0 +1,4 @@
+# só o que esta imagem copia (no lugar do .dockerignore da raiz)
+*
+!deploy/coolify/traefik.yml
+!infra/gateway/traefik/dynamic
