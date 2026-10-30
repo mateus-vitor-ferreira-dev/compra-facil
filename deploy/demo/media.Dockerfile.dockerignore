@@ -1,0 +1,4 @@
+# só o que esta imagem copia (no lugar do .dockerignore da raiz)
+*
+!infra/media/Caddyfile
+!infra/media/produtos
