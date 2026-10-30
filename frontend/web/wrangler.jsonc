@@ -8,11 +8,13 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  // por enquanto, um subdomínio da Digital Codexa: um nível só, que o certificado universal da zona cobre
+  "routes": [{ "pattern": "compra-facil.digitalcodexa.com", "custom_domain": true }],
   // Valores do servidor que não são segredo. Os segredos (BFF_GATEWAY_KEY, GOOGLE_CLIENT_SECRET) vão
   // com `wrangler secret put`.
   "vars": {
-    "API_URL": "https://api.comprafacil.example",
-    "SITE_URL": "https://comprafacil.example",
+    "API_URL": "https://api-compra-facil.digitalcodexa.com",
+    "SITE_URL": "https://compra-facil.digitalcodexa.com",
     // o IP de quem compra, que a Cloudflare põe em toda requisição e não deixa o cliente forjar: o BFF
     // o repassa ao gateway para o rate limit ser por comprador (#176)
     "CLIENT_IP_HEADER": "cf-connecting-ip",
