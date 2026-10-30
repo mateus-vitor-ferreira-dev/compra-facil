@@ -243,6 +243,13 @@ export default function (products) {
       'nota de devolução emitida': (o) => /^[0-9]{44}$/.test(o.return_invoice.access_key),
       'nota de venda não cancelada': (o) => !o.invoice.cancelled_at,
     });
+    // a devolução ao fornecedor: o cliente recebe o código, e o fornecedor (simulado) aprova
+    check(eventually('e-mail das instruções', () => emailsTo(customer.email, 'Como devolver')), { 'e-mail das instruções de devolução': (n) => n >= 1 });
+    const dispute = eventually('devolução aprovada no fornecedor', () => {
+      const res = http.get(`${SUPPLIER_SIM}/sim/disputes`, { tags: { name: 'sim-disputes' } });
+      return (res.json('data') ?? []).find((d) => d.orderNumber === orderId && d.status === 'APPROVED');
+    });
+    check(dispute, { 'devolução aberta com código': (d) => !!d.returnCode });
     const returnDanfe = http.get(`${GATEWAY}/fulfillment/v1/me/invoices/${orderId}/return-danfe`, { headers: auth(customer.token), tags: { name: 'danfe' } });
     check(returnDanfe, { 'DANFE da devolução em PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf') });
   });

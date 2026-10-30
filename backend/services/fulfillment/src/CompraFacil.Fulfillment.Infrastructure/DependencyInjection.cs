@@ -20,6 +20,7 @@ public static class DependencyInjection
     {
         builder.AddPostgres<FulfillmentDbContext>();
         builder.Services.AddScoped<ISupplierOrderRepository, SupplierOrderRepository>();
+        builder.Services.AddScoped<ISupplierReturnRepository, SupplierReturnRepository>();
         builder.Services.AddScoped<ISupplierProductRepository, SupplierProductRepository>();
 
         var supplier = builder.Configuration.GetSection("Supplier");
@@ -72,6 +73,10 @@ public static class DependencyInjection
         if (supplier.GetValue("DispatcherEnabled", defaultValue: true))
         {
             builder.Services.AddHostedService<SupplierDispatcher>();
+        }
+        if (supplier.GetValue("ReturnsEnabled", defaultValue: true))
+        {
+            builder.Services.AddHostedService<SupplierReturnJob>();
         }
         if (supplier.GetValue("CatalogSyncEnabled", defaultValue: true))
         {

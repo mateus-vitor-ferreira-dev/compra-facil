@@ -28,6 +28,17 @@ public sealed class FakeSupplier : ISupplierGateway
     /// <summary>O feed que o fornecedor devolve; nulo = fora do ar.</summary>
     public List<SupplierFeedItem>? Feed { get; set; } = [];
 
+    /// <summary>O que a abertura da devolução responde; nulo = abre.</summary>
+    public Func<Guid, SupplierReturnOpening>? RespondReturn { get; set; }
+    public List<Guid> ReturnCalls { get; } = [];
+
+    public Task<SupplierReturnOpening> OpenReturnAsync(Guid orderNumber, string customerEmail, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct)
+    {
+        ReturnCalls.Add(orderNumber);
+        return Task.FromResult(RespondReturn?.Invoke(orderNumber)
+            ?? new SupplierReturnOpening.Opened("DSP" + orderNumber.ToString("N")[..8], "RMA" + orderNumber.ToString("N")[..6], "Rua das Devoluções, 1"));
+    }
+
     public Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct)
     {
         Calls.Add(request);
@@ -124,6 +135,7 @@ public sealed class FulfillmentFixture : IAsyncLifetime
             .UseSetting("Supplier:DispatcherEnabled", "false")
             .UseSetting("Supplier:CatalogSyncEnabled", "false")
             .UseSetting("Invoice:ReturnEnabled", "false")
+            .UseSetting("Supplier:ReturnsEnabled", "false")
             .UseSetting("Invoice:CancellerEnabled", "false")
             .UseSetting("Supplier:WebhookSecret", Secret)
             .UseSetting("Auth:Jwks", Identity.Jwks)
@@ -175,11 +187,28 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     private async Task ReturnedAsync(Guid id)
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
-        var handler = ActivatorUtilities.CreateInstance<CompraFacil.Fulfillment.Application.Invoices.OnOrderReturned>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<OnOrderReturned>(scope.ServiceProvider);
         await handler.HandleAsync(new OrderReturnedData(id),
             new EventContext(Guid.NewGuid(), InvoiceEvents.OrderReturned, FulfillmentEvents.OrdersTopic, "req", DateTimeOffset.UtcNow), Ct);
         await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
     }
+
+    private async Task<int> OpenReturnsAsync() =>
+        await ActivatorUtilities.CreateInstance<SupplierReturnJob>(fx.Factory.Services).OpenOnceAsync(Ct);
+
+    private async Task<SupplierReturn?> SupplierReturnAsync(Guid id)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SupplierReturns.AsNoTracking().SingleOrDefaultAsync(r => r.Id == id, Ct);
+    }
+
+    private static object Dispute(Guid id, string status, string? reason = null) => new
+    {
+        messageId = Guid.NewGuid().ToString(),
+        type = "DISPUTE",
+        messageType = "UPDATE",
+        @params = new { orderNumber = id.ToString(), disputeStatus = status, reason },
+    };
 
     private async Task<int> IssueReturnInvoicesAsync() =>
         await ActivatorUtilities.CreateInstance<CompraFacil.Fulfillment.Infrastructure.Invoices.ReturnInvoiceJob>(fx.Factory.Services).IssueOnceAsync(Ct);
@@ -475,6 +504,90 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Single(fx.Issuer.ReturnsIssued, i => i.Id == id);
         Assert.NotNull(invoice.ReturnAccessKey);
         Assert.Equal([InvoiceEvents.InvoiceIssued, InvoiceEvents.InvoiceReturnIssued], await EventsOfAsync(id, InvoiceEvents.Topic));
+    }
+
+    [Fact]
+    public async Task Desistencia_abre_a_devolucao_no_fornecedor_uma_vez_e_ele_aprova()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+
+        await ReturnedAsync(id);
+        await ReturnedAsync(id); // repetido
+        Assert.Equal(SupplierReturnStatus.Pending, (await SupplierReturnAsync(id))!.Status);
+        await OpenReturnsAsync();
+        await OpenReturnsAsync();
+
+        Assert.Single(fx.Supplier.ReturnCalls, c => c == id);
+        var open = (await SupplierReturnAsync(id))!;
+        Assert.Equal(SupplierReturnStatus.Open, open.Status);
+        Assert.StartsWith("RMA", open.ReturnCode, StringComparison.Ordinal);
+
+        var resolved = Dispute(id, "APPROVED");
+        await WebhookAsync(resolved);
+        var (_, again) = await WebhookAsync(resolved); // o fornecedor repete
+        Assert.Contains("duplicate", again, StringComparison.Ordinal);
+
+        Assert.Equal(SupplierReturnStatus.Approved, (await SupplierReturnAsync(id))!.Status);
+        var events = await EventsOfAsync(id);
+        Assert.Single(events, e => e == FulfillmentEvents.SupplierReturnOpened);
+        Assert.Single(events, e => e == FulfillmentEvents.SupplierReturnResolved);
+    }
+
+    [Fact]
+    public async Task Fornecedor_fora_do_ar_nao_perde_a_devolucao_e_a_recusa_fica_no_painel()
+    {
+        var (down, refused) = (Guid.NewGuid(), Guid.NewGuid());
+        foreach (var id in new[] { down, refused })
+        {
+            await ConfirmedAsync(id);
+            await DispatchAsync();
+            await ReturnedAsync(id);
+        }
+        fx.Supplier.RespondReturn = id => id == down
+            ? throw new SupplierUnavailableException("fornecedor fora do ar")
+            : id == refused ? new SupplierReturnOpening.Refused("fora da política") : null!;
+        try
+        {
+            await OpenReturnsAsync();
+        }
+        finally
+        {
+            fx.Supplier.RespondReturn = null;
+        }
+
+        var pending = (await SupplierReturnAsync(down))!;
+        Assert.Equal((SupplierReturnStatus.Pending, 1), (pending.Status, pending.Attempts));
+        Assert.Contains("fora do ar", pending.LastError, StringComparison.Ordinal);
+        Assert.DoesNotContain(FulfillmentEvents.SupplierReturnOpened, await EventsOfAsync(down));
+
+        var rejected = (await SupplierReturnAsync(refused))!;
+        Assert.Equal((SupplierReturnStatus.Rejected, "fora da política"), (rejected.Status, rejected.ResolutionReason));
+        Assert.Contains(FulfillmentEvents.SupplierReturnResolved, await EventsOfAsync(refused));
+
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/supplier-returns?limit=200");
+        request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1supplier-returns/get/responses/200/content/application~1json/schema", json);
+        var data = JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().ToDictionary(r => r.GetProperty("order_id").GetGuid());
+        Assert.Equal("pending", data[down].GetProperty("status").GetString());
+        Assert.Equal(1, data[down].GetProperty("attempts").GetInt32());
+        Assert.Equal("rejected", data[refused].GetProperty("status").GetString());
+
+        using var anonymous = await client.GetAsync("/v1/admin/supplier-returns", Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+    }
+
+    [Fact]
+    public async Task Webhook_de_devolucao_desconhecida_responde_200()
+    {
+        var (status, body) = await WebhookAsync(Dispute(Guid.NewGuid(), "APPROVED"));
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Contains("unknown_order", body, StringComparison.Ordinal);
     }
 
     [Fact]

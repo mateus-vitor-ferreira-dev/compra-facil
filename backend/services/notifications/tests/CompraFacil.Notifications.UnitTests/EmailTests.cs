@@ -116,6 +116,19 @@ public sealed class EmailTests
         Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ReturnInstructions_HaveTheCodeAndTheAddress_AndSayTheRefundDoesNotDependOnIt()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.ReturnInstructionsAsync(new SupplierReturnOpenedData(order, "ana@exemplo.com", "RMA00000042", "Rua <b>A</b>, 10"));
+
+        Assert.Equal("Como devolver o pedido 0000ABCD", email.Subject);
+        Assert.Contains("Código da devolução: RMA00000042", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("Envie para: Rua <b>A</b>, 10", email.TextBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("<b>A</b>", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("não depende deste envio", email.TextBody, StringComparison.Ordinal);
+    }
+
     private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
     private static EmailConfirmationRequestedData Confirmation(string url, string name = "Ana <b>Souza</b>", double hours = 24) =>

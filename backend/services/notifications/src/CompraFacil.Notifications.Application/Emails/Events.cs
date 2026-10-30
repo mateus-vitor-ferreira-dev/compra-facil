@@ -11,6 +11,9 @@ public static class NotificationEvents
     public const string OrderShipped = nameof(OrderShipped);
     public const string OrderDelivered = nameof(OrderDelivered);
 
+    public const string SupplierOrdersTopic = "fulfillment.supplier-order.v1";
+    public const string SupplierReturnOpened = nameof(SupplierReturnOpened);
+
     public const string InvoicesTopic = "fulfillment.invoice.v1";
     public const string InvoiceIssued = nameof(InvoiceIssued);
 
@@ -58,3 +61,6 @@ public sealed record OrderShippedData(Guid OrderId, string CustomerEmail, Tracki
 
 /// <summary>data do OrderDelivered (só os campos usados no e-mail): chegou ao cliente (#224).</summary>
 public sealed record OrderDeliveredData(Guid OrderId, string CustomerEmail);
+
+/// <summary>data do SupplierReturnOpened (só os campos usados no e-mail): para onde mandar o produto de volta (#223).</summary>
+public sealed record SupplierReturnOpenedData(Guid OrderId, string CustomerEmail, string ReturnCode, string ReturnAddress);

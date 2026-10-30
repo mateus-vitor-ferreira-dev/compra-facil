@@ -40,6 +40,7 @@ func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, no
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	// depuração, sem token: ver o estado de todos os pedidos de uma vez
 	r.GET("/sim/orders", func(c *gin.Context) { ok(c, a.orders.List()) })
+	r.GET("/sim/disputes", func(c *gin.Context) { ok(c, a.orders.Disputes()) })
 	// demonstração e testes, sem token: o fornecedor reajusta um custo ou deixa de vender um produto
 	r.PUT("/sim/products/:vid/cost", a.setCost)
 	r.DELETE("/sim/products/:vid", a.removeProduct)
@@ -53,6 +54,7 @@ func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, no
 	authed.GET("/product/list", a.productList)
 	authed.GET("/product/stock/queryByVid", a.stockByVID)
 	authed.POST("/shopping/order/createOrderV2", a.createOrder)
+	authed.POST("/disputes/create", a.createDispute)
 	authed.GET("/shopping/order/getOrderDetail", a.orderDetail)
 	authed.DELETE("/shopping/order/deleteOrder", a.deleteOrder)
 	authed.POST("/logistic/freightCalculate", a.freightCalculate)
@@ -232,6 +234,25 @@ func (a *API) deleteOrder(c *gin.Context) {
 	ok(c, o)
 }
 
+// createDispute abre a devolução de um pedido: businessDisputeId é o número do pedido na loja.
+func (a *API) createDispute(c *gin.Context) {
+	var req struct {
+		BusinessDisputeID string `json:"businessDisputeId" binding:"required"`
+		MessageText       string `json:"messageText"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	d, err := a.orders.OpenDispute(req.BusinessDisputeID)
+	if err != nil {
+		a.orderError(c, err)
+		return
+	}
+	a.log.Info("devolução aberta", "dispute_id", d.DisputeID, "order_number", d.OrderNumber)
+	ok(c, d)
+}
+
 func (a *API) orderError(c *gin.Context, err error) {
 	var oos *order.OutOfStockError
 	switch {
@@ -243,6 +264,8 @@ func (a *API) orderError(c *gin.Context, err error) {
 		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
 	case errors.Is(err, order.ErrNotFound):
 		fail(c, http.StatusOK, CodeNotFound, "Order not found")
+	case errors.Is(err, order.ErrNotDelivered):
+		fail(c, http.StatusOK, CodeRejected, "Order not delivered")
 	case errors.Is(err, order.ErrAlreadyShipped):
 		fail(c, http.StatusOK, CodeShipped, "Order already shipped")
 	default:

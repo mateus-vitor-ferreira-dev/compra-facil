@@ -19,7 +19,8 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 [ApiController]
 [Route("v1/webhooks/supplier")]
 [Produces("application/json")]
-public sealed class SupplierWebhookController(SupplierUpdates updates, SupplierStock stock, IOptions<SupplierOptions> options) : ControllerBase
+public sealed class SupplierWebhookController(
+    SupplierUpdates updates, SupplierStock stock, SupplierReturnUpdates returns, IOptions<SupplierOptions> options) : ControllerBase
 {
     private const int MaxBody = 64 * 1024;
 
@@ -65,6 +66,21 @@ public sealed class SupplierWebhookController(SupplierUpdates updates, SupplierS
         {
             throw Invalid("falta params.orderNumber (uuid)");
         }
+        if (string.Equals(webhook.Type, "DISPUTE", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(p.DisputeStatus))
+            {
+                throw Invalid("falta params.disputeStatus");
+            }
+            var applied = await returns.ApplyAsync(webhook.MessageId, orderId, p.DisputeStatus, p.Reason, ct);
+            return new SupplierWebhookAck(applied switch
+            {
+                SupplierReturnUpdateResult.Applied => "applied",
+                SupplierReturnUpdateResult.Duplicate => "duplicate",
+                SupplierReturnUpdateResult.UnknownOrder => "unknown_order",
+                _ => "ignored",
+            });
+        }
         if (!string.Equals(webhook.Type, "ORDER", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(p.OrderStatus))
         {
             return new SupplierWebhookAck("ignored"); // outros tipos (produto) ainda não interessam
@@ -109,10 +125,10 @@ public sealed class SupplierWebhookController(SupplierUpdates updates, SupplierS
 
     private sealed record SupplierWebhook(string? MessageId, string? Type, string? MessageType, WebhookParams? Params);
 
-    // ORDER: os campos do pedido; STOCK: vid, storageNum e updateDate
+    // ORDER: os campos do pedido; STOCK: vid, storageNum e updateDate; DISPUTE: orderNumber, disputeStatus e reason
     private sealed record WebhookParams(
         string? OrderId, string? OrderNumber, string? OrderStatus, string? SubStatus, string? TrackNumber,
-        string? TrackingProvider, string? TrackingUrl, string? Reason, string? Vid, int? StorageNum, string? UpdateDate);
+        string? TrackingProvider, string? TrackingUrl, string? Reason, string? Vid, int? StorageNum, string? UpdateDate, string? DisputeStatus);
 }
 
 public sealed record SupplierWebhookAck(string Result);

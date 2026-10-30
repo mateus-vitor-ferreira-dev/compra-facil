@@ -16,6 +16,9 @@ public sealed class SupplierDeadlines
 
     /// <summary>Do despacho à entrega: o transporte (só no pedido sem a data prometida, de antes do #222).</summary>
     public TimeSpan DeliverWithin { get; set; } = TimeSpan.FromDays(15);
+
+    /// <summary>Do pedido de devolução à resposta do fornecedor.</summary>
+    public TimeSpan ReturnWithin { get; set; } = TimeSpan.FromDays(15);
 }
 
 /// <summary>Em que etapa o pedido parou: o fornecedor não despachou, ou o envio não chegou.</summary>

@@ -30,7 +30,19 @@ const (
 	MarkReject      = "[recusar]"        // recusa síncrona na criação
 	MarkRejectLater = "[recusar-depois]" // aceita e cancela depois do accept delay
 	MarkStall       = "[atrasar]"        // fica em UNSHIPPED para sempre
+	// a devolução é aberta e o fornecedor a recusa depois do dispute delay
+	MarkRejectReturn = "[recusar-devolucao]"
 )
+
+// Status de uma devolução (disputa).
+const (
+	DisputeProcessing = "PROCESSING"
+	DisputeApproved   = "APPROVED"
+	DisputeRejected   = "REJECTED"
+)
+
+// ReturnAddress é para onde o cliente manda o produto de volta.
+const ReturnAddress = "Centro de devoluções CJ, Rodovia Fernão Dias, km 947, Extrema/MG, CEP 37640-000"
 
 // Motivos do cancelamento, enviados em reason.
 const (
@@ -43,6 +55,7 @@ var (
 	ErrRejected       = errors.New("order rejected by supplier")
 	ErrNotFound       = errors.New("order not found")
 	ErrAlreadyShipped = errors.New("order already shipped")
+	ErrNotDelivered   = errors.New("order not delivered")
 )
 
 // OutOfStockError diz qual vid faltou, para a mensagem "Out of stock: <vid>".
@@ -107,15 +120,30 @@ type Order struct {
 	Shipping
 }
 
+// Dispute é a devolução de um pedido entregue, como o fornecedor a acompanha.
+type Dispute struct {
+	DisputeID     string    `json:"disputeId"`
+	OrderID       string    `json:"orderId"`
+	OrderNumber   string    `json:"orderNumber"`
+	Status        string    `json:"status"`
+	ReturnCode    string    `json:"returnCode"`
+	ReturnAddress string    `json:"returnAddress"`
+	Reason        string    `json:"reason"`
+	CreateDate    time.Time `json:"createDate"`
+	UpdateDate    time.Time `json:"updateDate"`
+}
+
 type Delays struct {
 	Accept  time.Duration
 	Ship    time.Duration
 	Deliver time.Duration
+	Dispute time.Duration
 }
 
 // Notifier recebe cada mudança de status (o webhook.Dispatcher em produção).
 type Notifier interface {
 	Enqueue(p webhook.Params)
+	EnqueueDispute(p webhook.DisputeParams)
 }
 
 type Simulator struct {
@@ -130,7 +158,8 @@ type Simulator struct {
 
 	mu       sync.Mutex
 	byID     map[string]*Order
-	byNumber map[string]string // orderNumber → orderId (idempotência da criação)
+	byNumber map[string]string   // orderNumber → orderId (idempotência da criação)
+	disputes map[string]*Dispute // orderNumber → a devolução (idempotência da abertura)
 	seq      int64
 }
 
@@ -140,6 +169,7 @@ func NewSimulator(stock *catalog.Stock, delays Delays, notify Notifier) *Simulat
 		stock: stock, delays: delays, notify: notify, now: time.Now,
 		ctx: ctx, cancel: cancel,
 		byID: map[string]*Order{}, byNumber: map[string]string{},
+		disputes: map[string]*Dispute{},
 	}
 }
 
@@ -261,6 +291,74 @@ func (s *Simulator) Cancel(orderID string) (Order, error) {
 		return s.snapshot(o), nil
 	default:
 		return Order{}, ErrAlreadyShipped
+	}
+}
+
+// OpenDispute abre a devolução de um pedido entregue ou, se já existe, devolve a mesma.
+func (s *Simulator) OpenDispute(orderNumber string) (Dispute, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if d, ok := s.disputes[orderNumber]; ok {
+		return *d, nil
+	}
+	id, ok := s.byNumber[orderNumber]
+	if !ok {
+		return Dispute{}, ErrNotFound
+	}
+	o := s.byID[id]
+	if o.OrderStatus != StatusDelivered {
+		return Dispute{}, ErrNotDelivered
+	}
+	s.seq++
+	now := s.now().UTC()
+	d := &Dispute{
+		DisputeID:     fmt.Sprintf("DSP%010d", 1000000000+s.seq),
+		OrderID:       o.OrderID,
+		OrderNumber:   orderNumber,
+		Status:        DisputeProcessing,
+		ReturnCode:    fmt.Sprintf("RMA%08d", s.seq),
+		ReturnAddress: ReturnAddress,
+		CreateDate:    now,
+		UpdateDate:    now,
+	}
+	s.disputes[orderNumber] = d
+	disputeID := d.DisputeID
+	o.DisputeID = &disputeID
+
+	s.wg.Add(1)
+	go s.resolveDispute(d, strings.Contains(o.Remark, MarkRejectReturn))
+	return *d, nil
+}
+
+// Disputes lista as devoluções, para a demonstração.
+func (s *Simulator) Disputes() []Dispute {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Dispute, 0, len(s.disputes))
+	for _, d := range s.disputes {
+		out = append(out, *d)
+	}
+	slices.SortFunc(out, func(a, b Dispute) int { return strings.Compare(a.DisputeID, b.DisputeID) })
+	return out
+}
+
+// resolveDispute dá a resposta do fornecedor depois do dispute delay.
+func (s *Simulator) resolveDispute(d *Dispute, reject bool) {
+	defer s.wg.Done()
+	if !s.sleep(s.delays.Dispute) {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d.Status, d.UpdateDate = DisputeApproved, s.now().UTC()
+	if reject {
+		d.Status, d.Reason = DisputeRejected, "produto fora da política de devolução do fornecedor"
+	}
+	if s.notify != nil {
+		s.notify.EnqueueDispute(webhook.DisputeParams{
+			OrderID: d.OrderID, OrderNumber: d.OrderNumber, DisputeID: d.DisputeID, DisputeStatus: d.Status,
+			Reason: d.Reason, UpdateDate: d.UpdateDate.Format(time.RFC3339),
+		})
 	}
 }
 

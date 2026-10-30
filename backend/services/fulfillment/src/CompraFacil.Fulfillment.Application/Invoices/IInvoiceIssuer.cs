@@ -44,5 +44,8 @@ public interface IInvoiceRepository
 {
     void Add(Invoice invoice);
     Task<Invoice?> GetAsync(Guid orderId, CancellationToken ct);
+
+    /// <summary>Por que a SEFAZ rejeitou a nota de devolução, dos pedidos que têm esse erro.</summary>
+    Task<Dictionary<Guid, string>> ReturnErrorsAsync(IReadOnlyCollection<Guid> orderIds, CancellationToken ct);
     Task SaveChangesAsync(CancellationToken ct);
 }
