@@ -163,6 +163,17 @@ const products = seed.map(([name, slug, price, effective, brand], i) => {
   };
 });
 
+// as fotos da TV (0), para a galeria: quadradas, cada uma de uma cor
+const photo = (color) => ({
+  url: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="${color}"/></svg>`,
+  width: 800,
+  height: 800,
+  variants: [],
+});
+products[0].images = ["steelblue", "goldenrod", "seagreen"].map(photo);
+products[0].image = products[0].images[0];
+products[0].image_url = products[0].images[0].url;
+
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
 const baseStock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
 // ajustes feitos pelo painel, por produto
@@ -222,6 +233,12 @@ function applyInput(p, body) {
     description: body.description ?? "",
     brand: body.brand ?? null,
     image_url: body.image_url ?? null,
+    images: [body.image_url, ...(body.more_image_urls ?? [])].filter(Boolean).map((url) => ({
+      url,
+      width: null,
+      height: null,
+      variants: [],
+    })),
     status: body.status,
     category: { id: category.id, slug: category.slug, name: category.name },
     price: { amount_cents: body.price_cents, currency: "BRL" },

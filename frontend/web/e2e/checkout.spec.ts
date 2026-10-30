@@ -223,7 +223,7 @@ test("o número do cartão não vai para a loja: só o token do provedor", async
 
   const sent: string[] = [];
   page.on("request", (r) => {
-    if (new URL(r.url()).origin === "http://localhost:3000" && r.method() === "POST")
+    if (new URL(r.url()).origin === new URL(page.url()).origin && r.method() === "POST")
       sent.push(r.postData() ?? "");
   });
   await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();

@@ -19,7 +19,7 @@ export default async function NewProduct() {
           brand: "",
           description: "",
           category_id: "",
-          image_url: "",
+          image_urls: [],
           price: "",
           status: "draft",
         }}

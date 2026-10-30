@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { z } from "zod";
 import { PriceTag } from "@/components/commerce/price-tag";
-import { ProductImage } from "@/components/commerce/product-image";
+import { ProductGallery } from "@/components/commerce/product-gallery";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { CatalogErrorState } from "@/components/store/catalog-error";
 import { Countdown } from "@/components/store/countdown";
@@ -73,6 +73,7 @@ export default async function ProductPage({ params }: Props) {
   const ancestors = categories.ok ? categoryPath(categories.data, p.category.id).slice(0, -1) : [];
   const more = related.ok ? related.data.data.filter((r) => r.id !== p.id).slice(0, 4) : [];
   const off = discountPercent(p.price, p.effective_price);
+  const images = p.images ?? (p.image ? [p.image] : []);
 
   const site = env.SITE_URL.replace(/\/$/, "");
   const jsonLd = {
@@ -81,7 +82,7 @@ export default async function ProductPage({ params }: Props) {
     name: p.name,
     sku: p.sku,
     description: p.description,
-    image: p.image?.url ?? undefined,
+    image: images.length > 0 ? images.map((i) => i.url) : undefined,
     category: p.category.name,
     offers: {
       "@type": "Offer",
@@ -110,12 +111,11 @@ export default async function ProductPage({ params }: Props) {
       />
 
       <div className="mt-4 grid gap-8 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:gap-12">
-        <ProductImage
-          image={p.image}
+        <ProductGallery
+          images={images}
           alt={p.name}
           categorySlug={p.category.slug}
           sizes="(min-width: 1152px) 640px, (min-width: 768px) 56vw, 100vw"
-          priority
         />
 
         <div className="space-y-6 md:sticky md:top-6 md:self-start">
