@@ -45,6 +45,12 @@ public interface ISupplierGateway
     /// </summary>
     Task<SupplierReturnOpening> OpenReturnAsync(Guid orderNumber, string customerEmail, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct);
 
+    /// <summary>
+    /// Cancela um pedido ainda não despachado. False se ele já saiu (nada muda). Falha sai como
+    /// <see cref="SupplierUnavailableException"/>.
+    /// </summary>
+    Task<bool> CancelOrderAsync(string supplierOrderId, CancellationToken ct);
+
     /// <summary>O feed inteiro (todas as páginas). Falha em qualquer página sai como <see cref="SupplierUnavailableException"/>.</summary>
     Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct);
 

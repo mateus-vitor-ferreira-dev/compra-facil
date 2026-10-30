@@ -9,7 +9,7 @@ export const ADMIN_SECTIONS = [
   { href: "/admin/categorias", label: "Categorias" },
   { href: "/admin/campanhas", label: "Campanhas" },
   { href: "/admin/fornecedor", label: "Fornecedor" },
-  { href: "/admin/atrasos", label: "Pedidos atrasados" },
+  { href: "/admin/atrasos", label: "Pedidos no fornecedor" },
   { href: "/admin/devolucoes", label: "Devoluções" },
   { href: "/admin/falhas", label: "Mensagens com falha" },
 ] as const;

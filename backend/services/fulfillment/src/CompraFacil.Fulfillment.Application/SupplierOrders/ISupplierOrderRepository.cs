@@ -18,5 +18,12 @@ public interface ISupplierOrderRepository
     /// </summary>
     Task<List<SupplierOrder>> ListOverdueAsync(DateTimeOffset createdBefore, DateTimeOffset shippedBefore, DateOnly today, int limit, CancellationToken ct);
 
+    /// <summary>Os que falharam desde <paramref name="since"/>, os mais recentes primeiro, sem rastrear.</summary>
+    Task<List<SupplierOrder>> ListFailedAsync(DateTimeOffset since, int limit, CancellationToken ct);
+
+    /// <summary>Lança ConcurrencyConflictException se outra transação mudou o pedido.</summary>
     Task SaveChangesAsync(CancellationToken ct);
+
+    /// <summary>Descarta o que foi carregado, para reler depois de um conflito.</summary>
+    void Reset();
 }
