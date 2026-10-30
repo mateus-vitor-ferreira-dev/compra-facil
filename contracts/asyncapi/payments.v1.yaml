@@ -82,10 +82,11 @@ operations:
       $ref: "#/channels/orderEvents"
     summary: |
       Grava a cobrança pendente (placed); no cancelled, a descarta se ainda não foi feita, ou devolve o
-      dinheiro (cancela a autorização ou estorna).
+      dinheiro (cancela a autorização ou estorna); no returned, estorna na hora o que foi pago (#223).
     messages:
       - $ref: "#/channels/orderEvents/messages/OrderPlaced"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
+      - $ref: "#/channels/orderEvents/messages/OrderReturned"
     bindings:
       $ref: "#/components/operationBindings/PaymentsGroup"
 
@@ -294,6 +295,11 @@ components:
                     enum: [refund, void]
                   full:
                     type: boolean
+                  reason:
+                    type: [string, "null"]
+                    description: |
+                      Por que o dinheiro voltou; nulo no estorno pelo painel. `return`: o cliente desistiu da compra
+                      (#223), e o fulfillment emite a nota de devolução em vez de cancelar a de venda.
 
   schemas:
     Provider:

@@ -8,7 +8,18 @@ namespace CompraFacil.Orders.Api.Controllers;
 
 // o cliente e o e-mail vêm do token; customer_id/customer_email de clientes antigos são ignorados
 public sealed record PlaceOrderRequest(
-    IReadOnlyList<PlaceOrderItemRequest>? Items, PlaceOrderPaymentRequest? Payment, RecipientRequest? Recipient, ShippingAddressRequest? ShippingAddress);
+    IReadOnlyList<PlaceOrderItemRequest>? Items, PlaceOrderPaymentRequest? Payment, RecipientRequest? Recipient, ShippingAddressRequest? ShippingAddress,
+    ShippingChoiceRequest? Shipping);
+
+/// <summary>O frete escolhido (#222): só o serviço; o preço e o prazo o orders recota no fulfillment.</summary>
+public sealed record ShippingChoiceRequest(string? Service);
+
+/// <summary>O frete do pedido como o cliente vê: o serviço, o preço, o prazo em dias úteis e a data prometida.</summary>
+public sealed record OrderShippingResponse(string Service, string Name, Money Price, int MinDays, int MaxDays, DateOnly PromisedBy)
+{
+    public static OrderShippingResponse? From(OrderShipping? s) =>
+        s is null ? null : new(s.Service, s.Name, s.Price, s.MinDays, s.MaxDays, s.PromisedBy);
+}
 
 /// <summary>Quem recebe (#221): o CPF e o telefone podem vir com máscara; ficam só os dígitos.</summary>
 public sealed record RecipientRequest(string? Name, string? Cpf, string? Phone)
@@ -41,17 +52,23 @@ public sealed record OrderResponse(
     OrderStatus Status,
     CancellationReason? CancellationReason,
     IReadOnlyList<OrderItemData> Items,
+    Money ItemsTotal,
+    OrderShippingResponse? Shipping,
     Money Total,
     Guid? PaymentId,
     OrderPaymentResponse Payment,
     Recipient? Recipient,
     ShippingAddress? ShippingAddress,
+    OrderInvoice? Invoice,
+    OrderReturnInvoice? ReturnInvoice,
     DateTimeOffset? StockReservedAt,
     DateTimeOffset? SentToSupplierAt,
     Tracking? Tracking,
     DateTimeOffset? ShippedAt,
     DateTimeOffset? DeliveredAt,
     DateTimeOffset? RefundedAt,
+    DateTimeOffset? ReturnRequestedAt,
+    DateTimeOffset? ReturnableUntil,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
@@ -59,7 +76,8 @@ public sealed record OrderResponse(
     {
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.CustomerId, o.Status, o.CancellationReason, [.. o.Items.Select(OrderItemData.From)],
-            o.Total, o.PaymentId, new OrderPaymentResponse(o.PaymentMethod, o.Installments, o.Pix), o.Recipient, o.ShippingAddress, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt,
+            o.Items.Aggregate(Money.Zero(o.Total.Currency), (sum, i) => sum.Plus(i.LineTotal)), OrderShippingResponse.From(o.Shipping),
+            o.Total, o.PaymentId, new OrderPaymentResponse(o.PaymentMethod, o.Installments, o.Pix), o.Recipient, o.ShippingAddress, o.Invoice, o.ReturnInvoice, o.StockReservedAt, o.SentToSupplierAt, o.Tracking, o.ShippedAt, o.DeliveredAt, o.RefundedAt, o.ReturnRequestedAt, o.ReturnableUntil,
             o.CreatedAt, o.UpdatedAt);
     }
 }

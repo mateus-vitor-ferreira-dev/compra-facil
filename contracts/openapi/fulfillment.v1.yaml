@@ -23,6 +23,10 @@ tags:
     description: Chamadas entre serviços, fora do gateway.
   - name: admin
     description: "Operação (role `admin`): pedidos parados no fornecedor; dead letter topic em todos os serviços."
+  - name: me
+    description: O que o cliente logado vê das notas dos pedidos dele.
+  - name: shipping
+    description: Frete e prazo por CEP (#222).
 
 paths:
   /v1/webhooks/supplier:
@@ -128,6 +132,184 @@ paths:
             application/problem+json:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+
+  /v1/me/invoices/{order_id}/danfe:
+    get:
+      tags: [me]
+      operationId: getInvoiceDanfe
+      summary: O DANFE da nota do pedido, em PDF
+      description: |
+        A nota fiscal do pedido (#221) para o cliente baixar, como o emissor a gera. Só o dono do pedido (o
+        `sub` do token) ou a equipe (role `admin`); a nota de outro cliente, a pendente e a rejeitada dão
+        404. A nota cancelada continua baixável (o DANFE dela mostra o cancelamento no emissor de verdade).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: O DANFE.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename=nfe-<número>.pdf`.'
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "503":
+          description: O emissor da nota não respondeu; vem com `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+
+  /v1/me/invoices/{order_id}/return-danfe:
+    get:
+      tags: [me]
+      operationId: getReturnInvoiceDanfe
+      summary: O DANFE da nota de devolução do pedido, em PDF
+      description: |
+        A NF-e de devolução (#223), quando o cliente desiste da compra. Só o dono do pedido (o `sub` do token) ou
+        a equipe (role `admin`); a nota de outro cliente, e a que ainda não saiu, dão 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: O DANFE.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename=nfe-<número>.pdf`.'
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "503":
+          description: O emissor da nota não respondeu; vem com `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/shipping/quote:
+    post:
+      tags: [shipping]
+      operationId: quoteShipping
+      summary: Frete e prazo por CEP
+      description: |
+        As opções de envio para o CEP (#222, Decreto 7.962: o cliente vê frete e prazo antes de pagar), da
+        mais barata para a mais cara. O fornecedor cota em dólar; a loja converte pelo câmbio do catálogo
+        (`Shipping:UsdToBrl`) e soma o processamento dela (`Shipping:ProcessingDays`) ao prazo, em dias
+        úteis. Pública: a página do produto e o carrinho cotam sem login. O orders confere por aqui o frete
+        do pedido.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShippingQuoteRequest"
+      responses:
+        "200":
+          description: As opções de envio.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShippingQuote"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não cotou; vem com `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+
+  /v1/admin/supplier-returns:
+    get:
+      tags: [admin]
+      operationId: listSupplierReturns
+      summary: Devoluções ao fornecedor que pedem atenção
+      description: |
+        As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu, as
+        paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido) primeiro.
+        As que o fornecedor recusou ficam por 30 dias. A nota de devolução rejeitada vem em `invoice_error`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Devoluções.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SupplierReturn"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/admin/supplier-orders/overdue:
     get:
       tags: [admin]
@@ -265,6 +447,67 @@ paths:
 
 components:
   schemas:
+    ShippingQuoteRequest:
+      type: object
+      required: [zip_code, items]
+      additionalProperties: false
+      properties:
+        zip_code:
+          type: string
+          description: O CEP, com ou sem hífen.
+          examples: ["01310-100"]
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [sku, quantity]
+            additionalProperties: false
+            properties:
+              sku:
+                type: string
+                minLength: 1
+                description: O SKU da loja (o vid no fornecedor).
+              quantity:
+                type: integer
+                minimum: 1
+                maximum: 99
+
+    ShippingQuote:
+      type: object
+      required: [zip_code, options]
+      properties:
+        zip_code:
+          type: string
+          pattern: "^[0-9]{8}$"
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShippingOption"
+
+    ShippingOption:
+      type: object
+      required: [id, name, price_cents, min_days, max_days]
+      properties:
+        id:
+          type: string
+          description: "O serviço (ex.: `economico`, `expresso`), o que o pedido escolhe."
+        name:
+          type: string
+          description: O nome que o cliente vê.
+        price_cents:
+          type: integer
+          format: int64
+          minimum: 0
+        min_days:
+          type: integer
+          minimum: 1
+          description: Dias úteis, já com o processamento da loja.
+        max_days:
+          type: integer
+          minimum: 1
+
     CatalogSyncResult:
       type: object
       required: [created, updated, removed, unchanged]
@@ -338,11 +581,76 @@ components:
           type: [string, "null"]
           format: date-time
 
+    SupplierReturn:
+      type: object
+      description: A devolução de um pedido ao fornecedor. O cliente já foi estornado; isto é a pendência da loja.
+      required: [order_id, status, overdue, due_at, supplier, customer_email, items, attempts, requested_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, open, approved, rejected]
+          description: "`pending`: na fila para abrir. `open`: esperando a resposta do fornecedor. `rejected`: ele recusou."
+        overdue:
+          type: boolean
+          description: Passou do prazo sem resposta do fornecedor.
+        due_at:
+          type: string
+          format: date-time
+        supplier:
+          type: string
+        supplier_order_id:
+          type: [string, "null"]
+        dispute_id:
+          type: [string, "null"]
+        return_code:
+          type: [string, "null"]
+          description: O código que o cliente escreve no pacote.
+        customer_email:
+          type: string
+          format: email
+        items:
+          type: array
+          items:
+            type: object
+            required: [sku, name, quantity]
+            properties:
+              sku:
+                type: string
+              name:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+        attempts:
+          type: integer
+          minimum: 0
+          description: Tentativas de abrir com o fornecedor fora do ar.
+        last_error:
+          type: [string, "null"]
+        resolution_reason:
+          type: [string, "null"]
+          description: Por que o fornecedor recusou.
+        invoice_error:
+          type: [string, "null"]
+          description: Por que a SEFAZ rejeitou a nota de devolução.
+        requested_at:
+          type: string
+          format: date-time
+        opened_at:
+          type: [string, "null"]
+          format: date-time
+        resolved_at:
+          type: [string, "null"]
+          format: date-time
+
     SupplierWebhook:
       type: object
       description: |
-        Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido) ou `STOCK` (a
-        disponibilidade de uma variante, #218).
+        Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido), `STOCK` (a
+        disponibilidade de uma variante, #218) ou `DISPUTE` (a resposta a uma devolução, #223).
       required: [messageId, type, messageType, params]
       properties:
         messageId:
@@ -351,14 +659,17 @@ components:
           maxLength: 64
         type:
           type: string
-          description: "`ORDER` ou `STOCK`; outros tipos são ignorados."
+          description: "`ORDER`, `STOCK` ou `DISPUTE`; outros tipos são ignorados."
         messageType:
           type: string
           description: "`UPDATE`."
         params:
           type: object
-          description: "`ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios."
+          description: "`ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios. `DISPUTE`: `orderNumber` e `disputeStatus` obrigatórios."
           properties:
+            disputeStatus:
+              type: string
+              description: "`DISPUTE`: `PROCESSING`, `APPROVED` ou `REJECTED`."
             vid:
               type: string
               description: "`STOCK`: a variante."

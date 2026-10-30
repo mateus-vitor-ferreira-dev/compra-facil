@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Messaging;
@@ -27,6 +28,7 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
                 payment = new { method = "pix" },
                 recipient = new { name = "Ana Souza", cpf = "52998224725", phone = "11987654321" },
                 shipping_address = new { zip_code = "01310100", street = "Avenida Paulista", number = "1000", district = "Bela Vista", city = "São Paulo", state = "SP" },
+                shipping = new { service = "economico" },
             }),
         };
         request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
@@ -72,7 +74,7 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         var outbox = Assert.Single(await OutcomeEventsAsync(order));
         ContractAssert.AssertEvent("orders.v1.yaml", OrderEvents.OrderConfirmed, outbox.Payload);
         var confirmed = EventEnvelope.TryParse(outbox.Payload)!.DataAs<OrderConfirmedData>();
-        Assert.Equal(("ana@exemplo.com", payment, 5000L), (confirmed.CustomerEmail, confirmed.PaymentId, confirmed.Total.AmountCents));
+        Assert.Equal(("ana@exemplo.com", payment, 5000L + 2430), (confirmed.CustomerEmail, confirmed.PaymentId, confirmed.Total.AmountCents));
         // quem recebe e onde vão ao fornecedor e à nota (#221)
         Assert.Equal(("52998224725", "01310100"), (confirmed.Recipient!.Cpf, confirmed.ShippingAddress!.ZipCode));
     }
@@ -227,6 +229,80 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
     }
 
     [Fact]
+    public async Task InvoiceRejected_CancelsWithInvoiceFailed_AndTheInvoiceShowsInTheOrder()
+    {
+        var order = await PaidOrderAsync();
+        var key = new string('3', 44);
+        await HandleAsync<InvoiceIssuedData, OnInvoiceIssued>(new InvoiceIssuedData(order, key, 1001, 1, DateTimeOffset.UtcNow));
+        var withInvoice = await GetOrderAsync(order);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", withInvoice.GetRawText());
+        Assert.Equal((key, 1001), (withInvoice.GetProperty("invoice").GetProperty("access_key").GetString(),
+            withInvoice.GetProperty("invoice").GetProperty("number").GetInt32()));
+        Assert.Equal([OrderEvents.OrderConfirmed], await EventTypesAsync(order)); // a nota não publica
+
+        var returnKey = new string('4', 44);
+        await HandleAsync<InvoiceReturnIssuedData, OnInvoiceReturnIssued>(new InvoiceReturnIssuedData(order, returnKey, 2001, 1, DateTimeOffset.UtcNow));
+        var withReturn = await GetOrderAsync(order);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", withReturn.GetRawText());
+        Assert.Equal((returnKey, 2001), (withReturn.GetProperty("return_invoice").GetProperty("access_key").GetString(),
+            withReturn.GetProperty("return_invoice").GetProperty("number").GetInt32()));
+        Assert.Equal(JsonValueKind.Null, withReturn.GetProperty("invoice").GetProperty("cancelled_at").ValueKind);
+
+        await HandleAsync<InvoiceCancelledData, OnInvoiceCancelled>(new InvoiceCancelledData(order, DateTimeOffset.UtcNow));
+        Assert.NotEqual(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("invoice").GetProperty("cancelled_at").ValueKind);
+
+        var other = await PaidOrderAsync();
+        await HandleAsync<SupplierOrderFailedData, OnSupplierOrderFailed>(new SupplierOrderFailedData(other, "invoice_rejected"));
+        var cancelled = await GetOrderAsync(other);
+        Assert.Equal("invoice_failed", cancelled.GetProperty("cancellation_reason").GetString());
+        var e = (await OutcomeEventsAsync(other)).Single(m => m.EventType == OrderEvents.OrderCancelled);
+        ContractAssert.AssertEvent("orders.v1.yaml", OrderEvents.OrderCancelled, e.Payload);
+        Assert.Equal("invoice_failed", EventEnvelope.TryParse(e.Payload)!.Data.GetProperty("reason").GetString());
+    }
+
+    private async Task<HttpResponseMessage> ReturnAsync(Guid order, HttpClient? client = null) =>
+        await (client ?? _http).PostAsync($"/v1/orders/{order}/return", null, Ct);
+
+    [Fact]
+    public async Task Return_AfterDelivery_RefundsAtOnce_AndTellsTheCustomer()
+    {
+        var order = await PaidOrderAsync();
+        using (var early = await ReturnAsync(order))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, early.StatusCode); // ainda não entregue
+        }
+        await HandleAsync<SupplierOrderShippedData, OnSupplierOrderShipped>(Shipped(order));
+        await HandleAsync<SupplierOrderDeliveredData, OnSupplierOrderDelivered>(new SupplierOrderDeliveredData(order));
+        var delivered = await GetOrderAsync(order);
+        Assert.NotEqual(JsonValueKind.Null, delivered.GetProperty("returnable_until").ValueKind);
+
+        using var response = await ReturnAsync(order);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        Assert.Equal("returned", JsonDocument.Parse(json).RootElement.GetProperty("status").GetString());
+        using (var again = await ReturnAsync(order))
+        {
+            Assert.Equal(HttpStatusCode.OK, again.StatusCode); // pedir de novo devolve o mesmo pedido
+        }
+        using (var stranger = await ReturnAsync(order, fx.ClientAs(Guid.NewGuid())))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, stranger.StatusCode);
+        }
+
+        // o payments estorna (com o frete) e o pedido marca, avisando o cliente
+        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), true));
+        Assert.Equal(
+            [OrderEvents.OrderConfirmed, OrderEvents.OrderShipped, OrderEvents.OrderDelivered, OrderEvents.OrderReturned, OrderEvents.OrderRefunded],
+            await EventTypesAsync(order));
+        var returned = EventEnvelope.TryParse((await OutcomeEventsAsync(order)).Single(e => e.EventType == OrderEvents.OrderReturned).Payload)!;
+        Assert.Equal(5000L + 2430, returned.Data.GetProperty("total").GetProperty("amount_cents").GetInt64());
+        var refunded = EventEnvelope.TryParse((await OutcomeEventsAsync(order)).Single(e => e.EventType == OrderEvents.OrderRefunded).Payload)!;
+        Assert.Equal("returned", refunded.Data.GetProperty("reason").GetString());
+        Assert.NotEqual(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("refunded_at").ValueKind);
+    }
+
+    [Fact]
     public async Task SupplierFailure_CancelsThePaidOrder_AndWaitsForTheRefund()
     {
         var order = await PaidOrderAsync();
@@ -246,7 +322,10 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         var refunded = await GetOrderAsync(order);
         Assert.Equal(JsonValueKind.String, refunded.GetProperty("refunded_at").ValueKind);
         ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", refunded.GetRawText());
-        Assert.Equal(2, (await OutcomeEventsAsync(order)).Count); // o estorno não publica
+        // o estorno avisa o cliente uma vez só, com o motivo do cancelamento
+        Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled, OrderEvents.OrderRefunded], await EventTypesAsync(order));
+        var r = EventEnvelope.TryParse((await OutcomeEventsAsync(order)).Single(m => m.EventType == OrderEvents.OrderRefunded).Payload)!;
+        Assert.Equal("supplier_failed", r.Data.GetProperty("reason").GetString());
     }
 
     [Fact]

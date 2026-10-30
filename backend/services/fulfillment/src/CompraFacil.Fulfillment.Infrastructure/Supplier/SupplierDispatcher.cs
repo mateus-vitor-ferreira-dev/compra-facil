@@ -74,7 +74,8 @@ public sealed partial class SupplierDispatcher(
         foreach (var id in claimed)
         {
             var order = await db.SupplierOrders.SingleAsync(o => o.Id == id, ct);
-            await placer.PlaceAsync(order, ct);
+            var invoice = await db.Invoices.SingleOrDefaultAsync(i => i.Id == id, ct);
+            await placer.PlaceAsync(order, invoice, ct);
             try
             {
                 await db.SaveChangesAsync(ct);

@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/catalog"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/freight"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/order"
 )
 
@@ -39,6 +40,7 @@ func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, no
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	// depuração, sem token: ver o estado de todos os pedidos de uma vez
 	r.GET("/sim/orders", func(c *gin.Context) { ok(c, a.orders.List()) })
+	r.GET("/sim/disputes", func(c *gin.Context) { ok(c, a.orders.Disputes()) })
 	// demonstração e testes, sem token: o fornecedor reajusta um custo ou deixa de vender um produto
 	r.PUT("/sim/products/:vid/cost", a.setCost)
 	r.DELETE("/sim/products/:vid", a.removeProduct)
@@ -52,8 +54,10 @@ func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, no
 	authed.GET("/product/list", a.productList)
 	authed.GET("/product/stock/queryByVid", a.stockByVID)
 	authed.POST("/shopping/order/createOrderV2", a.createOrder)
+	authed.POST("/disputes/create", a.createDispute)
 	authed.GET("/shopping/order/getOrderDetail", a.orderDetail)
 	authed.DELETE("/shopping/order/deleteOrder", a.deleteOrder)
+	authed.POST("/logistic/freightCalculate", a.freightCalculate)
 	return r
 }
 
@@ -66,6 +70,28 @@ func (a *API) accessLog(c *gin.Context) {
 	}
 	a.log.Info("requisição", "method", c.Request.Method, "path", c.Request.URL.Path,
 		"status", c.Writer.Status(), "duration_ms", time.Since(start).Milliseconds())
+}
+
+type freightRequest struct {
+	StartCountryCode string         `json:"startCountryCode"`
+	EndCountryCode   string         `json:"endCountryCode"`
+	Zip              string         `json:"zip"`
+	Products         []freight.Item `json:"products"`
+}
+
+// freightCalculate cota o frete do pedido ao CEP (#222), como o CJ: as opções com preço e prazo.
+func (a *API) freightCalculate(c *gin.Context) {
+	var req freightRequest
+	if c.ShouldBindJSON(&req) != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	options, err := freight.Quote(req.EndCountryCode, req.Zip, req.Products)
+	if err != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	ok(c, options)
 }
 
 func (a *API) productList(c *gin.Context) {
@@ -208,6 +234,25 @@ func (a *API) deleteOrder(c *gin.Context) {
 	ok(c, o)
 }
 
+// createDispute abre a devolução de um pedido: businessDisputeId é o número do pedido na loja.
+func (a *API) createDispute(c *gin.Context) {
+	var req struct {
+		BusinessDisputeID string `json:"businessDisputeId" binding:"required"`
+		MessageText       string `json:"messageText"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
+		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
+		return
+	}
+	d, err := a.orders.OpenDispute(req.BusinessDisputeID)
+	if err != nil {
+		a.orderError(c, err)
+		return
+	}
+	a.log.Info("devolução aberta", "dispute_id", d.DisputeID, "order_number", d.OrderNumber)
+	ok(c, d)
+}
+
 func (a *API) orderError(c *gin.Context, err error) {
 	var oos *order.OutOfStockError
 	switch {
@@ -219,6 +264,8 @@ func (a *API) orderError(c *gin.Context, err error) {
 		fail(c, http.StatusOK, CodeInvalidParams, "Invalid params")
 	case errors.Is(err, order.ErrNotFound):
 		fail(c, http.StatusOK, CodeNotFound, "Order not found")
+	case errors.Is(err, order.ErrNotDelivered):
+		fail(c, http.StatusOK, CodeRejected, "Order not delivered")
 	case errors.Is(err, order.ErrAlreadyShipped):
 		fail(c, http.StatusOK, CodeShipped, "Order already shipped")
 	default:

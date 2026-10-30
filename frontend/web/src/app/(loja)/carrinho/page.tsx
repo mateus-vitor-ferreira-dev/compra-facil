@@ -13,6 +13,7 @@ import { MAX_QUANTITY, lineIssue, summarize, type Line } from "@/lib/cart-rules"
 import { getProduct } from "@/lib/catalog-api";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ShippingEstimate } from "@/components/commerce/shipping-estimate";
 import { acceptCartPrices, removeFromCart, undoRemove, updateQuantity } from "./actions";
 
 export const metadata: Metadata = { title: "Carrinho", robots: { index: false } };
@@ -145,6 +146,13 @@ export default async function CartPage({ searchParams }: Props) {
             <p className="text-success mt-2 text-right text-sm font-semibold">
               Você economiza {brl(summary.savings)}
             </p>
+          )}
+
+          {summary.canCheckout && (
+            <ShippingEstimate
+              items={lines.flatMap((l) => (l.product ? [{ sku: l.product.sku, quantity: l.qty }] : []))}
+              className="mt-6"
+            />
           )}
 
           <div className="mt-6 space-y-3">

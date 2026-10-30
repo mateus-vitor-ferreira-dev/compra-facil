@@ -170,6 +170,10 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("request_hash");
 
+                    b.Property<DateTimeOffset?>("ReturnRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("return_requested_at");
+
                     b.Property<DateTimeOffset?>("SentToSupplierAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("sent_to_supplier_at");
@@ -202,6 +206,31 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb")
                         .HasColumnName("items");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Invoice", "CompraFacil.Orders.Domain.Order.Invoice#OrderInvoice", b1 =>
+                        {
+                            b1.Property<string>("AccessKey")
+                                .IsRequired()
+                                .HasMaxLength(44)
+                                .HasColumnType("character varying(44)")
+                                .HasColumnName("invoice_access_key");
+
+                            b1.Property<DateTimeOffset?>("CancelledAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("invoice_cancelled_at");
+
+                            b1.Property<DateTimeOffset>("IssuedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("invoice_issued_at");
+
+                            b1.Property<int>("Number")
+                                .HasColumnType("integer")
+                                .HasColumnName("invoice_number");
+
+                            b1.Property<int>("Series")
+                                .HasColumnType("integer")
+                                .HasColumnName("invoice_series");
+                        });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Pix", "CompraFacil.Orders.Domain.Order.Pix#OrderPix", b1 =>
                         {
@@ -245,6 +274,69 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                                 .HasMaxLength(11)
                                 .HasColumnType("character varying(11)")
                                 .HasColumnName("recipient_phone");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "ReturnInvoice", "CompraFacil.Orders.Domain.Order.ReturnInvoice#OrderReturnInvoice", b1 =>
+                        {
+                            b1.Property<string>("AccessKey")
+                                .IsRequired()
+                                .HasMaxLength(44)
+                                .HasColumnType("character varying(44)")
+                                .HasColumnName("return_invoice_access_key");
+
+                            b1.Property<DateTimeOffset>("IssuedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("return_invoice_issued_at");
+
+                            b1.Property<int>("Number")
+                                .HasColumnType("integer")
+                                .HasColumnName("return_invoice_number");
+
+                            b1.Property<int>("Series")
+                                .HasColumnType("integer")
+                                .HasColumnName("return_invoice_series");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Shipping", "CompraFacil.Orders.Domain.Order.Shipping#OrderShipping", b1 =>
+                        {
+                            b1.Property<int>("MaxDays")
+                                .HasColumnType("integer")
+                                .HasColumnName("shipping_max_days");
+
+                            b1.Property<int>("MinDays")
+                                .HasColumnType("integer")
+                                .HasColumnName("shipping_min_days");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("shipping_name");
+
+                            b1.Property<DateOnly>("PromisedBy")
+                                .HasColumnType("date")
+                                .HasColumnName("shipping_promised_by");
+
+                            b1.Property<string>("Service")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("shipping_service");
+
+                            b1.ComplexProperty(typeof(Dictionary<string, object>), "Price", "CompraFacil.Orders.Domain.Order.Shipping#OrderShipping.Price#Money", b2 =>
+                                {
+                                    b2.IsRequired();
+
+                                    b2.Property<long>("AmountCents")
+                                        .HasColumnType("bigint")
+                                        .HasColumnName("shipping_price_cents");
+
+                                    b2.Property<string>("Currency")
+                                        .IsRequired()
+                                        .HasMaxLength(3)
+                                        .HasColumnType("character varying(3)")
+                                        .HasColumnName("shipping_price_currency");
+                                });
                         });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "ShippingAddress", "CompraFacil.Orders.Domain.Order.ShippingAddress#ShippingAddress", b1 =>

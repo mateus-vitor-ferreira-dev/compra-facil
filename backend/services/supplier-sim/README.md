@@ -21,6 +21,7 @@ go test ./...
 | `SIM_ACCEPT_DELAY` | `2s` | CREATED → UNSHIPPED (ou → CANCELLED com `[recusar-depois]`). |
 | `SIM_SHIP_DELAY` | `5s` | UNSHIPPED → SHIPPED. |
 | `SIM_DELIVER_DELAY` | `10s` | SHIPPED → DELIVERED. |
+| `SIM_DISPUTE_DELAY` | `5s` | Devolução aberta → resolvida (webhook `DISPUTE`). |
 | `SIM_WEBHOOK_URL` | vazio | Destino dos webhooks; vazio = não envia. |
 | `SIM_WEBHOOK_SECRET` | `sim-secret` | Chave do HMAC em `X-Sim-Signature`. |
 | `SIM_WEBHOOK_RETRY_BASE` | `1s` | Primeira espera entre tentativas (dobra a cada uma; até 5 tentativas). |

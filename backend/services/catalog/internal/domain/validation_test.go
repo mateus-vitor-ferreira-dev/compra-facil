@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -55,6 +56,44 @@ func TestProduct_Validate(t *testing.T) {
 			p := validProduct()
 			tt.mutate(&p)
 			assert.Equal(t, tt.want, fieldsOf(t, p.Validate()))
+		})
+	}
+}
+
+func TestProduct_Validate_Gallery(t *testing.T) {
+	first := "https://cdn.example.com/a.jpg"
+	photos := func(urls ...string) []GalleryImage {
+		out := make([]GalleryImage, len(urls))
+		for i, u := range urls {
+			out[i].URL = u
+		}
+		return out
+	}
+	tooMany := make([]string, MaxGalleryImages+1)
+	for i := range tooMany {
+		tooMany[i] = fmt.Sprintf("https://cdn.example.com/%d.jpg", i)
+	}
+	for name, tc := range map[string]struct {
+		image   *string
+		gallery []GalleryImage
+		valid   bool
+	}{
+		"fotos diferentes":  {&first, photos("https://cdn.example.com/b.jpg"), true},
+		"sem galeria":       {nil, nil, true},
+		"sem a primeira":    {nil, photos("https://cdn.example.com/b.jpg"), false},
+		"repete a primeira": {&first, photos(first), false},
+		"repete na galeria": {&first, photos("https://cdn.example.com/b.jpg", "https://cdn.example.com/b.jpg"), false},
+		"não é http":        {&first, photos("javascript:alert(1)"), false},
+		"fotos demais":      {&first, photos(tooMany...), false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := Product{SKU: "TV-55", Name: "Televisor", PriceCents: 100, Status: ProductActive, ImageURL: tc.image, Gallery: tc.gallery}
+			err := p.Validate()
+			if tc.valid {
+				assert.NoError(t, err)
+				return
+			}
+			assert.Contains(t, fieldsOf(t, err), "more_image_urls")
 		})
 	}
 }

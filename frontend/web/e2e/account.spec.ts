@@ -36,10 +36,10 @@ test("e-mail não confirmado oferece mandar o link de novo", async ({ page }) =>
 
 test("?voltar= só leva a páginas da loja", async ({ page }) => {
   await signIn(page, "ana@exemplo.com", "senha-boa-123", "/entrar?voltar=//evil.example");
-  await expect(page).toHaveURL("http://localhost:3000/conta");
+  await expect(page).toHaveURL("/conta");
 
   await page.getByRole("button", { name: "Sair" }).click();
-  await expect(page).toHaveURL("http://localhost:3000/");
+  await expect(page).toHaveURL("/");
   await signIn(page, "ana@exemplo.com", "senha-boa-123", "/entrar?voltar=%2Fcarrinho");
   await expect(page).toHaveURL(/\/carrinho$/);
 });
@@ -78,10 +78,22 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   await signIn(page, "ana@exemplo.com");
   await expect(page).toHaveURL(/\/conta$/);
   const orders = page.getByRole("region", { name: "Meus pedidos" });
-  await expect(orders.getByRole("link")).toHaveCount(2);
+  await expect(orders.getByRole("link")).toHaveCount(4);
   await expect(orders).toContainText("Pedido 4F2A9C1B");
   await expect(orders).toContainText("Em preparação");
   await expect(orders).toContainText("Cancelado");
+
+  // o pedido em preparação mostra a nota fiscal, com a chave em grupos de 4 como no DANFE
+  await orders.getByRole("link", { name: /Pedido 4F2A9C1B/ }).click();
+  const invoice = page.getByRole("region", { name: "Nota fiscal" });
+  await expect(invoice).toContainText("NF-e 1001, série 1");
+  await expect(invoice).toContainText("3126 1011 2223 3300 0181 5500 1000 0010 0110 0001 0015");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    invoice.getByRole("link", { name: "Baixar a nota (PDF)" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("nfe-1001.pdf");
+  await page.goBack();
 
   await orders.getByRole("link", { name: /Pedido 7C3E5D2A/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pedido 7C3E5D2A");
@@ -91,10 +103,59 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   expect((await page.goto("/conta/pedidos/0199f6a0-0000-7000-8000-0000000fffff"))?.status()).toBe(404);
 });
 
+test("o pedido a caminho mostra o rastreio, na lista e no pedido", async ({ page }) => {
+  await signIn(page, "ana@exemplo.com");
+  await expect(page).toHaveURL(/\/conta$/);
+  const orders = page.getByRole("region", { name: "Meus pedidos" });
+  const shipped = orders.getByRole("link", { name: /Pedido 2E6F8A14/ });
+  await expect(shipped).toContainText("Enviado");
+  await expect(shipped).toContainText("Rastreio BR987654321BR");
+
+  await shipped.click();
+  await expect(page.getByText("Pedido a caminho")).toBeVisible();
+  const tracking = page.getByRole("region", { name: /Rastreio/ });
+  await expect(tracking).toContainText("Correios");
+  await expect(tracking).toContainText("BR987654321BR");
+  const link = tracking.getByRole("link", { name: /Acompanhar a entrega/ });
+  await expect(link).toHaveAttribute("href", "https://rastreio.example/BR987654321BR");
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(page.getByRole("list", { name: "Andamento do pedido" })).toContainText("A caminho");
+});
+
+test("o pedido entregue aceita a desistência em 7 dias, com confirmação", async ({ page }) => {
+  await signIn(page, "ana@exemplo.com");
+  await expect(page).toHaveURL(/\/conta$/);
+  await page.goto("/conta/pedidos/9d1b6e3f-0000-7000-8000-000000000003");
+  const section = page.getByRole("region", { name: "Desistir da compra" });
+  await expect(section).toContainText("7 dias depois da entrega");
+
+  // a primeira tecla só abre a pergunta, com o valor e a forma do estorno; manter devolve o foco
+  await section.getByRole("button", { name: "Desistir da compra" }).click();
+  await expect(section.getByRole("heading", { name: "R$ 2.639,92 de volta" })).toBeFocused();
+  await expect(section).toContainText("no cartão usado na compra");
+  await section.getByRole("button", { name: "Manter o pedido" }).click();
+  await expect(section.getByRole("button", { name: "Desistir da compra" })).toBeFocused();
+
+  await section.getByRole("button", { name: "Desistir da compra" }).click();
+  await section.getByRole("button", { name: "Confirmar a desistência" }).click();
+  await expect(page).toHaveURL(/desistencia=1/);
+  await expect(page.getByRole("status").filter({ hasText: "Desistência registrada" })).toBeVisible();
+  await expect(page.getByText("Valor estornado", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("region", { name: "Desistir da compra" })).toHaveCount(0);
+
+  // a nota de devolução aparece no pedido, para baixar
+  const back = page.getByRole("region", { name: "Nota de devolução" });
+  await expect(back).toContainText("NF-e 2001");
+  await expect(back.getByRole("link", { name: "Baixar a nota de devolução (PDF)" })).toHaveAttribute(
+    "href",
+    /\/nota\?tipo=devolucao$/,
+  );
+});
+
 test("sair apaga a sessão e o cabeçalho volta a oferecer Entrar", async ({ page, context }) => {
   await signIn(page, "ana@exemplo.com");
   await page.getByRole("button", { name: "Sair" }).click();
-  await expect(page).toHaveURL("http://localhost:3000/");
+  await expect(page).toHaveURL("/");
   await expect(page.getByRole("banner").getByRole("link", { name: "Entrar" })).toBeVisible();
   expect(
     (await context.cookies()).filter((c) => c.name.startsWith("cf_") && c.name !== "cf_cart"),

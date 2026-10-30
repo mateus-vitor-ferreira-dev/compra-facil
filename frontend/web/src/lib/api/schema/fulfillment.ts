@@ -48,6 +48,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/invoices/{order_id}/danfe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * O DANFE da nota do pedido, em PDF
+         * @description A nota fiscal do pedido (#221) para o cliente baixar, como o emissor a gera. Só o dono do pedido (o
+         *     `sub` do token) ou a equipe (role `admin`); a nota de outro cliente, a pendente e a rejeitada dão
+         *     404. A nota cancelada continua baixável (o DANFE dela mostra o cancelamento no emissor de verdade).
+         */
+        get: operations["getInvoiceDanfe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/invoices/{order_id}/return-danfe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * O DANFE da nota de devolução do pedido, em PDF
+         * @description A NF-e de devolução (#223), quando o cliente desiste da compra. Só o dono do pedido (o `sub` do token) ou
+         *     a equipe (role `admin`); a nota de outro cliente, e a que ainda não saiu, dão 404.
+         */
+        get: operations["getReturnInvoiceDanfe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shipping/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Frete e prazo por CEP
+         * @description As opções de envio para o CEP (#222, Decreto 7.962: o cliente vê frete e prazo antes de pagar), da
+         *     mais barata para a mais cara. O fornecedor cota em dólar; a loja converte pelo câmbio do catálogo
+         *     (`Shipping:UsdToBrl`) e soma o processamento dela (`Shipping:ProcessingDays`) ao prazo, em dias
+         *     úteis. Pública: a página do produto e o carrinho cotam sem login. O orders confere por aqui o frete
+         *     do pedido.
+         */
+        post: operations["quoteShipping"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-returns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Devoluções ao fornecedor que pedem atenção
+         * @description As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu, as
+         *     paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido) primeiro.
+         *     As que o fornecedor recusou ficam por 30 dias. A nota de devolução rejeitada vem em `invoice_error`.
+         */
+        get: operations["listSupplierReturns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/overdue": {
         parameters: {
             query?: never;
@@ -142,6 +231,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ShippingQuoteRequest: {
+            /**
+             * @description O CEP, com ou sem hífen.
+             * @example 01310-100
+             */
+            zip_code: string;
+            items: {
+                /** @description O SKU da loja (o vid no fornecedor). */
+                sku: string;
+                quantity: number;
+            }[];
+        };
+        ShippingQuote: {
+            zip_code: string;
+            options: components["schemas"]["ShippingOption"][];
+        };
+        ShippingOption: {
+            /** @description O serviço (ex.: `economico`, `expresso`), o que o pedido escolhe. */
+            id: string;
+            /** @description O nome que o cliente vê. */
+            name: string;
+            /** Format: int64 */
+            price_cents: number;
+            /** @description Dias úteis, já com o processamento da loja. */
+            min_days: number;
+            max_days: number;
+        };
         CatalogSyncResult: {
             /** @description Produtos novos no feed. */
             created: number;
@@ -194,18 +310,59 @@ export interface components {
             /** Format: date-time */
             shipped_at?: string | null;
         };
+        /** @description A devolução de um pedido ao fornecedor. O cliente já foi estornado; isto é a pendência da loja. */
+        SupplierReturn: {
+            /** Format: uuid */
+            order_id: string;
+            /**
+             * @description `pending`: na fila para abrir. `open`: esperando a resposta do fornecedor. `rejected`: ele recusou.
+             * @enum {string}
+             */
+            status: "pending" | "open" | "approved" | "rejected";
+            /** @description Passou do prazo sem resposta do fornecedor. */
+            overdue: boolean;
+            /** Format: date-time */
+            due_at: string;
+            supplier: string;
+            supplier_order_id?: string | null;
+            dispute_id?: string | null;
+            /** @description O código que o cliente escreve no pacote. */
+            return_code?: string | null;
+            /** Format: email */
+            customer_email: string;
+            items: {
+                sku: string;
+                name: string;
+                quantity: number;
+            }[];
+            /** @description Tentativas de abrir com o fornecedor fora do ar. */
+            attempts: number;
+            last_error?: string | null;
+            /** @description Por que o fornecedor recusou. */
+            resolution_reason?: string | null;
+            /** @description Por que a SEFAZ rejeitou a nota de devolução. */
+            invoice_error?: string | null;
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            opened_at?: string | null;
+            /** Format: date-time */
+            resolved_at?: string | null;
+        };
         /**
-         * @description Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido) ou `STOCK` (a
-         *     disponibilidade de uma variante, #218).
+         * @description Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido), `STOCK` (a
+         *     disponibilidade de uma variante, #218) ou `DISPUTE` (a resposta a uma devolução, #223).
          */
         SupplierWebhook: {
             messageId: string;
-            /** @description `ORDER` ou `STOCK`; outros tipos são ignorados. */
+            /** @description `ORDER`, `STOCK` ou `DISPUTE`; outros tipos são ignorados. */
             type: string;
             /** @description `UPDATE`. */
             messageType: string;
-            /** @description `ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios. */
+            /** @description `ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios. `DISPUTE`: `orderNumber` e `disputeStatus` obrigatórios. */
             params: {
+                /** @description `DISPUTE`: `PROCESSING`, `APPROVED` ou `REJECTED`. */
+                disputeStatus?: string;
                 /** @description `STOCK`: a variante. */
                 vid?: string;
                 /** @description `STOCK`: unidades disponíveis agora. */
@@ -354,6 +511,26 @@ export interface components {
                 "application/problem+json": components["schemas"]["ValidationProblem"];
             };
         };
+        /** @description Recurso não encontrado. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Limite de requisições excedido (rate limit do gateway). */
+        TooManyRequests: {
+            headers: {
+                /** @description Segundos até poder tentar de novo. */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Token válido, mas sem a permissão necessária. */
         Forbidden: {
             headers: {
@@ -457,6 +634,145 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    getInvoiceDanfe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O DANFE. */
+            200: {
+                headers: {
+                    /** @description `attachment; filename=nfe-<número>.pdf`. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            /** @description O emissor da nota não respondeu; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getReturnInvoiceDanfe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O DANFE. */
+            200: {
+                headers: {
+                    /** @description `attachment; filename=nfe-<número>.pdf`. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            /** @description O emissor da nota não respondeu; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    quoteShipping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShippingQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description As opções de envio. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShippingQuote"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+            /** @description O fornecedor não cotou; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listSupplierReturns: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Devoluções. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SupplierReturn"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
         };
     };
     listOverdueSupplierOrders: {

@@ -165,4 +165,29 @@ public sealed class CjSupplierGatewayTests
 
         await Assert.ThrowsAsync<SupplierUnavailableException>(() => gateway.ListProductsAsync(Ct));
     }
+
+    [Fact]
+    public async Task Frete_le_o_preco_e_o_prazo_do_CJ_e_ignora_opcao_fora_do_formato()
+    {
+        var (gateway, stub) = Gateway((_, _) => Json(new
+        {
+            code = 200,
+            result = true,
+            message = "Success",
+            data = new object[]
+            {
+                new { logisticName = "CJPacket Ordinary", logisticPrice = 4.71, logisticAging = "12-20" },
+                new { logisticName = "CJ Express", logisticPrice = 9.5, logisticAging = "7" },
+                new { logisticName = "Quebrado", logisticPrice = 3.0, logisticAging = "logo" },
+            },
+        }));
+
+        var options = await gateway.QuoteFreightAsync("01310100", [new SupplierOrderItem("SIM-V-001", "Mouse", 2)], Ct);
+
+        Assert.Equal([new SupplierFreightOption("CJPacket Ordinary", 471, 12, 20), new SupplierFreightOption("CJ Express", 950, 7, 7)], options);
+        using var body = JsonDocument.Parse(stub.Requests.Single(r => r.Path.EndsWith("freightCalculate", StringComparison.Ordinal)).Body);
+        Assert.Equal(("CN", "BR", "01310100"), (body.RootElement.GetProperty("startCountryCode").GetString(),
+            body.RootElement.GetProperty("endCountryCode").GetString(), body.RootElement.GetProperty("zip").GetString()));
+        Assert.Equal(2, body.RootElement.GetProperty("products")[0].GetProperty("quantity").GetInt32());
+    }
 }

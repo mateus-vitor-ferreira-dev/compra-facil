@@ -4,7 +4,8 @@
 // do seed nem do estoque que outros testes consumiram):
 //   1. compra confirmada no cartão (titular APRO no payment-sim): reserva → cartão autorizado → pedido
 //      confirmed, reserva committed, e-mail; segue o fornecedor simulado até delivered, com o rastreio, e o
-//      cartão é capturado quando o fornecedor aceita;
+//      cartão é capturado quando o fornecedor aceita; depois o cliente desiste (#223) e o valor todo, com o
+//      frete, é estornado, com os e-mails da devolução e do estorno;
 //   2. estoque insuficiente: estoque zerado pelo admin do inventory → cancelled (out_of_stock);
 //   3. pagamento recusado: cartão do titular FUND → cancelled (payment_failed), cobrança failed
 //      (insufficient_funds) e a reserva devolvida ao estoque;
@@ -13,7 +14,10 @@
 //      e-mail do cancelamento;
 //   5. acabou no fornecedor: um produto do feed do simulado esgota lá → o webhook de estoque zera o
 //      espelho do inventory em segundos, e o pedido é recusado (out_of_stock) antes de qualquer cobrança;
-//   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved.
+//   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved;
+//   7. nota fiscal recusada: cliente "+recusar-nota" (a SEFAZ simulada do invoice-sim rejeita) → o pedido
+//      pago não vai ao fornecedor, cancelled (invoice_failed) e a autorização do cartão cancelada.
+// No cenário 1, a nota fiscal sai antes do fornecedor, aparece no pedido, vai por e-mail e o DANFE baixa.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
 //
@@ -101,6 +105,7 @@ export function setup() {
     declined: createProduct(token, categoryId, 'recusado'),
     pix: createProduct(token, categoryId, 'pix'),
     supplierRejected: createProduct(token, categoryId, 'fornecedor-recusa'),
+    invoiceRejected: createProduct(token, categoryId, 'nota-recusada'),
     // o produto que o catalog importou do feed do fornecedor (o fulfillment lê o feed ao subir)
     fromSupplier: eventually(`produto ${SUPPLIER_VID} importado do fornecedor`, () => {
       const res = http.get(`${GATEWAY}/catalog/v1/admin/products?sku=${SUPPLIER_VID}`, { headers: auth(token) });
@@ -199,15 +204,54 @@ export default function (products) {
       'pedido delivered': (o) => o.status === 'delivered',
       'com o rastreio': (o) => !!(o.tracking && o.tracking.number),
       'aceito pelo fornecedor antes do envio': (o) => !!o.sent_to_supplier_at && o.sent_to_supplier_at <= o.shipped_at,
+      'com a nota fiscal autorizada': (o) => !!(o.invoice && /^\d{44}$/.test(o.invoice.access_key)),
+      'com o frete no total e o prazo prometido': (o) => !!o.shipping && o.shipping.price.amount_cents > 0
+        && o.total.amount_cents === o.items_total.amount_cents + o.shipping.price.amount_cents && !!o.shipping.promised_by,
     });
     // o fornecedor aceitou: a autorização foi capturada
     check(paymentOf(orderId, 'approved'), { 'cartão capturado': (p) => !!p.captured_at });
+    // a nota fiscal: o e-mail com o link do pedido e o DANFE para o dono baixar pelo gateway
+    check(eventually('e-mail da nota fiscal', () => emailsTo(customer.email, 'Nota fiscal')), { 'e-mail da nota fiscal': (n) => n >= 1 });
+    // o envio, com o rastreio, e a entrega, com o prazo para desistir (#224)
+    check(eventually('e-mail do envio', () => emailsTo(customer.email, 'enviado')), { 'e-mail do envio': (n) => n >= 1 });
+    check(eventually('e-mail da entrega', () => emailsTo(customer.email, 'entregue')), { 'e-mail da entrega': (n) => n >= 1 });
+    const danfe = http.get(`${GATEWAY}/fulfillment/v1/me/invoices/${orderId}/danfe`, { headers: auth(customer.token), tags: { name: 'danfe' } });
+    check(danfe, { 'DANFE em PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf') });
 
     const mine = http.get(`${GATEWAY}/orders/v1/me/orders`, { headers: auth(customer.token), tags: { name: 'my-orders' } });
     check(mine, { 'pedido em Meus pedidos': (r) => r.status === 200 && r.json('data').some((o) => o.id === orderId) });
     const stranger = newCustomer(IDENTITY, 'e2e-outro');
     const peek = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(stranger.token), tags: { name: 'order-status' } });
     check(peek, { 'outro cliente não vê o pedido (404)': (r) => r.status === 404 });
+
+    // arrependimento (#223): o entregue volta em 7 dias, e o cartão capturado é estornado com o frete
+    const back = http.post(`${GATEWAY}/orders/v1/orders/${orderId}/return`, null, { headers: auth(customer.token), tags: { name: 'order-return' } });
+    check(back, { 'desistência aceita (returned)': (r) => r.status === 200 && r.json('status') === 'returned' });
+    check(eventually('pedido devolvido estornado', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('refunded_at') ? res.json() : null;
+    }), { 'devolvido e estornado': (o) => o.status === 'returned' && !!o.return_requested_at });
+    check(paymentOf(orderId, 'refunded'), { 'estorno do valor todo': (p) => p.refunded_cents === p.amount.amount_cents });
+    check(eventually('e-mail da devolução', () => emailsTo(customer.email, 'Devolução do pedido')), { 'e-mail da devolução': (n) => n >= 1 });
+    check(eventually('e-mail do estorno', () => emailsTo(customer.email, 'Estorno do pedido')), { 'e-mail do estorno': (n) => n >= 1 });
+    // a nota de venda continua valendo e sai a de devolução, referenciando-a
+    const returned = eventually('nota de devolução', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('return_invoice') ? res.json() : null;
+    });
+    check(returned, {
+      'nota de devolução emitida': (o) => /^[0-9]{44}$/.test(o.return_invoice.access_key),
+      'nota de venda não cancelada': (o) => !o.invoice.cancelled_at,
+    });
+    // a devolução ao fornecedor: o cliente recebe o código, e o fornecedor (simulado) aprova
+    check(eventually('e-mail das instruções', () => emailsTo(customer.email, 'Como devolver')), { 'e-mail das instruções de devolução': (n) => n >= 1 });
+    const dispute = eventually('devolução aprovada no fornecedor', () => {
+      const res = http.get(`${SUPPLIER_SIM}/sim/disputes`, { tags: { name: 'sim-disputes' } });
+      return (res.json('data') ?? []).find((d) => d.orderNumber === orderId && d.status === 'APPROVED');
+    });
+    check(dispute, { 'devolução aberta com código': (d) => !!d.returnCode });
+    const returnDanfe = http.get(`${GATEWAY}/fulfillment/v1/me/invoices/${orderId}/return-danfe`, { headers: auth(customer.token), tags: { name: 'danfe' } });
+    check(returnDanfe, { 'DANFE da devolução em PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf') });
   });
 
   group('2. estoque insuficiente', () => {
@@ -309,5 +353,22 @@ export default function (products) {
     check(paid, { 'PIX pago no banco': (r) => r.status === 200 });
     check(finalOrder(orderId, customer), { 'pedido confirmed': (o) => o.status === 'confirmed' });
     check(paymentOf(orderId, 'approved'), { 'cobrança approved': (p) => p.method === 'pix' && p.fee_cents > 0 });
+  });
+
+  group('7. nota fiscal recusada', () => {
+    const customer = newCustomer(IDENTITY, 'e2e-nota', 'recusar-nota');
+    const orderId = placeOrder(products.invoiceRejected, customer);
+    // pago, a SEFAZ simulada rejeita a nota: o pedido não vai ao fornecedor e o cliente é estornado
+    const order = eventually('pedido cancelado e estornado', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('refunded_at') ? res.json() : null;
+    });
+    check(order, {
+      'pedido cancelled': (o) => o.status === 'cancelled',
+      'motivo invoice_failed': (o) => o.cancellation_reason === 'invoice_failed',
+      'sem nota no pedido': (o) => o.invoice === null,
+      'não foi ao fornecedor': (o) => !o.sent_to_supplier_at,
+    });
+    check(paymentOf(orderId, 'voided'), { 'autorização cancelada': (p) => p.status === 'voided' });
   });
 }

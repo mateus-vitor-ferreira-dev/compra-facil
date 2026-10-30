@@ -48,6 +48,114 @@ public sealed class OnOrderCancelled(INotificationRepository notifications, Time
     }
 }
 
+/// <summary>Registra o e-mail da devolução registrada (#223).</summary>
+public sealed class OnOrderReturned(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<OrderReturnedData>
+{
+    public async Task HandleAsync(OrderReturnedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ReturnedAsync(data);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderReturned,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>Registra o e-mail do estorno feito.</summary>
+public sealed class OnOrderRefunded(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<OrderRefundedData>
+{
+    public async Task HandleAsync(OrderRefundedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.RefundedAsync(data);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderRefunded,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>Registra o e-mail de pedido enviado, com o rastreio e o link do pedido (#224).</summary>
+public sealed class OnOrderShipped(
+    INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)
+    : IHandleEvent<OrderShippedData>
+{
+    public async Task HandleAsync(OrderShippedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ShippedAsync(data, store.Value.BaseUrl);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderShipped,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>Registra o e-mail de pedido entregue, com o prazo de arrependimento e o link do pedido (#224).</summary>
+public sealed class OnOrderDelivered(
+    INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)
+    : IHandleEvent<OrderDeliveredData>
+{
+    public async Task HandleAsync(OrderDeliveredData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.DeliveredAsync(data, store.Value.BaseUrl);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderDelivered,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>Registra o e-mail com as instruções para mandar o produto de volta (#223).</summary>
+public sealed class OnSupplierReturnOpened(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<SupplierReturnOpenedData>
+{
+    public async Task HandleAsync(SupplierReturnOpenedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ReturnInstructionsAsync(data);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.SupplierReturnOpened,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>Registra o e-mail da nota fiscal autorizada, com o link do pedido (onde o cliente baixa o DANFE).</summary>
+public sealed class OnInvoiceIssued(
+    INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)
+    : IHandleEvent<InvoiceIssuedData>
+{
+    public async Task HandleAsync(InvoiceIssuedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.InvoiceIssuedAsync(data, store.Value.BaseUrl);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.InvoiceIssued,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
 /// <summary>Registra o e-mail com o link de confirmação da conta.</summary>
 public sealed class OnEmailConfirmationRequested(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<EmailConfirmationRequestedData>
 {

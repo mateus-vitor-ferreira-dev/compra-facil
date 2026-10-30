@@ -14,6 +14,20 @@ info:
 
     O orders consome estes eventos (a SAGA do pedido com o fornecedor): o status do pedido, e na falha
     o cancelamento que faz o payments estornar o cliente.
+
+    **Nota fiscal (#221).** A loja é a vendedora e emite a NF-e antes do despacho (venda à ordem). O
+    despachante emite a nota do pedido antes de chamá-lo ao fornecedor: autorizada, publica
+    `InvoiceIssued` e o pedido vai com a chave e o XML; rejeitada pela SEFAZ, publica `InvoiceRejected`
+    e o pedido falha com `invoice_rejected` (o orders cancela e o payments estorna). Quando o payments
+    devolve o pedido inteiro (`PaymentRefunded` com `full`), a nota é cancelada no emissor e sai
+    `InvoiceCancelled`.
+
+    **Desistência da compra (#223).** A SEFAZ só cancela em 24 h, e na desistência a mercadoria já foi
+    entregue: o estorno com `reason: return` não cancela a nota. O `OrderReturned` pede a NF-e de devolução
+    (entrada, referenciando a chave da nota de venda), e sai `InvoiceReturnIssued`. O mesmo evento põe a
+    devolução na fila do fornecedor: aberta, sai `SupplierReturnOpened` e o notifications manda ao cliente o
+    código e o endereço; a resposta do fornecedor, por webhook, vira `SupplierReturnResolved`. O estorno ao
+    cliente não depende de nada disso.
 defaultContentType: application/json
 
 servers:
@@ -36,6 +50,10 @@ channels:
         $ref: "#/components/messages/SupplierOrderDelivered"
       SupplierOrderFailed:
         $ref: "#/components/messages/SupplierOrderFailed"
+      SupplierReturnOpened:
+        $ref: "#/components/messages/SupplierReturnOpened"
+      SupplierReturnResolved:
+        $ref: "#/components/messages/SupplierReturnResolved"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -66,9 +84,32 @@ channels:
         topicConfiguration:
           cleanup.policy: [delete]
           retention.ms: 604800000
-  # Canal de outro serviço que o fulfillment consome (definido no contrato do dono)
+  invoiceEvents:
+    address: fulfillment.invoice.v1
+    title: Notas fiscais
+    description: A NF-e de cada pedido pago. Chave = `order_id`.
+    messages:
+      InvoiceIssued:
+        $ref: "#/components/messages/InvoiceIssued"
+      InvoiceRejected:
+        $ref: "#/components/messages/InvoiceRejected"
+      InvoiceCancelled:
+        $ref: "#/components/messages/InvoiceCancelled"
+      InvoiceReturnIssued:
+        $ref: "#/components/messages/InvoiceReturnIssued"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        topic: fulfillment.invoice.v1
+        partitions: 3
+        topicConfiguration:
+          cleanup.policy: [delete]
+          retention.ms: 604800000
+  # Canais de outros serviços que o fulfillment consome (definidos no contrato do dono)
   orderEvents:
     $ref: "./orders.v1.yaml#/channels/orderEvents"
+  paymentEvents:
+    $ref: "./payments.v1.yaml#/channels/paymentEvents"
 
 operations:
   publishSupplierOrderEvents:
@@ -81,6 +122,8 @@ operations:
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderShipped"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderDelivered"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnOpened"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnResolved"
 
   publishSupplierProductEvents:
     action: send
@@ -91,6 +134,27 @@ operations:
       - $ref: "#/channels/supplierProductEvents/messages/SupplierProductUpdated"
       - $ref: "#/channels/supplierProductEvents/messages/SupplierProductRemoved"
       - $ref: "#/channels/supplierProductEvents/messages/SupplierStockChanged"
+
+  publishInvoiceEvents:
+    action: send
+    channel:
+      $ref: "#/channels/invoiceEvents"
+    summary: Publica a nota emitida, rejeitada ou cancelada (outbox, na transação da mudança).
+    messages:
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceIssued"
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceRejected"
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceCancelled"
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceReturnIssued"
+
+  onPaymentRefunded:
+    action: receive
+    channel:
+      $ref: "#/channels/paymentEvents"
+    summary: Com o pedido inteiro devolvido ao cliente (`full`), pede o cancelamento da nota.
+    messages:
+      - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
+    bindings:
+      $ref: "#/components/operationBindings/FulfillmentGroup"
 
   onOrderConfirmed:
     action: receive
@@ -267,11 +331,12 @@ components:
                     description: Id do pedido no fornecedor.
                   reason:
                     type: string
-                    enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable]
+                    enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected]
                     description: |
                       `out_of_stock`: sem estoque no fornecedor · `rejected`: recusado na criação ·
                       `supplier_cancelled`: aceito e depois cancelado pelo fornecedor · `supplier_unavailable`:
-                      fornecedor fora do ar depois de todas as tentativas.
+                      fornecedor (ou o emissor da nota) fora do ar depois de todas as tentativas ·
+                      `invoice_rejected`: a SEFAZ rejeitou a nota da loja, e o pedido nem foi ao fornecedor.
                   detail:
                     type: [string, "null"]
                     maxLength: 500
@@ -280,6 +345,255 @@ components:
                     type: string
                     format: date-time
                     description: Quando o pedido foi dado como não atendido.
+
+    InvoiceIssued:
+      name: InvoiceIssued
+      title: Nota fiscal autorizada
+      summary: |
+        A SEFAZ autorizou a NF-e do pedido. O orders mostra a nota no pedido; o notifications manda o
+        e-mail com o DANFE.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: InvoiceIssued
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, customer_id, customer_email, access_key, number, series, total_cents, issued_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  customer_id:
+                    type: string
+                    format: uuid
+                  customer_email:
+                    type: string
+                    format: email
+                  access_key:
+                    type: string
+                    pattern: "^[0-9]{44}$"
+                    description: A chave de acesso da NF-e.
+                  number:
+                    type: integer
+                    minimum: 1
+                  series:
+                    type: integer
+                    minimum: 0
+                  total_cents:
+                    type: integer
+                    format: int64
+                    minimum: 1
+                  issued_at:
+                    type: string
+                    format: date-time
+
+    InvoiceRejected:
+      name: InvoiceRejected
+      title: Nota fiscal rejeitada
+      summary: A SEFAZ rejeitou a nota; o pedido falha no fornecedor com `invoice_rejected`.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: InvoiceRejected
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, code, reason, rejected_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  code:
+                    type: integer
+                    description: "O cStat da SEFAZ (ex.: 237, CPF do destinatário inválido)."
+                  reason:
+                    type: string
+                    maxLength: 500
+                  rejected_at:
+                    type: string
+                    format: date-time
+
+    SupplierReturnOpened:
+      name: SupplierReturnOpened
+      title: Devolução aberta no fornecedor
+      summary: O notifications manda ao cliente o código da devolução e o endereço para onde mandar o produto.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierReturnOpened
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, customer_email, supplier, dispute_id, return_code, return_address, opened_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  customer_email:
+                    type: string
+                    format: email
+                  supplier:
+                    type: string
+                  dispute_id:
+                    type: string
+                  return_code:
+                    type: string
+                  return_address:
+                    type: string
+                  opened_at:
+                    type: string
+                    format: date-time
+
+    SupplierReturnResolved:
+      name: SupplierReturnResolved
+      title: O fornecedor respondeu à devolução
+      summary: Aprovada ou recusada. A recusa fica no painel; o cliente já foi estornado.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierReturnResolved
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, supplier, outcome, resolved_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  supplier:
+                    type: string
+                  dispute_id:
+                    type: [string, "null"]
+                    description: Nulo se o fornecedor recusou já na abertura.
+                  outcome:
+                    type: string
+                    enum: [approved, rejected]
+                  reason:
+                    type: [string, "null"]
+                  resolved_at:
+                    type: string
+                    format: date-time
+
+    InvoiceReturnIssued:
+      name: InvoiceReturnIssued
+      title: Nota de devolução autorizada
+      summary: O cliente desistiu da compra e a SEFAZ autorizou a NF-e de devolução. O orders a mostra no pedido.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: InvoiceReturnIssued
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, access_key, referenced_access_key, number, series, total_cents, issued_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  access_key:
+                    type: string
+                    pattern: "^[0-9]{44}$"
+                  referenced_access_key:
+                    type: string
+                    pattern: "^[0-9]{44}$"
+                    description: A chave da nota de venda.
+                  number:
+                    type: integer
+                    minimum: 1
+                  series:
+                    type: integer
+                    minimum: 0
+                  total_cents:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                  issued_at:
+                    type: string
+                    format: date-time
+
+    InvoiceCancelled:
+      name: InvoiceCancelled
+      title: Nota fiscal cancelada
+      summary: O pedido foi estornado por inteiro e a nota, cancelada no emissor.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: InvoiceCancelled
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, access_key, cancelled_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  access_key:
+                    type: string
+                    pattern: "^[0-9]{44}$"
+                  cancelled_at:
+                    type: string
+                    format: date-time
 
     SupplierProductUpdated:
       name: SupplierProductUpdated

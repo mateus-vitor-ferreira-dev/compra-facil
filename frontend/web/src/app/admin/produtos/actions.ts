@@ -25,7 +25,7 @@ export type FormState = {
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
 // os nomes dos campos da API, na língua do formulário
-const FIELD = { price_cents: "price", category_id: "category_id", image_url: "image_url" } as Record<
+const FIELD = { price_cents: "price", image_url: "photos", more_image_urls: "photos" } as Record<
   string,
   string
 >;
@@ -62,10 +62,13 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     brand: text(form, "brand"),
     description: text(form, "description"),
     category_id: text(form, "category_id"),
-    image_url: text(form, "image_url"),
     price: text(form, "price"),
     status: text(form, "status"),
   };
+  const photos = form
+    .getAll("image_urls")
+    .map((url) => String(url).trim())
+    .filter(Boolean);
   const price = parseReais(values.price);
   if (price === null || price < 1) {
     return { values, fields: { price: "Escreva o preço em reais, como 1.299,90." } };
@@ -77,7 +80,8 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     brand: values.brand || null,
     description: values.description,
     category_id: values.category_id,
-    image_url: values.image_url || null,
+    image_url: photos[0] ?? null,
+    more_image_urls: photos.slice(1),
     price_cents: price,
     status: status.success ? status.data : "draft",
   };

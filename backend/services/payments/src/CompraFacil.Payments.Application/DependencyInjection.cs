@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
         services.AddScoped<ChargeProcessor>();
         services.AddScoped<PaymentOutcome>();
+        services.AddScoped<PaymentReversal>();
         services.AddScoped<ProviderNotifications>();
         services.AddScoped<RefundPayment>();
         services.AddScoped<PaymentQueries>();

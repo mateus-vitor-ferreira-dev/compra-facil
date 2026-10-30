@@ -9,7 +9,9 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CompraFacil.Orders.IntegrationTests;
 
@@ -78,12 +80,31 @@ public sealed class FakeCatalog : CatalogService.CatalogServiceBase
 }
 
 /// <summary>Postgres real + catalog falso (gRPC de verdade, HTTP/2) + o orders em memória.</summary>
+/// <summary>O fulfillment dos testes: cota dois fretes (ou nenhum, ou fora do ar), e conta as cotações.</summary>
+public sealed class FakeShippingQuotes : CompraFacil.Orders.Application.Shipping.IShippingQuotes
+{
+    public List<CompraFacil.Orders.Application.Shipping.ShippingQuote>? Options { get; set; } =
+        [new("economico", "Econômico", 2430, 13, 21), new("expresso", "Expresso", 6480, 7, 11)];
+
+    public List<(string Zip, IReadOnlyList<(string Sku, int Quantity)> Items)> Calls { get; } = [];
+
+    public Task<IReadOnlyList<CompraFacil.Orders.Application.Shipping.ShippingQuote>> QuoteAsync(
+        string zipCode, IReadOnlyList<(string Sku, int Quantity)> items, CancellationToken ct)
+    {
+        Calls.Add((zipCode, items));
+        return Options is { } options
+            ? Task.FromResult<IReadOnlyList<CompraFacil.Orders.Application.Shipping.ShippingQuote>>([.. options])
+            : throw new CompraFacil.BuildingBlocks.Web.DependencyUnavailableException("frete fora do ar", TimeSpan.FromSeconds(5));
+    }
+}
+
 public class OrdersFixture : IAsyncLifetime
 {
     private readonly PostgresFixture _postgres = new();
     private WebApplication _catalogHost = null!;
 
     public FakeCatalog Catalog { get; } = new();
+    public FakeShippingQuotes Shipping { get; } = new();
 
     /// <summary>Releitura do pedido nos streams SSE; longa, só o aviso (OrderChangeFeed) traz a mudança.</summary>
     protected virtual string LivePollInterval => "00:00:00.200";
@@ -115,7 +136,12 @@ public class OrdersFixture : IAsyncLifetime
             // acompanhamento ao vivo em ritmo de teste
             .UseSetting("Orders:Live:PollInterval", LivePollInterval)
             .UseSetting("Orders:Live:HeartbeatInterval", "00:00:00.300")
-            .UseSetting("Orders:Live:MaxDuration", "00:00:03"));
+            .UseSetting("Orders:Live:MaxDuration", "00:00:03")
+            .ConfigureTestServices(services =>
+            {
+                services.RemoveAll<CompraFacil.Orders.Application.Shipping.IShippingQuotes>();
+                services.AddSingleton<CompraFacil.Orders.Application.Shipping.IShippingQuotes>(Shipping);
+            }));
         using var _ = Factory.CreateClient(); // sobe e migra
     }
 

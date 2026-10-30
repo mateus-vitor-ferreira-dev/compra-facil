@@ -4,6 +4,7 @@ using System.Text.Json;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Orders.Application.Catalog;
+using CompraFacil.Orders.Application.Shipping;
 using CompraFacil.Orders.Domain;
 using FluentValidation;
 using FluentValidation.Results;
@@ -21,7 +22,7 @@ public sealed record PlaceOrderPayment(PaymentMethod Method, int Installments, s
 /// </summary>
 public sealed record PlaceOrderCommand(
     Guid CustomerId, string CustomerEmail, IReadOnlyList<PlaceOrderItem> Items, string IdempotencyKey, PlaceOrderPayment? Payment,
-    Recipient? Recipient, ShippingAddress? ShippingAddress);
+    Recipient? Recipient, ShippingAddress? ShippingAddress, string? ShippingService = null);
 
 /// <param name="Order">O pedido (novo ou o já criado com a mesma Idempotency-Key).</param>
 /// <param name="Created">false quando a chave já tinha sido usada com o mesmo corpo.</param>
@@ -65,6 +66,8 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
             a.RuleFor(x => x.City).NotEmpty().MaximumLength(60).OverridePropertyName("city");
             a.RuleFor(x => x.State).Must(BrazilianDocuments.States.Contains).OverridePropertyName("state").WithMessage("UF inválida");
         }).When(c => c.ShippingAddress is not null).OverridePropertyName("shipping_address");
+        RuleFor(c => c.ShippingService).NotEmpty().MaximumLength(32).OverridePropertyName("shipping.service")
+            .WithMessage("escolha o frete");
         RuleFor(c => c.Payment).NotNull().WithName("payment").OverridePropertyName("payment")
             .WithMessage("escolha como pagar: pix ou card");
         RuleFor(c => c.Payment!).ChildRules(p =>
@@ -89,6 +92,7 @@ public sealed class PlaceOrder(
     IValidator<PlaceOrderCommand> validator,
     ICatalogPricing catalog,
     IOrderRepository orders,
+    IShippingQuotes shipping,
     IOutbox outbox,
     TimeProvider clock)
 {
@@ -108,11 +112,21 @@ public sealed class PlaceOrder(
             [.. command.Items.Select(i => new ItemToPrice(i.ProductId, i.Quantity, i.ExpectedUnitPriceCents))], ct);
         EnsureAllSellable(priced);
 
+        // o frete recotado aqui, com os SKUs e as quantidades que o catálogo confirmou
+        var now = clock.GetUtcNow();
+        var quotes = await shipping.QuoteAsync(command.ShippingAddress!.ZipCode, [.. priced.Select(p => (p.Sku, p.Quantity))], ct);
+        var quote = quotes.FirstOrDefault(q => string.Equals(q.Service, command.ShippingService, StringComparison.Ordinal))
+            ?? throw new ValidationException([new ValidationFailure("shipping.service",
+                $"o frete {command.ShippingService} não atende o CEP {command.ShippingAddress.ZipCode}; escolha outro")]);
+        var currency = priced[0].UnitPrice!.Value.Currency;
+        var orderShipping = new OrderShipping(quote.Service, quote.Name, new Money(quote.PriceCents, currency), quote.MinDays, quote.MaxDays,
+            OrderShipping.Promise(now, quote.MaxDays));
+
         var payment = command.Payment!; // validado acima
         var order = Order.Place(
             Guid.CreateVersion7(), command.CustomerId, command.CustomerEmail.Trim(),
             [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId))],
-            command.IdempotencyKey, requestHash, clock.GetUtcNow(), command.Recipient!, command.ShippingAddress!,
+            command.IdempotencyKey, requestHash, now, command.Recipient!, command.ShippingAddress!, orderShipping,
             payment.Method, payment.Installments);
         orders.Add(order);
         outbox.Add(OrderEvents.Topic, order.Id.ToString(), OrderEvents.OrderPlaced,
@@ -173,6 +187,7 @@ public sealed class PlaceOrder(
             Payment = c.Payment is { } p ? new { p.Method, p.Installments } : null,
             c.Recipient,
             c.ShippingAddress,
+            c.ShippingService,
         });
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }

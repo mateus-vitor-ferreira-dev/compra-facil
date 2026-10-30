@@ -71,7 +71,17 @@ type Ide struct {
 	FinNFe   int    `json:"finNFe"`
 	IndFinal int    `json:"indFinal"`
 	IndPres  int    `json:"indPres"`
+	// NFref: as notas que esta referencia (a de venda, na devolução)
+	NFref []NFref `json:"NFref,omitempty"`
 }
+
+// NFref aponta para outra NF-e pela chave de acesso.
+type NFref struct {
+	RefNFe string `json:"refNFe"`
+}
+
+// FinDevolucao é a finalidade (finNFe) da NF-e de devolução.
+const FinDevolucao = 4
 
 type Endereco struct {
 	XLgr    string `json:"xLgr"`
@@ -125,8 +135,9 @@ type Total struct {
 }
 
 type ICMSTot struct {
-	VProd float64 `json:"vProd"`
-	VNF   float64 `json:"vNF"`
+	VProd  float64 `json:"vProd"`
+	VFrete float64 `json:"vFrete,omitempty"`
+	VNF    float64 `json:"vNF"`
 }
 
 type Transp struct {
@@ -184,7 +195,7 @@ type Cancellation struct {
 }
 
 type Options struct {
-	// CFOPs que a loja usa (venda à ordem: 5.120 dentro do estado, 6.120 fora; ADR 0007)
+	// CFOPs que a loja usa (venda à ordem: 5.120 dentro do estado, 6.120 fora, ADR 0007; devolução: 1.202 e 2.202)
 	AllowedCFOP []string
 	// prazo para cancelar a nota autorizada (24 h na SEFAZ)
 	CancelWindow time.Duration
@@ -287,8 +298,17 @@ func (i *Issuer) validate(req Request) (int, string) {
 		}
 		sum += d.Prod.VProd
 	}
-	if cents(sum) != cents(n.Total.ICMSTot.VProd) || cents(n.Total.ICMSTot.VProd) != cents(n.Total.ICMSTot.VNF) {
+	// a nota vale os produtos mais o frete cobrado do cliente
+	t := n.Total.ICMSTot
+	if cents(sum) != cents(t.VProd) || cents(t.VProd)+cents(t.VFrete) != cents(t.VNF) {
 		return 610, "Rejeição: Total da NF difere do somatório dos Valores compõe o valor Total da NF"
+	}
+	// a devolução aponta para a nota de venda autorizada e não recebe nada: o estorno é fora da nota
+	if n.Ide.FinNFe == FinDevolucao {
+		if !i.authorizedKeys(n.Ide.NFref) {
+			return 267, "Rejeição: NF-e de devolução sem a referência a uma nota autorizada"
+		}
+		return 0, ""
 	}
 	var paid float64
 	for _, p := range n.Pag.DetPag {
@@ -298,6 +318,26 @@ func (i *Issuer) validate(req Request) (int, string) {
 		return 866, "Rejeição: Ausência de troco quando o valor dos pagamentos informados for maior que o total da nota"
 	}
 	return 0, ""
+}
+
+// authorizedKeys confere se há referências e se todas são de notas autorizadas. Quem chama tem o lock.
+func (i *Issuer) authorizedKeys(refs []NFref) bool {
+	if len(refs) == 0 {
+		return false
+	}
+	for _, ref := range refs {
+		found := false
+		for _, inv := range i.byID {
+			if inv.Chave == ref.RefNFe && inv.Status == StatusAuthorized {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 func (i *Issuer) Get(id string) (Invoice, error) {

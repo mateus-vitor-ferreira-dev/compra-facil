@@ -53,7 +53,10 @@ public sealed class SupplierStock(
         {
             return false;
         }
-        await ApplyAsync(new Dictionary<string, int> { [vid] = available }, at ?? now, ct);
+        // a hora do webhook vem em segundos: sem o arredondamento para cima, ele perderia para uma leitura feita
+        // antes dele, no mesmo segundo, e o estoque ficaria errado até o próximo ciclo do feed
+        var readAt = at is { } sent && sent.AddSeconds(1) < now ? sent.AddSeconds(1) : now;
+        await ApplyAsync(new Dictionary<string, int> { [vid] = available }, readAt, ct);
         await products.SaveChangesAsync(ct);
         return true;
     }

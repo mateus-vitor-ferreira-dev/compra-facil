@@ -104,6 +104,12 @@ export default async function AccountPage({ searchParams }: Props) {
                           {dateFormat.format(new Date(order.created_at))},{" "}
                           {units === 1 ? "1 produto" : `${units} produtos`}
                         </span>
+                        {order.status === "shipped" && order.tracking && (
+                          // o código para consultar já daqui; o link da transportadora fica no pedido
+                          <span className="text-ink-soft">
+                            Rastreio <span className="text-ink tabular-nums">{order.tracking.number}</span>
+                          </span>
+                        )}
                       </span>
                       <ChevronRight
                         aria-hidden="true"

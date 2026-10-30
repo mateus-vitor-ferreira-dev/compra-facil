@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -89,14 +90,21 @@ func TestCancelEmitsWebhookAndStopsLifecycle(t *testing.T) {
 }
 
 type recorder struct {
-	mu  sync.Mutex
-	got []webhook.Params
+	mu       sync.Mutex
+	got      []webhook.Params
+	disputes []webhook.DisputeParams
 }
 
 func (r *recorder) Enqueue(p webhook.Params) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.got = append(r.got, p)
+}
+
+func (r *recorder) EnqueueDispute(p webhook.DisputeParams) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.disputes = append(r.disputes, p)
 }
 
 func (r *recorder) statuses() []string {
@@ -107,4 +115,63 @@ func (r *recorder) statuses() []string {
 		out = append(out, p.OrderStatus)
 	}
 	return out
+}
+
+func delivered(t *testing.T, sim *Simulator, r *recorder, number, remark string) {
+	t.Helper()
+	_, err := sim.Create(req(number, remark))
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return slices.Contains(r.statuses(), StatusDelivered)
+	}, time.Second, time.Millisecond)
+}
+
+func TestOpenDispute_OnlyDelivered_OncePerOrder_AndTheSupplierAnswers(t *testing.T) {
+	r := &recorder{}
+	sim := NewSimulator(catalog.NewStock(nil), Delays{}, r)
+	t.Cleanup(sim.Close)
+
+	_, err := sim.OpenDispute("nao-existe")
+	require.ErrorIs(t, err, ErrNotFound)
+
+	delivered(t, sim, r, "PED-OK", "")
+	first, err := sim.OpenDispute("PED-OK")
+	require.NoError(t, err)
+	again, err := sim.OpenDispute("PED-OK")
+	require.NoError(t, err)
+	assert.Equal(t, first.DisputeID, again.DisputeID)
+	assert.NotEmpty(t, first.ReturnCode)
+	assert.NotEmpty(t, first.ReturnAddress)
+
+	require.Eventually(t, func() bool {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		return len(r.disputes) == 1
+	}, time.Second, time.Millisecond)
+	assert.Equal(t, DisputeApproved, r.disputes[0].DisputeStatus)
+	assert.Equal(t, "PED-OK", r.disputes[0].OrderNumber)
+}
+
+func TestOpenDispute_RefusedBeforeDelivery_AndRejectedByTheMark(t *testing.T) {
+	r := &recorder{}
+	sim := NewSimulator(catalog.NewStock(nil), Delays{Accept: time.Hour}, r)
+	t.Cleanup(sim.Close)
+	_, err := sim.Create(req("PED-CEDO", ""))
+	require.NoError(t, err)
+	_, err = sim.OpenDispute("PED-CEDO")
+	require.ErrorIs(t, err, ErrNotDelivered)
+
+	r2 := &recorder{}
+	sim2 := NewSimulator(catalog.NewStock(nil), Delays{}, r2)
+	t.Cleanup(sim2.Close)
+	delivered(t, sim2, r2, "PED-NAO", MarkRejectReturn)
+	_, err = sim2.OpenDispute("PED-NAO")
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		r2.mu.Lock()
+		defer r2.mu.Unlock()
+		return len(r2.disputes) == 1
+	}, time.Second, time.Millisecond)
+	assert.Equal(t, DisputeRejected, r2.disputes[0].DisputeStatus)
+	assert.NotEmpty(t, r2.disputes[0].Reason)
 }

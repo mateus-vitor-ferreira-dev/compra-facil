@@ -89,6 +89,16 @@ export async function confirmOrder(_: CheckoutState, form: FormData): Promise<Ch
       error: { title: "O pedido não foi feito", message: "Confira os dados de entrega marcados." },
     };
   }
+  const shipping = z.string().min(1).max(32).safeParse(form.get("shipping_service"));
+  if (!shipping.success) {
+    return {
+      delivery: { errors: {}, values },
+      error: {
+        title: "O pedido não foi feito",
+        message: "Escolha o frete. Sem JavaScript, ele aparece com o CEP do seu último pedido.",
+      },
+    };
+  }
   const payment = readPayment(form);
   if (!("method" in payment)) return payment;
   const token = await accessToken();
@@ -105,7 +115,7 @@ export async function confirmOrder(_: CheckoutState, form: FormData): Promise<Ch
     token,
     cart.items.map((i) => ({ product_id: i.id, quantity: i.qty, expected_unit_price_cents: i.seen })),
     payment,
-    toOrderDelivery(values),
+    { ...toOrderDelivery(values), shipping: { service: shipping.data } },
     key.data,
   );
 

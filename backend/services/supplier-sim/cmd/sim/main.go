@@ -81,7 +81,7 @@ func run() error {
 		log.Warn("SIM_WEBHOOK_URL vazia: mudanças de status não serão notificadas")
 	}
 	stock := catalog.NewStock(cfg.OutOfStock)
-	orders := order.NewSimulator(stock, order.Delays{Accept: cfg.AcceptDelay, Ship: cfg.ShipDelay, Deliver: cfg.DeliverDelay}, hooks)
+	orders := order.NewSimulator(stock, order.Delays{Accept: cfg.AcceptDelay, Ship: cfg.ShipDelay, Deliver: cfg.DeliverDelay, Dispute: cfg.DisputeDelay}, hooks)
 	tokens := handler.NewTokens(cfg.Email, cfg.Password, cfg.TokenTTL)
 
 	srv := &http.Server{

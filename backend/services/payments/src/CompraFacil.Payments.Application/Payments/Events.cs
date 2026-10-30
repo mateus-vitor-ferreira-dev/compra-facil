@@ -27,6 +27,9 @@ public sealed record StockReservedData(Guid OrderId);
 
 public sealed record OrderCancelledData(Guid OrderId);
 
+/// <summary>data do OrderReturned (só o usado): o pedido devolvido no prazo de arrependimento.</summary>
+public sealed record OrderReturnedData(Guid OrderId);
+
 public sealed record SupplierOrderPlacedData(Guid OrderId);
 
 // ---- publicados ----
@@ -47,11 +50,12 @@ public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, Money Amoun
 
 /// <summary>
 /// Dinheiro de volta: Kind refund (estorno do que foi pago, total ou parte) ou void (a autorização foi
-/// cancelada: nada chegou a ser cobrado). Full: o pedido inteiro voltou.
+/// cancelada: nada chegou a ser cobrado). Full: o pedido inteiro voltou. Reason: por que voltou (return: o
+/// cliente desistiu da compra, e o fulfillment não cancela a nota); nulo no estorno pelo painel.
 /// </summary>
 public sealed record PaymentRefundedData(
     Guid OrderId, Guid PaymentId, Money Amount, long TotalRefundedCents, string Provider, string? RefundReference,
-    DateTimeOffset RefundedAt, RefundKind Kind, bool Full);
+    DateTimeOffset RefundedAt, RefundKind Kind, bool Full, string? Reason = null);
 
 public enum RefundKind
 {

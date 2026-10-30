@@ -27,13 +27,26 @@ export function getOrder(token: string, id: string): Promise<Result<Order>> {
   });
 }
 
+/**
+ * Desiste da compra (#223): o pedido entregue há até 7 dias passa a devolvido e o pagamento é estornado.
+ * Pedir de novo devolve o mesmo pedido; fora do prazo (ou ainda não entregue) dá 409.
+ */
+export function returnOrder(token: string, id: string): Promise<Result<Order>> {
+  return call(async () => {
+    const r = await api.orders({ token }).POST("/v1/orders/{order_id}/return", {
+      params: { path: { order_id: id } },
+    });
+    return { data: r.data, response: r.response };
+  });
+}
+
 export type PlaceOrderItem = { product_id: string; quantity: number; expected_unit_price_cents: number };
 /** PIX, ou o cartão já tokenizado no provedor (#220): o número dele nunca chega aqui. */
 export type PlaceOrderPayment = OrdersSchemas["schemas"]["PlaceOrderPayment"];
-/** Quem recebe e onde (#221), já só com os dígitos no CPF, no telefone e no CEP. */
+/** Quem recebe, onde (#221) e o frete escolhido (#222): o CPF, o telefone e o CEP só com os dígitos. */
 export type PlaceOrderDelivery = Pick<
   OrdersSchemas["schemas"]["PlaceOrderRequest"],
-  "recipient" | "shipping_address"
+  "recipient" | "shipping_address" | "shipping"
 >;
 
 /** Por que o pedido não foi criado, com o que a tela precisa para explicar e o suporte, para achar. */

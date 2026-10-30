@@ -4,11 +4,13 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { z } from "zod";
 import { OrderLive } from "@/components/account/order-live";
+import { ReturnOrder } from "@/components/account/return-order";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
 import { requireAccount } from "@/lib/auth/current";
 import { addressLines } from "@/lib/delivery";
+import { promised } from "@/lib/shipping";
 import { formatMoney } from "@/lib/format";
 import { orderNumber } from "@/lib/order-status";
 import { getOrder } from "@/lib/orders-api";
@@ -28,12 +30,15 @@ type Props = {
 
 /**
  * Um pedido: a compra andando ao vivo (ou como terminou, com o motivo se cancelou), os itens com o
- * preço congelado e o total. `?novo=1`: o cliente acabou de fazer o pedido no checkout.
+ * preço congelado e o total. `?novo=1`: o cliente acabou de fazer o pedido no checkout; `?desistencia=1`,
+ * acabou de desistir dele (#223).
  */
 export default async function OrderPage({ params, searchParams }: Props) {
   await connection();
   const { id } = await params;
-  const justPlaced = (await searchParams).novo === "1";
+  const query = await searchParams;
+  const justPlaced = query.novo === "1";
+  const justReturned = query.desistencia === "1";
   const { token } = await requireAccount(`/conta/pedidos/${id}`);
   if (!z.uuid().safeParse(id).success) notFound();
   const result = await getOrder(token, id);
@@ -65,12 +70,18 @@ export default async function OrderPage({ params, searchParams }: Props) {
       />
       <div className="mt-4 space-y-1">
         {justPlaced && <p className="font-semibold">Recebemos o seu pedido.</p>}
+        {justReturned && order.status === "returned" && (
+          <p role="status" className="font-semibold">
+            Desistência registrada. O estorno já foi pedido.
+          </p>
+        )}
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Pedido {orderNumber(order.id)}</h1>
         <p className="text-ink-soft">Feito em {dateTime.format(new Date(order.created_at))}</p>
       </div>
 
       <div className="mt-8">
-        <OrderLive initial={order} />
+        {/* a desistência muda o pedido parado na entrega: remontado, o stream reabre e mostra o estorno */}
+        <OrderLive key={order.status} initial={order} />
       </div>
 
       <section aria-labelledby="itens" className="mt-10">
@@ -92,10 +103,28 @@ export default async function OrderPage({ params, searchParams }: Props) {
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex items-end justify-between">
-          <p className="font-semibold">Total</p>
-          <p className="font-condensed text-3xl leading-none font-extrabold">{formatMoney(order.total)}</p>
-        </div>
+        <dl className="mt-4 space-y-2">
+          {order.shipping && (
+            <>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-soft">Produtos</dt>
+                <dd className="tabular-nums">{formatMoney(order.items_total)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-soft">Frete {order.shipping.name.toLowerCase()}</dt>
+                <dd className="tabular-nums">
+                  {order.shipping.price.amount_cents === 0 ? "Grátis" : formatMoney(order.shipping.price)}
+                </dd>
+              </div>
+            </>
+          )}
+          <div className="flex items-end justify-between gap-4">
+            <dt className="font-semibold">Total</dt>
+            <dd className="font-condensed text-3xl leading-none font-extrabold">
+              {formatMoney(order.total)}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       {order.recipient && order.shipping_address && (
@@ -103,6 +132,15 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <h2 id="entrega" className="text-xl font-semibold tracking-tight">
             Entrega
           </h2>
+          {order.shipping &&
+            order.status !== "cancelled" &&
+            order.status !== "delivered" &&
+            order.status !== "returned" && (
+              // a data que a loja prometeu: é por ela que o cliente cobra, e o painel mede o atraso
+              <p className="font-condensed pb-1 text-2xl font-extrabold tracking-tight">
+                Chega até {promised(order.shipping.promised_by)}
+              </p>
+            )}
           <p className="font-medium">{order.recipient.name}</p>
           <address className="text-ink-soft not-italic">
             {addressLines(order.shipping_address).map((line) => (
@@ -111,6 +149,67 @@ export default async function OrderPage({ params, searchParams }: Props) {
               </span>
             ))}
           </address>
+        </section>
+      )}
+
+      {order.status === "delivered" && <ReturnOrder order={order} />}
+
+      {order.invoice && (
+        <section aria-labelledby="nota" className="mt-10 space-y-1">
+          <h2 id="nota" className="text-xl font-semibold tracking-tight">
+            Nota fiscal
+          </h2>
+          <p>
+            NF-e {order.invoice.number}, série {order.invoice.series}, emitida em{" "}
+            <time dateTime={order.invoice.issued_at}>
+              {dateTime.format(new Date(order.invoice.issued_at))}
+            </time>
+            {order.invoice.cancelled_at && <span className="text-ink-soft"> (cancelada no estorno)</span>}
+          </p>
+          <p className="pt-1">
+            <a
+              href={`/api/pedidos/${order.id}/nota`}
+              download
+              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+            >
+              Baixar a nota (PDF)
+            </a>
+          </p>
+          <p className="text-ink-soft text-sm">
+            Chave de acesso{" "}
+            <span className="text-ink tabular-nums select-all">
+              {order.invoice.access_key.replace(/(\d{4})(?=\d)/g, "$1 ")}
+            </span>
+          </p>
+        </section>
+      )}
+
+      {order.return_invoice && (
+        <section aria-labelledby="nota-devolucao" className="mt-10 space-y-1">
+          <h2 id="nota-devolucao" className="text-xl font-semibold tracking-tight">
+            Nota de devolução
+          </h2>
+          <p>
+            NF-e {order.return_invoice.number}, série {order.return_invoice.series}, emitida em{" "}
+            <time dateTime={order.return_invoice.issued_at}>
+              {dateTime.format(new Date(order.return_invoice.issued_at))}
+            </time>
+          </p>
+          <p className="pt-1">
+            <a
+              href={`/api/pedidos/${order.id}/nota?tipo=devolucao`}
+              download
+              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+            >
+              Baixar a nota de devolução (PDF)
+            </a>
+          </p>
+          <p className="text-ink-soft text-sm">
+            Chave de acesso{" "}
+            <span className="text-ink tabular-nums select-all">
+              {order.return_invoice.access_key.replace(/(\d{4})(?=\d)/g, "$1 ")}
+            </span>
+          </p>
         </section>
       )}
 

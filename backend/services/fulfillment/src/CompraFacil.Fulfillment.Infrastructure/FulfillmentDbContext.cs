@@ -10,6 +10,8 @@ public sealed class FulfillmentDbContext(DbContextOptions<FulfillmentDbContext> 
 {
     public DbSet<SupplierOrder> SupplierOrders => Set<SupplierOrder>();
     public DbSet<SupplierProduct> SupplierProducts => Set<SupplierProduct>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<SupplierReturn> SupplierReturns => Set<SupplierReturn>();
     internal DbSet<SupplierWebhook> SupplierWebhooks => Set<SupplierWebhook>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) => modelBuilder

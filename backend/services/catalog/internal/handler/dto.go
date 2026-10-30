@@ -29,14 +29,16 @@ type campaignRefDTO struct {
 }
 
 type productDTO struct {
-	ID             uuid.UUID       `json:"id"`
-	SKU            string          `json:"sku"`
-	Name           string          `json:"name"`
-	Description    string          `json:"description"`
-	Brand          *string         `json:"brand"`
-	Category       categoryRefDTO  `json:"category"`
-	ImageURL       *string         `json:"image_url"`
-	Image          *imageDTO       `json:"image"`
+	ID          uuid.UUID      `json:"id"`
+	SKU         string         `json:"sku"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Brand       *string        `json:"brand"`
+	Category    categoryRefDTO `json:"category"`
+	ImageURL    *string        `json:"image_url"`
+	Image       *imageDTO      `json:"image"`
+	// Images: todas as fotos, a primeira igual a Image. Só no detalhe: a listagem usa a primeira.
+	Images         []imageDTO      `json:"images,omitempty"`
 	Price          moneyDTO        `json:"price"`
 	EffectivePrice moneyDTO        `json:"effective_price"`
 	Campaign       *campaignRefDTO `json:"campaign"`
@@ -61,6 +63,25 @@ func toImageDTO(p domain.Product) *imageDTO {
 	if img := p.Image; img != nil {
 		dto.Width, dto.Height, dto.Variants = &img.Width, &img.Height, img.Variants
 	}
+	return dto
+}
+
+func toImagesDTO(p domain.Product) []imageDTO {
+	first := toImageDTO(p)
+	if first == nil {
+		return []imageDTO{}
+	}
+	out := []imageDTO{*first}
+	for _, g := range p.Gallery {
+		out = append(out, *toImageDTO(domain.Product{ImageURL: &g.URL, Image: g.Image}))
+	}
+	return out
+}
+
+// toProductDetailDTO é o produto da página dele: com todas as fotos.
+func toProductDetailDTO(p domain.Product) productDTO {
+	dto := toProductDTO(p)
+	dto.Images = toImagesDTO(p)
 	return dto
 }
 
@@ -151,6 +172,13 @@ func toProductPageDTO(page domain.Page[domain.Product]) productPageDTO {
 		out.Page.HasMore = page.More
 	}
 	return out
+}
+
+// toAdminProductDetailDTO é o produto do formulário do painel: com todas as fotos.
+func toAdminProductDetailDTO(p domain.Product) adminProductDTO {
+	dto := toAdminProductDTO(p)
+	dto.Images = toImagesDTO(p)
+	return dto
 }
 
 func toAdminProductDTO(p domain.Product) adminProductDTO {

@@ -43,10 +43,23 @@ public sealed class OrdersController(PlaceOrder placeOrder, OrderQueries queries
                 ? new PlaceOrderPayment(p.Method ?? (PaymentMethod)(-1), p.Installments ?? 1, p.CardToken, p.CardBrand)
                 : null,
             body.Recipient?.ToDomain(),
-            body.ShippingAddress?.ToDomain()), ct);
+            body.ShippingAddress?.ToDomain(),
+            body.Shipping?.Service?.Trim()), ct);
 
         var order = result.Order;
         return Accepted($"/v1/orders/{order.Id}", OrderResponse.From(order));
+    }
+
+    /// <summary>returnOrder (#223): o dono devolve o pedido entregue, em até 7 dias, sem justificar.</summary>
+    [HttpPost("v1/orders/{order_id:guid}/return")]
+    [Authorize]
+    public async Task<IActionResult> Return([FromRoute(Name = "order_id")] Guid orderId, [FromServices] ReturnOrder returns, CancellationToken ct)
+    {
+        if (!User.IsInRole("customer") || CustomerId() is not { } customerId)
+        {
+            return Forbid();
+        }
+        return Ok(OrderResponse.From(await returns.HandleAsync(orderId, customerId, ct)));
     }
 
     /// <summary>getOrder: detalhe e situação do pedido, para o dono ou um operador.</summary>

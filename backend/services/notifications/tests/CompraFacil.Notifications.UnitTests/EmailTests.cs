@@ -17,6 +17,7 @@ public sealed class EmailTests
     [Theory]
     [InlineData("out_of_stock", null, "sem estoque")]
     [InlineData("supplier_failed", null, "fornecedor")]
+    [InlineData("invoice_failed", null, "nota fiscal")]
     [InlineData("payment_failed", "insufficient_funds", "limite insuficiente")]
     [InlineData("payment_failed", "card_declined", "cartão foi recusado")]
     [InlineData("payment_failed", "pix_expired", "PIX não foi pago")]
@@ -36,6 +37,96 @@ public sealed class EmailTests
         Assert.Contains("Fone <Pro> Elétrico", email.TextBody, StringComparison.Ordinal);       // texto puro: como é
         Assert.Contains("R$ 399,80", email.TextBody, StringComparison.Ordinal);
         Assert.DoesNotContain("<td>", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InvoiceIssued_HasTheNumber_TheKeyInGroups_AndTheOrderLink()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.InvoiceIssuedAsync(
+            new InvoiceIssuedData(order, "ana@exemplo.com", "31261011222333000181550010000010011000010015", 1001, 1, 24990),
+            new Uri("https://loja.example/"));
+
+        Assert.Equal("Nota fiscal do pedido 0000ABCD", email.Subject);
+        Assert.Contains("NF-e 1001, série 1, no valor de R$ 249,90", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("3126 1011 2223 3300 0181 5500 1000 0010 0110 0001 0015", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.EndsWith($"https://loja.example/conta/pedidos/{order}", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Returned_SaysTheRefundIsAlreadyOnItsWay_WithTheFreight()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.ReturnedAsync(new OrderReturnedData(order, "ana@exemplo.com", new Money(266422, "BRL")));
+        Assert.Equal("Devolução do pedido 0000ABCD registrada", email.Subject);
+        Assert.Contains("O estorno de R$ 2.664,22, com o frete, já foi pedido", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("returned", "devolução que você pediu")]
+    [InlineData("supplier_failed", "fornecedor")]
+    [InlineData("invoice_failed", "nota fiscal")]
+    public async Task Refunded_SaysWhy(string reason, string expected)
+    {
+        var email = await EmailComposer.RefundedAsync(new OrderRefundedData(Guid.NewGuid(), "ana@exemplo.com", new Money(4990, "BRL"), reason));
+        Assert.StartsWith("Estorno do pedido", email.Subject, StringComparison.Ordinal);
+        Assert.Contains("R$ 49,90", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains(expected, email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Shipped_HasTheTrackingCode_TheCarrierLink_AndTheOrderLink()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.ShippedAsync(
+            new OrderShippedData(order, "ana@exemplo.com", new Tracking("BR123456789BR", "Correios", "https://rastreio.example/BR123456789BR")),
+            new Uri("https://loja.example/"));
+
+        Assert.Equal("Pedido 0000ABCD enviado", email.Subject);
+        Assert.Contains("Código de rastreio: BR123456789BR (Correios)", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://rastreio.example/BR123456789BR\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.EndsWith($"https://loja.example/conta/pedidos/{order}", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("/rastreio/BR1")]
+    public async Task Shipped_WithoutASafeCarrierLink_StillHasTheCode(string? url)
+    {
+        var email = await EmailComposer.ShippedAsync(
+            new OrderShippedData(Guid.NewGuid(), "ana@exemplo.com", new Tracking("BR1", null, url)), new Uri("https://loja.example/"));
+
+        Assert.Contains("Código de rastreio: BR1", email.TextBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("transportadora", email.TextBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("javascript", email.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("(", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Delivered_TellsAboutTheSevenDaysToGiveUp_WithTheOrderLink()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.DeliveredAsync(new OrderDeliveredData(order, "ana@exemplo.com"), new Uri("https://loja.example/"));
+
+        Assert.Equal("Pedido 0000ABCD entregue", email.Subject);
+        Assert.Contains("em até 7 dias depois do recebimento", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ReturnInstructions_HaveTheCodeAndTheAddress_AndSayTheRefundDoesNotDependOnIt()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.ReturnInstructionsAsync(new SupplierReturnOpenedData(order, "ana@exemplo.com", "RMA00000042", "Rua <b>A</b>, 10"));
+
+        Assert.Equal("Como devolver o pedido 0000ABCD", email.Subject);
+        Assert.Contains("Código da devolução: RMA00000042", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("Envie para: Rua <b>A</b>, 10", email.TextBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("<b>A</b>", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("não depende deste envio", email.TextBody, StringComparison.Ordinal);
     }
 
     private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);

@@ -199,8 +199,40 @@ public sealed class OnSupplierOrderFailed(OrderProgress progress) : IHandleEvent
     public Task HandleAsync(SupplierOrderFailedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return progress.ApplyAsync(data.OrderId, "SupplierOrderFailed", (order, now) => order.FailAtSupplier(now),
+        return progress.ApplyAsync(data.OrderId, "SupplierOrderFailed", (order, now) => order.FailAtSupplier(now, data.InvoiceRejected),
             order => (OrderEvents.OrderCancelled, OrderCancelledData.From(order)), ct);
+    }
+}
+
+/// <summary>InvoiceIssued → a nota fiscal do pedido foi autorizada: o cliente a vê no pedido. Não publica.</summary>
+public sealed class OnInvoiceIssued(OrderProgress progress) : IHandleEvent<InvoiceIssuedData>
+{
+    public Task HandleAsync(InvoiceIssuedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var invoice = new OrderInvoice(data.AccessKey, data.Number, data.Series, data.IssuedAt);
+        return progress.ApplyAsync(data.OrderId, "InvoiceIssued", (order, now) => order.RecordInvoice(invoice, now), _ => null, ct);
+    }
+}
+
+/// <summary>InvoiceReturnIssued → a nota de devolução foi autorizada: o cliente a vê no pedido. Não publica.</summary>
+public sealed class OnInvoiceReturnIssued(OrderProgress progress) : IHandleEvent<InvoiceReturnIssuedData>
+{
+    public Task HandleAsync(InvoiceReturnIssuedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var invoice = new OrderReturnInvoice(data.AccessKey, data.Number, data.Series, data.IssuedAt);
+        return progress.ApplyAsync(data.OrderId, "InvoiceReturnIssued", (order, now) => order.RecordReturnInvoice(invoice, now), _ => null, ct);
+    }
+}
+
+/// <summary>InvoiceCancelled → a nota foi cancelada depois do estorno. Não publica.</summary>
+public sealed class OnInvoiceCancelled(OrderProgress progress) : IHandleEvent<InvoiceCancelledData>
+{
+    public Task HandleAsync(InvoiceCancelledData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return progress.ApplyAsync(data.OrderId, "InvoiceCancelled", (order, now) => order.CancelInvoice(data.CancelledAt, now), _ => null, ct);
     }
 }
 
@@ -224,6 +256,7 @@ public sealed class OnPaymentRefunded(OrderProgress progress) : IHandleEvent<Pay
         // estorno parcial (devolução de um item, pelo painel) não é o estorno do pedido cancelado
         return data.Full == false
             ? Task.CompletedTask
-            : progress.ApplyAsync(data.OrderId, "PaymentRefunded", (order, now) => order.MarkRefunded(now), _ => null, ct);
+            : progress.ApplyAsync(data.OrderId, "PaymentRefunded", (order, now) => order.MarkRefunded(now),
+                order => (OrderEvents.OrderRefunded, OrderRefundedData.From(order)), ct);
     }
 }

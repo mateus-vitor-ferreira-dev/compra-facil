@@ -25,6 +25,9 @@ public static class SupplierFailureReasons
     public const string Rejected = "rejected";
     public const string SupplierCancelled = "supplier_cancelled";
     public const string SupplierUnavailable = "supplier_unavailable";
+
+    /// <summary>A SEFAZ rejeitou a nota da loja: o pedido não vai ao fornecedor (#221).</summary>
+    public const string InvoiceRejected = "invoice_rejected";
 }
 
 /// <summary>Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome e a quantidade.</summary>
@@ -70,6 +73,9 @@ public sealed class SupplierOrder
 
     /// <summary>Nulo só nos pedidos confirmados antes de o checkout pedir o endereço.</summary>
     public ShipTo? ShipTo { get; private set; }
+
+    /// <summary>A data que a loja prometeu ao cliente (#222): passou dela sem entrega, o pedido está atrasado.</summary>
+    public DateOnly? PromisedBy { get; private set; }
     public SupplierOrderStatus Status { get; private set; }
     public string Supplier { get; private set; } = "";
     public string? SupplierOrderId { get; private set; }
@@ -89,7 +95,8 @@ public sealed class SupplierOrder
     public uint Version { get; private set; }
 
     public static SupplierOrder Create(
-        Guid orderId, string customerEmail, IReadOnlyList<SupplierOrderItem> items, string supplier, DateTimeOffset now, ShipTo? shipTo = null)
+        Guid orderId, string customerEmail, IReadOnlyList<SupplierOrderItem> items, string supplier, DateTimeOffset now, ShipTo? shipTo = null,
+        DateOnly? promisedBy = null)
     {
         ArgumentNullException.ThrowIfNull(items);
         if (items.Count == 0)
@@ -101,6 +108,7 @@ public sealed class SupplierOrder
             Id = orderId,
             CustomerEmail = customerEmail,
             ShipTo = shipTo,
+            PromisedBy = promisedBy,
             Supplier = supplier,
             Status = SupplierOrderStatus.Pending,
             CreatedAt = now,

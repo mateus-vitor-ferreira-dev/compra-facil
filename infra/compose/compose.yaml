@@ -341,6 +341,8 @@ services:
     image: compra-facil/orders:${VERSION:-dev}
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      # o frete do pedido recotado no fulfillment (#222)
+      Fulfillment__BaseUrl: http://fulfillment:8007/
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
@@ -431,6 +433,14 @@ services:
       Supplier__Deadlines__DeliverWithin: "00:05:00"
       # o feed do simulado a cada minuto (na produção, de hora em hora): mudar o custo nele aparece logo
       Supplier__CatalogSyncInterval: "00:01:00"
+      # o frete (#222) cotado pelo fornecedor em dólar, no mesmo câmbio do catálogo (supplier.usd_brl)
+      Shipping__UsdToBrl: "5.40"
+      # a nota fiscal (#221) pelo emissor simulado, no contrato da Nuvem Fiscal (ana+recusar-nota@... faz a
+      # SEFAZ simulada rejeitar)
+      Invoice__AuthUrl: http://invoice-sim:8090/oauth/token
+      Invoice__BaseUrl: http://invoice-sim:8090/
+      Invoice__ClientId: ${INVOICE_SIM_CLIENT_ID:-sim-client}
+      Invoice__ClientSecret: ${INVOICE_SIM_CLIENT_SECRET:-sim-secret}
 
   # o fornecedor de dropshipping simulado, no contrato do CJ (backend/services/supplier-sim); não vai à produção
   supplier-sim:
@@ -495,6 +505,8 @@ services:
     image: compra-facil/notifications:${VERSION:-dev}
     environment:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      # o link do pedido nos e-mails (a nota fiscal aponta para o DANFE na página do pedido)
+      Store__BaseUrl: ${SITE_URL:-http://localhost:3000}/
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s

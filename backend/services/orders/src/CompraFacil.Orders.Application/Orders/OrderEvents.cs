@@ -11,11 +11,14 @@ public static class OrderEvents
     public const string OrderCancelled = nameof(OrderCancelled);
     public const string OrderShipped = nameof(OrderShipped);
     public const string OrderDelivered = nameof(OrderDelivered);
+    public const string OrderReturned = nameof(OrderReturned);
+    public const string OrderRefunded = nameof(OrderRefunded);
 
     public const string ReservationsTopic = "inventory.reservation.v1";
     public const string PaymentsTopic = "payments.payment.v1";
     public const string PaymentPending = nameof(PaymentPending);
     public const string FulfillmentTopic = "fulfillment.supplier-order.v1";
+    public const string InvoicesTopic = "fulfillment.invoice.v1";
 }
 
 /// <summary>Item do pedido nos eventos (OrderItem do contrato REST).</summary>
@@ -46,15 +49,19 @@ public sealed record OrderPlacedData(
 /// </summary>
 public sealed record OrderConfirmedData(
     Guid OrderId, Guid CustomerId, string CustomerEmail, Guid PaymentId, IReadOnlyList<OrderItemData> Items, Money Total,
-    Recipient? Recipient, ShippingAddress? ShippingAddress)
+    PaymentMethod PaymentMethod, Recipient? Recipient, ShippingAddress? ShippingAddress, OrderShippingData? Shipping)
 {
     public static OrderConfirmedData From(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.PaymentId!.Value,
-            [.. order.Items.Select(OrderItemData.From)], order.Total, order.Recipient, order.ShippingAddress);
+            [.. order.Items.Select(OrderItemData.From)], order.Total, order.PaymentMethod, order.Recipient, order.ShippingAddress,
+            order.Shipping is { } s ? new OrderShippingData(s.Service, s.Price, s.PromisedBy) : null);
     }
 }
+
+/// <summary>O frete do pedido nos eventos (#222): o serviço, o preço (vai na nota) e a data prometida (o prazo do fornecedor).</summary>
+public sealed record OrderShippingData(string Service, Money Price, DateOnly PromisedBy);
 
 /// <summary>data do OrderCancelled: compensação (inventory libera, payments descarta, notifications avisa).</summary>
 public sealed record OrderCancelledData(
@@ -74,6 +81,35 @@ public sealed record OrderShippedData(Guid OrderId, Guid CustomerId, string Cust
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.Tracking!, order.ShippedAt!.Value);
+    }
+}
+
+/// <summary>
+/// data do OrderReturned (#223): o cliente devolveu no prazo de arrependimento. O payments estorna o total (com
+/// o frete), o fulfillment abre a devolução ao fornecedor e o notifications avisa.
+/// </summary>
+public sealed record OrderReturnedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, DateTimeOffset ReturnRequestedAt)
+{
+    public static OrderReturnedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        return new(order.Id, order.CustomerId, order.CustomerEmail, [.. order.Items.Select(OrderItemData.From)], order.Total,
+            order.ReturnRequestedAt!.Value);
+    }
+}
+
+/// <summary>data do OrderRefunded: o dinheiro do pedido voltou ao cliente (devolução, fornecedor ou nota recusada).</summary>
+public sealed record OrderRefundedData(
+    Guid OrderId, Guid CustomerId, string CustomerEmail, Money Amount, string Reason, DateTimeOffset RefundedAt)
+{
+    public static OrderRefundedData From(Order order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        var reason = order.Status == OrderStatus.Returned
+            ? "returned"
+            : order.CancellationReason == CancellationReason.InvoiceFailed ? "invoice_failed" : "supplier_failed";
+        return new(order.Id, order.CustomerId, order.CustomerEmail, order.Total, reason, order.RefundedAt!.Value);
     }
 }
 
@@ -109,4 +145,14 @@ public sealed record SupplierOrderShippedData(Guid OrderId, string TrackingNumbe
 
 public sealed record SupplierOrderDeliveredData(Guid OrderId);
 
-public sealed record SupplierOrderFailedData(Guid OrderId, string Reason);
+public sealed record SupplierOrderFailedData(Guid OrderId, string Reason)
+{
+    /// <summary>A SEFAZ rejeitou a nota da loja: o pedido nem foi ao fornecedor.</summary>
+    public bool InvoiceRejected => Reason == "invoice_rejected";
+}
+
+public sealed record InvoiceIssuedData(Guid OrderId, string AccessKey, int Number, int Series, DateTimeOffset IssuedAt);
+
+public sealed record InvoiceReturnIssuedData(Guid OrderId, string AccessKey, int Number, int Series, DateTimeOffset IssuedAt);
+
+public sealed record InvoiceCancelledData(Guid OrderId, DateTimeOffset CancelledAt);

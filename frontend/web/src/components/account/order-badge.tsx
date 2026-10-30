@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX, Loader, Package, Truck } from "lucide-react";
+import { CircleCheck, CircleX, Loader, Package, PackageOpen, Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { orderStatus } from "@/lib/order-status";
 import type { Order } from "@/lib/orders-api";
@@ -10,6 +10,7 @@ const icons = {
   shipped: Truck,
   delivered: CircleCheck,
   cancelled: CircleX,
+  returned: PackageOpen,
 } satisfies Record<Order["status"], unknown>;
 
 export function OrderBadge({

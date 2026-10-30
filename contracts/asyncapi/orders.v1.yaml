@@ -20,8 +20,12 @@ info:
     6. `SupplierOrderPlaced` → segue `confirmed`, com `sent_to_supplier_at`; não publica nada;
     7. `SupplierOrderShipped` → `shipped`, com o rastreio → `OrderShipped`;
     8. `SupplierOrderDelivered` → `delivered` → `OrderDelivered`;
-    9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`) → `OrderCancelled`, que faz o payments
-       estornar o cliente (compensação); `PaymentRefunded` → `refunded_at`.
+    9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`, ou `invoice_failed` quando a SEFAZ
+       rejeitou a nota) → `OrderCancelled`, que faz o payments estornar o cliente (compensação);
+       `PaymentRefunded` → `refunded_at`.
+
+    A nota fiscal (`fulfillment.invoice.v1`, #221): `InvoiceIssued` grava a nota no pedido,
+    `InvoiceCancelled`, o cancelamento dela, e `InvoiceReturnIssued`, a nota de devolução; nenhum publica.
 
     Também consome `catalog.product.v1` e `catalog.campaign.v1` para manter o snapshot local de
     produtos e campanhas, usado só quando o gRPC do catálogo está fora.
@@ -49,6 +53,10 @@ channels:
         $ref: "#/components/messages/OrderShipped"
       OrderDelivered:
         $ref: "#/components/messages/OrderDelivered"
+      OrderReturned:
+        $ref: "#/components/messages/OrderReturned"
+      OrderRefunded:
+        $ref: "#/components/messages/OrderRefunded"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -64,6 +72,8 @@ channels:
     $ref: "./payments.v1.yaml#/channels/paymentEvents"
   supplierOrderEvents:
     $ref: "./fulfillment.v1.yaml#/channels/supplierOrderEvents"
+  invoiceEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/invoiceEvents"
   productEvents:
     $ref: "./catalog.v1.yaml#/channels/productEvents"
   campaignEvents:
@@ -81,6 +91,8 @@ operations:
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
       - $ref: "#/channels/orderEvents/messages/OrderShipped"
       - $ref: "#/channels/orderEvents/messages/OrderDelivered"
+      - $ref: "#/channels/orderEvents/messages/OrderReturned"
+      - $ref: "#/channels/orderEvents/messages/OrderRefunded"
 
   onReservationResult:
     action: receive
@@ -116,6 +128,18 @@ operations:
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderShipped"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderDelivered"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
+    bindings:
+      $ref: "#/components/operationBindings/OrdersGroup"
+
+  onInvoiceEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/invoiceEvents"
+    summary: Grava a nota fiscal no pedido e, depois do estorno, o cancelamento dela.
+    messages:
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceIssued"
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceCancelled"
+      - $ref: "#/channels/invoiceEvents/messages/InvoiceReturnIssued"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"
 
@@ -247,6 +271,23 @@ components:
                       $ref: "../openapi/orders.v1.yaml#/components/schemas/OrderItem"
                   total:
                     $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  payment_method:
+                    $ref: "../openapi/payments.v1.yaml#/components/schemas/PaymentMethod"
+                    description: Como o cliente pagou (vai na nota fiscal).
+                  shipping:
+                    description: O frete (vai na nota) e o prazo prometido (o do fornecedor); nulo antes do #222.
+                    oneOf:
+                      - type: object
+                        required: [service, price, promised_by]
+                        properties:
+                          service:
+                            type: string
+                          price:
+                            $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                          promised_by:
+                            type: string
+                            format: date
+                      - type: "null"
                   recipient:
                     description: Nulo só nos pedidos de antes do #221.
                     oneOf:
@@ -262,8 +303,8 @@ components:
       title: Pedido cancelado
       summary: |
         Fim da SAGA com compensação. O inventory libera a reserva, se houver (com `out_of_stock` não
-        há; com `supplier_failed` ela já virou baixa), o payments descarta a cobrança pendente ou, com
-        `supplier_failed`, estorna o que foi pago, e o notifications avisa o cliente.
+        há; com `supplier_failed` ou `invoice_failed` ela já virou baixa), o payments descarta a cobrança
+        pendente ou estorna o que foi pago, e o notifications avisa o cliente.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -365,6 +406,88 @@ components:
                     type: string
                     format: date-time
 
+
+    OrderReturned:
+      name: OrderReturned
+      title: Pedido devolvido
+      summary: |
+        O cliente se arrependeu no prazo (#223). O payments estorna na hora o total, com o frete; o
+        fulfillment abre a devolução ao fornecedor; o notifications avisa o cliente.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: OrderReturned
+              event_version:
+                const: 1
+              producer:
+                const: orders
+              data:
+                type: object
+                required: [order_id, customer_id, customer_email, items, total, return_requested_at]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  customer_id:
+                    $ref: "#/components/schemas/CustomerId"
+                  customer_email:
+                    $ref: "#/components/schemas/CustomerEmail"
+                  items:
+                    type: array
+                    items:
+                      $ref: "../openapi/orders.v1.yaml#/components/schemas/OrderItem"
+                  total:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                    description: O que volta ao cliente, os itens e o frete.
+                  return_requested_at:
+                    type: string
+                    format: date-time
+
+    OrderRefunded:
+      name: OrderRefunded
+      title: Dinheiro do pedido devolvido
+      summary: |
+        O estorno do pedido voltou ao cliente: o devolvido (`returned`) ou o cancelado depois de pago
+        (`supplier_failed`, `invoice_failed`). O notifications avisa.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: OrderRefunded
+              event_version:
+                const: 1
+              producer:
+                const: orders
+              data:
+                type: object
+                required: [order_id, customer_id, customer_email, amount, reason, refunded_at]
+                properties:
+                  order_id:
+                    $ref: "#/components/schemas/OrderId"
+                  customer_id:
+                    $ref: "#/components/schemas/CustomerId"
+                  customer_email:
+                    $ref: "#/components/schemas/CustomerEmail"
+                  amount:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  reason:
+                    type: string
+                    enum: [returned, supplier_failed, invoice_failed]
+                  refunded_at:
+                    type: string
+                    format: date-time
   schemas:
     OrderId:
       type: string

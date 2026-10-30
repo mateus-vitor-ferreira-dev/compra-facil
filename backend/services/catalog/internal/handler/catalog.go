@@ -148,7 +148,7 @@ func (h *CatalogHandler) getProduct(c *gin.Context) {
 		return
 	}
 	c.Header("ETag", etag(p.Version))
-	c.JSON(http.StatusOK, toProductDTO(p))
+	c.JSON(http.StatusOK, toProductDetailDTO(p))
 }
 
 func (h *CatalogHandler) listCategories(c *gin.Context) {

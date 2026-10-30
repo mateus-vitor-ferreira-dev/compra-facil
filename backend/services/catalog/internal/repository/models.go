@@ -30,7 +30,8 @@ type productRecord struct {
 	Brand       *string
 	CategoryID  uuid.UUID `gorm:"type:uuid"`
 	ImageURL    *string
-	Image       *domain.ProductImage `gorm:"serializer:json"` // jsonb
+	Image       *domain.ProductImage  `gorm:"serializer:json"` // jsonb
+	Gallery     []domain.GalleryImage `gorm:"serializer:json"` // jsonb
 	PriceCents  int64
 	Currency    string
 	Status      string
@@ -105,6 +106,7 @@ func (row productRow) toDomain() domain.Product {
 		Category:    domain.CategoryRef{ID: r.CategoryID, Slug: row.CategorySlug, Name: row.CategoryName},
 		ImageURL:    r.ImageURL,
 		Image:       r.Image,
+		Gallery:     r.Gallery,
 		PriceCents:  r.PriceCents,
 		Currency:    r.Currency,
 		Status:      domain.ProductStatus(r.Status),
@@ -143,10 +145,14 @@ func productToRecord(p *domain.Product) productRecord {
 		CategoryID:  p.CategoryID,
 		ImageURL:    p.ImageURL,
 		Image:       p.Image,
+		Gallery:     p.Gallery,
 		PriceCents:  p.PriceCents,
 		Currency:    currency,
 		Status:      string(p.Status),
 		Version:     p.Version,
+	}
+	if rec.Gallery == nil {
+		rec.Gallery = []domain.GalleryImage{}
 	}
 	if s := p.Supplier; s != nil {
 		rec.Supplier, rec.SupplierVID, rec.CostCents, rec.CostCurrency = &s.Name, &s.VID, &s.CostCents, &s.CostCurrency

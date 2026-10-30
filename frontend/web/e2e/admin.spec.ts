@@ -50,6 +50,30 @@ test("edita o preço e ajusta o estoque de um produto", async ({ page }) => {
   await expect(page.getByRole("alert").filter({ hasText: "abaixo do que já está reservado" })).toBeVisible();
 });
 
+test("as fotos do produto: acrescenta, reordena e remove", async ({ page }) => {
+  await signIn(page, "admin@exemplo.com", "/admin/produtos/0199f6a0-0000-7000-8000-000000000001");
+  const fotos = page.getByRole("group", { name: "Fotos" });
+  await fotos.getByLabel("Endereço da foto 1").fill("https://cdn.example.com/a.jpg");
+  await fotos.getByRole("button", { name: "Adicionar foto" }).click();
+  await fotos.getByLabel("Endereço da foto 2").fill("https://cdn.example.com/b.jpg");
+  await fotos.getByRole("button", { name: "Adicionar foto" }).click();
+  await fotos.getByLabel("Endereço da foto 3").fill("https://cdn.example.com/c.jpg");
+
+  // sobe a segunda, que vira a primeira, e tira a última
+  const up = fotos.getByRole("button", { name: "Subir a foto 2" });
+  await up.click();
+  await expect(fotos.getByLabel("Endereço da foto 1")).toHaveValue("https://cdn.example.com/b.jpg");
+  await fotos.getByRole("button", { name: "Remover a foto 3" }).click();
+  await expect(fotos.getByRole("textbox")).toHaveCount(2);
+
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
+  await expect(page.getByRole("status")).toHaveText("Produto salvo. A vitrine já mostra a versão nova.");
+  await expect(page.getByRole("group", { name: "Fotos" }).getByRole("textbox")).toHaveCount(2);
+  await expect(page.getByRole("group", { name: "Fotos" }).getByLabel("Endereço da foto 1")).toHaveValue(
+    "https://cdn.example.com/b.jpg",
+  );
+});
+
 test("duas pessoas editando: a segunda é avisada em vez de apagar a mudança da primeira", async ({
   browser,
 }) => {

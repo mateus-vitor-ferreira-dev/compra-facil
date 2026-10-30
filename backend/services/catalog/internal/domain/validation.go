@@ -92,7 +92,25 @@ func (p *Product) Validate() error {
 	if p.ImageURL != nil {
 		v.check(isHTTPURL(*p.ImageURL), "image_url", "deve ser uma URL http(s) absoluta")
 	}
+	p.validateGallery(&v)
 	return v.err()
+}
+
+func (p *Product) validateGallery(v *validator) {
+	if len(p.Gallery) == 0 {
+		return
+	}
+	v.check(p.ImageURL != nil, "more_image_urls", "informe image_url, a primeira foto")
+	v.check(len(p.Gallery) <= MaxGalleryImages, "more_image_urls", "deve ter no máximo %d fotos", MaxGalleryImages)
+	seen := map[string]bool{}
+	if p.ImageURL != nil {
+		seen[*p.ImageURL] = true
+	}
+	for _, g := range p.Gallery {
+		v.check(isHTTPURL(g.URL), "more_image_urls", "deve ter só URLs http(s) absolutas")
+		v.check(!seen[g.URL], "more_image_urls", "não pode repetir uma foto")
+		seen[g.URL] = true
+	}
 }
 
 // Normalize remove espaços das pontas antes de validar e gravar.
@@ -115,6 +133,9 @@ func (p *Product) Normalize() {
 		} else {
 			p.ImageURL = &trimmed
 		}
+	}
+	for i := range p.Gallery {
+		p.Gallery[i].URL = strings.TrimSpace(p.Gallery[i].URL)
 	}
 }
 

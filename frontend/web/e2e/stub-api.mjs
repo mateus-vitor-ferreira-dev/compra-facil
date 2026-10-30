@@ -24,7 +24,8 @@ const ANA_DELIVERY = {
   },
 };
 
-// pedidos da Ana: um confirmado e um cancelado por falta de estoque
+// pedidos da Ana: um confirmado, um cancelado por falta de estoque, um entregue há 2 dias (#223) e um a
+// caminho, com o rastreio (#224)
 const orderOf = (id, status, reason, qty, unit) => ({
   id,
   customer_id: "0199f6a0-0000-7000-8000-000000000a1a",
@@ -41,6 +42,8 @@ const orderOf = (id, status, reason, qty, unit) => ({
       campaign_id: null,
     },
   ],
+  items_total: { amount_cents: unit * qty, currency: "BRL" },
+  shipping: null,
   total: { amount_cents: unit * qty, currency: "BRL" },
   payment_id: null,
   payment: { method: "card", installments: 1, pix: null },
@@ -49,8 +52,34 @@ const orderOf = (id, status, reason, qty, unit) => ({
   updated_at: "2026-10-20T15:01:00Z",
 });
 const orders = [
-  orderOf("4f2a9c1b-0000-7000-8000-000000000001", "confirmed", null, 1, 263992),
+  // o confirmado já tem a nota fiscal (#221)
+  {
+    ...orderOf("4f2a9c1b-0000-7000-8000-000000000001", "confirmed", null, 1, 263992),
+    invoice: {
+      access_key: "31261011222333000181550010000010011000010015",
+      number: 1001,
+      series: 1,
+      issued_at: "2026-10-20T15:00:30Z",
+      cancelled_at: null,
+    },
+  },
   orderOf("7c3e5d2a-0000-7000-8000-000000000002", "cancelled", "out_of_stock", 2, 263992),
+  {
+    ...orderOf("9d1b6e3f-0000-7000-8000-000000000003", "delivered", null, 1, 263992),
+    delivered_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+    returnable_until: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+    return_requested_at: null,
+  },
+  {
+    ...orderOf("2e6f8a14-0000-7000-8000-000000000004", "shipped", null, 1, 263992),
+    sent_to_supplier_at: "2026-10-20T15:02:00Z",
+    shipped_at: "2026-10-21T10:00:00Z",
+    tracking: {
+      number: "BR987654321BR",
+      provider: "Correios",
+      url: "https://rastreio.example/BR987654321BR",
+    },
+  },
 ];
 
 const categories = [
@@ -134,6 +163,17 @@ const products = seed.map(([name, slug, price, effective, brand], i) => {
   };
 });
 
+// as fotos da TV (0), para a galeria: quadradas, cada uma de uma cor
+const photo = (color) => ({
+  url: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="${color}"/></svg>`,
+  width: 800,
+  height: 800,
+  variants: [],
+});
+products[0].images = ["steelblue", "goldenrod", "seagreen"].map(photo);
+products[0].image = products[0].images[0];
+products[0].image_url = products[0].images[0].url;
+
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
 const baseStock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
 // ajustes feitos pelo painel, por produto
@@ -193,6 +233,12 @@ function applyInput(p, body) {
     description: body.description ?? "",
     brand: body.brand ?? null,
     image_url: body.image_url ?? null,
+    images: [body.image_url, ...(body.more_image_urls ?? [])].filter(Boolean).map((url) => ({
+      url,
+      width: null,
+      height: null,
+      variants: [],
+    })),
     status: body.status,
     category: { id: category.id, slug: category.slug, name: category.name },
     price: { amount_cents: body.price_cents, currency: "BRL" },
@@ -500,6 +546,13 @@ const iso = (ms) => new Date(ms).toISOString();
 const QR_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
+// ---- o frete (#222): duas opções para qualquer CEP, menos o 99999-999, que ninguém atende ----
+const SHIPPING = [
+  { id: "economico", name: "Econômico", price_cents: 2430, min_days: 13, max_days: 21 },
+  { id: "expresso", name: "Expresso", price_cents: 6480, min_days: 7, max_days: 11 },
+];
+const shippingFor = (zip) => (zip === "99999999" ? [] : SHIPPING);
+
 // ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
 const cardTokens = new Map(); // token -> titular
 const CORS = {
@@ -523,6 +576,65 @@ async function tokenize(req, res, url) {
     payment_method_id: number.startsWith("4") ? "visa" : "master",
     last_four_digits: number.slice(-4),
   });
+}
+
+// as devoluções ao fornecedor (#223): uma recusada, com a nota rejeitada, uma parada e uma no prazo
+function supplierReturns() {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const base = {
+    supplier: "cj",
+    supplier_order_id: "CJ2410290001",
+    items: [{ sku: "SIM-V-001", name: "Fone de ouvido", quantity: 1 }],
+    attempts: 0,
+    last_error: null,
+    resolution_reason: null,
+    invoice_error: null,
+    resolved_at: null,
+  };
+  return [
+    {
+      ...base,
+      order_id: "7a1c2e90-0000-7000-8000-000000000001",
+      status: "pending",
+      overdue: true,
+      due_at: iso(now - 2 * day),
+      dispute_id: null,
+      return_code: null,
+      customer_email: "bia@exemplo.com",
+      attempts: 3,
+      last_error: "fornecedor respondeu 503",
+      requested_at: iso(now - 17 * day),
+      opened_at: null,
+    },
+    {
+      ...base,
+      order_id: "8b2d3fa1-0000-7000-8000-000000000002",
+      status: "open",
+      overdue: false,
+      due_at: iso(now + 10 * day),
+      dispute_id: "DSP1000000002",
+      return_code: "RMA00000002",
+      customer_email: "caio@exemplo.com",
+      requested_at: iso(now - 5 * day),
+      opened_at: iso(now - 5 * day),
+    },
+    {
+      ...base,
+      order_id: "6c3e4ab2-0000-7000-8000-000000000003",
+      status: "rejected",
+      overdue: false,
+      due_at: iso(now + 12 * day),
+      dispute_id: "DSP1000000003",
+      return_code: "RMA00000003",
+      customer_email: "dani@exemplo.com",
+      resolution_reason: "produto fora da política de devolução do fornecedor",
+      invoice_error: "267: sem referência",
+      requested_at: iso(now - 3 * day),
+      opened_at: iso(now - 3 * day),
+      resolved_at: iso(now - 1 * day),
+    },
+  ];
 }
 
 // os pedidos atrasados no fornecedor (#219): um preso no fornecedor e um envio que não chegou
@@ -572,13 +684,14 @@ async function placeOrder(req, res, email) {
   const key = req.headers["idempotency-key"];
   if (!key) return problem(res, 400, "Requisição malformada");
   const existing = byKey.get(`${email}:${key}`);
-  const { items, payment, recipient, shipping_address } = await json(req);
+  const { items, payment, recipient, shipping_address, shipping } = await json(req);
   if (existing) return send(res, 202, orderAt(placed.get(existing)));
   // como o orders: cartão sem o token do provedor (ou com um token já usado) é recusado
   if (
     !payment ||
     !recipient?.cpf ||
     !/^\d{8}$/.test(shipping_address?.zip_code ?? "") ||
+    !shippingFor(shipping_address.zip_code).some((o) => o.id === shipping?.service) ||
     (payment.method === "card" && !cardTokens.has(payment.card_token))
   ) {
     return problem(res, 422, "Dados inválidos");
@@ -613,7 +726,9 @@ async function placeOrder(req, res, email) {
     line_total: { amount_cents: product.effective_price.amount_cents * quantity, currency: "BRL" },
     campaign_id: product.campaign?.id ?? null,
   }));
-  const total = orderItems.reduce((sum, i) => sum + i.line_total.amount_cents, 0);
+  const itemsTotal = orderItems.reduce((sum, i) => sum + i.line_total.amount_cents, 0);
+  const option = shippingFor(shipping_address.zip_code).find((o) => o.id === shipping.service);
+  const total = itemsTotal + option.price_cents;
   const now = Date.now();
   const id = crypto.randomUUID();
   const order = {
@@ -622,6 +737,15 @@ async function placeOrder(req, res, email) {
     status: "pending",
     cancellation_reason: null,
     items: orderItems,
+    items_total: { amount_cents: itemsTotal, currency: "BRL" },
+    shipping: {
+      service: option.id,
+      name: option.name,
+      price: { amount_cents: option.price_cents, currency: "BRL" },
+      min_days: option.min_days,
+      max_days: option.max_days,
+      promised_by: iso(now + option.max_days * 1.4 * 24 * 60 * 60 * 1000).slice(0, 10),
+    },
     total: { amount_cents: total, currency: "BRL" },
     payment_id: null,
     payment: { method: payment.method, installments: payment.installments ?? 1, pix: null },
@@ -649,7 +773,7 @@ async function placeOrder(req, res, email) {
 }
 
 // como o orders: pago não é o fim (o pedido segue o fornecedor); o stub não passa do confirmado
-const isFinal = (o) => o.status === "delivered" || o.status === "cancelled";
+const isFinal = (o) => o.status === "delivered" || o.status === "cancelled" || o.status === "returned";
 
 /** GET .../events: o estado atual e cada mudança, em Server-Sent Events, até o estado final. */
 function streamOrder(req, res, entry) {
@@ -760,6 +884,10 @@ createServer(async (req, res) => {
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
   }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-returns") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, { data: supplierReturns() });
+  }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/overdue") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     return send(res, 200, { data: overdueOrders() });
@@ -797,6 +925,25 @@ createServer(async (req, res) => {
     return admin(req, res, url);
   }
   if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  if (req.method === "POST" && url.pathname === "/fulfillment/v1/shipping/quote") {
+    const { zip_code: zip, items } = await json(req);
+    const digits = String(zip ?? "").replace(/\D/g, "");
+    if (digits.length !== 8 || !items?.length) return problem(res, 422, "Dados inválidos");
+    return send(res, 200, { zip_code: digits, options: shippingFor(digits) });
+  }
+  // o DANFE da nota (#221): só a do pedido confirmado da Ana
+  const danfe = url.pathname.match(/^\/fulfillment\/v1\/me\/invoices\/([0-9a-f-]{36})\/danfe$/);
+  if (req.method === "GET" && danfe) {
+    const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
+    if (!email) return problem(res, 401, "Não autenticado");
+    const found = email === "ana@exemplo.com" && orders.find((o) => o.id === danfe[1] && o.invoice);
+    if (!found) return problem(res, 404, "Recurso não encontrado");
+    res.writeHead(200, {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="nfe-${found.invoice.number}.pdf"`,
+    });
+    return res.end("%PDF-1.4\n%%EOF\n");
+  }
   // o ViaCEP: um CEP da Paulista, um de cidade pequena (sem rua) e o resto não existe
   const cep = url.pathname.match(/^\/cep\/(\d{8})\/json\/$/);
   if (req.method === "GET" && cep) {
@@ -813,6 +960,28 @@ createServer(async (req, res) => {
     if (!entry || entry.order.payment.method !== "pix") return problem(res, 404, "Recurso não encontrado");
     entry.paidAt = Date.now();
     return res.writeHead(204).end();
+  }
+  // a desistência (#223): o entregue vira devolvido, e o stub já o dá por estornado
+  const ret = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})\/return$/);
+  if (req.method === "POST" && ret) {
+    const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
+    if (!email) return problem(res, 401, "Não autenticado");
+    const found = email === "ana@exemplo.com" && orders.find((o) => o.id === ret[1]);
+    if (!found) return problem(res, 404, "Recurso não encontrado");
+    if (found.status === "delivered") {
+      const now = new Date().toISOString();
+      Object.assign(found, {
+        status: "returned",
+        return_requested_at: now,
+        returnable_until: null,
+        refunded_at: now,
+        updated_at: now,
+        return_invoice: { access_key: "4".repeat(44), number: 2001, series: 1, issued_at: now },
+      });
+    } else if (found.status !== "returned") {
+      return problem(res, 409, "O pedido não pode ser devolvido");
+    }
+    return send(res, 200, found);
   }
   const order = url.pathname.match(/^\/orders\/v1\/orders\/([0-9a-f-]{36})(\/events)?$/);
   if (req.method === "GET" && order) {

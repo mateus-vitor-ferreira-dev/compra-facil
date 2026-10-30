@@ -75,10 +75,10 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
             new PaymentFailedData(p.OrderId, p.Id, p.Amount, p.Provider, reason));
     }
 
-    public void Refunded(Payment p, long amountCents, RefundKind kind) =>
+    public void Refunded(Payment p, long amountCents, RefundKind kind, string? reason = null) =>
         outbox.Add(PaymentEvents.Topic, Key(p), PaymentEvents.PaymentRefunded,
             new PaymentRefundedData(p.OrderId, p.Id, new Money(amountCents, p.Amount.Currency), p.RefundedCents, p.Provider,
-                p.RefundReference, p.RefundedAt!.Value, kind, kind == RefundKind.Void || p.Status == PaymentStatus.Refunded));
+                p.RefundReference, p.RefundedAt!.Value, kind, kind == RefundKind.Void || p.Status == PaymentStatus.Refunded, reason));
 
     private static string Key(Payment p) => p.OrderId.ToString();
 }
@@ -209,7 +209,7 @@ public sealed class OnSupplierOrderPlaced(IPaymentRepository payments, IPaymentP
 /// atendeu), devolve o dinheiro: cancela a autorização do cartão (nada é cobrado) ou estorna o PIX pago
 /// (e o cartão já capturado). Publica PaymentRefunded. Chave do estorno: o payment_id.
 /// </summary>
-public sealed class OnOrderCancelled(IPaymentRepository payments, IPaymentProvider provider, PaymentOutcome outcome, TimeProvider clock)
+public sealed class OnOrderCancelled(IPaymentRepository payments, PaymentReversal reversal, TimeProvider clock)
     : IHandleEvent<OrderCancelledData>
 {
     public Task HandleAsync(OrderCancelledData data, EventContext context, CancellationToken ct)
@@ -227,30 +227,71 @@ public sealed class OnOrderCancelled(IPaymentRepository payments, IPaymentProvid
             charge.Cancel(now);
 
             var payment = charge.PaymentId is { } id ? await payments.GetPaymentForUpdateAsync(id, ct) : null;
-            string? kind = null;
-            switch (payment?.Status)
+            var kind = payment is null ? null : await reversal.ReverseAsync(payment, "cancel", ct);
+            await payments.SaveChangesAsync(ct);
+            if (kind is not null)
             {
-                case PaymentStatus.Authorized or PaymentStatus.Pending:
-                    // falha temporária sobe: a mensagem é tentada de novo (cancelar de novo devolve o mesmo)
-                    await provider.CancelAsync(payment.ProviderReference!, ct);
-                    var wasAuthorized = payment.Status == PaymentStatus.Authorized;
-                    payment.Void(clock.GetUtcNow());
-                    if (wasAuthorized)
-                    {
-                        outcome.Refunded(payment, payment.Amount.AmountCents, RefundKind.Void);
-                        kind = "void";
-                    }
-                    break;
-                case PaymentStatus.Approved:
-                    var left = payment.Amount.AmountCents - payment.RefundedCents;
-                    var refund = await provider.RefundAsync(payment.ProviderReference!, left, $"{payment.Id}:cancel", ct);
-                    if (payment.Refund(refund.AmountCents, $"{payment.Id}:cancel", refund.Reference, clock.GetUtcNow()))
-                    {
-                        outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund);
-                        kind = "refund";
-                    }
-                    break;
+                PaymentsMetrics.Refunds.Add(1, new KeyValuePair<string, object?>("kind", kind));
             }
+            return true;
+        });
+    }
+}
+
+/// <summary>
+/// Devolve o dinheiro de um pagamento: cancela a autorização do cartão ou o PIX não pago (nada é cobrado), ou
+/// estorna o que foi pago, tudo o que falta (com o frete). Publica PaymentRefunded. A chave do estorno é o
+/// payment_id com o motivo, então a mensagem repetida não estorna duas vezes. Devolve o tipo, ou nulo se não
+/// havia o que devolver.
+/// </summary>
+public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome outcome, TimeProvider clock)
+{
+    public async Task<string?> ReverseAsync(Payment payment, string reason, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+        switch (payment.Status)
+        {
+            case PaymentStatus.Authorized or PaymentStatus.Pending:
+                // falha temporária sobe: a mensagem é tentada de novo (cancelar de novo devolve o mesmo)
+                await provider.CancelAsync(payment.ProviderReference!, ct);
+                var wasAuthorized = payment.Status == PaymentStatus.Authorized;
+                payment.Void(clock.GetUtcNow());
+                if (wasAuthorized)
+                {
+                    outcome.Refunded(payment, payment.Amount.AmountCents, RefundKind.Void, reason);
+                    return "void";
+                }
+                return null;
+            case PaymentStatus.Approved:
+                var left = payment.Amount.AmountCents - payment.RefundedCents;
+                var key = $"{payment.Id}:{reason}";
+                var refund = await provider.RefundAsync(payment.ProviderReference!, left, key, ct);
+                if (payment.Refund(refund.AmountCents, key, refund.Reference, clock.GetUtcNow()))
+                {
+                    outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund, reason);
+                    return "refund";
+                }
+                return null;
+            default:
+                return null;
+        }
+    }
+}
+
+/// <summary>
+/// OrderReturned → o cliente se arrependeu (CDC, art. 49): o dinheiro volta na hora, todo, com o frete, sem
+/// esperar a devolução ao fornecedor. Publica PaymentRefunded (full), que o orders marca no pedido.
+/// </summary>
+public sealed class OnOrderReturned(IPaymentRepository payments, PaymentReversal reversal) : IHandleEvent<OrderReturnedData>
+{
+    public Task HandleAsync(OrderReturnedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return OptimisticConcurrency.RetryAsync(payments.Reset, async () =>
+        {
+            var charge = await payments.GetChargeAsync(data.OrderId, ct);
+            var payment = charge?.PaymentId is { } id ? await payments.GetPaymentForUpdateAsync(id, ct) : null;
+            var kind = payment is null ? null : await reversal.ReverseAsync(payment, "return", ct);
             await payments.SaveChangesAsync(ct);
             if (kind is not null)
             {

@@ -101,6 +101,11 @@ func createBody(number, remark string, items ...any) map[string]any {
 	}
 }
 
+func with(body map[string]any, field string, value any) map[string]any {
+	body[field] = value
+	return body
+}
+
 func without(body map[string]any, field string) map[string]any {
 	delete(body, field)
 	return body
@@ -265,6 +270,7 @@ func TestCreateRejections(t *testing.T) {
 		{"sem orderNumber", createBody("", "", "SIM-V-001", 1), CodeInvalidParams, "Invalid params"},
 		{"sem CPF no Brasil", without(createBody("R-5", "", "SIM-V-001", 1), "consigneeID"), CodeInvalidParams, "Invalid params"},
 		{"sem CEP", without(createBody("R-6", "", "SIM-V-001", 1), "shippingZip"), CodeInvalidParams, "Invalid params"},
+		{"chave da nota sem o XML", with(createBody("R-7", "", "SIM-V-001", 1), "invoiceKey", "31261011222333000181550010000000011000000014"), CodeInvalidParams, "Invalid params"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -381,4 +387,25 @@ func TestOrderNotFound(t *testing.T) {
 
 	_, env = e.do(http.MethodDelete, "/api2.0/v1/shopping/order/deleteOrder?orderId=nada", nil, true)
 	assert.Equal(t, CodeNotFound, env.Code)
+}
+
+func TestFreightCalculate(t *testing.T) {
+	e := newEnv(t, slow)
+	_, env := e.do(http.MethodPost, "/api2.0/v1/logistic/freightCalculate", map[string]any{
+		"startCountryCode": "CN", "endCountryCode": "BR", "zip": "01310100",
+		"products": []map[string]any{{"vid": "SIM-V-001", "quantity": 2}},
+	}, true)
+	require.True(t, env.Result, env.Message)
+	var options []struct {
+		LogisticName  string  `json:"logisticName"`
+		LogisticPrice float64 `json:"logisticPrice"`
+		LogisticAging string  `json:"logisticAging"`
+	}
+	decodeData(t, env, &options)
+	require.Len(t, options, 2)
+	assert.Equal(t, "CJPacket Ordinary", options[0].LogisticName)
+	assert.Positive(t, options[0].LogisticPrice)
+
+	_, env = e.do(http.MethodPost, "/api2.0/v1/logistic/freightCalculate", map[string]any{"endCountryCode": "BR", "zip": "123"}, true)
+	assert.Equal(t, CodeInvalidParams, env.Code)
 }

@@ -16,7 +16,7 @@ public interface ISupplierOrderRepository
     /// Os que não despacharam e foram pagos antes de <paramref name="createdBefore"/>, e os enviados antes de
     /// <paramref name="shippedBefore"/> que não chegaram; até <paramref name="limit"/> de cada, sem rastrear.
     /// </summary>
-    Task<List<SupplierOrder>> ListOverdueAsync(DateTimeOffset createdBefore, DateTimeOffset shippedBefore, int limit, CancellationToken ct);
+    Task<List<SupplierOrder>> ListOverdueAsync(DateTimeOffset createdBefore, DateTimeOffset shippedBefore, DateOnly today, int limit, CancellationToken ct);
 
     Task SaveChangesAsync(CancellationToken ct);
 }

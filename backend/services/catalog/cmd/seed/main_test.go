@@ -96,6 +96,24 @@ func TestGenerateProducts_NeighborsDoNotRepeatThePhoto(t *testing.T) {
 }
 
 // toda foto que o seed pode sortear está no manifesto, com as variantes em infra/media/produtos
+func TestGalleryFor_NextPhotosOfTheType_WithoutRepeating(t *testing.T) {
+	photos, err := loadPhotos()
+	require.NoError(t, err)
+	for _, sub := range subsForTest() {
+		count := photoCount(photos, sub.slug)
+		first, _ := photoFor(photos, "http://m", sub.slug, 1)
+		gallery := galleryFor(photos, "http://m", sub.slug, 1)
+
+		assert.Len(t, gallery, min(count, maxPhotosPerProduct)-1, sub.slug)
+		seen := map[string]bool{first: true}
+		for _, g := range gallery {
+			assert.False(t, seen[g.URL], "%s repete %s", sub.slug, g.URL)
+			assert.NotNil(t, g.Image)
+			seen[g.URL] = true
+		}
+	}
+}
+
 func TestPhotos_ExistForEverySubcategory(t *testing.T) {
 	dir := filepath.Join("..", "..", "..", "..", "..", "infra", "media")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {

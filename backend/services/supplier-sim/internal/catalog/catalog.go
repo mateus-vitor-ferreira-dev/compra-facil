@@ -83,6 +83,7 @@ var (
 	mu       sync.Mutex
 	products []Product
 	byVID    map[string]int64
+	weights  map[string]int
 )
 
 func init() { Reset() }
@@ -93,6 +94,7 @@ func Reset() {
 	defer mu.Unlock()
 	products = products[:0]
 	byVID = map[string]int64{}
+	weights = map[string]int{}
 	n := 0
 	for ci, cat := range seeds {
 		for _, s := range cat.items {
@@ -109,6 +111,7 @@ func Reset() {
 			}
 			products = append(products, p)
 			byVID[p.VID] = s.cents
+			weights[p.VID] = s.weight
 		}
 	}
 }
@@ -206,6 +209,17 @@ func UnitCostCents(vid string) int64 {
 		return c
 	}
 	return int64(300 + hash("cost:"+vid)%5701)
+}
+
+// WeightGrams é o peso do produto para o frete: o do catálogo, ou um derivado do hash (200 g a 3 kg) para
+// os vids fora dele (os produtos de exemplo da loja).
+func WeightGrams(vid string) int {
+	mu.Lock()
+	defer mu.Unlock()
+	if w, ok := weights[vid]; ok && w > 0 {
+		return w
+	}
+	return int(200 + hash("weight:"+vid)%2801)
 }
 
 // FormatUSD formata centavos como a CJ manda valores: string decimal com 2 casas.

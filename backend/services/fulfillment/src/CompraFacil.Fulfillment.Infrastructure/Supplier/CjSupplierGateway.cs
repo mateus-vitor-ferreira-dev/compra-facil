@@ -20,6 +20,7 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     private const int InvalidParams = 1600100;
     private const int OutOfStock = 1603001;
     private const int OrderRejected = 1603002;
+    private const int OrderNotFound = 1603404;
 
     // o máximo do product/list; 100 páginas (20 mil itens) é o teto de um catálogo curado
     private const int FeedPageSize = 200;
@@ -47,6 +48,9 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
             ShippingZip: to?.ZipCode ?? "",
             ShippingPhone: to?.Phone ?? "",
             ConsigneeId: to?.Cpf ?? "",
+            // venda à ordem (#221): a nota da loja vai junto, para o fornecedor emitir a remessa referenciando-a
+            InvoiceKey: request.InvoiceKey,
+            InvoiceXml: request.InvoiceXml is { } xml ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(xml)) : null,
             Email: request.CustomerEmail,
             Remark: Scenario(request.CustomerEmail),
             Products: [.. request.Items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
@@ -64,6 +68,28 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
             OutOfStock => new SupplierPlacement.Rejected(SupplierFailureReasons.OutOfStock, envelope.Message ?? "sem estoque"),
             OrderRejected or InvalidParams => new SupplierPlacement.Rejected(SupplierFailureReasons.Rejected, envelope.Message ?? "recusado"),
             // código que não conhecemos: melhor tentar de novo do que recusar um pedido pago
+            _ => throw new SupplierUnavailableException($"resposta inesperada do fornecedor: {envelope.Code} {envelope.Message}"),
+        };
+    }
+
+    public async Task<SupplierReturnOpening> OpenReturnAsync(
+        Guid orderNumber, string customerEmail, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var body = new CreateDisputeRequest(
+            orderNumber.ToString(), "Arrependimento do cliente em até 7 dias da entrega",
+            [.. items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
+        var envelope = await SendAsync<DisputeResult>(() => new HttpRequestMessage(HttpMethod.Post, "disputes/create")
+        {
+            Content = JsonContent.Create(body, options: CjJson.Options),
+        }, retryOnInvalidToken: true, ct);
+        if (envelope.Result && envelope.Data is { DisputeId.Length: > 0 } data)
+        {
+            return new SupplierReturnOpening.Opened(data.DisputeId, data.ReturnCode ?? "", data.ReturnAddress ?? "");
+        }
+        return envelope.Code switch
+        {
+            OrderRejected or OrderNotFound or InvalidParams => new SupplierReturnOpening.Refused(envelope.Message ?? "recusada"),
             _ => throw new SupplierUnavailableException($"resposta inesperada do fornecedor: {envelope.Code} {envelope.Message}"),
         };
     }
@@ -86,6 +112,33 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
             }
         }
         throw new SupplierUnavailableException($"o feed do fornecedor passou de {MaxFeedPages} páginas");
+    }
+
+    /// <summary>O freightCalculate do CJ: da China ao CEP, com o preço em dólar e o prazo "mín-máx" em dias.</summary>
+    public async Task<IReadOnlyList<SupplierFreightOption>> QuoteFreightAsync(string zipCode, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var body = new FreightRequest("CN", "BR", zipCode, [.. items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
+        var envelope = await SendAsync<IReadOnlyList<FreightOption>>(() => new HttpRequestMessage(HttpMethod.Post, "logistic/freightCalculate")
+        {
+            Content = JsonContent.Create(body, options: CjJson.Options),
+        }, retryOnInvalidToken: true, ct);
+        if (!envelope.Result || envelope.Data is not { } options)
+        {
+            throw new SupplierUnavailableException($"o fornecedor não cotou o frete: {envelope.Code} {envelope.Message}");
+        }
+        return [.. options.Select(ToFreight).OfType<SupplierFreightOption>()];
+    }
+
+    /// <summary>Opção sem nome, sem preço ou com o prazo fora do formato "12-20" não entra.</summary>
+    private static SupplierFreightOption? ToFreight(FreightOption o)
+    {
+        var days = (o.LogisticAging ?? "").Split('-', 2);
+        return !string.IsNullOrWhiteSpace(o.LogisticName) && o.LogisticPrice is > 0
+            && int.TryParse(days[0], NumberStyles.None, CultureInfo.InvariantCulture, out var min)
+            && int.TryParse(days.Length > 1 ? days[1] : days[0], NumberStyles.None, CultureInfo.InvariantCulture, out var max)
+            ? new SupplierFreightOption(o.LogisticName, (long)Math.Round(o.LogisticPrice.Value * 100, MidpointRounding.AwayFromZero), min, Math.Max(min, max))
+            : null;
     }
 
     // consultas de estoque simultâneas (uma por variante, como a API do CJ pede)
@@ -169,11 +222,20 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
 
     private sealed record CreateOrderProduct(string Vid, int Quantity);
 
+    private sealed record CreateDisputeRequest(string BusinessDisputeId, string MessageText, IReadOnlyList<CreateOrderProduct> ProductInfoList);
+
+    private sealed record DisputeResult(string? DisputeId, string? ReturnCode, string? ReturnAddress);
+
     private sealed record CreateOrderRequest(
         string OrderNumber, string ShippingCountryCode, string ShippingProvince, string ShippingCity, string ShippingCustomerName,
         string ShippingAddress, string ShippingAddress2, string HouseNumber, string ShippingZip, string ShippingPhone,
         [property: JsonPropertyName("consigneeID")] string ConsigneeId,
+        string? InvoiceKey, string? InvoiceXml,
         string Email, string Remark, IReadOnlyList<CreateOrderProduct> Products);
+
+    private sealed record FreightRequest(string StartCountryCode, string EndCountryCode, string Zip, IReadOnlyList<CreateOrderProduct> Products);
+
+    private sealed record FreightOption(string? LogisticName, decimal? LogisticPrice, string? LogisticAging);
 
     private sealed record CreateOrderResult(string? OrderId, string? OrderNumber, string? OrderStatus);
 

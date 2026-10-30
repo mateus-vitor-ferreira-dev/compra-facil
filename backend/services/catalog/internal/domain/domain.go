@@ -44,6 +44,16 @@ type ImageVariant struct {
 	URL   string `json:"url"`
 }
 
+// GalleryImage é uma foto a mais do produto, depois da primeira (ImageURL e Image). Image é nula se só a
+// URL é conhecida.
+type GalleryImage struct {
+	URL   string        `json:"url"`
+	Image *ProductImage `json:"image,omitempty"`
+}
+
+// MaxGalleryImages é quantas fotos o produto tem além da primeira.
+const MaxGalleryImages = 9
+
 type Product struct {
 	ID          uuid.UUID
 	SKU         string
@@ -55,7 +65,9 @@ type Product struct {
 	Category   CategoryRef
 	ImageURL   *string
 	// Image são as dimensões e as variantes da foto de ImageURL; nulo se só a URL é conhecida.
-	Image      *ProductImage
+	Image *ProductImage
+	// Gallery são as outras fotos, na ordem da galeria. Num Update, nil mantém as que estão gravadas.
+	Gallery    []GalleryImage
 	PriceCents int64
 	Currency   string
 	Status     ProductStatus

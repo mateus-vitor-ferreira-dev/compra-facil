@@ -3,6 +3,7 @@ package nfe
 import (
 	"bytes"
 	"encoding/xml"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,6 +67,7 @@ func TestEmit_RejectsLikeTheSefaz(t *testing.T) {
 		{"NCM inexistente", func(r *Request) { r.InfNFe.Det[0].Prod.NCM = "123" }, 778},
 		{"CFOP fora da operação", func(r *Request) { r.InfNFe.Det[1].Prod.CFOP = "5102" }, 543},
 		{"total diferente dos itens", func(r *Request) { r.InfNFe.Total.ICMSTot.VNF = 250 }, 610},
+		{"frete fora do total", func(r *Request) { r.InfNFe.Total.ICMSTot.VFrete = 24.3 }, 610},
 		{"pagamento menor que o total", func(r *Request) { r.InfNFe.Pag.DetPag[0].VPag = 200 }, 866},
 		{"CEP incompleto", func(r *Request) { r.InfNFe.Dest.EnderDest.CEP = "0131" }, 225},
 		{"recusa de propósito", func(r *Request) { r.InfNFe.Dest.Email = "ana+recusar-nota@exemplo.com" }, 999},
@@ -153,6 +155,55 @@ func TestReset_DoesNotRepeatTheNumber(t *testing.T) {
 	require.NoError(t, err)
 	assert.Greater(t, after.Numero, before.Numero)
 	assert.NotEqual(t, before.ID, after.ID)
+}
+
+func TestEmit_FreightAddsToTheTotal(t *testing.T) {
+	req := request("pedido-frete")
+	req.InfNFe.Total.ICMSTot.VFrete = 24.3
+	req.InfNFe.Total.ICMSTot.VNF = 274.2
+	req.InfNFe.Pag.DetPag[0].VPag = 274.2
+	inv, err := NewIssuer(Options{}).Emit(req)
+	require.NoError(t, err)
+	assert.Equal(t, StatusAuthorized, inv.Status)
+	assert.InDelta(t, 274.2, inv.ValorTotal, 0.001)
+	assert.Contains(t, string(PDF(inv, req)), "Frete: R$ 24.30")
+}
+
+func TestEmit_ReturnReferencesAnAuthorizedInvoice(t *testing.T) {
+	issuer := NewIssuer(Options{AllowedCFOP: []string{"5120", "6120", "1202", "2202"}, CancelWindow: 24 * time.Hour})
+	sale, err := issuer.Emit(request("venda"))
+	require.NoError(t, err)
+	require.Equal(t, StatusAuthorized, sale.Status)
+
+	back := func(ref string, refs ...string) Request {
+		r := request(ref)
+		r.InfNFe.Ide.FinNFe, r.InfNFe.Ide.TpNF = FinDevolucao, 0
+		for _, key := range refs {
+			r.InfNFe.Ide.NFref = append(r.InfNFe.Ide.NFref, NFref{RefNFe: key})
+		}
+		r.InfNFe.Pag.DetPag = []DetPag{{TPag: "90"}}
+		for i := range r.InfNFe.Det {
+			r.InfNFe.Det[i].Prod.CFOP = "1202"
+		}
+		return r
+	}
+
+	ok, err := issuer.Emit(back("venda-devolucao", sale.Chave))
+	require.NoError(t, err)
+	assert.Equal(t, StatusAuthorized, ok.Status)
+	assert.NotEqual(t, sale.Chave, ok.Chave)
+
+	for name, r := range map[string]Request{
+		"sem referência":        back("sem-ref"),
+		"referência que não há": back("errada", strings.Repeat("9", 44)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := issuer.Emit(r)
+			require.NoError(t, err)
+			assert.Equal(t, StatusRejected, got.Status)
+			assert.Equal(t, 267, got.Autorizacao.CodigoStatus)
+		})
+	}
 }
 
 func TestValidCPF(t *testing.T) {
