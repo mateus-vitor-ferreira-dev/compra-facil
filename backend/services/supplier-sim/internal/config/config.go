@@ -23,6 +23,7 @@ type Config struct {
 	AcceptDelay  time.Duration
 	ShipDelay    time.Duration
 	DeliverDelay time.Duration
+	DisputeDelay time.Duration
 
 	WebhookURL       string
 	WebhookSecret    string
@@ -59,6 +60,7 @@ func load(getenv func(string) string) (Config, error) {
 		{&c.AcceptDelay, "SIM_ACCEPT_DELAY", 2 * time.Second},
 		{&c.ShipDelay, "SIM_SHIP_DELAY", 5 * time.Second},
 		{&c.DeliverDelay, "SIM_DELIVER_DELAY", 10 * time.Second},
+		{&c.DisputeDelay, "SIM_DISPUTE_DELAY", 5 * time.Second},
 		{&c.WebhookRetryBase, "SIM_WEBHOOK_RETRY_BASE", time.Second},
 	}
 	for _, d := range durations {

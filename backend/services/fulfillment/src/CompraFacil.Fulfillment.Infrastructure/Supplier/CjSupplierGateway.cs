@@ -20,6 +20,7 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     private const int InvalidParams = 1600100;
     private const int OutOfStock = 1603001;
     private const int OrderRejected = 1603002;
+    private const int OrderNotFound = 1603404;
 
     // o máximo do product/list; 100 páginas (20 mil itens) é o teto de um catálogo curado
     private const int FeedPageSize = 200;
@@ -67,6 +68,28 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
             OutOfStock => new SupplierPlacement.Rejected(SupplierFailureReasons.OutOfStock, envelope.Message ?? "sem estoque"),
             OrderRejected or InvalidParams => new SupplierPlacement.Rejected(SupplierFailureReasons.Rejected, envelope.Message ?? "recusado"),
             // código que não conhecemos: melhor tentar de novo do que recusar um pedido pago
+            _ => throw new SupplierUnavailableException($"resposta inesperada do fornecedor: {envelope.Code} {envelope.Message}"),
+        };
+    }
+
+    public async Task<SupplierReturnOpening> OpenReturnAsync(
+        Guid orderNumber, string customerEmail, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var body = new CreateDisputeRequest(
+            orderNumber.ToString(), "Arrependimento do cliente em até 7 dias da entrega",
+            [.. items.Select(i => new CreateOrderProduct(i.Sku, i.Quantity))]);
+        var envelope = await SendAsync<DisputeResult>(() => new HttpRequestMessage(HttpMethod.Post, "disputes/create")
+        {
+            Content = JsonContent.Create(body, options: CjJson.Options),
+        }, retryOnInvalidToken: true, ct);
+        if (envelope.Result && envelope.Data is { DisputeId.Length: > 0 } data)
+        {
+            return new SupplierReturnOpening.Opened(data.DisputeId, data.ReturnCode ?? "", data.ReturnAddress ?? "");
+        }
+        return envelope.Code switch
+        {
+            OrderRejected or OrderNotFound or InvalidParams => new SupplierReturnOpening.Refused(envelope.Message ?? "recusada"),
             _ => throw new SupplierUnavailableException($"resposta inesperada do fornecedor: {envelope.Code} {envelope.Message}"),
         };
     }
@@ -198,6 +221,10 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     }
 
     private sealed record CreateOrderProduct(string Vid, int Quantity);
+
+    private sealed record CreateDisputeRequest(string BusinessDisputeId, string MessageText, IReadOnlyList<CreateOrderProduct> ProductInfoList);
+
+    private sealed record DisputeResult(string? DisputeId, string? ReturnCode, string? ReturnAddress);
 
     private sealed record CreateOrderRequest(
         string OrderNumber, string ShippingCountryCode, string ShippingProvince, string ShippingCity, string ShippingCustomerName,

@@ -24,7 +24,10 @@ info:
 
     **Desistência da compra (#223).** A SEFAZ só cancela em 24 h, e na desistência a mercadoria já foi
     entregue: o estorno com `reason: return` não cancela a nota. O `OrderReturned` pede a NF-e de devolução
-    (entrada, referenciando a chave da nota de venda), e sai `InvoiceReturnIssued`.
+    (entrada, referenciando a chave da nota de venda), e sai `InvoiceReturnIssued`. O mesmo evento põe a
+    devolução na fila do fornecedor: aberta, sai `SupplierReturnOpened` e o notifications manda ao cliente o
+    código e o endereço; a resposta do fornecedor, por webhook, vira `SupplierReturnResolved`. O estorno ao
+    cliente não depende de nada disso.
 defaultContentType: application/json
 
 servers:
@@ -47,6 +50,10 @@ channels:
         $ref: "#/components/messages/SupplierOrderDelivered"
       SupplierOrderFailed:
         $ref: "#/components/messages/SupplierOrderFailed"
+      SupplierReturnOpened:
+        $ref: "#/components/messages/SupplierReturnOpened"
+      SupplierReturnResolved:
+        $ref: "#/components/messages/SupplierReturnResolved"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -115,6 +122,8 @@ operations:
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderShipped"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderDelivered"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnOpened"
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnResolved"
 
   publishSupplierProductEvents:
     action: send
@@ -422,6 +431,87 @@ components:
                     type: string
                     maxLength: 500
                   rejected_at:
+                    type: string
+                    format: date-time
+
+    SupplierReturnOpened:
+      name: SupplierReturnOpened
+      title: Devolução aberta no fornecedor
+      summary: O notifications manda ao cliente o código da devolução e o endereço para onde mandar o produto.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierReturnOpened
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, customer_email, supplier, dispute_id, return_code, return_address, opened_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  customer_email:
+                    type: string
+                    format: email
+                  supplier:
+                    type: string
+                  dispute_id:
+                    type: string
+                  return_code:
+                    type: string
+                  return_address:
+                    type: string
+                  opened_at:
+                    type: string
+                    format: date-time
+
+    SupplierReturnResolved:
+      name: SupplierReturnResolved
+      title: O fornecedor respondeu à devolução
+      summary: Aprovada ou recusada. A recusa fica no painel; o cliente já foi estornado.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: SupplierReturnResolved
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, supplier, outcome, resolved_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  supplier:
+                    type: string
+                  dispute_id:
+                    type: [string, "null"]
+                    description: Nulo se o fornecedor recusou já na abertura.
+                  outcome:
+                    type: string
+                    enum: [approved, rejected]
+                  reason:
+                    type: [string, "null"]
+                  resolved_at:
                     type: string
                     format: date-time
 

@@ -24,6 +24,7 @@ public static partial class EmailComposer
     private static readonly IFluidTemplate s_refunded = Load("order-refunded");
     private static readonly IFluidTemplate s_shipped = Load("order-shipped");
     private static readonly IFluidTemplate s_delivered = Load("order-delivered");
+    private static readonly IFluidTemplate s_returnInstructions = Load("return-instructions");
 
     /// <summary>O pedido saiu (#224): o código de rastreio, a transportadora, o link dela e o do pedido.</summary>
     public static async Task<ComposedEmail> ShippedAsync(OrderShippedData order, Uri storeUrl)
@@ -69,6 +70,20 @@ public static partial class EmailComposer
         var number = OrderNumber(order.OrderId);
         var html = await s_returned.RenderAsync(Context(new { order_number = number, total = Brl(order.Total) }), s_html);
         return new ComposedEmail($"Devolução do pedido {number} registrada", html, ToText(html));
+    }
+
+    /// <summary>Como mandar o produto de volta (#223): o código para o pacote e o endereço do fornecedor.</summary>
+    public static async Task<ComposedEmail> ReturnInstructionsAsync(SupplierReturnOpenedData data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var number = OrderNumber(data.OrderId);
+        var html = await s_returnInstructions.RenderAsync(Context(new
+        {
+            order_number = number,
+            return_code = data.ReturnCode,
+            return_address = data.ReturnAddress,
+        }), s_html);
+        return new ComposedEmail($"Como devolver o pedido {number}", html, ToText(html));
     }
 
     /// <summary>O estorno feito: do pedido devolvido ou do cancelado depois de pago.</summary>

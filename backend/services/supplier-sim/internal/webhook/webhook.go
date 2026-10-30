@@ -46,6 +46,16 @@ type StockParams struct {
 	UpdateDate string `json:"updateDate"`
 }
 
+// DisputeParams é a resolução de uma devolução (type DISPUTE): o fornecedor aprovou ou recusou.
+type DisputeParams struct {
+	OrderID       string `json:"orderId"`
+	OrderNumber   string `json:"orderNumber"`
+	DisputeID     string `json:"disputeId"`
+	DisputeStatus string `json:"disputeStatus"`
+	Reason        string `json:"reason"`
+	UpdateDate    string `json:"updateDate"`
+}
+
 type Params struct {
 	OrderID          string `json:"orderId"`
 	OrderNumber      string `json:"orderNumber"`
@@ -112,6 +122,11 @@ func (d *Dispatcher) Enqueue(p Params) {
 func (d *Dispatcher) EnqueueStock(vid string, available int) {
 	d.enqueue("stock:"+vid, Message{MessageID: uuid.NewString(), Type: "STOCK", MessageType: "UPDATE",
 		Params: StockParams{VID: vid, StorageNum: available, UpdateDate: time.Now().UTC().Format(time.RFC3339)}})
+}
+
+// EnqueueDispute avisa a resolução de uma devolução (fila própria por disputa).
+func (d *Dispatcher) EnqueueDispute(p DisputeParams) {
+	d.enqueue("dispute:"+p.DisputeID, Message{MessageID: uuid.NewString(), Type: "DISPUTE", MessageType: "UPDATE", Params: p})
 }
 
 func (d *Dispatcher) enqueue(key string, msg Message) {

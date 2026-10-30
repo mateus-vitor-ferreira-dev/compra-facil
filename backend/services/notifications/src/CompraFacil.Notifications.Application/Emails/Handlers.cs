@@ -120,6 +120,23 @@ public sealed class OnOrderDelivered(
     }
 }
 
+/// <summary>Registra o e-mail com as instruções para mandar o produto de volta (#223).</summary>
+public sealed class OnSupplierReturnOpened(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<SupplierReturnOpenedData>
+{
+    public async Task HandleAsync(SupplierReturnOpenedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ReturnInstructionsAsync(data);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.SupplierReturnOpened,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
 /// <summary>Registra o e-mail da nota fiscal autorizada, com o link do pedido (onde o cliente baixa o DANFE).</summary>
 public sealed class OnInvoiceIssued(
     INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)

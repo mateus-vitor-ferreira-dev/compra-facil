@@ -8,7 +8,7 @@ namespace CompraFacil.Fulfillment.Application.Invoices;
 /// PaymentRefunded com o pedido inteiro devolvido: a nota autorizada precisa ser cancelada. Só marca, na
 /// transação do evento; quem chama o emissor é o <see cref="InvoiceCanceller"/> (um serviço externo não
 /// prende o consumer). Na desistência da compra não cancela: a mercadoria foi entregue, e a nota de venda
-/// segue valendo, com a de devolução (<see cref="OnOrderReturned"/>).
+/// segue valendo, com a de devolução (<see cref="ReturnInvoiceIssuer"/>).
 /// </summary>
 public sealed class OnPaymentRefunded(IInvoiceRepository invoices, TimeProvider clock) : IHandleEvent<PaymentRefundedData>
 {
@@ -22,22 +22,6 @@ public sealed class OnPaymentRefunded(IInvoiceRepository invoices, TimeProvider 
         if (await invoices.GetAsync(data.OrderId, ct) is { } invoice)
         {
             invoice.RequestCancel(clock.GetUtcNow());
-        }
-    }
-}
-
-/// <summary>
-/// OrderReturned → o cliente desistiu da compra (#223): pede a nota de devolução. Só marca, na transação do
-/// evento; quem chama o emissor é o <see cref="ReturnInvoiceIssuer"/>.
-/// </summary>
-public sealed class OnOrderReturned(IInvoiceRepository invoices, TimeProvider clock) : IHandleEvent<OrderReturnedData>
-{
-    public async Task HandleAsync(OrderReturnedData data, EventContext context, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        if (await invoices.GetAsync(data.OrderId, ct) is { } invoice)
-        {
-            invoice.RequestReturn(clock.GetUtcNow());
         }
     }
 }

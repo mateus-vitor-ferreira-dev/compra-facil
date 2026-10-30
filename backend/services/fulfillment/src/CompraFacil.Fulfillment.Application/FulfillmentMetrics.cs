@@ -27,6 +27,9 @@ public static class FulfillmentMetrics
         "compra_facil.fulfillment.invoices", unit: "{invoice}", description: "Notas fiscais emitidas, por resultado.");
 
     /// <summary>Cancelamentos de nota que o emissor recusou (fora do prazo): a equipe resolve com nota de entrada.</summary>
+    private static readonly Counter<long> s_returns = s_meter.CreateCounter<long>(
+        "fulfillment.supplier_returns", description: "Devoluções ao fornecedor, por resultado (opened, refused, approved, rejected)");
+
     private static readonly Counter<long> s_cancelRefused = s_meter.CreateCounter<long>(
         "compra_facil.fulfillment.invoice_cancel_refused", unit: "{invoice}", description: "Cancelamentos de nota recusados pelo emissor.");
 
@@ -35,6 +38,8 @@ public static class FulfillmentMetrics
     public static void Invoice(string result) => s_invoices.Add(1, new KeyValuePair<string, object?>("result", result));
 
     public static void InvoiceCancelRefused() => s_cancelRefused.Add(1);
+
+    public static void SupplierReturn(string result) => s_returns.Add(1, new KeyValuePair<string, object?>("result", result));
 
     public static void CatalogSynced(string supplier, CatalogSyncResult result)
     {

@@ -19,6 +19,14 @@ public abstract record SupplierPlacement
     public sealed record Rejected(string Reason, string Detail) : SupplierPlacement;
 }
 
+/// <summary>Resposta da abertura da devolução: aberta (com a disputa, o código e o endereço) ou recusada.</summary>
+public abstract record SupplierReturnOpening
+{
+    public sealed record Opened(string DisputeId, string ReturnCode, string ReturnAddress) : SupplierReturnOpening;
+
+    public sealed record Refused(string Reason) : SupplierReturnOpening;
+}
+
 /// <summary>
 /// O fornecedor (ADR 0007): uma implementação por fornecedor, atrás da mesma porta. Erro passageiro
 /// (fora do ar, timeout, 5xx) sai como <see cref="SupplierUnavailableException"/>: o pedido volta para a
@@ -30,6 +38,12 @@ public interface ISupplierGateway
     string Name { get; }
 
     Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct);
+
+    /// <summary>
+    /// Abre a devolução de um pedido entregue (uma disputa, no CJ). Repetir devolve a mesma. Recusa de negócio
+    /// vem como <see cref="SupplierReturnOpening.Refused"/>; erro passageiro, como <see cref="SupplierUnavailableException"/>.
+    /// </summary>
+    Task<SupplierReturnOpening> OpenReturnAsync(Guid orderNumber, string customerEmail, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct);
 
     /// <summary>O feed inteiro (todas as páginas). Falha em qualquer página sai como <see cref="SupplierUnavailableException"/>.</summary>
     Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct);

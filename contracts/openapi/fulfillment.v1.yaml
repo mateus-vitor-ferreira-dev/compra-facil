@@ -269,6 +269,47 @@ paths:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
 
+  /v1/admin/supplier-returns:
+    get:
+      tags: [admin]
+      operationId: listSupplierReturns
+      summary: Devoluções ao fornecedor que pedem atenção
+      description: |
+        As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu, as
+        paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido) primeiro.
+        As que o fornecedor recusou ficam por 30 dias. A nota de devolução rejeitada vem em `invoice_error`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Devoluções.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SupplierReturn"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/admin/supplier-orders/overdue:
     get:
       tags: [admin]
@@ -540,11 +581,76 @@ components:
           type: [string, "null"]
           format: date-time
 
+    SupplierReturn:
+      type: object
+      description: A devolução de um pedido ao fornecedor. O cliente já foi estornado; isto é a pendência da loja.
+      required: [order_id, status, overdue, due_at, supplier, customer_email, items, attempts, requested_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, open, approved, rejected]
+          description: "`pending`: na fila para abrir. `open`: esperando a resposta do fornecedor. `rejected`: ele recusou."
+        overdue:
+          type: boolean
+          description: Passou do prazo sem resposta do fornecedor.
+        due_at:
+          type: string
+          format: date-time
+        supplier:
+          type: string
+        supplier_order_id:
+          type: [string, "null"]
+        dispute_id:
+          type: [string, "null"]
+        return_code:
+          type: [string, "null"]
+          description: O código que o cliente escreve no pacote.
+        customer_email:
+          type: string
+          format: email
+        items:
+          type: array
+          items:
+            type: object
+            required: [sku, name, quantity]
+            properties:
+              sku:
+                type: string
+              name:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+        attempts:
+          type: integer
+          minimum: 0
+          description: Tentativas de abrir com o fornecedor fora do ar.
+        last_error:
+          type: [string, "null"]
+        resolution_reason:
+          type: [string, "null"]
+          description: Por que o fornecedor recusou.
+        invoice_error:
+          type: [string, "null"]
+          description: Por que a SEFAZ rejeitou a nota de devolução.
+        requested_at:
+          type: string
+          format: date-time
+        opened_at:
+          type: [string, "null"]
+          format: date-time
+        resolved_at:
+          type: [string, "null"]
+          format: date-time
+
     SupplierWebhook:
       type: object
       description: |
-        Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido) ou `STOCK` (a
-        disponibilidade de uma variante, #218).
+        Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido), `STOCK` (a
+        disponibilidade de uma variante, #218) ou `DISPUTE` (a resposta a uma devolução, #223).
       required: [messageId, type, messageType, params]
       properties:
         messageId:
@@ -553,14 +659,17 @@ components:
           maxLength: 64
         type:
           type: string
-          description: "`ORDER` ou `STOCK`; outros tipos são ignorados."
+          description: "`ORDER`, `STOCK` ou `DISPUTE`; outros tipos são ignorados."
         messageType:
           type: string
           description: "`UPDATE`."
         params:
           type: object
-          description: "`ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios."
+          description: "`ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios. `DISPUTE`: `orderNumber` e `disputeStatus` obrigatórios."
           properties:
+            disputeStatus:
+              type: string
+              description: "`DISPUTE`: `PROCESSING`, `APPROVED` ou `REJECTED`."
             vid:
               type: string
               description: "`STOCK`: a variante."

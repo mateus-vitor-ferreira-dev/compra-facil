@@ -6,7 +6,7 @@ info:
     O serviço **notifications** (time de Processamento de compras, ASP.NET Core) só consome eventos:
     envia o e-mail de pedido confirmado ou cancelado, o de enviado (com o rastreio) e o de entregue (com o
     prazo de arrependimento), o da devolução e o do estorno, o da nota fiscal emitida (com o link do pedido, onde
-    fica o DANFE) e o de confirmação de e-mail da conta (Mailpit em dev). Não publica nada.
+    fica o DANFE), o das instruções para devolver o produto e o de confirmação de e-mail da conta (Mailpit em dev). Não publica nada.
 
     O e-mail de um mesmo `event_id` sai no máximo uma vez.
 defaultContentType: application/json
@@ -24,6 +24,8 @@ channels:
     $ref: "./identity.v1.yaml#/channels/accountEvents"
   invoiceEvents:
     $ref: "./fulfillment.v1.yaml#/channels/invoiceEvents"
+  supplierOrderEvents:
+    $ref: "./fulfillment.v1.yaml#/channels/supplierOrderEvents"
 
 operations:
   onOrderOutcome:
@@ -38,6 +40,20 @@ operations:
       - $ref: "#/channels/orderEvents/messages/OrderRefunded"
       - $ref: "#/channels/orderEvents/messages/OrderShipped"
       - $ref: "#/channels/orderEvents/messages/OrderDelivered"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications
+
+  onSupplierReturnOpened:
+    action: receive
+    channel:
+      $ref: "#/channels/supplierOrderEvents"
+    summary: Manda ao cliente o código da devolução e o endereço para onde mandar o produto.
+    messages:
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnOpened"
     bindings:
       kafka:
         bindingVersion: 0.5.0

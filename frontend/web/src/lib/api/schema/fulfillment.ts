@@ -115,6 +115,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-returns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Devoluções ao fornecedor que pedem atenção
+         * @description As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu, as
+         *     paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido) primeiro.
+         *     As que o fornecedor recusou ficam por 30 dias. A nota de devolução rejeitada vem em `invoice_error`.
+         */
+        get: operations["listSupplierReturns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/overdue": {
         parameters: {
             query?: never;
@@ -288,18 +310,59 @@ export interface components {
             /** Format: date-time */
             shipped_at?: string | null;
         };
+        /** @description A devolução de um pedido ao fornecedor. O cliente já foi estornado; isto é a pendência da loja. */
+        SupplierReturn: {
+            /** Format: uuid */
+            order_id: string;
+            /**
+             * @description `pending`: na fila para abrir. `open`: esperando a resposta do fornecedor. `rejected`: ele recusou.
+             * @enum {string}
+             */
+            status: "pending" | "open" | "approved" | "rejected";
+            /** @description Passou do prazo sem resposta do fornecedor. */
+            overdue: boolean;
+            /** Format: date-time */
+            due_at: string;
+            supplier: string;
+            supplier_order_id?: string | null;
+            dispute_id?: string | null;
+            /** @description O código que o cliente escreve no pacote. */
+            return_code?: string | null;
+            /** Format: email */
+            customer_email: string;
+            items: {
+                sku: string;
+                name: string;
+                quantity: number;
+            }[];
+            /** @description Tentativas de abrir com o fornecedor fora do ar. */
+            attempts: number;
+            last_error?: string | null;
+            /** @description Por que o fornecedor recusou. */
+            resolution_reason?: string | null;
+            /** @description Por que a SEFAZ rejeitou a nota de devolução. */
+            invoice_error?: string | null;
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            opened_at?: string | null;
+            /** Format: date-time */
+            resolved_at?: string | null;
+        };
         /**
-         * @description Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido) ou `STOCK` (a
-         *     disponibilidade de uma variante, #218).
+         * @description Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido), `STOCK` (a
+         *     disponibilidade de uma variante, #218) ou `DISPUTE` (a resposta a uma devolução, #223).
          */
         SupplierWebhook: {
             messageId: string;
-            /** @description `ORDER` ou `STOCK`; outros tipos são ignorados. */
+            /** @description `ORDER`, `STOCK` ou `DISPUTE`; outros tipos são ignorados. */
             type: string;
             /** @description `UPDATE`. */
             messageType: string;
-            /** @description `ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios. */
+            /** @description `ORDER`: `orderNumber` e `orderStatus` obrigatórios. `STOCK`: `vid` e `storageNum` obrigatórios. `DISPUTE`: `orderNumber` e `disputeStatus` obrigatórios. */
             params: {
+                /** @description `DISPUTE`: `PROCESSING`, `APPROVED` ou `REJECTED`. */
+                disputeStatus?: string;
                 /** @description `STOCK`: a variante. */
                 vid?: string;
                 /** @description `STOCK`: unidades disponíveis agora. */
@@ -682,6 +745,34 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listSupplierReturns: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Devoluções. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SupplierReturn"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
         };
     };
     listOverdueSupplierOrders: {
