@@ -78,7 +78,7 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   await signIn(page, "ana@exemplo.com");
   await expect(page).toHaveURL(/\/conta$/);
   const orders = page.getByRole("region", { name: "Meus pedidos" });
-  await expect(orders.getByRole("link")).toHaveCount(3);
+  await expect(orders.getByRole("link")).toHaveCount(4);
   await expect(orders).toContainText("Pedido 4F2A9C1B");
   await expect(orders).toContainText("Em preparação");
   await expect(orders).toContainText("Cancelado");
@@ -101,6 +101,25 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   await expect(page.getByText("2 × R$ 2.639,92")).toBeVisible();
 
   expect((await page.goto("/conta/pedidos/0199f6a0-0000-7000-8000-0000000fffff"))?.status()).toBe(404);
+});
+
+test("o pedido a caminho mostra o rastreio, na lista e no pedido", async ({ page }) => {
+  await signIn(page, "ana@exemplo.com");
+  await expect(page).toHaveURL(/\/conta$/);
+  const orders = page.getByRole("region", { name: "Meus pedidos" });
+  const shipped = orders.getByRole("link", { name: /Pedido 2E6F8A14/ });
+  await expect(shipped).toContainText("Enviado");
+  await expect(shipped).toContainText("Rastreio BR987654321BR");
+
+  await shipped.click();
+  await expect(page.getByText("Pedido a caminho")).toBeVisible();
+  const tracking = page.getByRole("region", { name: /Rastreio/ });
+  await expect(tracking).toContainText("Correios");
+  await expect(tracking).toContainText("BR987654321BR");
+  const link = tracking.getByRole("link", { name: /Acompanhar a entrega/ });
+  await expect(link).toHaveAttribute("href", "https://rastreio.example/BR987654321BR");
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(page.getByRole("list", { name: "Andamento do pedido" })).toContainText("A caminho");
 });
 
 test("o pedido entregue aceita a desistência em 7 dias, com confirmação", async ({ page }) => {

@@ -212,6 +212,9 @@ export default function (products) {
     check(paymentOf(orderId, 'approved'), { 'cartão capturado': (p) => !!p.captured_at });
     // a nota fiscal: o e-mail com o link do pedido e o DANFE para o dono baixar pelo gateway
     check(eventually('e-mail da nota fiscal', () => emailsTo(customer.email, 'Nota fiscal')), { 'e-mail da nota fiscal': (n) => n >= 1 });
+    // o envio, com o rastreio, e a entrega, com o prazo para desistir (#224)
+    check(eventually('e-mail do envio', () => emailsTo(customer.email, 'enviado')), { 'e-mail do envio': (n) => n >= 1 });
+    check(eventually('e-mail da entrega', () => emailsTo(customer.email, 'entregue')), { 'e-mail da entrega': (n) => n >= 1 });
     const danfe = http.get(`${GATEWAY}/fulfillment/v1/me/invoices/${orderId}/danfe`, { headers: auth(customer.token), tags: { name: 'danfe' } });
     check(danfe, { 'DANFE em PDF': (r) => r.status === 200 && String(r.headers['Content-Type']).startsWith('application/pdf') });
 

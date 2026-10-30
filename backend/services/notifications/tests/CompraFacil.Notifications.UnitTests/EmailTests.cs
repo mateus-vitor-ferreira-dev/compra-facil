@@ -75,6 +75,48 @@ public sealed class EmailTests
         Assert.Contains(expected, email.TextBody, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Shipped_HasTheTrackingCode_TheCarrierLink_AndTheOrderLink()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.ShippedAsync(
+            new OrderShippedData(order, "ana@exemplo.com", new Tracking("BR123456789BR", "Correios", "https://rastreio.example/BR123456789BR")),
+            new Uri("https://loja.example/"));
+
+        Assert.Equal("Pedido 0000ABCD enviado", email.Subject);
+        Assert.Contains("Código de rastreio: BR123456789BR (Correios)", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("Código de rastreio: BR123456789BR", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://rastreio.example/BR123456789BR\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.EndsWith($"https://loja.example/conta/pedidos/{order}", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("/rastreio/BR1")]
+    public async Task Shipped_WithoutASafeCarrierLink_StillHasTheCode(string? url)
+    {
+        var email = await EmailComposer.ShippedAsync(
+            new OrderShippedData(Guid.NewGuid(), "ana@exemplo.com", new Tracking("BR1", null, url)), new Uri("https://loja.example/"));
+
+        Assert.Contains("Código de rastreio: BR1", email.TextBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("transportadora", email.TextBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("javascript", email.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("(", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Delivered_TellsAboutTheSevenDaysToGiveUp_WithTheOrderLink()
+    {
+        var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
+        var email = await EmailComposer.DeliveredAsync(new OrderDeliveredData(order, "ana@exemplo.com"), new Uri("https://loja.example/"));
+
+        Assert.Equal("Pedido 0000ABCD entregue", email.Subject);
+        Assert.Contains("em até 7 dias depois do recebimento", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
+    }
+
     private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
     private static EmailConfirmationRequestedData Confirmation(string url, string name = "Ana <b>Souza</b>", double hours = 24) =>

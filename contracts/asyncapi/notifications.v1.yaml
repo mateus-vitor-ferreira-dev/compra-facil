@@ -4,7 +4,8 @@ info:
   version: 1.0.0
   description: |
     O serviço **notifications** (time de Processamento de compras, ASP.NET Core) só consome eventos:
-    envia o e-mail de pedido confirmado ou cancelado, o da nota fiscal emitida (com o link do pedido, onde
+    envia o e-mail de pedido confirmado ou cancelado, o de enviado (com o rastreio) e o de entregue (com o
+    prazo de arrependimento), o da devolução e o do estorno, o da nota fiscal emitida (com o link do pedido, onde
     fica o DANFE) e o de confirmação de e-mail da conta (Mailpit em dev). Não publica nada.
 
     O e-mail de um mesmo `event_id` sai no máximo uma vez.
@@ -35,6 +36,8 @@ operations:
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
       - $ref: "#/channels/orderEvents/messages/OrderReturned"
       - $ref: "#/channels/orderEvents/messages/OrderRefunded"
+      - $ref: "#/channels/orderEvents/messages/OrderShipped"
+      - $ref: "#/channels/orderEvents/messages/OrderDelivered"
     bindings:
       kafka:
         bindingVersion: 0.5.0

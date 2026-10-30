@@ -257,3 +257,20 @@ const paidThenCancelled = (reason: Reason) => reason === "supplier_failed" || re
 
 /** Já saiu da etapa de pagamento (aprovado, ou terminou): a vitrine de etapas da compra acabou. */
 export const isSettled = (status: Status) => status !== "pending";
+
+/**
+ * O link da transportadora (#224), só se for http(s): a URL vem do fornecedor e não pode virar um
+ * `javascript:` na página do cliente.
+ */
+export function trackingHref(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Com rastreio para mostrar: a caminho ou entregue (devolvido, o rastreio já não ajuda). */
+export const showsTracking = (status: Status) => status === "shipped" || status === "delivered";

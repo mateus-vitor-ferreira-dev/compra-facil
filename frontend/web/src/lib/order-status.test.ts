@@ -5,6 +5,8 @@ import {
   orderNumber,
   orderStatus,
   orderSteps,
+  showsTracking,
+  trackingHref,
   type OrderProgress,
 } from "./order-status";
 
@@ -232,5 +234,24 @@ describe("devolução (#223)", () => {
     expect(orderSteps(refunded).at(-1)).toMatchObject({ label: "Valor estornado", state: "done" });
     expect(orderHeadline(refunded)).toBe("Valor estornado");
     expect(isFinal(refunded)).toBe(true);
+  });
+});
+
+describe("rastreio (#224)", () => {
+  it("só aceita o link http(s) da transportadora", () => {
+    expect(trackingHref("https://rastreio.example/BR1")).toBe("https://rastreio.example/BR1");
+    expect(trackingHref("http://rastreio.example/BR1")).toBe("http://rastreio.example/BR1");
+    expect(trackingHref("javascript:alert(1)")).toBeNull();
+    expect(trackingHref("/rastreio/BR1")).toBeNull();
+    expect(trackingHref(null)).toBeNull();
+    expect(trackingHref(undefined)).toBeNull();
+  });
+
+  it("aparece a caminho e entregue, não antes nem depois da devolução", () => {
+    expect(showsTracking("shipped")).toBe(true);
+    expect(showsTracking("delivered")).toBe(true);
+    expect(showsTracking("confirmed")).toBe(false);
+    expect(showsTracking("returned")).toBe(false);
+    expect(showsTracking("cancelled")).toBe(false);
   });
 });

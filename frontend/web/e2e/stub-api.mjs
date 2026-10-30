@@ -24,7 +24,8 @@ const ANA_DELIVERY = {
   },
 };
 
-// pedidos da Ana: um confirmado, um cancelado por falta de estoque e um entregue há 2 dias (#223)
+// pedidos da Ana: um confirmado, um cancelado por falta de estoque, um entregue há 2 dias (#223) e um a
+// caminho, com o rastreio (#224)
 const orderOf = (id, status, reason, qty, unit) => ({
   id,
   customer_id: "0199f6a0-0000-7000-8000-000000000a1a",
@@ -68,6 +69,16 @@ const orders = [
     delivered_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
     returnable_until: new Date(Date.now() + 5 * 86_400_000).toISOString(),
     return_requested_at: null,
+  },
+  {
+    ...orderOf("2e6f8a14-0000-7000-8000-000000000004", "shipped", null, 1, 263992),
+    sent_to_supplier_at: "2026-10-20T15:02:00Z",
+    shipped_at: "2026-10-21T10:00:00Z",
+    tracking: {
+      number: "BR987654321BR",
+      provider: "Correios",
+      url: "https://rastreio.example/BR987654321BR",
+    },
   },
 ];
 
