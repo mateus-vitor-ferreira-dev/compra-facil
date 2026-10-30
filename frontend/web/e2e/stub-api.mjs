@@ -884,6 +884,33 @@ createServer(async (req, res) => {
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
   }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/failed") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, {
+      data: [
+        {
+          order_id: "3f6a9c10-0000-7000-8000-000000000001",
+          reason: "out_of_stock",
+          detail: "Out of stock: SIM-V-003",
+          supplier: "cj",
+          supplier_order_id: null,
+          customer_email: "edu@exemplo.com",
+          attempts: 1,
+          created_at: iso(Date.now() - 86_400_000),
+          failed_at: iso(Date.now() - 86_000_000),
+        },
+      ],
+    });
+  }
+  const orderAction = url.pathname.match(
+    /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/(retry|cancel)$/,
+  );
+  if (req.method === "POST" && orderAction) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    // o pedido 9d2c7a40 já foi despachado: o cancelamento dá 409
+    if (orderAction[1].startsWith("9d2c7a40")) return problem(res, 409, "Ação indisponível");
+    return res.writeHead(204).end();
+  }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-returns") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     return send(res, 200, { data: supplierReturns() });

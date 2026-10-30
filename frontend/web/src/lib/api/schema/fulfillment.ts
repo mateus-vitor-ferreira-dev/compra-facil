@@ -115,6 +115,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-orders/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pedidos que não chegaram ao fornecedor
+         * @description Os recusados, cancelados ou sem resposta do fornecedor, e os de nota rejeitada, dos últimos 30 dias, os
+         *     mais recentes primeiro. O cliente já foi estornado: não há reenvio, porque o pedido sairia sem pagamento.
+         */
+        get: operations["listFailedSupplierOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tenta agora o pedido que espera a próxima tentativa
+         * @description Só o pedido na fila depois de um erro passageiro; o resto dá 409.
+         */
+        post: operations["retrySupplierOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancela o pedido que não foi despachado e estorna o cliente
+         * @description Cancela no fornecedor, se ele já tem o pedido, e publica `SupplierOrderFailed` com `store_cancelled`: o
+         *     orders cancela e o payments estorna. Despachado ou sendo enviado agora dá 409. Fornecedor fora do ar dá
+         *     503, e nada muda. Repetir é seguro.
+         */
+        post: operations["cancelSupplierOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-returns": {
         parameters: {
             query?: never;
@@ -309,6 +372,23 @@ export interface components {
             placed_at?: string | null;
             /** Format: date-time */
             shipped_at?: string | null;
+        };
+        /** @description Um pedido que não chegou ao fornecedor. O cliente já foi estornado. */
+        FailedSupplierOrder: {
+            /** Format: uuid */
+            order_id: string;
+            /** @enum {string} */
+            reason: "out_of_stock" | "rejected" | "supplier_cancelled" | "supplier_unavailable" | "invoice_rejected" | "store_cancelled";
+            detail?: string | null;
+            supplier: string;
+            supplier_order_id?: string | null;
+            /** Format: email */
+            customer_email: string;
+            attempts: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            failed_at: string;
         };
         /** @description A devolução de um pedido ao fornecedor. O cliente já foi estornado; isto é a pendência da loja. */
         SupplierReturn: {
@@ -540,6 +620,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Conflito com o estado atual (duplicidade ou versão desatualizada). */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Kafka fora do ar; tente de novo. */
         KafkaUnavailable: {
             headers: {
@@ -736,6 +825,94 @@ export interface operations {
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
             /** @description O fornecedor não cotou; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listFailedSupplierOrders: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedidos que falharam. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FailedSupplierOrder"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    retrySupplierOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Volta para a fila agora. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    cancelSupplierOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+            /** @description O fornecedor não respondeu, e nada mudou; vem com `Retry-After`. */
             503: {
                 headers: {
                     "Retry-After"?: number;

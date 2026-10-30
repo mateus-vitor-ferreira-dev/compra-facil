@@ -12,8 +12,48 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 [ApiController]
 [Produces("application/json")]
 [Authorize(Policy = JwtAuth.AdminPolicy)]
-public sealed class AdminSupplierOrdersController(OverdueOrders overdue, PendingSupplierReturns returns) : ControllerBase
+public sealed class AdminSupplierOrdersController(OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions) : ControllerBase
 {
+    private const int MaxFailed = 200;
+
+    /// <summary>listFailedSupplierOrders: os que falharam nos últimos 30 dias (#225).</summary>
+    [HttpGet("v1/admin/supplier-orders/failed")]
+    public async Task<FailedSupplierOrderList> ListFailed([FromQuery] int? limit, CancellationToken ct)
+    {
+        var n = limit ?? 50;
+        if (n is < 1 or > MaxFailed)
+        {
+            throw new ValidationException([new ValidationFailure("Limit", $"deve estar entre 1 e {MaxFailed}")]);
+        }
+        return new FailedSupplierOrderList([.. (await actions.ListFailedAsync(n, ct)).Select(FailedSupplierOrder.From)]);
+    }
+
+    /// <summary>retrySupplierOrder: tenta agora o pedido que espera a próxima tentativa.</summary>
+    [HttpPost("v1/admin/supplier-orders/{order_id:guid}/retry")]
+    public async Task<IActionResult> Retry([FromRoute(Name = "order_id")] Guid orderId, CancellationToken ct) =>
+        Result(await actions.RetryAsync(orderId, ct), "O pedido não está esperando uma nova tentativa");
+
+    /// <summary>cancelSupplierOrder: cancela o que não foi despachado; o cliente é estornado.</summary>
+    [HttpPost("v1/admin/supplier-orders/{order_id:guid}/cancel")]
+    public async Task<IActionResult> Cancel([FromRoute(Name = "order_id")] Guid orderId, CancellationToken ct)
+    {
+        try
+        {
+            return Result(await actions.CancelAsync(orderId, ct), "O pedido já foi despachado ou está sendo enviado ao fornecedor");
+        }
+        catch (SupplierUnavailableException e)
+        {
+            throw new DependencyUnavailableException($"o fornecedor não respondeu: {e.Message}", TimeSpan.FromSeconds(30));
+        }
+    }
+
+    private NoContentResult Result(SupplierOrderActionResult result, string notAllowed) => result switch
+    {
+        SupplierOrderActionResult.Done => NoContent(),
+        SupplierOrderActionResult.NotFound => throw new NotFoundException("pedido não encontrado no fornecedor"),
+        _ => throw new ConflictException("Ação indisponível", notAllowed),
+    };
+
     /// <summary>listSupplierReturns: as devoluções ao fornecedor que pedem atenção (#223).</summary>
     [HttpGet("v1/admin/supplier-returns")]
     public async Task<SupplierReturnList> ListReturns([FromQuery] int? limit, CancellationToken ct)
@@ -61,6 +101,26 @@ public sealed record OverdueSupplierOrder(
             o.LastError, o.Tracking, o.CreatedAt, o.PlacedAt, o.ShippedAt);
     }
 }
+
+public sealed record FailedSupplierOrder(
+    Guid OrderId,
+    string Reason,
+    string? Detail,
+    string Supplier,
+    string? SupplierOrderId,
+    string CustomerEmail,
+    int Attempts,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset FailedAt)
+{
+    public static FailedSupplierOrder From(SupplierOrder o)
+    {
+        ArgumentNullException.ThrowIfNull(o);
+        return new(o.Id, o.FailureReason ?? "", o.FailureDetail, o.Supplier, o.SupplierOrderId, o.CustomerEmail, o.Attempts, o.CreatedAt, o.FailedAt!.Value);
+    }
+}
+
+public sealed record FailedSupplierOrderList(IReadOnlyList<FailedSupplierOrder> Data);
 
 public sealed record SupplierReturnItem(
     Guid OrderId,

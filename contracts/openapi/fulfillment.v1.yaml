@@ -269,6 +269,117 @@ paths:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
 
+  /v1/admin/supplier-orders/failed:
+    get:
+      tags: [admin]
+      operationId: listFailedSupplierOrders
+      summary: Pedidos que não chegaram ao fornecedor
+      description: |
+        Os recusados, cancelados ou sem resposta do fornecedor, e os de nota rejeitada, dos últimos 30 dias, os
+        mais recentes primeiro. O cliente já foi estornado: não há reenvio, porque o pedido sairia sem pagamento.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Pedidos que falharam.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FailedSupplierOrder"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/supplier-orders/{order_id}/retry:
+    post:
+      tags: [admin]
+      operationId: retrySupplierOrder
+      summary: Tenta agora o pedido que espera a próxima tentativa
+      description: Só o pedido na fila depois de um erro passageiro; o resto dá 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Volta para a fila agora.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/supplier-orders/{order_id}/cancel:
+    post:
+      tags: [admin]
+      operationId: cancelSupplierOrder
+      summary: Cancela o pedido que não foi despachado e estorna o cliente
+      description: |
+        Cancela no fornecedor, se ele já tem o pedido, e publica `SupplierOrderFailed` com `store_cancelled`: o
+        orders cancela e o payments estorna. Despachado ou sendo enviado agora dá 409. Fornecedor fora do ar dá
+        503, e nada muda. Repetir é seguro.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Cancelado.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não respondeu, e nada mudou; vem com `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+
   /v1/admin/supplier-returns:
     get:
       tags: [admin]
@@ -579,6 +690,36 @@ components:
           format: date-time
         shipped_at:
           type: [string, "null"]
+          format: date-time
+
+    FailedSupplierOrder:
+      type: object
+      description: Um pedido que não chegou ao fornecedor. O cliente já foi estornado.
+      required: [order_id, reason, supplier, customer_email, attempts, created_at, failed_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected, store_cancelled]
+        detail:
+          type: [string, "null"]
+        supplier:
+          type: string
+        supplier_order_id:
+          type: [string, "null"]
+        customer_email:
+          type: string
+          format: email
+        attempts:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        failed_at:
+          type: string
           format: date-time
 
     SupplierReturn:

@@ -331,7 +331,7 @@ components:
                     description: Id do pedido no fornecedor.
                   reason:
                     type: string
-                    enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected]
+                    enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected, store_cancelled]
                     description: |
                       `out_of_stock`: sem estoque no fornecedor · `rejected`: recusado na criação ·
                       `supplier_cancelled`: aceito e depois cancelado pelo fornecedor · `supplier_unavailable`:

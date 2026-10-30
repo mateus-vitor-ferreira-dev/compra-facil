@@ -1,13 +1,59 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { SupplierOrderActions } from "@/components/admin/supplier-order-actions";
 import { StateMessage } from "@/components/ui/state";
-import { overdueOrders, type OverdueOrder } from "@/lib/admin-api";
+import { failedOrders, overdueOrders, type FailedOrder, type OverdueOrder } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { orderNumber } from "@/lib/order-status";
 import { lateBy } from "@/lib/overdue";
 
-export const metadata: Metadata = { title: "Pedidos atrasados" };
+export const metadata: Metadata = { title: "Pedidos no fornecedor" };
+
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+const FAILURE: Record<FailedOrder["reason"], string> = {
+  out_of_stock: "Sem estoque no fornecedor",
+  rejected: "Recusado pelo fornecedor",
+  supplier_cancelled: "Cancelado pelo fornecedor",
+  supplier_unavailable: "O fornecedor não respondeu em nenhuma tentativa",
+  invoice_rejected: "A SEFAZ rejeitou a nota",
+  store_cancelled: "Cancelado pela equipe",
+};
+
+/** O que a página conta depois de uma ação (a query que a ação deixou). */
+function notice(q: Record<string, string | string[] | undefined>): { ok: boolean; text: string } | undefined {
+  if (typeof q.tentar === "string") {
+    return {
+      ok: true,
+      text: `Pedido ${orderNumber(q.tentar)} de volta à fila: a tentativa sai em instantes.`,
+    };
+  }
+  if (typeof q.cancelado === "string") {
+    return {
+      ok: true,
+      text: `Pedido ${orderNumber(q.cancelado)} cancelado. O estorno ao cliente já foi pedido.`,
+    };
+  }
+  if (q.erro === "cancelar") {
+    return {
+      ok: false,
+      text:
+        q.status === "409"
+          ? "O pedido não foi cancelado: ele já foi despachado ou está sendo enviado ao fornecedor."
+          : `O pedido não foi cancelado (${q.status}). O fornecedor não respondeu, e nada mudou; tente de novo.`,
+    };
+  }
+  if (q.erro === "tentar") {
+    return {
+      ok: false,
+      text:
+        q.status === "409"
+          ? "O pedido já não está esperando uma nova tentativa."
+          : `A nova tentativa não foi pedida (${q.status}). Tente de novo.`,
+    };
+  }
+}
 
 const when = new Intl.DateTimeFormat("pt-BR", {
   day: "numeric",
@@ -45,21 +91,38 @@ function situation(o: OverdueOrder): string {
 }
 
 /**
- * Os pedidos parados além do prazo do fornecedor (#219): os que ele não despachou e os que não chegaram.
- * A loja responde ao cliente pelo prazo que prometeu, então a equipe cobra o fornecedor por aqui.
+ * Os pedidos no fornecedor que pedem atenção: os parados além do prazo (#219), que a equipe cobra, tenta de
+ * novo ou cancela, e os que não chegaram a ele (#225), com o cliente já estornado.
  */
-export default async function OverdueOrders() {
+export default async function OverdueOrders({ searchParams }: Props) {
   const { token } = await requireAdmin("/admin/atrasos");
-  const { result, readAt: now } = await overdueOrders(token);
+  const [{ result, readAt: now }, failed, query] = await Promise.all([
+    overdueOrders(token),
+    failedOrders(token),
+    searchParams,
+  ]);
+  const message = notice(query);
 
   return (
     <div className="max-w-5xl space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Pedidos atrasados</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Pedidos no fornecedor</h1>
         <p className="text-ink-soft max-w-prose">
-          Pedidos pagos que passaram do prazo do fornecedor, os mais atrasados primeiro. Saem daqui sozinhos
-          quando o fornecedor despacha ou entrega.
+          Pedidos pagos que passaram do prazo do fornecedor, os mais atrasados primeiro, e os que não chegaram
+          a ele. As devoluções ficam em{" "}
+          <Link href="/admin/devolucoes" className="font-medium underline underline-offset-4">
+            Devoluções
+          </Link>
+          .
         </p>
+      </div>
+
+      <div aria-live="polite">
+        {message && (
+          <p role="status" className={message.ok ? "text-success font-medium" : "text-danger font-medium"}>
+            {message.text}
+          </p>
+        )}
       </div>
 
       {!result.ok ? (
@@ -103,6 +166,56 @@ export default async function OverdueOrders() {
             </section>
           );
         })
+      )}
+
+      {!failed.ok ? (
+        <p className="text-danger font-medium">
+          Os pedidos que não chegaram ao fornecedor não carregaram ({failed.error.status}). Tente de novo em
+          instantes.
+        </p>
+      ) : (
+        failed.data.data.length > 0 && (
+          <section aria-labelledby="falhas" className="space-y-3">
+            <div>
+              <h2 id="falhas" className="text-xl font-semibold tracking-tight">
+                Não chegaram ao fornecedor
+                <span className="font-condensed ml-2 tabular-nums">
+                  <span className="sr-only">: </span>
+                  {failed.data.data.length}
+                  <span className="sr-only"> {failed.data.data.length === 1 ? "pedido" : "pedidos"}</span>
+                </span>
+              </h2>
+              <p className="text-ink-soft text-sm">
+                Dos últimos 30 dias. O cliente já foi estornado, então o pedido não pode ser reenviado: se ele
+                ainda quiser o produto, faz uma nova compra.
+              </p>
+            </div>
+            <ul className="divide-line border-line divide-y rounded-md border">
+              {failed.data.data.map((o) => (
+                <li key={o.order_id} className="space-y-1 px-4 py-3 text-sm">
+                  <p className="font-semibold">
+                    Pedido {orderNumber(o.order_id)}
+                    <span className="text-ink-soft font-normal">, {FAILURE[o.reason]}</span>
+                  </p>
+                  <p className="text-ink-soft">
+                    Pago em <time dateTime={o.created_at}>{when.format(new Date(o.created_at))}</time>, falhou
+                    em <time dateTime={o.failed_at}>{when.format(new Date(o.failed_at))}</time>
+                    {o.supplier_order_id && <>; no fornecedor, {o.supplier_order_id}</>}
+                  </p>
+                  {o.detail && <p>{o.detail}</p>}
+                  <p>
+                    <a
+                      href={`mailto:${o.customer_email}`}
+                      className="inline-flex min-h-6 items-center font-medium underline underline-offset-4"
+                    >
+                      {o.customer_email}
+                    </a>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )
       )}
     </div>
   );
@@ -151,6 +264,12 @@ function OverdueItem({ order: o, now }: { order: OverdueOrder; now: number }) {
             <span className="inline-flex min-h-6 items-center">Rastreio {o.tracking.number}</span>
           ))}
       </p>
+      <SupplierOrderActions
+        orderId={o.order_id}
+        number={orderNumber(o.order_id)}
+        canRetry={o.status === "pending" && o.attempts > 0}
+        canCancel={o.status === "pending" || o.status === "placed"}
+      />
       {o.last_error && (
         <details>
           <summary className="cursor-pointer font-medium">Último erro</summary>

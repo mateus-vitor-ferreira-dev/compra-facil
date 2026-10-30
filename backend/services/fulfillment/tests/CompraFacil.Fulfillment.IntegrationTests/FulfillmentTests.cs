@@ -28,6 +28,16 @@ public sealed class FakeSupplier : ISupplierGateway
     /// <summary>O feed que o fornecedor devolve; nulo = fora do ar.</summary>
     public List<SupplierFeedItem>? Feed { get; set; } = [];
 
+    /// <summary>O que o cancelamento responde; nulo = cancela.</summary>
+    public Func<string, bool>? RespondCancel { get; set; }
+    public List<string> CancelCalls { get; } = [];
+
+    public Task<bool> CancelOrderAsync(string supplierOrderId, CancellationToken ct)
+    {
+        CancelCalls.Add(supplierOrderId);
+        return Task.FromResult(RespondCancel?.Invoke(supplierOrderId) ?? true);
+    }
+
     /// <summary>O que a abertura da devolução responde; nulo = abre.</summary>
     public Func<Guid, SupplierReturnOpening>? RespondReturn { get; set; }
     public List<Guid> ReturnCalls { get; } = [];
@@ -580,6 +590,94 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
 
         using var anonymous = await client.GetAsync("/v1/admin/supplier-returns", Ct);
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+    }
+
+    private async Task<HttpStatusCode> AdminPostAsync(string path, string? token = null)
+    {
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, path);
+        request.Headers.Authorization = new("Bearer", token ?? fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        return response.StatusCode;
+    }
+
+    [Fact]
+    public async Task Cancelar_pelo_painel_avisa_o_fornecedor_e_falha_o_pedido_uma_vez()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+        var supplierOrderId = (await OrderAsync(id)).SupplierOrderId!;
+
+        Assert.Equal(HttpStatusCode.Forbidden, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel", fx.Identity.CustomerToken(Guid.NewGuid())));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel"));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel")); // repetido
+
+        var order = await OrderAsync(id);
+        Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.StoreCancelled), (order.Status, order.FailureReason));
+        Assert.Single(fx.Supplier.CancelCalls, c => c == supplierOrderId);
+        Assert.Single(await EventsOfAsync(id), e => e == FulfillmentEvents.SupplierOrderFailed);
+
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/supplier-orders/failed?limit=200");
+        request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1supplier-orders~1failed/get/responses/200/content/application~1json/schema", json);
+        Assert.Contains(id.ToString(), json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Pedido_que_ja_saiu_nao_cancela_e_nada_muda()
+    {
+        var (shipped, raced, unknown) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        foreach (var id in new[] { shipped, raced })
+        {
+            await ConfirmedAsync(id);
+            await DispatchAsync();
+        }
+        await WebhookAsync(new
+        {
+            messageId = Guid.NewGuid().ToString(),
+            type = "ORDER",
+            messageType = "UPDATE",
+            @params = new { orderId = "CJ1", orderNumber = shipped.ToString(), orderStatus = "SHIPPED", trackNumber = "BR1" },
+        });
+        Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync($"/v1/admin/supplier-orders/{shipped}/cancel"));
+
+        // o fornecedor despachou e o webhook ainda não chegou: ele responde que já saiu
+        fx.Supplier.RespondCancel = _ => false;
+        try
+        {
+            Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync($"/v1/admin/supplier-orders/{raced}/cancel"));
+        }
+        finally
+        {
+            fx.Supplier.RespondCancel = null;
+        }
+        Assert.Equal(SupplierOrderStatus.Placed, (await OrderAsync(raced)).Status);
+        Assert.Equal(HttpStatusCode.NotFound, await AdminPostAsync($"/v1/admin/supplier-orders/{unknown}/cancel"));
+    }
+
+    [Fact]
+    public async Task Tentar_agora_so_vale_para_o_pedido_na_espera()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        fx.Supplier.Respond = r => r.OrderNumber == id ? throw new SupplierUnavailableException("fora do ar") : new SupplierPlacement.Accepted("CJ" + r.OrderNumber.ToString("N")[..10]);
+        try
+        {
+            await DispatchAsync();
+            Assert.NotNull((await OrderAsync(id)).NextAttemptAt);
+
+            Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/retry"));
+            Assert.Null((await OrderAsync(id)).NextAttemptAt);
+            Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/retry"));
+        }
+        finally
+        {
+            fx.Supplier.Respond = r => new SupplierPlacement.Accepted("CJ" + r.OrderNumber.ToString("N")[..10]);
+        }
     }
 
     [Fact]

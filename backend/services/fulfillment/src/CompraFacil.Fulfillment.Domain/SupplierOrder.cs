@@ -28,6 +28,9 @@ public static class SupplierFailureReasons
 
     /// <summary>A SEFAZ rejeitou a nota da loja: o pedido não vai ao fornecedor (#221).</summary>
     public const string InvoiceRejected = "invoice_rejected";
+
+    /// <summary>A equipe cancelou pelo painel antes do despacho (#225): o cliente é estornado.</summary>
+    public const string StoreCancelled = "store_cancelled";
 }
 
 /// <summary>Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome e a quantidade.</summary>
@@ -164,6 +167,17 @@ public sealed class SupplierOrder
         Status = SupplierOrderStatus.Pending;
         NextAttemptAt = now + TimeSpan.FromSeconds(Math.Min(300, Math.Pow(2, Attempts) * 5));
         return SupplierOrderChange.None;
+    }
+
+    /// <summary>A equipe manda tentar agora, sem esperar a próxima tentativa. False se o pedido não está na espera.</summary>
+    public bool RetryNow()
+    {
+        if (Status != SupplierOrderStatus.Pending || NextAttemptAt is null)
+        {
+            return false;
+        }
+        NextAttemptAt = null;
+        return true;
     }
 
     public SupplierOrderChange MarkShipped(Tracking tracking, DateTimeOffset now)

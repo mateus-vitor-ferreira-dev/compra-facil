@@ -21,6 +21,7 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
     private const int OutOfStock = 1603001;
     private const int OrderRejected = 1603002;
     private const int OrderNotFound = 1603404;
+    private const int AlreadyShipped = 1603003;
 
     // o máximo do product/list; 100 páginas (20 mil itens) é o teto de um catálogo curado
     private const int FeedPageSize = 200;
@@ -68,6 +69,19 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
             OutOfStock => new SupplierPlacement.Rejected(SupplierFailureReasons.OutOfStock, envelope.Message ?? "sem estoque"),
             OrderRejected or InvalidParams => new SupplierPlacement.Rejected(SupplierFailureReasons.Rejected, envelope.Message ?? "recusado"),
             // código que não conhecemos: melhor tentar de novo do que recusar um pedido pago
+            _ => throw new SupplierUnavailableException($"resposta inesperada do fornecedor: {envelope.Code} {envelope.Message}"),
+        };
+    }
+
+    public async Task<bool> CancelOrderAsync(string supplierOrderId, CancellationToken ct)
+    {
+        var path = $"shopping/order/deleteOrder?orderId={Uri.EscapeDataString(supplierOrderId)}";
+        var envelope = await SendAsync<JsonElement>(() => new HttpRequestMessage(HttpMethod.Delete, path), retryOnInvalidToken: true, ct);
+        return envelope.Code switch
+        {
+            _ when envelope.Result => true,
+            AlreadyShipped => false,
+            OrderNotFound => true, // o fornecedor não tem o pedido: nada a cancelar lá
             _ => throw new SupplierUnavailableException($"resposta inesperada do fornecedor: {envelope.Code} {envelope.Message}"),
         };
     }
