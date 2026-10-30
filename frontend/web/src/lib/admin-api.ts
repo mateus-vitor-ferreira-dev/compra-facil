@@ -276,6 +276,7 @@ export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"]
 export type SupplierReturn = FulfillmentSchemas["schemas"]["SupplierReturn"];
 export type FailedOrder = FulfillmentSchemas["schemas"]["FailedSupplierOrder"];
 export type OrderMargin = FulfillmentSchemas["schemas"]["OrderMargin"];
+export type SupplierStatus = FulfillmentSchemas["schemas"]["SupplierStatus"];
 
 /**
  * Os pedidos parados além do prazo do fornecedor (despacho ou entrega), os mais atrasados primeiro, e o
@@ -289,6 +290,11 @@ export async function overdueOrders(token: string) {
     }),
   );
   return { result, readAt: Date.now() };
+}
+
+/** Como está a integração com o fornecedor (#225). */
+export function supplierStatus(token: string) {
+  return run(() => api.fulfillment({ token }).GET("/v1/admin/supplier/status", { cache: "no-store" }));
 }
 
 /** A margem real dos pedidos mais recentes (#225). */

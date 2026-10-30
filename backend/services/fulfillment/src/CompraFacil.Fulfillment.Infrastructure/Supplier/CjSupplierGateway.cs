@@ -108,6 +108,15 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         };
     }
 
+    public async Task CheckAsync(CancellationToken ct)
+    {
+        var envelope = await SendAsync<ProductPage>(() => new HttpRequestMessage(HttpMethod.Get, "product/list?pageNum=1&pageSize=1"), retryOnInvalidToken: true, ct);
+        if (!envelope.Result)
+        {
+            throw new SupplierUnavailableException($"resposta inesperada do fornecedor: {envelope.Code} {envelope.Message}");
+        }
+    }
+
     public async Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct)
     {
         var items = new List<SupplierFeedItem>();

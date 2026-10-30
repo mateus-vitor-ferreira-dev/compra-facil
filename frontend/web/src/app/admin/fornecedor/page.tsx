@@ -1,9 +1,10 @@
 import { CircleCheck, RefreshCw } from "lucide-react";
 import type { Metadata } from "next";
 import { PricingRuleForm } from "@/components/admin/pricing-rule-form";
+import { SupplierStatusPanel } from "@/components/admin/supplier-status";
 import { StateMessage } from "@/components/ui/state";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { listCategories, pricingSettings, type PricingSettings } from "@/lib/admin-api";
+import { listCategories, pricingSettings, supplierStatus, type PricingSettings } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { parseRate } from "@/lib/pricing";
@@ -56,7 +57,8 @@ function notice(q: Record<string, string | string[] | undefined>): { ok: boolean
  */
 export default async function Supplier({ searchParams }: Props) {
   const { token } = await requireAdmin("/admin/fornecedor");
-  const [result, categories, tree, query] = await Promise.all([
+  const [status, result, categories, tree, query] = await Promise.all([
+    supplierStatus(token),
     pricingSettings(token),
     listCategories(),
     categoryOptions(),
@@ -94,6 +96,8 @@ export default async function Supplier({ searchParams }: Props) {
           {message.text}
         </p>
       )}
+
+      <SupplierStatusPanel status={status} />
 
       {!result.ok ? (
         <StateMessage

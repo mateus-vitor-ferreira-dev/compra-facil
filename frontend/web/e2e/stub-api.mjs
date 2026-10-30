@@ -884,6 +884,24 @@ createServer(async (req, res) => {
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
   }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier/status") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, {
+      name: "cj",
+      host: "supplier-sim",
+      reachable: true,
+      latency_ms: 12,
+      error: null,
+      own_credentials: false,
+      webhook_secret_configured: true,
+      products_in_feed: 40,
+      last_stock_read_at: "2026-10-30T12:00:00Z",
+      last_webhook_at: "2026-10-30T12:05:00Z",
+      ship_within_hours: 72,
+      deliver_within_hours: 360,
+      return_within_hours: 360,
+    });
+  }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/order-margins") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     const row = (id, outcome, revenue, cost, freight, fee, margin) => ({

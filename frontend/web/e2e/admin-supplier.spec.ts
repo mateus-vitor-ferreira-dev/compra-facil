@@ -52,3 +52,16 @@ test("o produto do fornecedor mostra o custo e de onde vem o preço", async ({ p
     "/admin/fornecedor",
   );
 });
+
+test("mostra a integração com o fornecedor, sem mostrar segredo", async ({ page }) => {
+  await page.goto("/admin/fornecedor");
+  await page.getByLabel("E-mail").fill("admin@exemplo.com");
+  await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
+  await page.getByRole("button", { name: "Entrar" }).click();
+  const panel = page.getByRole("region", { name: "Integração com CJ" });
+  await expect(panel).toContainText("Respondendo (12 ms)");
+  await expect(panel).toContainText("As do simulador: troque nos segredos do ambiente antes de vender");
+  await expect(panel).toContainText(
+    "Despacho em 3 dias, entrega em 15 dias, resposta à devolução em 15 dias",
+  );
+});

@@ -33,6 +33,12 @@ internal sealed class SupplierProductRepository(FulfillmentDbContext db) : ISupp
     public Task<List<SupplierProduct>> GetManyAsync(string supplier, IReadOnlyCollection<string> vids, CancellationToken ct) =>
         db.SupplierProducts.Where(p => p.Supplier == supplier && vids.Contains(p.Vid)).ToListAsync(ct);
 
+    public async Task<(int InFeed, DateTimeOffset? LastStockReadAt)> FeedSummaryAsync(string supplier, CancellationToken ct)
+    {
+        var mine = db.SupplierProducts.AsNoTracking().Where(p => p.Supplier == supplier);
+        return (await mine.CountAsync(p => p.InFeed, ct), await mine.MaxAsync(p => p.StockCheckedAt, ct));
+    }
+
     public void Add(SupplierProduct product) => db.SupplierProducts.Add(product);
 
     public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);

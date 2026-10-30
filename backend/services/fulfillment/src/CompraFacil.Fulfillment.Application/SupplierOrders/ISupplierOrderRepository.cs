@@ -18,6 +18,9 @@ public interface ISupplierOrderRepository
     /// </summary>
     Task<List<SupplierOrder>> ListOverdueAsync(DateTimeOffset createdBefore, DateTimeOffset shippedBefore, DateOnly today, int limit, CancellationToken ct);
 
+    /// <summary>Quando chegou o último webhook do fornecedor; nulo se nunca chegou.</summary>
+    Task<DateTimeOffset?> LastWebhookAtAsync(CancellationToken ct);
+
     /// <summary>Os que falharam desde <paramref name="since"/>, os mais recentes primeiro, sem rastrear.</summary>
     Task<List<SupplierOrder>> ListFailedAsync(DateTimeOffset since, int limit, CancellationToken ct);
 

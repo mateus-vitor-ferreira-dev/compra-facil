@@ -39,6 +39,9 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
         return [.. notShipped, .. notDelivered];
     }
 
+    public Task<DateTimeOffset?> LastWebhookAtAsync(CancellationToken ct) =>
+        db.SupplierWebhooks.MaxAsync(w => (DateTimeOffset?)w.ReceivedAt, ct);
+
     public Task<List<SupplierOrder>> ListFailedAsync(DateTimeOffset since, int limit, CancellationToken ct) =>
         db.SupplierOrders.AsNoTracking()
             .Where(o => o.Status == SupplierOrderStatus.Failed && o.FailedAt >= since)
