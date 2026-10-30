@@ -27,6 +27,12 @@ da Cloudflare.
 
 Memória medida com a stack parada: cerca de 1,1 GB. A soma dos tetos (`mem_limit`) é de 3,9 GB.
 
+## Loja de demonstração
+
+Antes das contas de verdade, [`coolify/compose.demo.yaml`](coolify/compose.demo.yaml) sobe a stack com o fornecedor, o
+pagamento e a nota simulados, em domínios `sslip.io`, sem R2, Resend nem Grafana. Os e-mails ficam no Mailpit, sem
+chegar a ninguém. O resto deste guia é o da produção de verdade.
+
 ## 1. Contas e segredos
 
 Antes do Coolify:

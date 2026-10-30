@@ -27,6 +27,8 @@ const schema = z.object({
   // dados do cartão não passam pela loja. São os únicos valores daqui que a página recebe (não são segredo).
   // Em dev e no CI, o payment-sim; em produção, https://api.mercadopago.com e a public key da conta
   PAYMENT_PROVIDER_URL: z.url().default("http://localhost:8092"),
+  /** Loja de demonstração: mostra o aviso de que nada é cobrado nem entregue. */
+  DEMO_MODE: z.stringbool().default(false),
   PAYMENT_PUBLIC_KEY: z.string().min(1).default("TEST-sim-public-key"),
   // o endereço do CEP no checkout (#221); trocado só nos testes (o stub faz o papel do ViaCEP)
   CEP_LOOKUP_URL: z.url().default("https://viacep.com.br/ws"),
@@ -43,6 +45,7 @@ export const env = schema.parse({
   GOOGLE_AUTH_URL: process.env.GOOGLE_AUTH_URL || undefined,
   GOOGLE_TOKEN_URL: process.env.GOOGLE_TOKEN_URL || undefined,
   PAYMENT_PROVIDER_URL: process.env.PAYMENT_PROVIDER_URL || undefined,
+  DEMO_MODE: process.env.DEMO_MODE || undefined,
   PAYMENT_PUBLIC_KEY: process.env.PAYMENT_PUBLIC_KEY || undefined,
   CEP_LOOKUP_URL: process.env.CEP_LOOKUP_URL || undefined,
 });
