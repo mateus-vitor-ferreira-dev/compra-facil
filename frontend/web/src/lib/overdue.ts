@@ -8,3 +8,9 @@ export function lateBy(dueAt: string, now: number): string {
   if (hours < 48) return relative.format(-hours, "hour");
   return relative.format(-Math.floor(hours / 24), "day");
 }
+
+/** "2 min", "6 h", "3 dias": um prazo configurado, na maior unidade que couber sem arredondar para zero. */
+export function deadline(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)} min`;
+  return hours < 48 ? `${Math.round(hours)} h` : `${Math.round(hours / 24)} dias`;
+}

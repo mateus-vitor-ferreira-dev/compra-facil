@@ -1,4 +1,4 @@
-import { lateBy } from "./overdue";
+import { deadline, lateBy } from "./overdue";
 
 describe("lateBy", () => {
   const due = "2026-10-29T12:00:00Z";
@@ -10,5 +10,13 @@ describe("lateBy", () => {
     expect(lateBy(due, after(5 * 60))).toBe("há 5 horas");
     expect(lateBy(due, after(47 * 60))).toBe("há 47 horas");
     expect(lateBy(due, after(3 * 24 * 60 + 30))).toBe("há 3 dias");
+  });
+});
+
+describe("deadline", () => {
+  it("usa a maior unidade que couber, sem arredondar para zero", () => {
+    expect(deadline(2 / 60)).toBe("2 min");
+    expect(deadline(6)).toBe("6 h");
+    expect(deadline(72)).toBe("3 dias");
   });
 });
