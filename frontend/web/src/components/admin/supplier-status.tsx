@@ -1,4 +1,5 @@
 import type { AdminResult, SupplierStatus } from "@/lib/admin-api";
+import { deadline } from "@/lib/overdue";
 import { cn } from "@/lib/utils";
 
 const when = new Intl.DateTimeFormat("pt-BR", {
@@ -9,7 +10,6 @@ const when = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 const moment = (iso: string | null | undefined, never: string) => (iso ? when.format(new Date(iso)) : never);
-const span = (hours: number) => (hours >= 48 ? `${Math.round(hours / 24)} dias` : `${Math.round(hours)} h`);
 
 /**
  * A integração com o fornecedor (#225): se ele responde agora, o que a loja recebeu dele e os prazos em vigor. As
@@ -42,7 +42,7 @@ export function SupplierStatusPanel({ status }: { status: AdminResult<SupplierSt
     ["Último estoque lido", moment(s.last_stock_read_at, "nenhum ainda")],
     [
       "Prazos",
-      `Despacho em ${span(s.ship_within_hours)}, entrega em ${span(s.deliver_within_hours)}, resposta à devolução em ${span(s.return_within_hours)}`,
+      `Despacho em ${deadline(s.ship_within_hours)}, entrega em ${deadline(s.deliver_within_hours)}, resposta à devolução em ${deadline(s.return_within_hours)}`,
     ],
   ];
   return (

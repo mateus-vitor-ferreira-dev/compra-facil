@@ -125,7 +125,7 @@ test("o pedido a caminho mostra o rastreio, na lista e no pedido", async ({ page
 test("o pedido entregue aceita a desistência em 7 dias, com confirmação", async ({ page }) => {
   await signIn(page, "ana@exemplo.com");
   await expect(page).toHaveURL(/\/conta$/);
-  await page.goto("/conta/pedidos/9d1b6e3f-0000-7000-8000-000000000003");
+  await page.goto("/conta/pedidos/01a18d66-0000-7000-8000-00009d1b6e3f");
   const section = page.getByRole("region", { name: "Desistir da compra" });
   await expect(section).toContainText("7 dias depois da entrega");
 
