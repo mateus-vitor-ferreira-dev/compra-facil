@@ -3,7 +3,8 @@
 #
 # As diferenças: entram o fulfillment, os três simuladores, as fotos (do próprio repositório) e o Mailpit, que guarda
 # os e-mails sem enviar; saem o backup e o Collector. Só o gateway e o payment-sim têm domínio: o navegador tokeniza
-# o cartão e abre a página do PIX direto no provedor. As imagens são as do GHCR: aqui nada compila.
+# o cartão e abre a página do PIX direto no provedor. As imagens são as do GHCR: aqui nada compila. Sem arquivos
+# montados: o Coolify não os acha no repositório, então a configuração e as fotos vão nas imagens (deploy/demo).
 
 x-dotnet: &dotnet
   restart: unless-stopped
@@ -22,7 +23,7 @@ x-dotnet-env: &dotnet-env
 
 services:
   gateway:
-    image: traefik:v3.7.16
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-gateway:${SIM_IMAGE_TAG:-develop}
     restart: unless-stopped
     mem_limit: 128m
     command: ["--configFile=/etc/traefik/traefik.yml"]
@@ -33,9 +34,6 @@ services:
       BFF_GATEWAY_KEY: ${BFF_GATEWAY_KEY:?o segredo do BFF}
       # atrás do proxy do Coolify: o IP do cliente é o último do X-Forwarded-For
       CLIENT_IP_DEPTH: "1"
-    volumes:
-      - ./traefik.yml:/etc/traefik/traefik.yml:ro
-      - ../../infra/gateway/traefik/dynamic:/etc/traefik/dynamic:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
@@ -70,7 +68,7 @@ services:
 
   # a cada deploy: cria o banco e o usuário de um serviço novo e acerta as senhas (idempotente)
   postgres-databases:
-    image: postgres:17.11-alpine
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-postgres-init:${SIM_IMAGE_TAG:-develop}
     restart: "no"
     # roda e sai: o Coolify não o conta na saúde da stack
     exclude_from_hc: true
@@ -87,8 +85,6 @@ services:
       SERVICE_DB_PASSWORD_NOTIFICATIONS: ${PG_NOTIFICATIONS_PASSWORD:?}
       SERVICE_DB_PASSWORD_IDENTITY: ${PG_IDENTITY_PASSWORD:?}
       SERVICE_DB_PASSWORD_FULFILLMENT: ${PG_FULFILLMENT_PASSWORD:?}
-    volumes:
-      - ../../infra/compose/postgres/init-databases.sh:/init-databases.sh:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,7 +102,7 @@ services:
       retries: 6
 
   redpanda:
-    image: redpandadata/redpanda:v26.2.5
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-redpanda:${SIM_IMAGE_TAG:-develop}
     restart: unless-stopped
     mem_limit: 768m
     # a configuração de produção (redpanda.yaml) vai para o diretório que o rpk reescreve na partida
@@ -116,8 +112,6 @@ services:
         && cp /config/redpanda.bootstrap.yaml /etc/redpanda/.bootstrap.yaml
         && exec /entrypoint.sh redpanda start --smp=1 --memory=512M --reserve-memory=0M --default-log-level=warn
     volumes:
-      - ./redpanda.yaml:/config/redpanda.yaml:ro
-      - ./redpanda.bootstrap.yaml:/config/redpanda.bootstrap.yaml:ro
       - redpanda-data:/var/lib/redpanda/data
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:9644/v1/status/ready"]
@@ -248,12 +242,9 @@ services:
 
   # as fotos, do repositório, pelo gateway em /media
   media:
-    image: caddy:2.11.6-alpine
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-media:${SIM_IMAGE_TAG:-develop}
     restart: unless-stopped
     mem_limit: 64m
-    volumes:
-      - ../../infra/media/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ../../infra/media/produtos:/srv/produtos:ro
 
   # guarda os e-mails, sem enviar e sem porta aberta
   mailpit:
