@@ -85,7 +85,6 @@ public sealed class EmailTests
 
         Assert.Equal("Pedido 0000ABCD enviado", email.Subject);
         Assert.Contains("Código de rastreio: BR123456789BR (Correios)", email.TextBody, StringComparison.Ordinal);
-        Assert.Contains("Código de rastreio: BR123456789BR", email.TextBody, StringComparison.Ordinal);
         Assert.Contains("href=\"https://rastreio.example/BR123456789BR\"", email.HtmlBody, StringComparison.Ordinal);
         Assert.Contains($"href=\"https://loja.example/conta/pedidos/{order}\"", email.HtmlBody, StringComparison.Ordinal);
         Assert.EndsWith($"https://loja.example/conta/pedidos/{order}", email.TextBody, StringComparison.Ordinal);
