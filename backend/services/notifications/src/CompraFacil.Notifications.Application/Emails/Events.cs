@@ -8,6 +8,8 @@ public static class NotificationEvents
     public const string OrderCancelled = nameof(OrderCancelled);
     public const string OrderReturned = nameof(OrderReturned);
     public const string OrderRefunded = nameof(OrderRefunded);
+    public const string OrderShipped = nameof(OrderShipped);
+    public const string OrderDelivered = nameof(OrderDelivered);
 
     public const string InvoicesTopic = "fulfillment.invoice.v1";
     public const string InvoiceIssued = nameof(InvoiceIssued);
@@ -47,3 +49,12 @@ public sealed record OrderReturnedData(Guid OrderId, string CustomerEmail, Money
 
 /// <summary>data do OrderRefunded: o estorno feito; reason: returned | supplier_failed | invoice_failed.</summary>
 public sealed record OrderRefundedData(Guid OrderId, string CustomerEmail, Money Amount, string Reason);
+
+/// <summary>O rastreio do envio, como o fornecedor mandou (contracts/openapi/orders.v1.yaml: Tracking).</summary>
+public sealed record Tracking(string Number, string? Provider, string? Url);
+
+/// <summary>data do OrderShipped (só os campos usados no e-mail): o fornecedor despachou, com o rastreio (#224).</summary>
+public sealed record OrderShippedData(Guid OrderId, string CustomerEmail, Tracking Tracking);
+
+/// <summary>data do OrderDelivered (só os campos usados no e-mail): chegou ao cliente (#224).</summary>
+public sealed record OrderDeliveredData(Guid OrderId, string CustomerEmail);

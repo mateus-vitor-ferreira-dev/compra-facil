@@ -10,10 +10,12 @@ import {
   orderHeadline,
   orderStatus,
   orderSteps,
+  showsTracking,
   type Step,
 } from "@/lib/order-status";
 import type { Order } from "@/lib/orders-api";
 import { cn } from "@/lib/utils";
+import { OrderTracking } from "./order-tracking";
 import { PixPayment } from "./pix-payment";
 
 const time = new Intl.DateTimeFormat("pt-BR", {
@@ -42,7 +44,8 @@ const STEP_MS = 700;
 
 /**
  * A compra andando: a manchete diz o que acontece agora e a linha de etapas marca cada passo com o
- * horário real. No PIX, o painel de pagamento aparece entre as duas até o banco confirmar. Enquanto o pedido anda (pagamento, fornecedor, envio, estorno), ouve o stream do orders
+ * horário real. No PIX, o painel de pagamento aparece entre as duas até o banco confirmar; enviado, o
+ * rastreio. Enquanto o pedido anda (pagamento, fornecedor, envio, estorno), ouve o stream do orders
  * pelo BFF (EventSource, que reconecta sozinho com Last-Event-ID) e fecha no estado final.
  */
 export function OrderLive({ initial }: { initial: Order }) {
@@ -120,6 +123,9 @@ export function OrderLive({ initial }: { initial: Order }) {
           startedAt={shown.stock_reserved_at ?? shown.created_at}
         />
       )}
+
+      {/* chega pelo stream junto com o envio: o cliente vê o código assim que o fornecedor despacha */}
+      {showsTracking(shown.status) && shown.tracking && <OrderTracking tracking={shown.tracking} />}
 
       <ol aria-label="Andamento do pedido" className="max-w-sm">
         {steps.map((step, i) => (

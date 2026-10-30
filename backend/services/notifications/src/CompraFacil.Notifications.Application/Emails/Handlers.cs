@@ -82,6 +82,44 @@ public sealed class OnOrderRefunded(INotificationRepository notifications, TimeP
     }
 }
 
+/// <summary>Registra o e-mail de pedido enviado, com o rastreio e o link do pedido (#224).</summary>
+public sealed class OnOrderShipped(
+    INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)
+    : IHandleEvent<OrderShippedData>
+{
+    public async Task HandleAsync(OrderShippedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ShippedAsync(data, store.Value.BaseUrl);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderShipped,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>Registra o e-mail de pedido entregue, com o prazo de arrependimento e o link do pedido (#224).</summary>
+public sealed class OnOrderDelivered(
+    INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)
+    : IHandleEvent<OrderDeliveredData>
+{
+    public async Task HandleAsync(OrderDeliveredData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.DeliveredAsync(data, store.Value.BaseUrl);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.OrderDelivered,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
 /// <summary>Registra o e-mail da nota fiscal autorizada, com o link do pedido (onde o cliente baixa o DANFE).</summary>
 public sealed class OnInvoiceIssued(
     INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)

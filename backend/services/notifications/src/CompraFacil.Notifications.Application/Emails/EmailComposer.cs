@@ -22,6 +22,45 @@ public static partial class EmailComposer
     private static readonly IFluidTemplate s_invoiceIssued = Load("invoice-issued");
     private static readonly IFluidTemplate s_returned = Load("order-returned");
     private static readonly IFluidTemplate s_refunded = Load("order-refunded");
+    private static readonly IFluidTemplate s_shipped = Load("order-shipped");
+    private static readonly IFluidTemplate s_delivered = Load("order-delivered");
+
+    /// <summary>O pedido saiu (#224): o código de rastreio, a transportadora, o link dela e o do pedido.</summary>
+    public static async Task<ComposedEmail> ShippedAsync(OrderShippedData order, Uri storeUrl)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(storeUrl);
+        var number = OrderNumber(order.OrderId);
+        var orderUrl = OrderUrl(storeUrl, order.OrderId);
+        var trackingUrl = SafeLink(order.Tracking.Url);
+        var html = await s_shipped.RenderAsync(Context(new
+        {
+            order_number = number,
+            tracking_number = order.Tracking.Number,
+            provider = order.Tracking.Provider,
+            tracking_url = trackingUrl,
+            order_url = orderUrl,
+        }), s_html);
+        var text = ToText(html) + (trackingUrl is null ? "" : "\n" + trackingUrl) + "\n" + orderUrl;
+        return new ComposedEmail($"Pedido {number} enviado", html, text);
+    }
+
+    /// <summary>Chegou (#224): o aviso, com o prazo de 7 dias para desistir e o link do pedido, onde se desiste.</summary>
+    public static async Task<ComposedEmail> DeliveredAsync(OrderDeliveredData order, Uri storeUrl)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+        ArgumentNullException.ThrowIfNull(storeUrl);
+        var number = OrderNumber(order.OrderId);
+        var orderUrl = OrderUrl(storeUrl, order.OrderId);
+        var html = await s_delivered.RenderAsync(Context(new { order_number = number, order_url = orderUrl }), s_html);
+        return new ComposedEmail($"Pedido {number} entregue", html, ToText(html) + "\n" + orderUrl);
+    }
+
+    private static string OrderUrl(Uri storeUrl, Guid orderId) => new Uri(storeUrl, $"conta/pedidos/{orderId}").AbsoluteUri;
+
+    /// <summary>Só link http(s) absoluto vira link no e-mail: o resto (um javascript: num evento adulterado) some.</summary>
+    internal static string? SafeLink(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" ? uri.AbsoluteUri : null;
 
     /// <summary>A devolução registrada (#223): o estorno já pedido, sem esperar o fornecedor.</summary>
     public static async Task<ComposedEmail> ReturnedAsync(OrderReturnedData order)
@@ -81,7 +120,7 @@ public static partial class EmailComposer
         ArgumentNullException.ThrowIfNull(invoice);
         ArgumentNullException.ThrowIfNull(storeUrl);
         var number = OrderNumber(invoice.OrderId);
-        var orderUrl = new Uri(storeUrl, $"conta/pedidos/{invoice.OrderId}").AbsoluteUri;
+        var orderUrl = OrderUrl(storeUrl, invoice.OrderId);
         var html = await s_invoiceIssued.RenderAsync(Context(new
         {
             order_number = number,
