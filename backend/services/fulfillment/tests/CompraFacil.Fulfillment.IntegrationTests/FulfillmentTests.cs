@@ -28,6 +28,12 @@ public sealed class FakeSupplier : ISupplierGateway
     /// <summary>O feed que o fornecedor devolve; nulo = fora do ar.</summary>
     public List<SupplierFeedItem>? Feed { get; set; } = [];
 
+    /// <summary>Falso: o fornecedor não responde à checagem.</summary>
+    public bool Reachable { get; set; } = true;
+
+    public Task CheckAsync(CancellationToken ct) =>
+        Reachable ? Task.CompletedTask : throw new SupplierUnavailableException("fornecedor fora do ar");
+
     /// <summary>O que o cancelamento responde; nulo = cancela.</summary>
     public Func<string, bool>? RespondCancel { get; set; }
     public List<string> CancelCalls { get; } = [];
@@ -743,6 +749,47 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(cost, row.GetProperty("product_cost_cents").GetInt64());
         Assert.Equal(2430, row.GetProperty("freight_cents").GetInt64());
         Assert.Equal(19980 - cost - 2430 - 995, row.GetProperty("margin_cents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Status_da_integracao_diz_se_responde_e_nunca_mostra_as_credenciais()
+    {
+        await WebhookAsync(Dispute(Guid.NewGuid(), "APPROVED")); // há ao menos um webhook recebido
+        using var client = fx.Factory.CreateClient();
+        async Task<string> GetAsync()
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/supplier/status");
+            request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+            using var response = await client.SendAsync(request, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var json = await response.Content.ReadAsStringAsync(Ct);
+            ContractAssert.AssertSchema("fulfillment.v1.yaml", "/components/schemas/SupplierStatus", json);
+            return json;
+        }
+
+        var up = await GetAsync();
+        using (var doc = JsonDocument.Parse(up))
+        {
+            Assert.True(doc.RootElement.GetProperty("reachable").GetBoolean());
+            Assert.NotEqual(JsonValueKind.Null, doc.RootElement.GetProperty("last_webhook_at").ValueKind);
+        }
+        Assert.DoesNotContain(FulfillmentFixture.Secret, up, StringComparison.Ordinal);
+        Assert.DoesNotContain("password", up, StringComparison.OrdinalIgnoreCase);
+
+        fx.Supplier.Reachable = false;
+        try
+        {
+            using var down = JsonDocument.Parse(await GetAsync());
+            Assert.False(down.RootElement.GetProperty("reachable").GetBoolean());
+            Assert.Contains("fora do ar", down.RootElement.GetProperty("error").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            fx.Supplier.Reachable = true;
+        }
+
+        using var anonymous = await client.GetAsync("/v1/admin/supplier/status", Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 
     [Fact]

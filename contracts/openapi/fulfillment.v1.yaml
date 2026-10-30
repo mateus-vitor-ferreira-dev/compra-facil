@@ -269,6 +269,30 @@ paths:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
 
+  /v1/admin/supplier/status:
+    get:
+      tags: [admin]
+      operationId: getSupplierStatus
+      summary: Como está a integração com o fornecedor
+      description: |
+        Pergunta ao fornecedor agora, com até 3 s de espera, e conta o que a loja sabe dele. As credenciais ficam
+        nos segredos do ambiente e nunca saem daqui: `own_credentials` só diz se não são as do simulador.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: O status. Fornecedor fora do ar também é 200, com `reachable` falso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierStatus"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/admin/order-margins:
     get:
       tags: [admin]
@@ -732,6 +756,46 @@ components:
         shipped_at:
           type: [string, "null"]
           format: date-time
+
+    SupplierStatus:
+      type: object
+      required: [name, host, reachable, own_credentials, webhook_secret_configured, products_in_feed, ship_within_hours, deliver_within_hours, return_within_hours]
+      properties:
+        name:
+          type: string
+        host:
+          type: string
+          description: O endereço da API do fornecedor.
+        reachable:
+          type: boolean
+        latency_ms:
+          type: [integer, "null"]
+          format: int64
+        error:
+          type: [string, "null"]
+        own_credentials:
+          type: boolean
+          description: Falso enquanto usa as credenciais do simulador.
+        webhook_secret_configured:
+          type: boolean
+        products_in_feed:
+          type: integer
+          minimum: 0
+        last_stock_read_at:
+          type: [string, "null"]
+          format: date-time
+        last_webhook_at:
+          type: [string, "null"]
+          format: date-time
+        ship_within_hours:
+          type: number
+          description: O prazo de despacho (`Supplier:Deadlines:ShipWithin`).
+        deliver_within_hours:
+          type: number
+          description: O prazo de transporte (`Supplier:Deadlines:DeliverWithin`).
+        return_within_hours:
+          type: number
+          description: O prazo de resposta a uma devolução (`Supplier:Deadlines:ReturnWithin`).
 
     OrderMargin:
       type: object

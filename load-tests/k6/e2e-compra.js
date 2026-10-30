@@ -226,6 +226,10 @@ export default function (products) {
     const peek = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(stranger.token), tags: { name: 'order-status' } });
     check(peek, { 'outro cliente não vê o pedido (404)': (r) => r.status === 404 });
 
+    // a integração (#225): o fornecedor simulado responde, e a resposta não traz segredo
+    const integration = http.get(`${GATEWAY}/fulfillment/v1/admin/supplier/status`, { headers: auth(login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD)), tags: { name: 'supplier-status' } });
+    check(integration, { 'fornecedor respondendo': (r) => r.status === 200 && r.json('reachable') === true && !r.body.includes('sim-secret') });
+
     // a margem (#225): o produto do cenário não veio do fornecedor, então a conta fica sem custo, mas com a taxa
     const margins = http.get(`${GATEWAY}/fulfillment/v1/admin/order-margins?limit=200`, { headers: auth(login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD)), tags: { name: 'order-margins' } });
     check(margins.json('data').find((m) => m.order_id === orderId), {

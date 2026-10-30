@@ -115,6 +115,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Como está a integração com o fornecedor
+         * @description Pergunta ao fornecedor agora, com até 3 s de espera, e conta o que a loja sabe dele. As credenciais ficam
+         *     nos segredos do ambiente e nunca saem daqui: `own_credentials` só diz se não são as do simulador.
+         */
+        get: operations["getSupplierStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/order-margins": {
         parameters: {
             query?: never;
@@ -394,6 +415,29 @@ export interface components {
             placed_at?: string | null;
             /** Format: date-time */
             shipped_at?: string | null;
+        };
+        SupplierStatus: {
+            name: string;
+            /** @description O endereço da API do fornecedor. */
+            host: string;
+            reachable: boolean;
+            /** Format: int64 */
+            latency_ms?: number | null;
+            error?: string | null;
+            /** @description Falso enquanto usa as credenciais do simulador. */
+            own_credentials: boolean;
+            webhook_secret_configured: boolean;
+            products_in_feed: number;
+            /** Format: date-time */
+            last_stock_read_at?: string | null;
+            /** Format: date-time */
+            last_webhook_at?: string | null;
+            /** @description O prazo de despacho (`Supplier:Deadlines:ShipWithin`). */
+            ship_within_hours: number;
+            /** @description O prazo de transporte (`Supplier:Deadlines:DeliverWithin`). */
+            deliver_within_hours: number;
+            /** @description O prazo de resposta a uma devolução (`Supplier:Deadlines:ReturnWithin`). */
+            return_within_hours: number;
         };
         /** @description A conta de um pedido, em centavos de real. */
         OrderMargin: {
@@ -892,6 +936,29 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    getSupplierStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O status. Fornecedor fora do ar também é 200, com `reachable` falso. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupplierStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     listOrderMargins: {
