@@ -70,6 +70,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/invoices/{order_id}/return-danfe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * O DANFE da nota de devolução do pedido, em PDF
+         * @description A NF-e de devolução (#223), quando o cliente desiste da compra. Só o dono do pedido (o `sub` do token) ou
+         *     a equipe (role `admin`); a nota de outro cliente, e a que ainda não saiu, dão 404.
+         */
+        get: operations["getReturnInvoiceDanfe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shipping/quote": {
         parameters: {
             query?: never;
@@ -553,6 +574,43 @@ export interface operations {
         };
     };
     getInvoiceDanfe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O DANFE. */
+            200: {
+                headers: {
+                    /** @description `attachment; filename=nfe-<número>.pdf`. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+            /** @description O emissor da nota não respondeu; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getReturnInvoiceDanfe: {
         parameters: {
             query?: never;
             header?: never;

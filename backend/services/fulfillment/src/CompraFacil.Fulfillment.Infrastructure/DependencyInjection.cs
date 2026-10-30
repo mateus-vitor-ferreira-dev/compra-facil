@@ -64,6 +64,10 @@ public static class DependencyInjection
         {
             builder.Services.AddHostedService<InvoiceCancellerJob>();
         }
+        if (invoice.GetValue("ReturnEnabled", defaultValue: true))
+        {
+            builder.Services.AddHostedService<ReturnInvoiceJob>();
+        }
 
         if (supplier.GetValue("DispatcherEnabled", defaultValue: true))
         {
@@ -81,7 +85,8 @@ public static class DependencyInjection
             .Produces(SupplierCatalogEvents.Topic)
             .Produces(InvoiceEvents.Topic)
             .Handle<OrderConfirmedData, OnOrderConfirmed>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderConfirmed)
-            .Handle<PaymentRefundedData, OnPaymentRefunded>(InvoiceEvents.PaymentsTopic, InvoiceEvents.PaymentRefunded));
+            .Handle<PaymentRefundedData, OnPaymentRefunded>(InvoiceEvents.PaymentsTopic, InvoiceEvents.PaymentRefunded)
+            .Handle<OrderReturnedData, OnOrderReturned>(FulfillmentEvents.OrdersTopic, InvoiceEvents.OrderReturned));
         return builder;
     }
 }

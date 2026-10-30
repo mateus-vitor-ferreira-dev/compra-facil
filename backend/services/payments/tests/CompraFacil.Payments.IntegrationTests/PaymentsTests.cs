@@ -331,6 +331,7 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         payment = await PaymentOfAsync(order);
         Assert.Equal((PaymentStatus.Refunded, 6430L), (payment.Status, payment.RefundedCents));
         var refunded = await LastAsync<PaymentRefundedData>(order, PaymentEvents.PaymentRefunded);
+        Assert.Equal("return", refunded.Reason); // o fulfillment não cancela a nota
         Assert.Equal((RefundKind.Refund, true, 6430L), (refunded.Kind, refunded.Full, refunded.Amount.AmountCents));
         Assert.Single(await EventsOfAsync(order), e => e.EventType == PaymentEvents.PaymentRefunded);
     }

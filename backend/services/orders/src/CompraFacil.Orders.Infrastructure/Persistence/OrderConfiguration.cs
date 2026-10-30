@@ -67,6 +67,14 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             i.Property(x => x.IssuedAt).HasColumnName("invoice_issued_at");
             i.Property(x => x.CancelledAt).HasColumnName("invoice_cancelled_at");
         });
+        // a nota de devolução (#223): só existe quando o cliente desiste da compra
+        builder.ComplexProperty(o => o.ReturnInvoice, i =>
+        {
+            i.Property(x => x.AccessKey).HasColumnName("return_invoice_access_key").HasMaxLength(44);
+            i.Property(x => x.Number).HasColumnName("return_invoice_number");
+            i.Property(x => x.Series).HasColumnName("return_invoice_series");
+            i.Property(x => x.IssuedAt).HasColumnName("return_invoice_issued_at");
+        });
         // rastreio: opcional, só existe depois do envio
         builder.ComplexProperty(o => o.Tracking, t =>
         {

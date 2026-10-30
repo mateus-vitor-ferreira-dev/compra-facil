@@ -276,6 +276,27 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                                 .HasColumnName("recipient_phone");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "ReturnInvoice", "CompraFacil.Orders.Domain.Order.ReturnInvoice#OrderReturnInvoice", b1 =>
+                        {
+                            b1.Property<string>("AccessKey")
+                                .IsRequired()
+                                .HasMaxLength(44)
+                                .HasColumnType("character varying(44)")
+                                .HasColumnName("return_invoice_access_key");
+
+                            b1.Property<DateTimeOffset>("IssuedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("return_invoice_issued_at");
+
+                            b1.Property<int>("Number")
+                                .HasColumnType("integer")
+                                .HasColumnName("return_invoice_number");
+
+                            b1.Property<int>("Series")
+                                .HasColumnType("integer")
+                                .HasColumnName("return_invoice_series");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Shipping", "CompraFacil.Orders.Domain.Order.Shipping#OrderShipping", b1 =>
                         {
                             b1.Property<int>("MaxDays")

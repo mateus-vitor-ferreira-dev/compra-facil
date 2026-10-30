@@ -913,6 +913,7 @@ createServer(async (req, res) => {
         returnable_until: null,
         refunded_at: now,
         updated_at: now,
+        return_invoice: { access_key: "4".repeat(44), number: 2001, series: 1, issued_at: now },
       });
     } else if (found.status !== "returned") {
       return problem(res, 409, "O pedido não pode ser devolvido");

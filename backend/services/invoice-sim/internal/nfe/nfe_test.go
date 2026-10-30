@@ -3,6 +3,7 @@ package nfe
 import (
 	"bytes"
 	"encoding/xml"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,6 +167,43 @@ func TestEmit_FreightAddsToTheTotal(t *testing.T) {
 	assert.Equal(t, StatusAuthorized, inv.Status)
 	assert.InDelta(t, 274.2, inv.ValorTotal, 0.001)
 	assert.Contains(t, string(PDF(inv, req)), "Frete: R$ 24.30")
+}
+
+func TestEmit_ReturnReferencesAnAuthorizedInvoice(t *testing.T) {
+	issuer := NewIssuer(Options{AllowedCFOP: []string{"5120", "6120", "1202", "2202"}, CancelWindow: 24 * time.Hour})
+	sale, err := issuer.Emit(request("venda"))
+	require.NoError(t, err)
+	require.Equal(t, StatusAuthorized, sale.Status)
+
+	back := func(ref string, refs ...string) Request {
+		r := request(ref)
+		r.InfNFe.Ide.FinNFe, r.InfNFe.Ide.TpNF = FinDevolucao, 0
+		for _, key := range refs {
+			r.InfNFe.Ide.NFref = append(r.InfNFe.Ide.NFref, NFref{RefNFe: key})
+		}
+		r.InfNFe.Pag.DetPag = []DetPag{{TPag: "90"}}
+		for i := range r.InfNFe.Det {
+			r.InfNFe.Det[i].Prod.CFOP = "1202"
+		}
+		return r
+	}
+
+	ok, err := issuer.Emit(back("venda-devolucao", sale.Chave))
+	require.NoError(t, err)
+	assert.Equal(t, StatusAuthorized, ok.Status)
+	assert.NotEqual(t, sale.Chave, ok.Chave)
+
+	for name, r := range map[string]Request{
+		"sem referência":        back("sem-ref"),
+		"referência que não há": back("errada", strings.Repeat("9", 44)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := issuer.Emit(r)
+			require.NoError(t, err)
+			assert.Equal(t, StatusRejected, got.Status)
+			assert.Equal(t, 267, got.Autorizacao.CodigoStatus)
+		})
+	}
 }
 
 func TestValidCPF(t *testing.T) {

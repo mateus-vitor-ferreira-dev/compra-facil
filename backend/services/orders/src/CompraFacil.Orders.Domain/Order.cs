@@ -46,6 +46,9 @@ public sealed record OrderPix(string QrCode, string QrCodeBase64, string? Ticket
 /// <summary>A NF-e do pedido (#221): a chave de acesso, o número e a série, e quando foi cancelada (no estorno).</summary>
 public sealed record OrderInvoice(string AccessKey, int Number, int Series, DateTimeOffset IssuedAt, DateTimeOffset? CancelledAt = null);
 
+/// <summary>A NF-e de devolução do pedido (#223): referencia a nota de venda, que continua valendo.</summary>
+public sealed record OrderReturnInvoice(string AccessKey, int Number, int Series, DateTimeOffset IssuedAt);
+
 /// <summary>Rastreio do envio, como o fornecedor mandou.</summary>
 public sealed record Tracking(string Number, string? Provider, string? Url);
 
@@ -102,6 +105,9 @@ public sealed class Order
 
     /// <summary>A nota fiscal, depois que o fulfillment a emite (antes de o pedido ir ao fornecedor).</summary>
     public OrderInvoice? Invoice { get; private set; }
+
+    /// <summary>A nota de devolução, quando o cliente desiste da compra e o fulfillment a emite.</summary>
+    public OrderReturnInvoice? ReturnInvoice { get; private set; }
 
     public Tracking? Tracking { get; private set; }
     public DateTimeOffset? ShippedAt { get; private set; }
@@ -307,6 +313,19 @@ public sealed class Order
             return false;
         }
         Invoice = invoice;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>A nota de devolução foi autorizada. False se nada mudou (a mesma nota de novo).</summary>
+    public bool RecordReturnInvoice(OrderReturnInvoice invoice, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(invoice);
+        if (ReturnInvoice is not null)
+        {
+            return false;
+        }
+        ReturnInvoice = invoice;
         UpdatedAt = now;
         return true;
     }

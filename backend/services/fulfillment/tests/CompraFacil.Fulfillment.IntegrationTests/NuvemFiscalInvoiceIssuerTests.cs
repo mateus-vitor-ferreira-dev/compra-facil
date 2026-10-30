@@ -86,6 +86,30 @@ public sealed class NuvemFiscalInvoiceIssuerTests
     }
 
     [Fact]
+    public async Task Devolucao_e_nota_de_entrada_que_referencia_a_de_venda()
+    {
+        var (issuer, stub) = Issuer((req, _) => req.Method == HttpMethod.Get ? Json(new { data = Array.Empty<object>() }) : Json(Authorized()));
+        var invoice = Invoice();
+        invoice.MarkAuthorized("nfe_venda", s_key, 1000, 1, DateTimeOffset.UtcNow);
+
+        var result = await issuer.IssueReturnAsync(invoice, Ct);
+
+        Assert.IsType<InvoiceIssue.Authorized>(result);
+        Assert.Equal($"/nfe?ambiente=homologacao&referencia={invoice.Id}-devolucao", stub.Requests[1].PathAndQuery);
+        var post = stub.Requests.Single(r => r.Method == HttpMethod.Post && r.PathAndQuery == "/nfe");
+        using var body = JsonDocument.Parse(post.Body);
+        var inf = body.RootElement.GetProperty("infNFe");
+        var ide = inf.GetProperty("ide");
+        Assert.Equal($"{invoice.Id}-devolucao", body.RootElement.GetProperty("referencia").GetString());
+        Assert.Equal((0, 4), (ide.GetProperty("tpNF").GetInt32(), ide.GetProperty("finNFe").GetInt32()));
+        Assert.Equal(s_key, ide.GetProperty("NFref")[0].GetProperty("refNFe").GetString());
+        // a loja é de MG e o cliente, de SP: devolução interestadual; o estorno é fora da nota
+        Assert.Equal("2202", inf.GetProperty("det")[0].GetProperty("prod").GetProperty("CFOP").GetString());
+        var payment = inf.GetProperty("pag").GetProperty("detPag")[0];
+        Assert.Equal(("90", 0m), (payment.GetProperty("tPag").GetString(), payment.GetProperty("vPag").GetDecimal()));
+    }
+
+    [Fact]
     public async Task Mesmo_estado_usa_o_CFOP_interno_e_o_PIX()
     {
         var (issuer, stub) = Issuer((req, _) => req.Method == HttpMethod.Get ? Json(new { data = Array.Empty<object>() }) : Json(Authorized()));

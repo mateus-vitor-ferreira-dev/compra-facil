@@ -59,6 +59,7 @@ public static class DependencyInjection
             .Handle<SupplierOrderDeliveredData, OnSupplierOrderDelivered>(OrderEvents.FulfillmentTopic, "SupplierOrderDelivered")
             .Handle<SupplierOrderFailedData, OnSupplierOrderFailed>(OrderEvents.FulfillmentTopic, "SupplierOrderFailed")
             .Handle<InvoiceIssuedData, OnInvoiceIssued>(OrderEvents.InvoicesTopic, "InvoiceIssued")
+            .Handle<InvoiceReturnIssuedData, OnInvoiceReturnIssued>(OrderEvents.InvoicesTopic, "InvoiceReturnIssued")
             .Handle<InvoiceCancelledData, OnInvoiceCancelled>(OrderEvents.InvoicesTopic, "InvoiceCancelled")
             .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductCreated")
             .Handle<ProductSnapshotData, ProductChanged>(CatalogEvents.ProductsTopic, "ProductUpdated")

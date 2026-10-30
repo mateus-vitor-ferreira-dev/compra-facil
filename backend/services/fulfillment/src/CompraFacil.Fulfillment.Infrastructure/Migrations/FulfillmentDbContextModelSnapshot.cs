@@ -183,6 +183,41 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("rejection_reason");
 
+                    b.Property<string>("ReturnAccessKey")
+                        .HasMaxLength(44)
+                        .HasColumnType("character varying(44)")
+                        .HasColumnName("return_access_key");
+
+                    b.Property<DateTimeOffset?>("ReturnClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("return_claimed_at");
+
+                    b.Property<string>("ReturnError")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("return_error");
+
+                    b.Property<DateTimeOffset?>("ReturnIssuedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("return_issued_at");
+
+                    b.Property<int?>("ReturnNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("return_number");
+
+                    b.Property<string>("ReturnProviderId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("return_provider_id");
+
+                    b.Property<DateTimeOffset?>("ReturnRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("return_requested_at");
+
+                    b.Property<int?>("ReturnSeries")
+                        .HasColumnType("integer")
+                        .HasColumnName("return_series");
+
                     b.Property<int?>("Series")
                         .HasColumnType("integer")
                         .HasColumnName("series");
@@ -210,6 +245,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_invoices");
+
+                    b.HasIndex("ReturnRequestedAt")
+                        .HasDatabaseName("ix_invoices_return_requested_at")
+                        .HasFilter("return_requested_at IS NOT NULL AND return_access_key IS NULL");
 
                     b.HasIndex("Status", "CancelRequestedAt")
                         .HasDatabaseName("ix_invoices_status_cancel_requested_at");

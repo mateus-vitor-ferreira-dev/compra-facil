@@ -142,6 +142,14 @@ test("o pedido entregue aceita a desistência em 7 dias, com confirmação", asy
   await expect(page.getByRole("status").filter({ hasText: "Desistência registrada" })).toBeVisible();
   await expect(page.getByText("Valor estornado", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Desistir da compra" })).toHaveCount(0);
+
+  // a nota de devolução aparece no pedido, para baixar
+  const back = page.getByRole("region", { name: "Nota de devolução" });
+  await expect(back).toContainText("NF-e 2001");
+  await expect(back.getByRole("link", { name: "Baixar a nota de devolução (PDF)" })).toHaveAttribute(
+    "href",
+    /\/nota\?tipo=devolucao$/,
+  );
 });
 
 test("sair apaga a sessão e o cabeçalho volta a oferecer Entrar", async ({ page, context }) => {

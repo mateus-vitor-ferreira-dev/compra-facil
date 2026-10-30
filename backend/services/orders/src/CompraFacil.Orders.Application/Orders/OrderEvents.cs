@@ -153,4 +153,6 @@ public sealed record SupplierOrderFailedData(Guid OrderId, string Reason)
 
 public sealed record InvoiceIssuedData(Guid OrderId, string AccessKey, int Number, int Series, DateTimeOffset IssuedAt);
 
+public sealed record InvoiceReturnIssuedData(Guid OrderId, string AccessKey, int Number, int Series, DateTimeOffset IssuedAt);
+
 public sealed record InvoiceCancelledData(Guid OrderId, DateTimeOffset CancelledAt);

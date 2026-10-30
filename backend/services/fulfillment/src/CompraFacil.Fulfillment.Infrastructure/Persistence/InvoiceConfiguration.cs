@@ -37,5 +37,10 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
                     lines => lines.ToList()));
         // a fila do cancelamento: as autorizadas com o estorno pedido
         builder.HasIndex(i => new { i.Status, i.CancelRequestedAt });
+        builder.Property(i => i.ReturnProviderId).HasMaxLength(64);
+        builder.Property(i => i.ReturnAccessKey).HasMaxLength(44);
+        builder.Property(i => i.ReturnError).HasMaxLength(500);
+        // a fila da nota de devolução: as pedidas e ainda sem nota
+        builder.HasIndex(i => i.ReturnRequestedAt).HasFilter("return_requested_at IS NOT NULL AND return_access_key IS NULL");
     }
 }

@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
         services.TryAddSingleton(TimeProvider.System); // o AddPostgres troca pelo relógio do banco
         services.AddScoped<SupplierOrderPlacer>();
+        services.AddScoped<Invoices.ReturnInvoiceIssuer>();
         services.AddScoped<SupplierUpdates>();
         services.AddScoped<OverdueOrders>();
         services.AddScoped<CatalogSync>();

@@ -12,7 +12,7 @@ func TestLoad_DefaultsAndOverrides(t *testing.T) {
 	c, err := load(func(string) string { return "" })
 	require.NoError(t, err)
 	assert.Equal(t, 8090, c.Port)
-	assert.Equal(t, []string{"5120", "6120"}, c.AllowedCFOP)
+	assert.Equal(t, []string{"5120", "6120", "1202", "2202"}, c.AllowedCFOP)
 	assert.Equal(t, 24*time.Hour, c.CancelWindow)
 
 	env := map[string]string{"SIM_ALLOWED_CFOP": "5949, 6949", "SIM_TOKEN_TTL": "10m"}

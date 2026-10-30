@@ -184,6 +184,35 @@ export default async function OrderPage({ params, searchParams }: Props) {
         </section>
       )}
 
+      {order.return_invoice && (
+        <section aria-labelledby="nota-devolucao" className="mt-10 space-y-1">
+          <h2 id="nota-devolucao" className="text-xl font-semibold tracking-tight">
+            Nota de devolução
+          </h2>
+          <p>
+            NF-e {order.return_invoice.number}, série {order.return_invoice.series}, emitida em{" "}
+            <time dateTime={order.return_invoice.issued_at}>
+              {dateTime.format(new Date(order.return_invoice.issued_at))}
+            </time>
+          </p>
+          <p className="pt-1">
+            <a
+              href={`/api/pedidos/${order.id}/nota?tipo=devolucao`}
+              download
+              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+            >
+              Baixar a nota de devolução (PDF)
+            </a>
+          </p>
+          <p className="text-ink-soft text-sm">
+            Chave de acesso{" "}
+            <span className="text-ink tabular-nums select-all">
+              {order.return_invoice.access_key.replace(/(\d{4})(?=\d)/g, "$1 ")}
+            </span>
+          </p>
+        </section>
+      )}
+
       <div className="mt-8 flex flex-wrap gap-3">
         <Link href="/" className={buttonVariants({ variant: "secondary" })}>
           Continuar comprando

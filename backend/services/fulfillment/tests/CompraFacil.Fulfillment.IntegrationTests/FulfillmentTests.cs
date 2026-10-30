@@ -80,6 +80,17 @@ public sealed class FakeInvoiceIssuer : IInvoiceIssuer
             ?? new InvoiceIssue.Authorized("nfe_" + invoice.Id.ToString("N")[..12], "3" + new string('1', 43), Interlocked.Increment(ref _number), 1, DateTimeOffset.UtcNow));
     }
 
+    /// <summary>O que a nota de devolução responde; nulo = autoriza.</summary>
+    public Func<Invoice, InvoiceIssue>? RespondReturn { get; set; }
+    public List<Invoice> ReturnsIssued { get; } = [];
+
+    public Task<InvoiceIssue> IssueReturnAsync(Invoice invoice, CancellationToken ct)
+    {
+        ReturnsIssued.Add(invoice);
+        return Task.FromResult(RespondReturn?.Invoke(invoice)
+            ?? new InvoiceIssue.Authorized("nfe_dev_" + invoice.Id.ToString("N")[..8], "4" + new string('2', 43), Interlocked.Increment(ref _number), 1, DateTimeOffset.UtcNow));
+    }
+
     public Task<string> GetXmlAsync(string providerId, CancellationToken ct) => Task.FromResult($"<nfeProc><id>{providerId}</id></nfeProc>");
 
     public Task<byte[]> GetPdfAsync(string providerId, CancellationToken ct) => Task.FromResult("%PDF-1.4"u8.ToArray());
@@ -112,6 +123,7 @@ public sealed class FulfillmentFixture : IAsyncLifetime
             .UseSetting("Kafka:Enabled", "false")
             .UseSetting("Supplier:DispatcherEnabled", "false")
             .UseSetting("Supplier:CatalogSyncEnabled", "false")
+            .UseSetting("Invoice:ReturnEnabled", "false")
             .UseSetting("Invoice:CancellerEnabled", "false")
             .UseSetting("Supplier:WebhookSecret", Secret)
             .UseSetting("Auth:Jwks", Identity.Jwks)
@@ -160,11 +172,23 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         return await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().Invoices.AsNoTracking().SingleOrDefaultAsync(i => i.Id == id, Ct);
     }
 
-    private async Task RefundedAsync(Guid id, bool full = true)
+    private async Task ReturnedAsync(Guid id)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var handler = ActivatorUtilities.CreateInstance<CompraFacil.Fulfillment.Application.Invoices.OnOrderReturned>(scope.ServiceProvider);
+        await handler.HandleAsync(new OrderReturnedData(id),
+            new EventContext(Guid.NewGuid(), InvoiceEvents.OrderReturned, FulfillmentEvents.OrdersTopic, "req", DateTimeOffset.UtcNow), Ct);
+        await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
+    }
+
+    private async Task<int> IssueReturnInvoicesAsync() =>
+        await ActivatorUtilities.CreateInstance<CompraFacil.Fulfillment.Infrastructure.Invoices.ReturnInvoiceJob>(fx.Factory.Services).IssueOnceAsync(Ct);
+
+    private async Task RefundedAsync(Guid id, bool full = true, string? reason = null)
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var handler = ActivatorUtilities.CreateInstance<OnPaymentRefunded>(scope.ServiceProvider);
-        await handler.HandleAsync(new PaymentRefundedData(id, full),
+        await handler.HandleAsync(new PaymentRefundedData(id, full, reason),
             new EventContext(Guid.NewGuid(), InvoiceEvents.PaymentRefunded, InvoiceEvents.PaymentsTopic, "req", DateTimeOffset.UtcNow), Ct);
         await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
     }
@@ -430,6 +454,55 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     }
 
     [Fact]
+    public async Task Desistencia_nao_cancela_a_nota_e_emite_a_de_devolucao()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+        var provider = (await InvoiceAsync(id))!.ProviderId;
+
+        // o estorno da desistência chega antes ou depois do OrderReturned: nenhum dos dois cancela
+        await RefundedAsync(id, reason: InvoiceEvents.ReturnRefund);
+        await ReturnedAsync(id);
+        await ReturnedAsync(id); // repetido
+        await CancelInvoicesAsync();
+        await IssueReturnInvoicesAsync();
+        await IssueReturnInvoicesAsync();
+
+        var invoice = (await InvoiceAsync(id))!;
+        Assert.Equal(InvoiceStatus.Authorized, invoice.Status);
+        Assert.DoesNotContain(provider, fx.Issuer.Cancelled);
+        Assert.Single(fx.Issuer.ReturnsIssued, i => i.Id == id);
+        Assert.NotNull(invoice.ReturnAccessKey);
+        Assert.Equal([InvoiceEvents.InvoiceIssued, InvoiceEvents.InvoiceReturnIssued], await EventsOfAsync(id, InvoiceEvents.Topic));
+    }
+
+    [Fact]
+    public async Task Nota_de_devolucao_rejeitada_fica_para_a_equipe()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+        fx.Issuer.RespondReturn = i => i.Id == id ? new InvoiceIssue.Rejected("nfe_x", 267, "sem referência") : null!;
+        try
+        {
+            await ReturnedAsync(id);
+            await IssueReturnInvoicesAsync();
+            await IssueReturnInvoicesAsync(); // não insiste
+        }
+        finally
+        {
+            fx.Issuer.RespondReturn = null;
+        }
+
+        var invoice = (await InvoiceAsync(id))!;
+        Assert.Equal("267: sem referência", invoice.ReturnError);
+        Assert.Null(invoice.ReturnAccessKey);
+        Assert.Single(fx.Issuer.ReturnsIssued, i => i.Id == id);
+        Assert.Equal([InvoiceEvents.InvoiceIssued], await EventsOfAsync(id, InvoiceEvents.Topic));
+    }
+
+    [Fact]
     public async Task Cancelamento_recusado_pelo_emissor_fica_para_a_equipe()
     {
         var id = Guid.NewGuid();
@@ -500,5 +573,29 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(HttpStatusCode.OK, admin.StatusCode);
         using var anonymous = await client.GetAsync($"/v1/me/invoices/{id}/danfe", Ct);
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+    }
+
+    [Fact]
+    public async Task DANFE_da_devolucao_so_depois_de_emitida_e_para_o_dono()
+    {
+        var (id, owner) = (Guid.NewGuid(), Guid.NewGuid());
+        await ConfirmedAsync(id, customer: owner);
+        await DispatchAsync();
+        using var client = fx.Factory.CreateClient();
+        async Task<HttpStatusCode> StatusFor(string token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/v1/me/invoices/{id}/return-danfe");
+            request.Headers.Authorization = new("Bearer", token);
+            using var response = await client.SendAsync(request, Ct);
+            return response.StatusCode;
+        }
+
+        Assert.Equal(HttpStatusCode.NotFound, await StatusFor(fx.Identity.CustomerToken(owner)));
+        await ReturnedAsync(id);
+        await IssueReturnInvoicesAsync();
+
+        Assert.Equal(HttpStatusCode.OK, await StatusFor(fx.Identity.CustomerToken(owner)));
+        Assert.Equal(HttpStatusCode.OK, await StatusFor(fx.Identity.AdminToken()));
+        Assert.Equal(HttpStatusCode.NotFound, await StatusFor(fx.Identity.CustomerToken(Guid.NewGuid())));
     }
 }

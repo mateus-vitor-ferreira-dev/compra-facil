@@ -31,7 +31,7 @@ func load(getenv func(string) string) (Config, error) {
 		ClientID:     str(getenv, "SIM_CLIENT_ID", "sim-client"),
 		ClientSecret: str(getenv, "SIM_CLIENT_SECRET", "sim-secret"),
 	}
-	for _, cfop := range strings.Split(str(getenv, "SIM_ALLOWED_CFOP", "5120,6120"), ",") {
+	for _, cfop := range strings.Split(str(getenv, "SIM_ALLOWED_CFOP", "5120,6120,1202,2202"), ",") {
 		if cfop = strings.TrimSpace(cfop); cfop != "" {
 			c.AllowedCFOP = append(c.AllowedCFOP, cfop)
 		}
