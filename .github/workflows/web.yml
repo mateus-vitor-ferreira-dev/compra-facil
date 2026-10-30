@@ -59,18 +59,23 @@ jobs:
           name: playwright-report
           path: frontend/web/playwright-report
           retention-days: 7
+      # as etapas lentas (5 dos 8 minutos) não rodam no PR para a develop: rodam no push nela e no PR de release,
+      # então nada chega à main sem passar por elas
       - name: Lighthouse CI (performance, acessibilidade, SEO e boas práticas ≥ 90)
+        if: github.event_name == 'push' || github.base_ref == 'main'
         run: npm run lhci
       # os mesmos testes contra o Worker da produção (OpenNext no workerd): o que roda no Next e não no
       # Workers (um pacote de Node no middleware, por exemplo) quebra aqui, e não em produção
       - name: Build do Worker (OpenNext)
+        if: github.event_name == 'push' || github.base_ref == 'main'
         run: npx opennextjs-cloudflare build
       - name: Testes de navegador contra o Worker
+        if: github.event_name == 'push' || github.base_ref == 'main'
         run: npm run e2e
         env:
           E2E_WORKER: "1"
       - uses: actions/upload-artifact@v7.0.2
-        if: failure()
+        if: failure() && (github.event_name == 'push' || github.base_ref == 'main')
         with:
           name: playwright-report-worker
           path: frontend/web/playwright-report
