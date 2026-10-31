@@ -15,10 +15,12 @@ const FRONT_ENV = {
 };
 
 // E2E_WORKER=1: os mesmos testes contra o Worker da produção (o build do OpenNext no workerd, depois de
-// `npx opennextjs-cloudflare build`), em vez do `next start` (ADR 0006)
+// `npx opennextjs-cloudflare build`), em vez do `next start` (ADR 0006). O --local-upstream mantém a origem
+// local: sem ele, o wrangler usa o domínio de `routes`, e o redirect de uma Server Action, que o Next busca
+// na própria origem, iria para a loja publicada, levando os cabeçalhos do teste
 const front = process.env.E2E_WORKER
   ? {
-      command: `npx wrangler dev --port 3000 ${Object.entries({
+      command: `npx wrangler dev --port 3000 --local-upstream localhost:3000 ${Object.entries({
         ...FRONT_ENV,
         SITE_URL: "http://localhost:3000",
       })
