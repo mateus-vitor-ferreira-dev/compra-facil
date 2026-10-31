@@ -11,7 +11,7 @@ Fonte da verdade dos eventos no Kafka (Redpanda em dev). Cada serviço tem um ar
 | [`orders.v1.yaml`](orders.v1.yaml) | `orders.order.v1` | `OrderPlaced`, `OrderConfirmed`, `OrderCancelled` | inventory, payments, notifications, fulfillment |
 | [`inventory.v1.yaml`](inventory.v1.yaml) | `inventory.reservation.v1` | `StockReserved`, `StockReservationFailed`, `StockReleased` | payments, orders |
 | [`payments.v1.yaml`](payments.v1.yaml) | `payments.payment.v1` | `PaymentApproved`, `PaymentFailed` | orders |
-| [`identity.v1.yaml`](identity.v1.yaml) | `identity.account.v1` | `AccountRegistered`, `EmailConfirmationRequested` | notifications |
+| [`identity.v1.yaml`](identity.v1.yaml) | `identity.account.v1` | `AccountRegistered`, `EmailConfirmationRequested`, `GuestAccessRequested` | notifications |
 | [`notifications.v1.yaml`](notifications.v1.yaml) | — | só consome | — |
 | [`fulfillment.v1.yaml`](fulfillment.v1.yaml) | `fulfillment.supplier-order.v1` | `SupplierOrderPlaced`, `SupplierOrderShipped`, `SupplierOrderDelivered`, `SupplierOrderFailed` | — (a SAGA com o fornecedor, #219) |
 | [`common/v1/common.yaml`](common/v1/common.yaml) | — | envelope, headers, chaves, servidores | — |

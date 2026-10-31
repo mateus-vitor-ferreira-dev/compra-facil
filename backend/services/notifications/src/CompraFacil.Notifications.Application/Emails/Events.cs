@@ -19,6 +19,7 @@ public static class NotificationEvents
 
     public const string AccountsTopic = "identity.account.v1";
     public const string EmailConfirmationRequested = nameof(EmailConfirmationRequested);
+    public const string GuestAccessRequested = nameof(GuestAccessRequested);
 }
 
 public sealed record Money(long AmountCents, string Currency);
@@ -36,6 +37,9 @@ public sealed record OrderCancelledData(Guid OrderId, string CustomerEmail, stri
 
 /// <summary>data do EmailConfirmationRequested (contracts/asyncapi/identity.v1.yaml).</summary>
 public sealed record EmailConfirmationRequestedData(Guid AccountId, string Email, string Name, Uri ConfirmationUrl, DateTimeOffset ExpiresAt);
+
+/// <summary>data do GuestAccessRequested (contracts/asyncapi/identity.v1.yaml).</summary>
+public sealed record GuestAccessRequestedData(Guid AccountId, string Email, string Name, Uri AccessUrl, DateTimeOffset ExpiresAt);
 
 /// <summary>data do InvoiceIssued (contracts/asyncapi/fulfillment.v1.yaml, só os campos usados no e-mail).</summary>
 public sealed record InvoiceIssuedData(Guid OrderId, string CustomerEmail, string AccessKey, int Number, int Series, long TotalCents);

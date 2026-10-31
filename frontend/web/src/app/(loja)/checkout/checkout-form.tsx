@@ -9,7 +9,11 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { TextField } from "@/components/ui/field";
+import { loginHref } from "@/lib/auth/return-to";
+import { checkGuestEmail } from "@/lib/guest";
 import { cn } from "@/lib/utils";
 import { checkCard, type CardErrors, type CardField, type CardInput } from "@/lib/card";
 import { tokenizeCard, type PaymentProvider } from "@/lib/card-token";
@@ -47,6 +51,8 @@ type Props = {
   /** a entrega para começar: a do último pedido ou, no primeiro, só o nome da conta */
   initialDelivery: DeliveryInput;
   remembered: boolean;
+  /** sem sessão: a compra pede o e-mail, e a conta é opcional */
+  guest: boolean;
   /** os produtos e a conta, renderizados no servidor, antes da entrega e do pagamento */
   review: ReactNode;
   /** o resumo da conta, acima do botão */
@@ -69,6 +75,7 @@ export function CheckoutForm({
   provider,
   initialDelivery,
   remembered,
+  guest,
   review,
   summary,
 }: Props) {
@@ -77,6 +84,11 @@ export function CheckoutForm({
   const [delivery, setDelivery] = useState(() => state.delivery?.values ?? initialDelivery);
   const [deliveryErrors, setDeliveryErrors] = useState<DeliveryErrors>(() => state.delivery?.errors ?? {});
   const deliveryFields = useRef<Partial<Record<DeliveryField, HTMLElement | null>>>({});
+  const [email, setEmail] = useState(() => state.guest?.email ?? "");
+  const [emailError, setEmailError] = useState<string>();
+  const emailField = useRef<HTMLInputElement | null>(null);
+  // o erro do servidor vale enquanto o e-mail for o que ele conferiu
+  const shownEmailError = emailError ?? (state.guest?.email === email ? state.guest?.error : undefined);
   const [quote, setQuote] = useState<ShippingQuoteState>(() =>
     initialQuote ? { kind: "done", ...initialQuote } : { kind: "waiting" },
   );
@@ -154,6 +166,14 @@ export function CheckoutForm({
     if (busy) return;
     const data = new FormData(event.currentTarget);
     setCardProblem(undefined);
+    if (guest) {
+      const wrongEmail = checkGuestEmail(email);
+      setEmailError(wrongEmail);
+      if (wrongEmail) {
+        emailField.current?.focus();
+        return;
+      }
+    }
     // a entrega antes do cartão: o token do provedor é de uso único
     const wrong = checkDelivery(delivery);
     if (Object.keys(wrong).length > 0) {
@@ -207,6 +227,39 @@ export function CheckoutForm({
       <input type="hidden" name="idempotency_key" value={idempotencyKey} />
       <div className="space-y-8">
         {review}
+        {guest && (
+          <section aria-labelledby="contato" className="space-y-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+              <h2 id="contato" className="text-xl font-semibold tracking-tight">
+                Contato
+              </h2>
+              <p className="text-ink-soft">
+                Já tem conta?{" "}
+                <Link
+                  href={loginHref("/checkout")}
+                  className="text-ink inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
+                >
+                  Entrar
+                </Link>
+              </p>
+            </div>
+            <TextField
+              ref={emailField}
+              id="contato-email"
+              label="E-mail"
+              name="email"
+              type="email"
+              autoComplete="email"
+              hint="Para o recibo e o link do pedido. Não precisa criar conta nem senha."
+              value={email}
+              error={shownEmailError}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(undefined);
+              }}
+            />
+          </section>
+        )}
         <DeliveryFields
           delivery={delivery}
           errors={deliveryErrors}

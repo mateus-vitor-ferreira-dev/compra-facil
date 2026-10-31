@@ -37,6 +37,8 @@ public static class DependencyInjection
             .Handle<OrderDeliveredData, OnOrderDelivered>(NotificationEvents.OrdersTopic, NotificationEvents.OrderDelivered)
             .Handle<SupplierReturnOpenedData, OnSupplierReturnOpened>(NotificationEvents.SupplierOrdersTopic, NotificationEvents.SupplierReturnOpened)
             .Handle<InvoiceIssuedData, OnInvoiceIssued>(NotificationEvents.InvoicesTopic, NotificationEvents.InvoiceIssued)
+            .Handle<GuestAccessRequestedData, OnGuestAccessRequested>(
+                NotificationEvents.AccountsTopic, NotificationEvents.GuestAccessRequested)
             .Handle<EmailConfirmationRequestedData, OnEmailConfirmationRequested>(
                 NotificationEvents.AccountsTopic, NotificationEvents.EmailConfirmationRequested));
         return builder;

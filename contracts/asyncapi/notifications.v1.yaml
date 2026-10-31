@@ -75,6 +75,20 @@ operations:
           type: string
           const: notifications
 
+  onGuestAccessRequested:
+    action: receive
+    channel:
+      $ref: "#/channels/accountEvents"
+    summary: Manda o e-mail com o link de quem comprou sem conta.
+    messages:
+      - $ref: "#/channels/accountEvents/messages/GuestAccessRequested"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications
+
   onEmailConfirmationRequested:
     action: receive
     channel:

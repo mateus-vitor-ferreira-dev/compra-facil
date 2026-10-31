@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ProductImage } from "@/components/commerce/product-image";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
-import { requireAccount } from "@/lib/auth/current";
+import { accessToken, currentAccount } from "@/lib/auth/current";
 import { readCart } from "@/lib/cart";
 import { loadCartLines } from "@/lib/cart-lines";
 import { summarize } from "@/lib/cart-rules";
@@ -26,7 +26,9 @@ const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL
  */
 export default async function CheckoutPage() {
   await connection();
-  const { account, token } = await requireAccount("/checkout");
+  // sem sessão, a compra segue sem conta: o e-mail vem no formulário
+  const token = await accessToken();
+  const account = token ? await currentAccount() : null;
   const cart = await readCart();
   if (cart.items.length === 0) redirect("/carrinho");
 
@@ -34,8 +36,10 @@ export default async function CheckoutPage() {
   const summary = summarize(lines);
   if (!summary.canCheckout || unreachable) redirect("/carrinho");
   // a entrega do último pedido: quem compra de novo só confere (sem ela, ou com o orders fora, começa vazia)
-  const previous = await listMyOrders(token);
-  const remembered = previous.ok ? previous.data.data.map(fromOrder).find((d) => d !== undefined) : undefined;
+  const previous = account && token ? await listMyOrders(token) : undefined;
+  const remembered = previous?.ok
+    ? previous.data.data.map(fromOrder).find((d) => d !== undefined)
+    : undefined;
   // o frete cotado já com o CEP de antes: sem JavaScript, o cliente vê e escolhe do mesmo jeito
   const items = lines.flatMap((l) => (l.product ? [{ sku: l.product.sku, quantity: l.qty }] : []));
   const zip = remembered?.zip_code.replace(/\D/g, "");
@@ -54,8 +58,9 @@ export default async function CheckoutPage() {
           quote?.ok && quote.options.length ? { zip: quote.zipCode, options: quote.options } : undefined
         }
         provider={{ url: env.PAYMENT_PROVIDER_URL, publicKey: env.PAYMENT_PUBLIC_KEY }}
-        initialDelivery={remembered ?? { ...EMPTY_DELIVERY, name: account.name }}
+        initialDelivery={remembered ?? { ...EMPTY_DELIVERY, name: account?.name ?? "" }}
         remembered={remembered !== undefined}
+        guest={!account}
         review={
           <>
             <section aria-labelledby="produtos">
@@ -96,13 +101,15 @@ export default async function CheckoutPage() {
               </ul>
             </section>
 
-            <section aria-labelledby="conta" className="space-y-1">
-              <h2 id="conta" className="text-xl font-semibold tracking-tight">
-                Conta
-              </h2>
-              <p>{account.name}</p>
-              <p className="text-ink-soft">A confirmação e o recibo vão para {account.email}.</p>
-            </section>
+            {account && (
+              <section aria-labelledby="conta" className="space-y-1">
+                <h2 id="conta" className="text-xl font-semibold tracking-tight">
+                  Conta
+                </h2>
+                <p>{account.name}</p>
+                <p className="text-ink-soft">A confirmação e o recibo vão para {account.email}.</p>
+              </section>
+            )}
           </>
         }
         summary={

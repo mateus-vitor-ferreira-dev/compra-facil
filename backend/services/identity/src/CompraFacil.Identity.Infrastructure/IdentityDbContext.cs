@@ -16,6 +16,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     : IdentityDbContext<User, Role, Guid>(options), IDataProtectionKeyContext
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<GuestAccessLink> GuestAccessLinks => Set<GuestAccessLink>();
     public DbSet<SigningKey> SigningKeys => Set<SigningKey>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

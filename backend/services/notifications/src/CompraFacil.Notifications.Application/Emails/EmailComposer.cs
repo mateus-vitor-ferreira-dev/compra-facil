@@ -19,6 +19,7 @@ public static partial class EmailComposer
     private static readonly IFluidTemplate s_confirmed = Load("order-confirmed");
     private static readonly IFluidTemplate s_cancelled = Load("order-cancelled");
     private static readonly IFluidTemplate s_confirmEmail = Load("confirm-email");
+    private static readonly IFluidTemplate s_guestAccess = Load("guest-access");
     private static readonly IFluidTemplate s_invoiceIssued = Load("invoice-issued");
     private static readonly IFluidTemplate s_returned = Load("order-returned");
     private static readonly IFluidTemplate s_refunded = Load("order-refunded");
@@ -146,6 +147,24 @@ public static partial class EmailComposer
             order_url = orderUrl,
         }), s_html);
         return new ComposedEmail($"Nota fiscal do pedido {number}", html, ToText(html) + "\n" + orderUrl);
+    }
+
+    /// <summary>O link de quem comprou sem conta: é por ele que acompanha o pedido e desiste da compra.</summary>
+    public static async Task<ComposedEmail> GuestAccessAsync(GuestAccessRequestedData request, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        // só links http(s): o template não pode virar um javascript: vindo de um evento adulterado
+        if (request.AccessUrl.Scheme is not ("http" or "https"))
+        {
+            throw new PoisonMessageException($"access_url com esquema {request.AccessUrl.Scheme}");
+        }
+        var html = await s_guestAccess.RenderAsync(Context(new
+        {
+            name = FirstName(request.Name),
+            url = request.AccessUrl.AbsoluteUri,
+            valid_for = ValidFor(request.ExpiresAt - now),
+        }), s_html);
+        return new ComposedEmail("Acompanhe a sua compra", html, ToText(html) + "\n" + request.AccessUrl.AbsoluteUri);
     }
 
     public static async Task<ComposedEmail> ConfirmEmailAsync(EmailConfirmationRequestedData request, DateTimeOffset now)

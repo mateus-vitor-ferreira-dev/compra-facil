@@ -149,6 +149,7 @@ services:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${PG_IDENTITY_PASSWORD}
       Identity__EmailConfirmation__UrlTemplate: ${FRONT_URL}/conta/confirmar-email?conta={account_id}&token={token}
+      Identity__GuestAccess__UrlTemplate: ${FRONT_URL}/acompanhar/abrir?token={token}
       # os e-mails ficam no Mailpit, sem chegar a ninguém: a conta não espera a confirmação
       Identity__EmailConfirmation__Required: "false"
       # o operador inicial; conta que já existe mantém a senha trocada depois

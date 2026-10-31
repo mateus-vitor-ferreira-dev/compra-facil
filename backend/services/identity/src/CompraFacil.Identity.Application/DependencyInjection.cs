@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<ResendConfirmation>();
         services.AddScoped<Sessions>();
         services.AddScoped<GoogleSignIn>();
+        services.AddScoped<GuestCheckout>();
         services.AddScoped<AccountQueries>();
         services.AddScoped<AccessTokenIssuer>();
         services.TryAddSingleton(TimeProvider.System); // o AddPostgres troca pelo relógio do banco

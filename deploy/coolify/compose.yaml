@@ -193,6 +193,7 @@ services:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${PG_IDENTITY_PASSWORD}
       Identity__EmailConfirmation__UrlTemplate: ${FRONT_URL}/conta/confirmar-email?conta={account_id}&token={token}
+      Identity__GuestAccess__UrlTemplate: ${FRONT_URL}/acompanhar/abrir?token={token}
       Identity__EmailConfirmation__Required: ${EMAIL_CONFIRMATION_REQUIRED:-true}
       # o operador inicial; conta que já existe mantém a senha trocada depois
       Identity__Admin__Email: ${ADMIN_EMAIL:?o e-mail do operador}
