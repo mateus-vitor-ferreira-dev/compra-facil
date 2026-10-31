@@ -63,7 +63,7 @@ export function PricingRuleForm({
             defaultValue={v.category_id ?? ""}
             aria-invalid={err.category_id ? true : undefined}
             aria-describedby={err.category_id ? `${selectId}-erro` : `${selectId}-dica`}
-            className="bg-surface border-ink/25 aria-invalid:border-danger h-11 w-full rounded-md border px-3"
+            className="bg-surface border-field-line aria-invalid:border-danger h-11 w-full rounded-md border px-3"
           >
             <option value="">Escolha…</option>
             {categories.map((root) => (

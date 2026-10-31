@@ -134,7 +134,7 @@ export function SearchBox({ defaultValue = "", className }: { defaultValue?: str
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="bg-surface border-line text-ink placeholder:text-ink-soft focus-visible:border-ink h-11 w-full rounded-md border pr-12 pl-4 text-base outline-none focus-visible:outline-2 focus-visible:outline-offset-0"
+          className="bg-surface border-field-line text-ink placeholder:text-ink-soft focus-visible:border-ink h-11 w-full rounded-md border pr-12 pl-4 text-base outline-none focus-visible:outline-2 focus-visible:outline-offset-0"
         />
         <button
           type="submit"

@@ -29,7 +29,7 @@ export function AdminNav() {
             aria-current={current ? "page" : undefined}
             className={cn(
               "text-on-hero/75 hover:text-on-hero inline-flex min-h-11 items-center border-b-2 border-transparent px-3 font-medium whitespace-nowrap",
-              current && "border-tag text-on-hero",
+              current && "border-on-hero text-on-hero",
             )}
           >
             {s.label}
