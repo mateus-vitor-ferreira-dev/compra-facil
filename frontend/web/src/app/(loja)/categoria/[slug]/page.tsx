@@ -42,6 +42,10 @@ async function findCategory(slug: string) {
   } as const;
 }
 
+/** No celular, os chips rolam numa linha só e vão até a borda da tela; a partir do tablet, quebram linha. */
+const chipRow =
+  "-mx-4 flex gap-2 [scrollbar-width:none] overflow-x-auto px-4 py-0.5 *:shrink-0 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0";
+
 /** O chip de um tipo: mais leve que o da subcategoria, para os dois níveis não competirem. */
 function chip(active: boolean) {
   return active
@@ -90,7 +94,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const filtered = activeFilterCount(filters) > 0;
 
   return (
-    <main id="conteudo" className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6">
+    <main id="conteudo" className="mx-auto max-w-6xl space-y-3 px-4 pt-1 sm:space-y-6 sm:px-6 sm:pt-6">
       <Breadcrumbs
         items={[
           { href: "/", label: "Início" },
@@ -102,7 +106,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
       {subcategories.length > 0 && (
         <nav aria-label={`Subcategorias de ${root.name}`}>
-          <ul className="flex flex-wrap gap-2">
+          <ul className={chipRow}>
             <li>
               <Link
                 href={`/categoria/${root.slug}`}
@@ -137,7 +141,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       {/* com um tipo só (Monitores), os chips repetiriam a subcategoria */}
       {group && types.length > 1 && (
         <nav aria-label={`Tipos de ${group.name}`}>
-          <ul className="flex flex-wrap gap-2">
+          <ul className={chipRow}>
             <li>
               <Link
                 href={`/categoria/${group.slug}`}
