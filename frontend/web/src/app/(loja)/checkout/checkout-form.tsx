@@ -354,6 +354,17 @@ export function CheckoutForm({
           >
             {checking ? "Conferindo o cartão…" : pending ? "Fazendo o pedido…" : `Fazer o pedido de ${total}`}
           </Button>
+          <p className="text-ink-soft mt-3 text-sm">
+            Ao fazer o pedido, você concorda com os{" "}
+            <Link href="/politicas/termos" className="text-ink underline underline-offset-4">
+              Termos de uso
+            </Link>
+            . Você pode desistir em até 7 dias depois de receber:{" "}
+            <Link href="/politicas/trocas-e-devolucoes" className="text-ink underline underline-offset-4">
+              veja como
+            </Link>
+            .
+          </p>
         </div>
       </aside>
     </form>
