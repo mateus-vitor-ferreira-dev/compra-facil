@@ -1,5 +1,6 @@
 import { RotateCcw, Truck } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
@@ -161,7 +162,12 @@ export default async function ProductPage({ params }: Props) {
           <ul className="border-line text-ink-soft space-y-2 border-t pt-5 text-sm">
             <li className="flex gap-2">
               <RotateCcw aria-hidden="true" className="text-ink size-5 shrink-0" />
-              Até 7 dias depois da entrega para desistir da compra, sem precisar explicar o motivo.
+              <span>
+                Até 7 dias depois da entrega para desistir da compra, sem precisar explicar o motivo.{" "}
+                <Link href="/politicas/trocas-e-devolucoes" className="text-ink underline underline-offset-4">
+                  Veja como
+                </Link>
+              </span>
             </li>
             <li className="flex gap-2">
               <Truck aria-hidden="true" className="text-ink size-5 shrink-0" />

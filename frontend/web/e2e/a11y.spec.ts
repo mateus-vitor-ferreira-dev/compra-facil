@@ -53,7 +53,15 @@ for (const scheme of ["light", "dark"] as const) {
       await page.goto(TV);
       await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
       await expect(page.getByRole("status").filter({ hasText: "Adicionado" })).toBeVisible();
-      for (const path of ["/checkout", "/acompanhar", "/acompanhar/abrir?token=link-bom"]) {
+      for (const path of [
+        "/checkout",
+        "/acompanhar",
+        "/acompanhar/abrir?token=link-bom",
+        "/politicas/entrega",
+        "/politicas/trocas-e-devolucoes",
+        "/politicas/privacidade",
+        "/politicas/termos",
+      ]) {
         await page.goto(path);
         await audit(page, path);
       }

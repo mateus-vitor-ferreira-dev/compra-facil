@@ -151,3 +151,19 @@ test("galeria no celular: arrastar a faixa marca a miniatura", async ({ page }) 
     "true",
   );
 });
+
+test("as políticas abrem pelo rodapé, marcadas como rascunho e fora dos buscadores", async ({ page }) => {
+  await page.goto("/");
+  for (const name of ["Entrega", "Trocas e devoluções", "Privacidade", "Termos de uso"]) {
+    await page.getByRole("navigation", { name: "Ajuda" }).getByRole("link", { name }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+    await expect(page.getByRole("note")).toContainText("Rascunho em revisão");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  }
+});
+
+test("sem dados configurados, a loja não inventa quem vende", async ({ page }) => {
+  await page.goto("/politicas/termos");
+  await expect(page.getByText("[Nome empresarial, CNPJ e endereço a definir.]")).toBeVisible();
+  await expect(page.locator("address")).toHaveCount(0);
+});
