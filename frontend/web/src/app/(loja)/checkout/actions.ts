@@ -16,6 +16,7 @@ import {
   type DeliveryErrors,
   type DeliveryInput,
 } from "@/lib/delivery";
+import { MAX_INSTALLMENTS } from "@/lib/card";
 import { env } from "@/lib/env";
 import { checkGuestEmail } from "@/lib/guest";
 import { placeOrder, type PlaceOrderPayment } from "@/lib/orders-api";
@@ -49,7 +50,7 @@ const paymentForm = z.discriminatedUnion("method", [
     method: z.literal("card"),
     card_token: z.string().min(1).max(128),
     card_brand: z.string().min(1).max(16),
-    installments: z.coerce.number().int().min(1).max(12),
+    installments: z.coerce.number().int().min(1).max(MAX_INSTALLMENTS),
   }),
 ]);
 

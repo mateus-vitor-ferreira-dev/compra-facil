@@ -145,6 +145,12 @@ public sealed class Order
     public uint Version { get; private set; }
 
     /// <summary>Cria o pedido pendente com itens já validados e precificados pelo catálogo.</summary>
+    /// <summary>As parcelas sem juros que a loja banca (frontend/web/src/lib/card.ts mostra as mesmas).</summary>
+    public const int MaxInstallments = 6;
+
+    /// <summary>A menor parcela, em centavos: cada parcela a mais custa taxa, e a venda pequena não a paga.</summary>
+    public const long MinInstallmentCents = 3000;
+
     public static Order Place(
         Guid id, Guid customerId, string customerEmail, IReadOnlyList<OrderItem> items,
         string idempotencyKey, string requestHash, DateTimeOffset now, Recipient recipient, ShippingAddress shippingAddress,
@@ -158,7 +164,7 @@ public sealed class Order
         {
             throw new DomainException("CPF, CEP ou UF inválidos");
         }
-        if (installments is < 1 or > 12 || (paymentMethod == PaymentMethod.Pix && installments != 1))
+        if (installments is < 1 or > MaxInstallments || (paymentMethod == PaymentMethod.Pix && installments != 1))
         {
             throw new DomainException($"parcelas inválidas para {paymentMethod}: {installments}");
         }
@@ -195,6 +201,10 @@ public sealed class Order
         order._items.AddRange(items);
         // o total cobrado: os itens mais o frete
         order.Total = items.Aggregate(Money.Zero(items[0].UnitPrice.Currency), (sum, i) => sum.Plus(i.LineTotal)).Plus(shipping.Price);
+        if (installments > 1 && order.Total.AmountCents / installments < MinInstallmentCents)
+        {
+            throw new DomainException($"parcela menor que o mínimo em {installments} vezes");
+        }
         return order;
     }
 

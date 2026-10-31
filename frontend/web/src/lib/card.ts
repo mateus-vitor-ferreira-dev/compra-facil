@@ -116,11 +116,11 @@ export function checkCard(
   return { ok: true, card: { number, name, month, year, cvv, brand } };
 }
 
-/** A menor parcela que a loja aceita (em centavos), como nos provedores de pagamento. */
-export const MIN_INSTALLMENT_CENTS = 500;
-export const MAX_INSTALLMENTS = 12;
+/** A menor parcela que a loja aceita (em centavos): cada parcela a mais custa taxa, e a venda pequena não a paga. */
+export const MIN_INSTALLMENT_CENTS = 3000;
+export const MAX_INSTALLMENTS = 6;
 
-/** As parcelas que o total permite, sem juros: de 1× até 12×, sem parcela menor que R$ 5,00. */
+/** As parcelas que o total permite, sem juros: de 1× até 6×, sem parcela menor que R$ 30,00 (o orders confere de novo). */
 export function installmentOptions(totalCents: number): { count: number; eachCents: number }[] {
   const options = [{ count: 1, eachCents: totalCents }];
   for (let count = 2; count <= MAX_INSTALLMENTS; count++) {
