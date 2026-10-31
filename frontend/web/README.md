@@ -81,13 +81,13 @@ Localmente, `npm run preview` faz o build do Worker e o sobe no workerd (porta 8
 
 As páginas em `/politicas` e o rodapé leem as variáveis abaixo, sem valor padrão: sem elas, a loja não mostra dados da empresa, e as políticas aparecem com os trechos a definir marcados.
 
-| Variável | Para quê |
-| --- | --- |
-| `LEGAL_NAME` | Nome empresarial |
-| `LEGAL_CNPJ` | CNPJ |
-| `LEGAL_ADDRESS` | Endereço exigido pelo Decreto 7.962/2013 |
-| `LEGAL_EMAIL` | Canal de atendimento e de dados pessoais |
-| `LEGAL_PHONE` | Telefone (opcional) |
+| Variável            | Para quê                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `LEGAL_NAME`        | Nome empresarial                                                                       |
+| `LEGAL_CNPJ`        | CNPJ                                                                                   |
+| `LEGAL_ADDRESS`     | Endereço exigido pelo Decreto 7.962/2013                                               |
+| `LEGAL_EMAIL`       | Canal de atendimento e de dados pessoais                                               |
+| `LEGAL_PHONE`       | Telefone (opcional)                                                                    |
 | `POLICIES_REVIEWED` | `true` só depois da revisão do advogado: tira o aviso de rascunho e libera a indexação |
 
 Mesmo com `POLICIES_REVIEWED=true`, o texto mantém os trechos a definir até serem editados.
