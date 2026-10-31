@@ -296,7 +296,7 @@ export interface components {
             /** @description Bandeira, como o provedor devolveu na tokenização (ex.: `visa`). */
             card_brand?: string;
             /**
-             * @description Parcelas no cartão; PIX é à vista.
+             * @description Parcelas sem juros no cartão, com parcela mínima de R$ 30,00; PIX é à vista.
              * @default 1
              */
             installments: number;
