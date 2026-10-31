@@ -109,12 +109,12 @@ export function ShippingEstimate({ items, className }: { items: ShippingItem[]; 
             value={zip}
             onChange={(e) => setTyped(formatZipCode(e.target.value))}
             aria-describedby={`${id}-resultado`}
-            className="border-ink/25 bg-surface text-ink h-11 w-36 rounded-md border px-3 text-base tabular-nums outline-none focus-visible:outline-2"
+            className="border-field-line bg-surface text-ink h-11 w-36 rounded-md border px-3 text-base tabular-nums outline-none focus-visible:outline-2"
           />
           <button
             type="submit"
             disabled={state.kind === "loading"}
-            className="border-ink/25 bg-surface text-ink hover:border-ink/60 h-11 cursor-pointer rounded-md border px-4 font-semibold disabled:opacity-50"
+            className="border-field-line bg-surface text-ink hover:border-ink/60 h-11 cursor-pointer rounded-md border px-4 font-semibold disabled:opacity-50"
           >
             {state.kind === "loading" ? "Calculando…" : "Calcular"}
           </button>

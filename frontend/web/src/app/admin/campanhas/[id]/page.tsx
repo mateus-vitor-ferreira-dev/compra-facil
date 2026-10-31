@@ -144,7 +144,7 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
                 defaultValue={search}
                 minLength={2}
                 placeholder="Nome, marca ou SKU"
-                className="bg-surface border-ink/25 h-11 min-w-0 flex-1 rounded-md border px-3"
+                className="bg-surface border-field-line h-11 min-w-0 flex-1 rounded-md border px-3"
               />
               <button type="submit" className={buttonVariants({ variant: "secondary", size: "icon" })}>
                 <Search aria-hidden="true" />

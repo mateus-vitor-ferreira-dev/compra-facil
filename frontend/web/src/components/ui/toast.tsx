@@ -43,9 +43,9 @@ export function Toaster({ children }: { children: ReactNode }) {
             )}
           >
             {t.tone === "success" ? (
-              <CheckCircle2 aria-hidden className="text-tag mt-0.5 size-4 shrink-0" />
+              <CheckCircle2 aria-hidden className="mt-0.5 size-4 shrink-0" />
             ) : (
-              <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-[#ff9aa0]" />
+              <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
             )}
             <p className="flex-1">{t.message}</p>
             <button

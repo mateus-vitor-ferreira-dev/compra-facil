@@ -116,6 +116,7 @@ const palette = [
   ["Superfície", "bg-surface", "campos e painéis"],
   ["Tinta", "bg-ink", "texto e ações"],
   ["Tinta suave", "bg-ink-soft", "texto secundário"],
+  ["Borda de campo", "bg-field-line", "campos e controles: 3:1 ou mais"],
   ["Etiqueta", "bg-tag", "só preço de campanha"],
   ["Sucesso", "bg-success", "pedido confirmado"],
   ["Erro", "bg-danger", "falha e cancelamento"],

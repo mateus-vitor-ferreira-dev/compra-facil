@@ -200,7 +200,7 @@ export function CardFields({
           id="parcelas"
           name="installments"
           disabled={disabled}
-          className="border-ink/25 bg-surface text-ink h-11 w-full cursor-pointer rounded-md border px-3 text-base outline-none focus-visible:outline-2"
+          className="border-field-line bg-surface text-ink h-11 w-full cursor-pointer rounded-md border px-3 text-base outline-none focus-visible:outline-2"
         >
           {installmentOptions(totalCents).map(({ count, eachCents }) => (
             <option key={count} value={count}>

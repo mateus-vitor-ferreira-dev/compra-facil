@@ -32,7 +32,7 @@ export function CategoryForm({ parents }: { parents: { id: string; name: string 
           id="parent_id"
           name="parent_id"
           defaultValue={v.parent_id ?? ""}
-          className="bg-surface border-ink/25 h-11 w-full rounded-md border px-3"
+          className="bg-surface border-field-line h-11 w-full rounded-md border px-3"
         >
           <option value="">Nenhum (é um departamento)</option>
           {parents.map((r) => (

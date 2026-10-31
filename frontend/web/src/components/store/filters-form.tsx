@@ -193,7 +193,7 @@ export function FiltersForm({
                     onChange={(e) => setBrandSearch(e.target.value)}
                     placeholder="Buscar marca"
                     autoComplete="off"
-                    className="border-ink/25 bg-surface focus:border-ink h-10 w-full rounded-md border px-3 text-sm outline-none"
+                    className="border-field-line bg-surface focus:border-ink h-10 w-full rounded-md border px-3 text-sm outline-none"
                   />
                 </div>
               )}
@@ -224,7 +224,7 @@ export function FiltersForm({
               <label htmlFor={id(name)} className="text-ink-soft text-sm">
                 {label}
               </label>
-              <div className="border-ink/25 bg-surface focus-within:border-ink flex h-11 items-center gap-1 rounded-md border px-3">
+              <div className="border-field-line bg-surface focus-within:border-ink flex h-11 items-center gap-1 rounded-md border px-3">
                 <span aria-hidden="true" className="text-ink-soft text-sm">
                   R$
                 </span>

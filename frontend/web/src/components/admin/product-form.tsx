@@ -32,7 +32,7 @@ const STATUS_HINT: Record<ProductFormValues["status"], string> = {
 };
 
 const control =
-  "bg-surface border-ink/25 w-full rounded-md border px-3 outline-none focus-visible:outline-2 aria-invalid:border-danger";
+  "bg-surface border-field-line w-full rounded-md border px-3 outline-none focus-visible:outline-2 aria-invalid:border-danger";
 
 /**
  * Criar e editar produto. Na edição vai o ETag da leitura (If-Match): se outra pessoa gravou antes, o
@@ -144,7 +144,7 @@ export function ProductForm({
           {(Object.keys(STATUS_LABEL) as ProductFormValues["status"][]).map((s) => (
             <label
               key={s}
-              className="border-ink/25 has-[:checked]:border-ink has-[:checked]:bg-ink/5 has-[:focus-visible]:outline-focus flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 py-2 has-[:focus-visible]:outline-2"
+              className="border-field-line has-[:checked]:border-ink has-[:checked]:bg-ink/5 has-[:focus-visible]:outline-focus flex min-h-11 cursor-pointer gap-3 rounded-md border px-3 py-2 has-[:focus-visible]:outline-2"
             >
               <input
                 type="radio"

@@ -84,13 +84,13 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-6">
+      <div className="grid grid-cols-6 gap-4">
         <TextField
           {...field("name")}
           label="Nome de quem recebe"
           autoComplete="name"
           onChange={(e) => onChange("name", e.target.value)}
-          className="sm:col-span-6"
+          className="col-span-6"
         />
         <TextField
           {...field("cpf")}
@@ -98,7 +98,7 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
           inputMode="numeric"
           autoComplete="off"
           onChange={(e) => onChange("cpf", formatCpf(e.target.value))}
-          className="sm:col-span-3"
+          className="col-span-3"
         />
         <TextField
           {...field("phone")}
@@ -106,9 +106,9 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
           type="tel"
           autoComplete="tel-national"
           onChange={(e) => onChange("phone", formatPhone(e.target.value))}
-          className="sm:col-span-3"
+          className="col-span-3"
         />
-        <div className="sm:col-span-2">
+        <div className="col-span-3 sm:col-span-2">
           <TextField
             {...field("zip_code")}
             label="CEP"
@@ -126,7 +126,7 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
           id="entrega-cep-busca"
           aria-live="polite"
           className={cn(
-            "text-sm sm:col-span-4 sm:self-end sm:pb-3",
+            "col-span-6 text-sm sm:col-span-4 sm:self-end sm:pb-3",
             lookup === "missing" || lookup === "down" ? "text-ink" : "text-ink-soft",
             lookup === "idle" && "hidden sm:block",
           )}
@@ -138,7 +138,7 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
           label="Rua"
           autoComplete="address-line1"
           onChange={(e) => onChange("street", e.target.value)}
-          className="sm:col-span-4"
+          className="col-span-6 sm:col-span-4"
         />
         <TextField
           {...field("number")}
@@ -146,30 +146,30 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
           hint="Sem número: S/N"
           autoComplete="off"
           onChange={(e) => onChange("number", e.target.value)}
-          className="sm:col-span-2"
+          className="col-span-2"
         />
         <TextField
           {...field("complement")}
           label="Complemento (opcional)"
           autoComplete="address-line2"
           onChange={(e) => onChange("complement", e.target.value)}
-          className="sm:col-span-3"
+          className="col-span-4 sm:col-span-3"
         />
         <TextField
           {...field("district")}
           label="Bairro"
           autoComplete="address-level3"
           onChange={(e) => onChange("district", e.target.value)}
-          className="sm:col-span-3"
+          className="col-span-6 sm:col-span-3"
         />
         <TextField
           {...field("city")}
           label="Cidade"
           autoComplete="address-level2"
           onChange={(e) => onChange("city", e.target.value)}
-          className="sm:col-span-4"
+          className="col-span-4"
         />
-        <div className="space-y-1.5 sm:col-span-2">
+        <div className="col-span-2 space-y-1.5">
           <label htmlFor="entrega-state" className="block font-medium">
             Estado
           </label>
@@ -182,7 +182,7 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
             onChange={(e) => onChange("state", e.target.value)}
             aria-invalid={errors.state ? true : undefined}
             aria-describedby={errors.state ? "entrega-state-erro" : undefined}
-            className="border-ink/25 bg-surface text-ink aria-invalid:border-danger h-11 w-full cursor-pointer rounded-md border px-3 text-base outline-none focus-visible:outline-2"
+            className="border-field-line bg-surface text-ink aria-invalid:border-danger h-11 w-full cursor-pointer rounded-md border px-3 text-base outline-none focus-visible:outline-2"
           >
             <option value="">UF</option>
             {STATES.map((uf) => (
