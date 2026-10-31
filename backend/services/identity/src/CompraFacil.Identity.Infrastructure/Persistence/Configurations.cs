@@ -19,6 +19,10 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.NormalizedUserName).HasMaxLength(User.MaxEmailLength);
         // RequireUniqueEmail já confere na aplicação; o índice único segura a corrida entre dois cadastros
         builder.HasIndex(u => u.NormalizedEmail).IsUnique();
+        builder.Property(u => u.GuestEmail).HasMaxLength(User.MaxEmailLength);
+        builder.Property(u => u.NormalizedGuestEmail).HasMaxLength(User.MaxEmailLength);
+        builder.HasIndex(u => u.NormalizedGuestEmail);
+        builder.HasIndex(u => u.GuestCheckoutKey).IsUnique(); // segura a corrida do clique duplo
     }
 }
 
@@ -59,6 +63,19 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
         builder.Property(t => t.RevocationReason).HasConversion<string>().HasMaxLength(16);
         builder.Property(t => t.Version).IsRowVersion(); // xmin
         builder.HasOne<User>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class GuestAccessLinkConfiguration : IEntityTypeConfiguration<GuestAccessLink>
+{
+    public void Configure(EntityTypeBuilder<GuestAccessLink> builder)
+    {
+        builder.ToTable("guest_access_links");
+        builder.HasKey(l => l.Id);
+        builder.Property(l => l.TokenHash).HasMaxLength(32);
+        builder.HasIndex(l => l.TokenHash).IsUnique();
+        builder.HasIndex(l => new { l.UserId, l.CreatedAt });
+        builder.HasOne<User>().WithMany().HasForeignKey(l => l.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 

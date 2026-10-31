@@ -39,7 +39,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
   const query = await searchParams;
   const justPlaced = query.novo === "1";
   const justReturned = query.desistencia === "1";
-  const { token } = await requireAccount(`/conta/pedidos/${id}`);
+  const { account, token } = await requireAccount(`/conta/pedidos/${id}`);
   if (!z.uuid().safeParse(id).success) notFound();
   const result = await getOrder(token, id);
   if (!result.ok && result.error.status === 404) notFound();
@@ -70,6 +70,12 @@ export default async function OrderPage({ params, searchParams }: Props) {
       />
       <div className="mt-4 space-y-1">
         {justPlaced && <p className="font-semibold">Recebemos o seu pedido.</p>}
+        {justPlaced && account.is_guest && (
+          <p className="text-ink-soft">
+            Enviamos para {account.email} um link para voltar a este pedido sem senha. Guarde o e-mail: é por
+            ele que você acompanha a entrega e pode desistir da compra.
+          </p>
+        )}
         {justReturned && order.status === "returned" && (
           <p role="status" className="font-semibold">
             Desistência registrada. O estorno já foi pedido.

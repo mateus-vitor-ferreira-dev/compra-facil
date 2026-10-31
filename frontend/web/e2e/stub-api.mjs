@@ -9,6 +9,8 @@ const accessTokens = new Map(); // access token -> email
 const stats = { refresh: 0, revoke: 0, ordersPlaced: 0, ordersByKey: {} };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
+const guests = new Map(); // email -> nome, de quem comprou sem conta
+const guestKeys = new Map(); // chave do formulário -> email
 
 // a entrega dos pedidos da Ana (#221): o checkout dela já vem preenchido com ela
 const ANA_DELIVERY = {
@@ -1117,6 +1119,23 @@ createServer(async (req, res) => {
         created_at: new Date().toISOString(),
       });
     }
+    case "POST /identity/v1/sessions/guest": {
+      const { email, name, checkout_key: key } = await json(req);
+      if (!/@.+\./.test(email ?? "")) return problem(res, 422, "Dados inválidos");
+      const same = guestKeys.get(key);
+      if (same && same !== email) return problem(res, 409, "Compra já iniciada");
+      guestKeys.set(key, email);
+      guests.set(email, name);
+      return send(res, 200, tokens(email));
+    }
+    case "POST /identity/v1/sessions/guest/access": {
+      const { token } = await json(req);
+      if (token !== "link-bom") return problem(res, 401, "Não autenticado");
+      guests.set("convidada@exemplo.com", "Bia Lima");
+      return send(res, 200, tokens("convidada@exemplo.com"));
+    }
+    case "POST /identity/v1/sessions/guest/access/resend":
+      return send(res, 202, {});
     case "POST /identity/v1/accounts/confirm-email/resend":
       res.writeHead(202).end();
       return;
@@ -1185,8 +1204,9 @@ createServer(async (req, res) => {
       return send(res, 200, {
         id: "0199f6a0-0000-7000-8000-000000000a1a",
         email,
-        name: "Ana Souza",
+        name: guests.get(email) ?? "Ana Souza",
         email_confirmed: true,
+        is_guest: guests.has(email),
         // "admin@..." é da equipe: abre o painel
         roles: email.startsWith("admin@") ? ["admin"] : ["customer"],
         created_at: "2026-10-01T10:00:00Z",

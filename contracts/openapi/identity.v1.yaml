@@ -207,6 +207,85 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
+  /v1/sessions/guest:
+    post:
+      tags: [sessions]
+      operationId: createGuestSession
+      summary: Compra sem conta
+      description: |
+        Cria uma conta própria para esta compra, sem senha e com o papel `customer`, e abre a sessão. A
+        mesma `checkout_key` com o mesmo e-mail devolve a mesma conta: o reenvio do formulário não duplica o
+        pedido. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestSessionRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "409":
+          description: A mesma `checkout_key` já foi usada com outro e-mail, ou chegou ao mesmo tempo que outra.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/guest/access:
+    post:
+      tags: [sessions]
+      operationId: accessGuestSession
+      summary: Abre a sessão pelo link enviado por e-mail
+      description: O link continua valendo até vencer. Link desconhecido e vencido dão o mesmo `401`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestAccessRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/guest/access/resend:
+    post:
+      tags: [sessions]
+      operationId: resendGuestAccess
+      summary: Manda de novo o link das compras sem conta
+      description: Sempre `202`, com compra ou sem compra naquele e-mail. O mesmo link não é reenviado em intervalos curtos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestAccessResendRequest"
+      responses:
+        "202":
+          description: Aceito.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/sessions/google:
     post:
       tags: [sessions]
@@ -471,6 +550,38 @@ components:
         created_at:
           type: string
           format: date-time
+        is_guest:
+          type: boolean
+          description: Comprou sem conta; o acesso é pelo link enviado por e-mail, sem senha.
+
+    GuestSessionRequest:
+      type: object
+      required: [email, name, checkout_key]
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        name:
+          type: string
+          maxLength: 120
+        checkout_key:
+          type: string
+          format: uuid
+          description: Nasce com o formulário do checkout e é a mesma em cada reenvio dele.
+
+    GuestAccessRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          maxLength: 128
+
+    GuestAccessResendRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
 
     Tokens:
       type: object

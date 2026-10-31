@@ -21,6 +21,7 @@ public static class DependencyInjection
     {
         builder.AddPostgres<IdentityDbContext>();
         builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        builder.Services.AddScoped<IGuestRepository, GuestRepository>();
         builder.Services.AddScoped<IAccountTransaction, AccountTransaction>();
 
         var confirmation = builder.Configuration.GetSection(EmailConfirmationOptions.Section);
@@ -67,6 +68,7 @@ public static class DependencyInjection
 
         // login com o Google (#180): o ID token vem do BFF e é validado pelo JWKS do Google
         builder.Services.Configure<GoogleOptions>(builder.Configuration.GetSection(GoogleOptions.Section));
+        builder.Services.Configure<GuestAccessOptions>(builder.Configuration.GetSection(GuestAccessOptions.Section));
         builder.Services.AddHttpClient(GoogleTokenValidator.HttpClientName);
         builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 

@@ -105,6 +105,44 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                     b.ToTable("outbox", (string)null);
                 });
 
+            modelBuilder.Entity("CompraFacil.Identity.Domain.GuestAccessLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("bytea")
+                        .HasColumnName("token_hash");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_guest_access_links");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_guest_access_links_token_hash");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_guest_access_links_user_id_created_at");
+
+                    b.ToTable("guest_access_links", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Identity.Domain.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -246,6 +284,15 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("email_confirmed");
 
+                    b.Property<Guid?>("GuestCheckoutKey")
+                        .HasColumnType("uuid")
+                        .HasColumnName("guest_checkout_key");
+
+                    b.Property<string>("GuestEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("guest_email");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("lockout_enabled");
@@ -264,6 +311,11 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                         .HasMaxLength(254)
                         .HasColumnType("character varying(254)")
                         .HasColumnName("normalized_email");
+
+                    b.Property<string>("NormalizedGuestEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("normalized_guest_email");
 
                     b.Property<string>("NormalizedUserName")
                         .HasMaxLength(254)
@@ -298,9 +350,16 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_users");
 
+                    b.HasIndex("GuestCheckoutKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_guest_checkout_key");
+
                     b.HasIndex("NormalizedEmail")
                         .IsUnique()
                         .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedGuestEmail")
+                        .HasDatabaseName("ix_users_normalized_guest_email");
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
@@ -494,6 +553,16 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                         .HasName("pk_user_tokens");
 
                     b.ToTable("user_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("CompraFacil.Identity.Domain.GuestAccessLink", b =>
+                {
+                    b.HasOne("CompraFacil.Identity.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_guest_access_links_asp_net_users_user_id");
                 });
 
             modelBuilder.Entity("CompraFacil.Identity.Domain.RefreshToken", b =>

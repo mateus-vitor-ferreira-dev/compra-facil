@@ -29,7 +29,7 @@ public sealed class AccessTokenIssuer(ISigningKeyRing keys, IOptions<JwtOptions>
             Claims = new Dictionary<string, object>
             {
                 [JwtRegisteredClaimNames.Sub] = user.Id.ToString(),
-                [JwtRegisteredClaimNames.Email] = user.Email!,
+                [JwtRegisteredClaimNames.Email] = user.ContactEmail,
                 [JwtRegisteredClaimNames.Name] = user.Name,
                 ["roles"] = roles.Order(StringComparer.Ordinal).ToArray(),
                 [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString("N"),

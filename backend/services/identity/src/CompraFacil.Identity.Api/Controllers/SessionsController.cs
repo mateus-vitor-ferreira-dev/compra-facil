@@ -60,6 +60,37 @@ public sealed class SessionsController(Sessions sessions, GoogleSignIn google) :
         return TokenResponse.From(await google.LinkAsync(body.IdToken ?? "", body.Nonce ?? "", body.Password ?? "", ct));
     }
 
+    /// <summary>
+    /// createGuestSession: compra sem conta. Cada compra é uma conta própria; a mesma chave do formulário
+    /// devolve a mesma, e o e-mail digitado não dá acesso a nada que já exista com ele.
+    /// </summary>
+    [HttpPost("guest")]
+    public async Task<TokenResponse> Guest(GuestSessionRequest body, [FromServices] GuestCheckout guests, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        NoStore();
+        return TokenResponse.From(await guests.StartAsync(
+            new StartGuestCommand(body.Email ?? "", body.Name ?? "", body.CheckoutKey ?? Guid.Empty), ct));
+    }
+
+    /// <summary>accessGuestSession: abre a sessão pelo link do e-mail; o link continua valendo até vencer.</summary>
+    [HttpPost("guest/access")]
+    public async Task<TokenResponse> GuestAccess(GuestAccessRequest body, [FromServices] GuestCheckout guests, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        NoStore();
+        return TokenResponse.From(await guests.AccessAsync(body.Token ?? "", ct));
+    }
+
+    /// <summary>resendGuestAccess: manda o link de novo. Sempre 202: a resposta não diz se houve compra.</summary>
+    [HttpPost("guest/access/resend")]
+    public async Task<IActionResult> ResendGuestAccess(GuestAccessResendRequest body, [FromServices] GuestCheckout guests, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        await guests.ResendAsync(body.Email ?? "", ct);
+        return Accepted();
+    }
+
     private void NoStore() => Response.Headers.CacheControl = "no-store";
 }
 
@@ -68,6 +99,12 @@ public sealed record LoginRequest(string? Email, string? Password);
 public sealed record RefreshRequest(string? RefreshToken);
 
 public sealed record GoogleSessionRequest(string? IdToken, string? Nonce);
+
+public sealed record GuestSessionRequest(string? Email, string? Name, Guid? CheckoutKey);
+
+public sealed record GuestAccessRequest(string? Token);
+
+public sealed record GuestAccessResendRequest(string? Email);
 
 public sealed record GoogleLinkRequest(string? IdToken, string? Nonce, string? Password);
 
