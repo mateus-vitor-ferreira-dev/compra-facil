@@ -64,15 +64,15 @@ deploy` uma vez da máquina (`npx wrangler login` antes) ou deixe o CI criar e l
 4. **Workers & Pages → Observability**: os destinos OTLP para o Grafana Cloud (traces e logs do Worker),
    como em [`deploy/grafana/README.md`](../../deploy/grafana/README.md#a-loja-cloudflare-workers).
 
-No GitHub (**Settings → Secrets and variables → Actions**):
+No GitHub:
 
-| Tipo     | Nome                    | Valor                                        |
-| -------- | ----------------------- | -------------------------------------------- |
-| Secret   | `CLOUDFLARE_API_TOKEN`  | token com o modelo _Edit Cloudflare Workers_ |
-| Variable | `CLOUDFLARE_ACCOUNT_ID` | o id da conta (lateral do painel)            |
-| Variable | `URL_LOJA`              | `https://<domínio>`, sem barra no fim        |
+| Tipo                          | Nome                    | Valor                                        |
+| ----------------------------- | ----------------------- | -------------------------------------------- |
+| Secret do ambiente `producao` | `CLOUDFLARE_API_TOKEN`  | token com o modelo _Edit Cloudflare Workers_ |
+| Variable do repositório       | `URL_LOJA`              | `https://<domínio>`, sem barra no fim        |
+| Variable do repositório       | `CLOUDFLARE_ACCOUNT_ID` | o id da conta (lateral do painel)            |
 
-Enquanto `CLOUDFLARE_ACCOUNT_ID` não existir, o deploy é pulado.
+Enquanto `CLOUDFLARE_ACCOUNT_ID` não existir, o deploy é pulado: crie essa variável por último.
 
 Localmente, `npm run preview` faz o build do Worker e o sobe no workerd (porta 8787), com os valores de
 `.dev.vars` (fora do git; ex.: `API_URL=http://localhost`).

@@ -4,12 +4,13 @@
 # imagens naquele instante, cada uma com a tag fixa deste deploy. Um merge que mexe em dois serviços
 # publica duas vezes, uma ao fim de cada pipeline; a segunda leva os dois.
 #
-# Enquanto a variável COOLIFY_APP_UUID não existir no repositório, nada roda.
+# Enquanto a variável COOLIFY_APP_UUID não existir no repositório, nada roda. O token fica no ambiente
+# producao, que só aceita a main.
 name: deploy
 
 on:
   workflow_run:
-    workflows: [catalog, identity, orders, inventory, payments, notifications, backup]
+    workflows: [catalog, identity, orders, inventory, payments, notifications, fulfillment, backup, sim-images]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -25,9 +26,11 @@ permissions:
 jobs:
   api:
     name: API no Coolify
+    # só o push: o filtro de branch do workflow_run olha o nome, e o PR de um fork com uma branch "main" passaria nele
     if: >-
       vars.COOLIFY_APP_UUID != '' &&
-      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment:
@@ -53,16 +56,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # todas as imagens que os compose de deploy/coolify pedem com IMAGE_TAG ou SIM_IMAGE_TAG: uma que falte
+      # aqui não ganha a tag deste deploy, e o pull dela quebra a publicação
       - name: Fixa a versão e publica
         env:
           IMAGES: >-
             ghcr.io/${{ github.repository_owner }}/compra-facil-catalog
+            ghcr.io/${{ github.repository_owner }}/compra-facil-catalog-seed
             ghcr.io/${{ github.repository_owner }}/compra-facil-identity
             ghcr.io/${{ github.repository_owner }}/compra-facil-orders
             ghcr.io/${{ github.repository_owner }}/compra-facil-inventory
             ghcr.io/${{ github.repository_owner }}/compra-facil-payments
             ghcr.io/${{ github.repository_owner }}/compra-facil-notifications
+            ghcr.io/${{ github.repository_owner }}/compra-facil-fulfillment
             ghcr.io/${{ github.repository_owner }}/compra-facil-pg-backup
+            ghcr.io/${{ github.repository_owner }}/compra-facil-supplier-sim
+            ghcr.io/${{ github.repository_owner }}/compra-facil-payment-sim
+            ghcr.io/${{ github.repository_owner }}/compra-facil-invoice-sim
+            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-gateway
+            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-media
+            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-postgres-init
+            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-redpanda
         run: deploy/coolify/deploy.sh
 
       # de fora, pelo domínio: o caminho do comprador (DNS, certificado, proxy do Coolify, gateway).
@@ -80,7 +94,9 @@ jobs:
           }
           fail=0
           for s in catalog identity orders inventory payments; do check "/$s/health" 200 || fail=1; done
-          # o notifications só expõe a operação: 401 sem token é ele de pé (fora, seria 503)
+          # o notifications e o fulfillment só expõem a operação: 401 sem token é ele de pé (fora, seria 503).
+          # O fulfillment é o da demonstração: compose.yaml ainda não tem esse serviço, e lá este daria 404
           check /notifications/v1/admin/dead-letters 401 || fail=1
+          check /fulfillment/v1/admin/dead-letters 401 || fail=1
           check /catalog/v1/categories 200 || fail=1
           exit $fail
