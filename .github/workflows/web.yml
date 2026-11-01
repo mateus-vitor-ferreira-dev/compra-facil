@@ -109,14 +109,17 @@ jobs:
           path: frontend/web/playwright-report
           retention-days: 7
 
-  # Publica a loja no Cloudflare Workers (ADR 0006) depois dos testes, a partir da main. Enquanto a
-  # variável CLOUDFLARE_ACCOUNT_ID não existir no repositório, o job é pulado.
+  # Publica a loja no Cloudflare Workers (ADR 0006) depois dos testes, a partir da main, e depois da API do mesmo
+  # commit. Enquanto a variável CLOUDFLARE_ACCOUNT_ID não existir no repositório, o job é pulado.
   deploy:
     name: loja no Cloudflare Workers
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 45 # até 30 esperando a API
+    permissions:
+      contents: read
+      actions: read # o estado dos pipelines e do deploy da API
     concurrency:
       group: deploy-loja
       cancel-in-progress: false
@@ -130,6 +133,10 @@ jobs:
       URL_LOJA: ${{ vars.URL_LOJA }}
     steps:
       - uses: actions/checkout@v7.0.1
+      - name: Espera a API deste commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ../../deploy/esperar-api.sh
       - uses: actions/setup-node@v7.0.0
         with:
           node-version-file: frontend/web/.nvmrc
