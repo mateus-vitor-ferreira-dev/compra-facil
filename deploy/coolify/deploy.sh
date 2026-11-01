@@ -41,9 +41,17 @@ for image in $IMAGES; do
 done
 
 # ── 2. A stack passa a usar essa tag ─────────────────────────────────────────────────────────────
-code=$(call -o /dev/null -w '%{http_code}' -X PATCH "$API/applications/$COOLIFY_APP_UUID/envs" \
-  -d "{\"key\":\"IMAGE_TAG\",\"value\":\"$DEPLOY_TAG\"}") || platform_down "O IMAGE_TAG não chegou ao Coolify."
-[[ $code == 2* ]] || platform_down "O Coolify recusou o IMAGE_TAG com HTTP $code."
+# O PATCH só atualiza a variável que já existe, e o 404 é a que nunca foi criada no painel: aí o POST a cria.
+set_env() { # set_env <variável>
+  local url="$API/applications/$COOLIFY_APP_UUID/envs" data="{\"key\":\"$1\",\"value\":\"$DEPLOY_TAG\"}" code
+  code=$(call -o /dev/null -w '%{http_code}' -X PATCH "$url" -d "$data") || platform_down "O $1 não chegou ao Coolify."
+  if [[ $code == 404 ]]; then
+    code=$(call -o /dev/null -w '%{http_code}' -X POST "$url" -d "$data") || platform_down "O $1 não chegou ao Coolify."
+  fi
+  [[ $code == 2* ]] || platform_down "O Coolify recusou o $1 com HTTP $code."
+}
+set_env IMAGE_TAG
+set_env SIM_IMAGE_TAG # os simuladores e as imagens de configuração da demonstração
 
 # ── 3. Pede o deploy ──────────────────────────────────────────────────────────────────────────────
 status=0

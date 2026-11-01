@@ -23,7 +23,7 @@ x-dotnet-env: &dotnet-env
 
 services:
   gateway:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-gateway:${SIM_IMAGE_TAG:-develop}
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-gateway:${SIM_IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 128m
     command: ["--configFile=/etc/traefik/traefik.yml"]
@@ -68,7 +68,7 @@ services:
 
   # a cada deploy: cria o banco e o usuário de um serviço novo e acerta as senhas (idempotente)
   postgres-databases:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-postgres-init:${SIM_IMAGE_TAG:-develop}
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-postgres-init:${SIM_IMAGE_TAG:-main}
     restart: "no"
     # roda e sai: o Coolify não o conta na saúde da stack
     exclude_from_hc: true
@@ -102,7 +102,7 @@ services:
       retries: 6
 
   redpanda:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-redpanda:${SIM_IMAGE_TAG:-develop}
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-redpanda:${SIM_IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 768m
     # a configuração de produção (redpanda.yaml) vai para o diretório que o rpk reescreve na partida
@@ -216,7 +216,7 @@ services:
       Invoice__ClientSecret: ${SIM_INVOICE_SECRET:?}
 
   supplier-sim:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-supplier-sim:${SIM_IMAGE_TAG:-develop}
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-supplier-sim:${SIM_IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 64m
     environment:
@@ -225,7 +225,7 @@ services:
 
   # o único simulado com domínio: o navegador fala direto com o provedor
   payment-sim:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-payment-sim:${SIM_IMAGE_TAG:-develop}
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-payment-sim:${SIM_IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 64m
     environment:
@@ -234,7 +234,7 @@ services:
       SIM_PUBLIC_URL: ${PAYMENT_PUBLIC_URL:?a URL pública do payment-sim}
 
   invoice-sim:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-invoice-sim:${SIM_IMAGE_TAG:-develop}
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-invoice-sim:${SIM_IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 64m
     environment:
@@ -243,7 +243,7 @@ services:
 
   # as fotos, do repositório, pelo gateway em /media
   media:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-media:${SIM_IMAGE_TAG:-develop}
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-media:${SIM_IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 64m
 
