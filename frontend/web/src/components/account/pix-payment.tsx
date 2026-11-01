@@ -164,7 +164,7 @@ export function PixPayment({ pix, amount, startedAt }: { pix: Pix; amount: strin
               rows={3}
               value={pix.qr_code}
               onFocus={(e) => e.currentTarget.select()}
-              className="border-ink/25 bg-paper text-ink field-sizing-content w-full resize-none rounded-md border p-3 text-sm break-all outline-none focus-visible:outline-2"
+              className="border-field-line bg-paper text-ink field-sizing-content w-full resize-none rounded-md border p-3 text-sm break-all outline-none focus-visible:outline-2"
             />
             <Button onClick={copy} className="w-full sm:w-auto">
               {copied === "ok" ? "Código copiado" : "Copiar o código"}

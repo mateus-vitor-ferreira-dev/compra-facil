@@ -269,6 +269,182 @@ paths:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
 
+  /v1/admin/supplier/status:
+    get:
+      tags: [admin]
+      operationId: getSupplierStatus
+      summary: Como está a integração com o fornecedor
+      description: |
+        Pergunta ao fornecedor agora, com até 3 s de espera, e conta o que a loja sabe dele. As credenciais ficam
+        nos segredos do ambiente e nunca saem daqui: `own_credentials` só diz se não são as do simulador.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: O status. Fornecedor fora do ar também é 200, com `reachable` falso.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierStatus"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/order-margins:
+    get:
+      tags: [admin]
+      operationId: listOrderMargins
+      summary: A margem real dos pedidos mais recentes
+      description: |
+        O que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete repassado ao fornecedor e a
+        taxa do pagamento. Em centavos de real. A margem é nula no pedido estornado, e se faltar um dos valores
+        (produto que não veio do fornecedor, ou pedido de antes desta conta).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Pedidos, dos mais recentes aos mais antigos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrderMargin"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/supplier-orders/failed:
+    get:
+      tags: [admin]
+      operationId: listFailedSupplierOrders
+      summary: Pedidos que não chegaram ao fornecedor
+      description: |
+        Os recusados, cancelados ou sem resposta do fornecedor, e os de nota rejeitada, dos últimos 30 dias, os
+        mais recentes primeiro. O cliente já foi estornado: não há reenvio, porque o pedido sairia sem pagamento.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Pedidos que falharam.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FailedSupplierOrder"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/supplier-orders/{order_id}/retry:
+    post:
+      tags: [admin]
+      operationId: retrySupplierOrder
+      summary: Tenta agora o pedido que espera a próxima tentativa
+      description: Só o pedido na fila depois de um erro passageiro; o resto dá 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Volta para a fila agora.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/supplier-orders/{order_id}/cancel:
+    post:
+      tags: [admin]
+      operationId: cancelSupplierOrder
+      summary: Cancela o pedido que não foi despachado e estorna o cliente
+      description: |
+        Cancela no fornecedor, se ele já tem o pedido, e publica `SupplierOrderFailed` com `store_cancelled`: o
+        orders cancela e o payments estorna. Despachado ou sendo enviado agora dá 409. Fornecedor fora do ar dá
+        503, e nada muda. Repetir é seguro.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Cancelado.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+        "503":
+          description: O fornecedor não respondeu, e nada mudou; vem com `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+
   /v1/admin/supplier-returns:
     get:
       tags: [admin]
@@ -579,6 +755,114 @@ components:
           format: date-time
         shipped_at:
           type: [string, "null"]
+          format: date-time
+
+    SupplierStatus:
+      type: object
+      required: [name, host, reachable, own_credentials, webhook_secret_configured, products_in_feed, ship_within_hours, deliver_within_hours, return_within_hours]
+      properties:
+        name:
+          type: string
+        host:
+          type: string
+          description: O endereço da API do fornecedor.
+        reachable:
+          type: boolean
+        latency_ms:
+          type: [integer, "null"]
+          format: int64
+        error:
+          type: [string, "null"]
+        own_credentials:
+          type: boolean
+          description: Falso enquanto usa as credenciais do simulador.
+        webhook_secret_configured:
+          type: boolean
+        products_in_feed:
+          type: integer
+          minimum: 0
+        last_stock_read_at:
+          type: [string, "null"]
+          format: date-time
+        last_webhook_at:
+          type: [string, "null"]
+          format: date-time
+        ship_within_hours:
+          type: number
+          description: O prazo de despacho (`Supplier:Deadlines:ShipWithin`).
+        deliver_within_hours:
+          type: number
+          description: O prazo de transporte (`Supplier:Deadlines:DeliverWithin`).
+        return_within_hours:
+          type: number
+          description: O prazo de resposta a uma devolução (`Supplier:Deadlines:ReturnWithin`).
+
+    OrderMargin:
+      type: object
+      description: A conta de um pedido, em centavos de real.
+      required: [order_id, outcome, customer_email, created_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          enum: [in_progress, delivered, cancelled, returned]
+        revenue_cents:
+          type: [integer, "null"]
+          format: int64
+          description: O que o cliente pagou, com o frete.
+        product_cost_cents:
+          type: [integer, "null"]
+          format: int64
+          description: O custo dos produtos, no câmbio da compra. Nulo se algum não veio do fornecedor.
+        freight_cents:
+          type: [integer, "null"]
+          format: int64
+          description: O frete cobrado, repassado ao fornecedor pelo preço que ele cotou.
+        fee_cents:
+          type: [integer, "null"]
+          format: int64
+          description: A taxa do provedor de pagamento.
+        margin_cents:
+          type: [integer, "null"]
+          format: int64
+          description: Pode ser negativa. Nula se faltar um dos valores, ou se o cliente foi estornado.
+        customer_email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+
+    FailedSupplierOrder:
+      type: object
+      description: Um pedido que não chegou ao fornecedor. O cliente já foi estornado.
+      required: [order_id, reason, supplier, customer_email, attempts, created_at, failed_at]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected, store_cancelled]
+        detail:
+          type: [string, "null"]
+        supplier:
+          type: string
+        supplier_order_id:
+          type: [string, "null"]
+        customer_email:
+          type: string
+          format: email
+        attempts:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        failed_at:
+          type: string
           format: date-time
 
     SupplierReturn:

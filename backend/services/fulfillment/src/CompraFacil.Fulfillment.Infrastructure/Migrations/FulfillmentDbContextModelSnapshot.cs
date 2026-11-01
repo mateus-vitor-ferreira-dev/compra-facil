@@ -256,6 +256,22 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.ToTable("invoices", (string)null);
                 });
 
+            modelBuilder.Entity("CompraFacil.Fulfillment.Domain.OrderPaymentFee", b =>
+                {
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<long>("FeeCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fee_cents");
+
+                    b.HasKey("OrderId")
+                        .HasName("pk_order_payment_fees");
+
+                    b.ToTable("order_payment_fees", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Fulfillment.Domain.SupplierOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -298,6 +314,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("character varying(32)")
                         .HasColumnName("failure_reason");
 
+                    b.Property<long?>("FreightCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("freight_cents");
+
                     b.Property<string>("LastError")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -311,9 +331,17 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("placed_at");
 
+                    b.Property<long?>("ProductCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("product_cost_cents");
+
                     b.Property<DateOnly?>("PromisedBy")
                         .HasColumnType("date")
                         .HasColumnName("promised_by");
+
+                    b.Property<long?>("RevenueCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revenue_cents");
 
                     b.Property<DateTimeOffset?>("ShippedAt")
                         .HasColumnType("timestamp with time zone")

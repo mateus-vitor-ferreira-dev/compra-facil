@@ -28,6 +28,22 @@ public sealed class FakeSupplier : ISupplierGateway
     /// <summary>O feed que o fornecedor devolve; nulo = fora do ar.</summary>
     public List<SupplierFeedItem>? Feed { get; set; } = [];
 
+    /// <summary>Falso: o fornecedor não responde à checagem.</summary>
+    public bool Reachable { get; set; } = true;
+
+    public Task CheckAsync(CancellationToken ct) =>
+        Reachable ? Task.CompletedTask : throw new SupplierUnavailableException("fornecedor fora do ar");
+
+    /// <summary>O que o cancelamento responde; nulo = cancela.</summary>
+    public Func<string, bool>? RespondCancel { get; set; }
+    public List<string> CancelCalls { get; } = [];
+
+    public Task<bool> CancelOrderAsync(string supplierOrderId, CancellationToken ct)
+    {
+        CancelCalls.Add(supplierOrderId);
+        return Task.FromResult(RespondCancel?.Invoke(supplierOrderId) ?? true);
+    }
+
     /// <summary>O que a abertura da devolução responde; nulo = abre.</summary>
     public Func<Guid, SupplierReturnOpening>? RespondReturn { get; set; }
     public List<Guid> ReturnCalls { get; } = [];
@@ -163,13 +179,13 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private async Task ConfirmedAsync(
-        Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null, Guid? customer = null)
+        Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null, Guid? customer = null, string sku = "MOU-000001")
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var handler = cutoff is null
             ? ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider)
             : ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider, cutoff);
-        var item = new OrderItem(Guid.NewGuid(), "MOU-000001", "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
+        var item = new OrderItem(Guid.NewGuid(), sku, "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
         await handler.HandleAsync(new OrderConfirmedData(orderId, customer ?? Guid.NewGuid(), email, [item], new Money(19980, "BRL"),
                 new Recipient("Ana Souza", "52998224725", "11987654321"),
                 new ShippingAddress("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP"),
@@ -579,6 +595,200 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal("rejected", data[refused].GetProperty("status").GetString());
 
         using var anonymous = await client.GetAsync("/v1/admin/supplier-returns", Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+    }
+
+    private async Task<HttpStatusCode> AdminPostAsync(string path, string? token = null)
+    {
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, path);
+        request.Headers.Authorization = new("Bearer", token ?? fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        return response.StatusCode;
+    }
+
+    [Fact]
+    public async Task Cancelar_pelo_painel_avisa_o_fornecedor_e_falha_o_pedido_uma_vez()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+        var supplierOrderId = (await OrderAsync(id)).SupplierOrderId!;
+
+        Assert.Equal(HttpStatusCode.Forbidden, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel", fx.Identity.CustomerToken(Guid.NewGuid())));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel"));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel")); // repetido
+
+        var order = await OrderAsync(id);
+        Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.StoreCancelled), (order.Status, order.FailureReason));
+        Assert.Single(fx.Supplier.CancelCalls, c => c == supplierOrderId);
+        Assert.Single(await EventsOfAsync(id), e => e == FulfillmentEvents.SupplierOrderFailed);
+
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/supplier-orders/failed?limit=200");
+        request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1supplier-orders~1failed/get/responses/200/content/application~1json/schema", json);
+        Assert.Contains(id.ToString(), json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Pedido_que_ja_saiu_nao_cancela_e_nada_muda()
+    {
+        var (shipped, raced, unknown) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        foreach (var id in new[] { shipped, raced })
+        {
+            await ConfirmedAsync(id);
+            await DispatchAsync();
+        }
+        await WebhookAsync(new
+        {
+            messageId = Guid.NewGuid().ToString(),
+            type = "ORDER",
+            messageType = "UPDATE",
+            @params = new { orderId = "CJ1", orderNumber = shipped.ToString(), orderStatus = "SHIPPED", trackNumber = "BR1" },
+        });
+        Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync($"/v1/admin/supplier-orders/{shipped}/cancel"));
+
+        // o fornecedor despachou e o webhook ainda não chegou: ele responde que já saiu
+        fx.Supplier.RespondCancel = _ => false;
+        try
+        {
+            Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync($"/v1/admin/supplier-orders/{raced}/cancel"));
+        }
+        finally
+        {
+            fx.Supplier.RespondCancel = null;
+        }
+        Assert.Equal(SupplierOrderStatus.Placed, (await OrderAsync(raced)).Status);
+        Assert.Equal(HttpStatusCode.NotFound, await AdminPostAsync($"/v1/admin/supplier-orders/{unknown}/cancel"));
+    }
+
+    [Fact]
+    public async Task Tentar_agora_so_vale_para_o_pedido_na_espera()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        fx.Supplier.Respond = r => r.OrderNumber == id ? throw new SupplierUnavailableException("fora do ar") : new SupplierPlacement.Accepted("CJ" + r.OrderNumber.ToString("N")[..10]);
+        try
+        {
+            await DispatchAsync();
+            Assert.NotNull((await OrderAsync(id)).NextAttemptAt);
+
+            Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/retry"));
+            Assert.Null((await OrderAsync(id)).NextAttemptAt);
+            Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/retry"));
+        }
+        finally
+        {
+            fx.Supplier.Respond = r => new SupplierPlacement.Accepted("CJ" + r.OrderNumber.ToString("N")[..10]);
+        }
+    }
+
+    private async Task PaymentApprovedAsync(Guid id, long fee)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var handler = ActivatorUtilities.CreateInstance<OnPaymentApproved>(scope.ServiceProvider);
+        await handler.HandleAsync(new PaymentApprovedData(id, fee),
+            new EventContext(Guid.NewGuid(), "PaymentApproved", InvoiceEvents.PaymentsTopic, "req", DateTimeOffset.UtcNow), Ct);
+        await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
+    }
+
+    private async Task<Dictionary<Guid, JsonElement>> MarginsAsync()
+    {
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/order-margins?limit=200");
+        request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1order-margins/get/responses/200/content/application~1json/schema", json);
+        return JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().ToDictionary(m => m.GetProperty("order_id").GetGuid(), m => m.Clone());
+    }
+
+    [Fact]
+    public async Task Margem_so_sai_com_a_conta_completa_e_o_estornado_fica_de_fora()
+    {
+        // o produto que não veio do fornecedor não tem custo: a taxa chega antes do pedido, e a margem fica nula
+        var (unknownCost, returned) = (Guid.NewGuid(), Guid.NewGuid());
+        await PaymentApprovedAsync(unknownCost, 300);
+        await PaymentApprovedAsync(unknownCost, 300); // a captura do cartão repete
+        await ConfirmedAsync(unknownCost);
+        await PaymentApprovedAsync(returned, 200);
+        await ConfirmedAsync(returned);
+        await DispatchAsync();
+        await ReturnedAsync(returned);
+
+        var margins = await MarginsAsync();
+        var row = margins[unknownCost];
+        Assert.Equal(300, row.GetProperty("fee_cents").GetInt64());
+        Assert.True(row.GetProperty("revenue_cents").GetInt64() > 0);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("product_cost_cents").ValueKind);
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("margin_cents").ValueKind);
+        Assert.Equal("returned", margins[returned].GetProperty("outcome").GetString());
+        Assert.Equal(JsonValueKind.Null, margins[returned].GetProperty("margin_cents").ValueKind);
+    }
+
+    [Fact]
+    public async Task Margem_e_o_pago_menos_custo_no_cambio_da_compra_frete_e_taxa()
+    {
+        var id = Guid.NewGuid();
+        fx.Supplier.Feed = [new SupplierFeedItem("MARGEM-1", "CJMARGEM", "Mouse", "Mouse", 520, "USD", null, null)];
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<CompraFacil.Fulfillment.Application.SupplierCatalog.CatalogSync>().RunAsync(Ct);
+        }
+        fx.Supplier.Feed = [];
+        await PaymentApprovedAsync(id, 995);
+        await ConfirmedAsync(id, sku: "MARGEM-1");
+
+        var row = (await MarginsAsync())[id];
+        var rate = fx.Factory.Services.GetRequiredService<CompraFacil.Fulfillment.Application.Shipping.ShippingSettings>().UsdToBrl;
+        var cost = (long)Math.Ceiling(520 * rate) * 2;
+        Assert.Equal(cost, row.GetProperty("product_cost_cents").GetInt64());
+        Assert.Equal(2430, row.GetProperty("freight_cents").GetInt64());
+        Assert.Equal(19980 - cost - 2430 - 995, row.GetProperty("margin_cents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Status_da_integracao_diz_se_responde_e_nunca_mostra_as_credenciais()
+    {
+        await WebhookAsync(Dispute(Guid.NewGuid(), "APPROVED")); // há ao menos um webhook recebido
+        using var client = fx.Factory.CreateClient();
+        async Task<string> GetAsync()
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/supplier/status");
+            request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+            using var response = await client.SendAsync(request, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var json = await response.Content.ReadAsStringAsync(Ct);
+            ContractAssert.AssertSchema("fulfillment.v1.yaml", "/components/schemas/SupplierStatus", json);
+            return json;
+        }
+
+        var up = await GetAsync();
+        using (var doc = JsonDocument.Parse(up))
+        {
+            Assert.True(doc.RootElement.GetProperty("reachable").GetBoolean());
+            Assert.NotEqual(JsonValueKind.Null, doc.RootElement.GetProperty("last_webhook_at").ValueKind);
+        }
+        Assert.DoesNotContain(FulfillmentFixture.Secret, up, StringComparison.Ordinal);
+        Assert.DoesNotContain("password", up, StringComparison.OrdinalIgnoreCase);
+
+        fx.Supplier.Reachable = false;
+        try
+        {
+            using var down = JsonDocument.Parse(await GetAsync());
+            Assert.False(down.RootElement.GetProperty("reachable").GetBoolean());
+            Assert.Contains("fora do ar", down.RootElement.GetProperty("error").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            fx.Supplier.Reachable = true;
+        }
+
+        using var anonymous = await client.GetAsync("/v1/admin/supplier/status", Ct);
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 

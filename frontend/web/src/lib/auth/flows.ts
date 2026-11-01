@@ -24,6 +24,49 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   }
 }
 
+export type GuestResult = { ok: true; token: string } | { ok: false; status: number };
+
+/**
+ * Compra sem conta: abre a sessão de convidado com a chave do formulário. Dois envios ao mesmo tempo dão 409
+ * em um deles, e a segunda tentativa acha a compra que o outro criou, sem duplicar o pedido.
+ */
+export async function startGuest(email: string, name: string, checkoutKey: string): Promise<GuestResult> {
+  const body = { email, name, checkout_key: checkoutKey };
+  try {
+    let result = await api.identity().POST("/v1/sessions/guest", { body });
+    if (result.response.status === 409) result = await api.identity().POST("/v1/sessions/guest", { body });
+    if (!result.data) return { ok: false, status: result.response.status };
+    const store = await cookies();
+    for (const c of sessionCookies(result.data)) store.set(c.name, c.value, c.options);
+    return { ok: true, token: result.data.access_token };
+  } catch {
+    return { ok: false, status: 503 };
+  }
+}
+
+/** Abre a sessão pelo link do e-mail. Falso quando o link não vale, ou o identity não respondeu. */
+export async function openGuestAccess(token: string): Promise<boolean> {
+  try {
+    const { data } = await api.identity().POST("/v1/sessions/guest/access", { body: { token } });
+    if (!data) return false;
+    const store = await cookies();
+    for (const c of sessionCookies(data)) store.set(c.name, c.value, c.options);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Pede o link de novo; devolve o status da resposta. */
+export async function resendGuestAccess(email: string): Promise<number> {
+  try {
+    const { response } = await api.identity().POST("/v1/sessions/guest/access/resend", { body: { email } });
+    return response.status;
+  } catch {
+    return 503;
+  }
+}
+
 /** Revoga a sessão no identity (melhor esforço) e apaga os cookies. */
 export async function signOut(): Promise<void> {
   const store = await cookies();

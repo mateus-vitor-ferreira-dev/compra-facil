@@ -10,6 +10,7 @@ const badgeVariants = cva("inline-flex items-center gap-1 rounded-sm px-2 py-0.5
   variants: {
     variant: {
       deal: "bg-tag text-tag-ink",
+      campaign: "bg-hero text-on-hero",
       neutral: "bg-ink/8 text-ink",
       success: "bg-success/12 text-success",
       danger: "bg-danger/12 text-danger-ink",

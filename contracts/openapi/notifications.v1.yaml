@@ -5,7 +5,7 @@ info:
   summary: Operação da dead letter topic dos avisos.
   description: |
     API do serviço **notifications** (ASP.NET Core). Os e-mails saem dos eventos (`OrderConfirmed`,
-    `OrderCancelled`, `EmailConfirmationRequested`); não há API para o cliente. Esta API serve só para a
+    `OrderCancelled`, `EmailConfirmationRequested`, `GuestAccessRequested`); não há API para o cliente. Esta API serve só para a
     operação: as mensagens que esgotaram as tentativas e o reprocessamento delas
     (docs/adr/0003-retries-e-dead-letter-topics.md).
 servers:

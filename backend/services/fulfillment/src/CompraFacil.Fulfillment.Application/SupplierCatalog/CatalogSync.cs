@@ -18,6 +18,9 @@ public interface ISupplierProductRepository
     /// <summary>Os produtos destes vids (rastreados, para alterar); vid fora do retrato não volta.</summary>
     Task<List<SupplierProduct>> GetManyAsync(string supplier, IReadOnlyCollection<string> vids, CancellationToken ct);
 
+    /// <summary>Quantos produtos estão no feed agora e quando o estoque foi lido por último.</summary>
+    Task<(int InFeed, DateTimeOffset? LastStockReadAt)> FeedSummaryAsync(string supplier, CancellationToken ct);
+
     void Add(SupplierProduct product);
 
     Task SaveChangesAsync(CancellationToken ct);

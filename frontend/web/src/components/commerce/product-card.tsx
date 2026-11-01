@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Product } from "@/lib/catalog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaymentTerms } from "./payment-terms";
 import { PriceTag } from "./price-tag";
 import { ProductImage } from "./product-image";
 
@@ -25,7 +26,8 @@ export function ProductCard({ product, priority = false }: { product: Product; p
         className="transition-opacity group-hover:opacity-90"
       />
       {product.campaign && (
-        <Badge variant="deal" className="absolute top-2 left-2">
+        // em tinta: o amarelo fica para o preço, que numa grade de ofertas já aparece em todo card
+        <Badge variant="campaign" className="absolute top-2 left-2">
           {product.campaign.name}
         </Badge>
       )}
@@ -38,7 +40,10 @@ export function ProductCard({ product, priority = false }: { product: Product; p
           {product.name}
         </Link>
       </h3>
-      <PriceTag price={product.price} effective={product.effective_price} className="mt-auto" />
+      <div className="mt-auto space-y-1">
+        <PriceTag price={product.price} effective={product.effective_price} />
+        <PaymentTerms price={product.effective_price} />
+      </div>
     </article>
   );
 }

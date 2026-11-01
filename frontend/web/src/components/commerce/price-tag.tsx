@@ -63,7 +63,9 @@ export function PriceTag({
           <span className="bg-paper absolute top-1/2 left-2 size-1.5 -translate-y-1/2 rounded-full" />
           {amount}
         </span>
-        <span className="font-condensed text-ink text-sm font-bold">-{off}%</span>
+        <span className={cn("font-condensed text-ink font-bold", size === "lg" ? "text-lg" : "text-base")}>
+          -{off}%
+        </span>
       </span>
     </div>
   );

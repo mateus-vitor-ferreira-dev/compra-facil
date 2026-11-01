@@ -26,6 +26,8 @@ channels:
         $ref: "#/components/messages/AccountRegistered"
       EmailConfirmationRequested:
         $ref: "#/components/messages/EmailConfirmationRequested"
+      GuestAccessRequested:
+        $ref: "#/components/messages/GuestAccessRequested"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -44,6 +46,7 @@ operations:
     messages:
       - $ref: "#/channels/accountEvents/messages/AccountRegistered"
       - $ref: "#/channels/accountEvents/messages/EmailConfirmationRequested"
+      - $ref: "#/channels/accountEvents/messages/GuestAccessRequested"
 
 components:
   messages:
@@ -80,6 +83,47 @@ components:
                   name:
                     type: string
                   registered_at:
+                    type: string
+                    format: date-time
+
+    GuestAccessRequested:
+      name: GuestAccessRequested
+      title: Link de acesso de quem comprou sem conta
+      summary: Na compra sem conta e em cada reenvio. O notifications manda o e-mail com o link
+      description: |
+        O `access_url` abre a sessão daquela compra até `expires_at`, e pode ser aberto mais de uma vez.
+        Quem tem o link vê os dados do pedido: o evento não deve ir para logs.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/AccountKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: GuestAccessRequested
+              event_version:
+                const: 1
+              producer:
+                const: identity
+              data:
+                type: object
+                required: [account_id, email, name, access_url, expires_at]
+                properties:
+                  account_id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                    format: email
+                  name:
+                    type: string
+                  access_url:
+                    type: string
+                    format: uri
+                  expires_at:
                     type: string
                     format: date-time
 

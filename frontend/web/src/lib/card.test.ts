@@ -72,15 +72,16 @@ describe("checkCard", () => {
 });
 
 describe("installmentOptions", () => {
-  it("até 12× sem juros", () => {
+  it("até 6× sem juros", () => {
     const options = installmentOptions(263_992);
-    expect(options).toHaveLength(12);
+    expect(options).toHaveLength(6);
     expect(options[0]).toEqual({ count: 1, eachCents: 263_992 });
     expect(options[2]).toEqual({ count: 3, eachCents: 87_997 });
   });
 
-  it("sem parcela menor que R$ 5,00", () => {
-    expect(installmentOptions(1_200).map((o) => o.count)).toEqual([1, 2]);
-    expect(installmentOptions(499)).toEqual([{ count: 1, eachCents: 499 }]);
+  it("sem parcela menor que R$ 30,00", () => {
+    expect(installmentOptions(9_000).map((o) => o.count)).toEqual([1, 2, 3]);
+    expect(installmentOptions(8_999).map((o) => o.count)).toEqual([1, 2]);
+    expect(installmentOptions(5_999)).toEqual([{ count: 1, eachCents: 5_999 }]);
   });
 });

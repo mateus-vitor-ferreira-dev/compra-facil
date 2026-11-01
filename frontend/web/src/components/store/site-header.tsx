@@ -25,7 +25,7 @@ export function SiteHeader({
 }) {
   return (
     <header className="bg-paper border-line border-b">
-      <div className="mx-auto grid max-w-6xl grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6 md:grid-cols-[auto_1fr_auto]">
+      <div className="mx-auto grid max-w-6xl grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-6 md:grid-cols-[auto_1fr_auto] md:py-3">
         <Link href="/" className="rounded-md">
           <Logo />
           <span className="sr-only">: página inicial</span>
@@ -48,7 +48,7 @@ export function SiteHeader({
             {cartCount > 0 && (
               <span
                 aria-hidden="true"
-                className="bg-tag text-tag-ink font-condensed absolute top-0.5 left-6 min-w-5 rounded-full px-1 text-center text-xs leading-5 font-bold sm:static sm:-ml-1"
+                className="bg-ink text-paper font-condensed absolute top-0.5 left-6 min-w-5 rounded-full px-1 text-center text-xs leading-5 font-bold sm:static sm:-ml-1"
               >
                 {cartCount > 99 ? "99+" : cartCount}
               </span>
@@ -61,7 +61,7 @@ export function SiteHeader({
       </div>
 
       {categories.length > 0 && (
-        <nav aria-label="Categorias" className="mx-auto max-w-6xl px-4 pb-2 sm:px-6">
+        <nav aria-label="Categorias" className="mx-auto max-w-6xl px-4 sm:px-6 md:pb-2">
           {/* celular: um menu; desktop: a lista à mostra */}
           <details className="group md:hidden">
             <summary className="text-ink flex h-11 cursor-pointer list-none items-center gap-2 font-medium [&::-webkit-details-marker]:hidden">

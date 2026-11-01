@@ -104,6 +104,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/guest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Compra sem conta
+         * @description Cria uma conta própria para esta compra, sem senha e com o papel `customer`, e abre a sessão. A
+         *     mesma `checkout_key` com o mesmo e-mail devolve a mesma conta: o reenvio do formulário não duplica o
+         *     pedido. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
+         */
+        post: operations["createGuestSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/guest/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abre a sessão pelo link enviado por e-mail
+         * @description O link continua valendo até vencer. Link desconhecido e vencido dão o mesmo `401`.
+         */
+        post: operations["accessGuestSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/guest/access/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manda de novo o link das compras sem conta
+         * @description Sempre `202`, com compra ou sem compra naquele e-mail. O mesmo link não é reenviado em intervalos curtos.
+         */
+        post: operations["resendGuestAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/google": {
         parameters: {
             query?: never;
@@ -288,6 +350,23 @@ export interface components {
             roles: components["schemas"]["Role"][];
             /** Format: date-time */
             created_at: string;
+            /** @description Comprou sem conta; o acesso é pelo link enviado por e-mail, sem senha. */
+            is_guest?: boolean;
+        };
+        GuestSessionRequest: {
+            email: components["schemas"]["Email"];
+            name: string;
+            /**
+             * Format: uuid
+             * @description Nasce com o formulário do checkout e é a mesma em cada reenvio dele.
+             */
+            checkout_key: string;
+        };
+        GuestAccessRequest: {
+            token: string;
+        };
+        GuestAccessResendRequest: {
+            email: components["schemas"]["Email"];
         };
         /** @description Resposta no formato do OAuth 2.0 (RFC 6749, seção 5.1). */
         Tokens: {
@@ -611,6 +690,80 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    createGuestSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestSessionRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Tokens"];
+            400: components["responses"]["BadRequest"];
+            /** @description A mesma `checkout_key` já foi usada com outro e-mail, ou chegou ao mesmo tempo que outra. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    accessGuestSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAccessRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Tokens"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    resendGuestAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestAccessResendRequest"];
+            };
+        };
+        responses: {
+            /** @description Aceito. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };

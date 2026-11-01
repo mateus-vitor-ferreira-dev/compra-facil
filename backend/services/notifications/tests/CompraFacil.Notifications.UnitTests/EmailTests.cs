@@ -149,6 +149,28 @@ public sealed class EmailTests
         Assert.Contains(url, email.TextBody, StringComparison.Ordinal); // o texto puro também leva o link
     }
 
+    [Fact]
+    public async Task GuestAccess_HasTheLink_TheFirstName_AndTheValidity()
+    {
+        var url = "http://localhost:3000/acompanhar/abrir?token=abc_-123";
+
+        var email = await EmailComposer.GuestAccessAsync(
+            new GuestAccessRequestedData(Guid.NewGuid(), "bia@exemplo.com", "Bia Lima", new Uri(url), s_now.AddDays(180)), s_now);
+
+        Assert.Equal("Acompanhe a sua compra", email.Subject);
+        Assert.Contains($"href=\"{url}\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("Bia", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("180 dias", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains(url, email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/html,oi")]
+    public async Task GuestAccess_OnlyHttpLinks(string url) =>
+        await Assert.ThrowsAsync<CompraFacil.BuildingBlocks.Messaging.PoisonMessageException>(() =>
+            EmailComposer.GuestAccessAsync(new GuestAccessRequestedData(Guid.NewGuid(), "bia@exemplo.com", "Bia", new Uri(url), s_now.AddDays(1)), s_now));
+
     [Theory]
     [InlineData("javascript:alert(1)")]
     [InlineData("data:text/html,oi")]

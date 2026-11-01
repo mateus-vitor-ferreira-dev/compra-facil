@@ -1,0 +1,3 @@
+# só o que esta imagem copia (no lugar do .dockerignore da raiz)
+*
+!infra/compose/postgres/init-databases.sh

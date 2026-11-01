@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { accessToken } from "@/lib/auth/current";
+import { startGuest } from "@/lib/auth/flows";
 import { loginHref } from "@/lib/auth/return-to";
 import { readCart, writeCart } from "@/lib/cart";
 import { emptyCart } from "@/lib/cart-rules";
@@ -15,12 +16,16 @@ import {
   type DeliveryErrors,
   type DeliveryInput,
 } from "@/lib/delivery";
+import { MAX_INSTALLMENTS } from "@/lib/card";
 import { env } from "@/lib/env";
+import { checkGuestEmail } from "@/lib/guest";
 import { placeOrder, type PlaceOrderPayment } from "@/lib/orders-api";
 
 export type CheckoutState = {
   /** a entrega recusada: os erros por campo e o que o cliente digitou (sem JavaScript, a página recarrega) */
   delivery?: { errors: DeliveryErrors; values: DeliveryInput };
+  /** quem compra sem conta: o e-mail digitado e o erro dele */
+  guest?: { email: string; error?: string };
   error?: {
     title: string;
     message: string;
@@ -45,7 +50,7 @@ const paymentForm = z.discriminatedUnion("method", [
     method: z.literal("card"),
     card_token: z.string().min(1).max(128),
     card_brand: z.string().min(1).max(16),
-    installments: z.coerce.number().int().min(1).max(12),
+    installments: z.coerce.number().int().min(1).max(MAX_INSTALLMENTS),
   }),
 ]);
 
@@ -69,7 +74,15 @@ function readPayment(form: FormData): PlaceOrderPayment | CheckoutState {
   };
 }
 
-export async function confirmOrder(_: CheckoutState, form: FormData): Promise<CheckoutState> {
+export async function confirmOrder(previous: CheckoutState, form: FormData): Promise<CheckoutState> {
+  const state = await submitOrder(previous, form);
+  // sem JavaScript, a página volta com o e-mail que foi digitado
+  return form.has("email")
+    ? { ...state, guest: { email: String(form.get("email")), ...state.guest } }
+    : state;
+}
+
+async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutState> {
   const key = z.uuid().safeParse(form.get("idempotency_key"));
   if (!key.success) {
     return {
@@ -101,14 +114,36 @@ export async function confirmOrder(_: CheckoutState, form: FormData): Promise<Ch
   }
   const payment = readPayment(form);
   if (!("method" in payment)) return payment;
-  const token = await accessToken();
-  if (!token) redirect(loginHref("/checkout"));
-
   const store = await cookies();
   const cart = await readCart();
   if (cart.items.length === 0) {
     const previous = lastOrder.safeParse(parseCookie(store.get(LAST_ORDER_COOKIE)?.value));
     redirect(previous.success && previous.data.key === key.data ? orderHref(previous.data.id) : "/carrinho");
+  }
+
+  // a sessão de convidado só nasce aqui, com todo o resto conferido: é o que manda o link por e-mail
+  let token = await accessToken();
+  if (!token) {
+    // a sessão venceu com a página aberta: quem já estava logado entra de novo
+    if (!form.has("email")) redirect(loginHref("/checkout"));
+    const email = String(form.get("email")).trim();
+    const invalid = checkGuestEmail(email);
+    const failed = (message: string, field?: string): CheckoutState => ({
+      delivery: { errors: {}, values },
+      guest: { email, error: field },
+      error: { title: "O pedido não foi feito", message },
+    });
+    if (invalid) return failed("Confira o e-mail.", invalid);
+    const guest = await startGuest(email, values.name, key.data);
+    if (!guest.ok) {
+      if (guest.status === 422) return failed("Confira o e-mail.", "Confira o e-mail digitado.");
+      return failed(
+        guest.status === 429
+          ? "Muitas tentativas seguidas. Espere alguns minutos e confirme de novo."
+          : "Não conseguimos iniciar a compra agora. Tente de novo em instantes.",
+      );
+    }
+    token = guest.token;
   }
 
   const result = await placeOrder(

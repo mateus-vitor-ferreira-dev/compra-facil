@@ -115,6 +115,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Como está a integração com o fornecedor
+         * @description Pergunta ao fornecedor agora, com até 3 s de espera, e conta o que a loja sabe dele. As credenciais ficam
+         *     nos segredos do ambiente e nunca saem daqui: `own_credentials` só diz se não são as do simulador.
+         */
+        get: operations["getSupplierStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/order-margins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A margem real dos pedidos mais recentes
+         * @description O que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete repassado ao fornecedor e a
+         *     taxa do pagamento. Em centavos de real. A margem é nula no pedido estornado, e se faltar um dos valores
+         *     (produto que não veio do fornecedor, ou pedido de antes desta conta).
+         */
+        get: operations["listOrderMargins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pedidos que não chegaram ao fornecedor
+         * @description Os recusados, cancelados ou sem resposta do fornecedor, e os de nota rejeitada, dos últimos 30 dias, os
+         *     mais recentes primeiro. O cliente já foi estornado: não há reenvio, porque o pedido sairia sem pagamento.
+         */
+        get: operations["listFailedSupplierOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tenta agora o pedido que espera a próxima tentativa
+         * @description Só o pedido na fila depois de um erro passageiro; o resto dá 409.
+         */
+        post: operations["retrySupplierOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancela o pedido que não foi despachado e estorna o cliente
+         * @description Cancela no fornecedor, se ele já tem o pedido, e publica `SupplierOrderFailed` com `store_cancelled`: o
+         *     orders cancela e o payments estorna. Despachado ou sendo enviado agora dá 409. Fornecedor fora do ar dá
+         *     503, e nada muda. Repetir é seguro.
+         */
+        post: operations["cancelSupplierOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-returns": {
         parameters: {
             query?: never;
@@ -309,6 +415,82 @@ export interface components {
             placed_at?: string | null;
             /** Format: date-time */
             shipped_at?: string | null;
+        };
+        SupplierStatus: {
+            name: string;
+            /** @description O endereço da API do fornecedor. */
+            host: string;
+            reachable: boolean;
+            /** Format: int64 */
+            latency_ms?: number | null;
+            error?: string | null;
+            /** @description Falso enquanto usa as credenciais do simulador. */
+            own_credentials: boolean;
+            webhook_secret_configured: boolean;
+            products_in_feed: number;
+            /** Format: date-time */
+            last_stock_read_at?: string | null;
+            /** Format: date-time */
+            last_webhook_at?: string | null;
+            /** @description O prazo de despacho (`Supplier:Deadlines:ShipWithin`). */
+            ship_within_hours: number;
+            /** @description O prazo de transporte (`Supplier:Deadlines:DeliverWithin`). */
+            deliver_within_hours: number;
+            /** @description O prazo de resposta a uma devolução (`Supplier:Deadlines:ReturnWithin`). */
+            return_within_hours: number;
+        };
+        /** @description A conta de um pedido, em centavos de real. */
+        OrderMargin: {
+            /** Format: uuid */
+            order_id: string;
+            /** @enum {string} */
+            outcome: "in_progress" | "delivered" | "cancelled" | "returned";
+            /**
+             * Format: int64
+             * @description O que o cliente pagou, com o frete.
+             */
+            revenue_cents?: number | null;
+            /**
+             * Format: int64
+             * @description O custo dos produtos, no câmbio da compra. Nulo se algum não veio do fornecedor.
+             */
+            product_cost_cents?: number | null;
+            /**
+             * Format: int64
+             * @description O frete cobrado, repassado ao fornecedor pelo preço que ele cotou.
+             */
+            freight_cents?: number | null;
+            /**
+             * Format: int64
+             * @description A taxa do provedor de pagamento.
+             */
+            fee_cents?: number | null;
+            /**
+             * Format: int64
+             * @description Pode ser negativa. Nula se faltar um dos valores, ou se o cliente foi estornado.
+             */
+            margin_cents?: number | null;
+            /** Format: email */
+            customer_email: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @description Um pedido que não chegou ao fornecedor. O cliente já foi estornado. */
+        FailedSupplierOrder: {
+            /** Format: uuid */
+            order_id: string;
+            /** @enum {string} */
+            reason: "out_of_stock" | "rejected" | "supplier_cancelled" | "supplier_unavailable" | "invoice_rejected" | "store_cancelled";
+            detail?: string | null;
+            supplier: string;
+            supplier_order_id?: string | null;
+            /** Format: email */
+            customer_email: string;
+            attempts: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            failed_at: string;
         };
         /** @description A devolução de um pedido ao fornecedor. O cliente já foi estornado; isto é a pendência da loja. */
         SupplierReturn: {
@@ -540,6 +722,15 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Conflito com o estado atual (duplicidade ou versão desatualizada). */
+        Conflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Kafka fora do ar; tente de novo. */
         KafkaUnavailable: {
             headers: {
@@ -736,6 +927,145 @@ export interface operations {
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
             /** @description O fornecedor não cotou; vem com `Retry-After`. */
+            503: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSupplierStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O status. Fornecedor fora do ar também é 200, com `reachable` falso. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupplierStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listOrderMargins: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedidos, dos mais recentes aos mais antigos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["OrderMargin"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listFailedSupplierOrders: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedidos que falharam. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["FailedSupplierOrder"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    retrySupplierOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Volta para a fila agora. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    cancelSupplierOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+            /** @description O fornecedor não respondeu, e nada mudou; vem com `Retry-After`. */
             503: {
                 headers: {
                     "Retry-After"?: number;

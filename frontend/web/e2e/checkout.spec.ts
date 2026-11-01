@@ -46,7 +46,8 @@ test("compra no cartão do começo ao fim, com a SAGA aparecendo ao vivo", async
   await page.goto("/carrinho");
   await page.getByRole("link", { name: "Continuar para o pagamento" }).click();
 
-  // sem sessão, o checkout pede login e volta para ele
+  // sem sessão, o checkout oferece entrar e volta para ele
+  await page.getByRole("region", { name: "Contato" }).getByRole("link", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/entrar\?voltar=%2Fcheckout$/);
   await signIn(page, "ana@exemplo.com");
   await expect(page).toHaveURL(/\/checkout$/);
@@ -324,4 +325,106 @@ test("o produto e o carrinho cotam o frete pelo CEP, e lembram o CEP", async ({ 
   const cart = page.getByRole("region", { name: "Frete e prazo" });
   await expect(cart.getByLabel("CEP")).toHaveValue("01310-100");
   await expect(cart).toContainText("Expresso"); // cotou sozinho com o CEP guardado
+});
+
+test("compra sem conta: só o e-mail, e o pedido abre com o aviso do link", async ({ page }) => {
+  await addToCart(page, TV);
+  await page.goto("/carrinho");
+  await page.getByRole("link", { name: "Continuar para o pagamento" }).click();
+  await expect(page).toHaveURL(/\/checkout$/);
+
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+  await expect(page.getByLabel("E-mail", { exact: true })).toBeFocused();
+  await expect(page.getByText("Digite o seu e-mail")).toBeVisible();
+
+  const email = `sem-conta-${crypto.randomUUID()}@exemplo.com`;
+  await page.getByLabel("E-mail", { exact: true }).fill(email);
+  await fillDelivery(page);
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]+\?novo=1$/);
+  await expect(page.getByText("Recebemos o seu pedido.")).toBeVisible();
+  await expect(page.getByText(`Enviamos para ${email} um link`)).toBeVisible();
+});
+
+test("compra sem conta, sem JavaScript: o e-mail digitado volta no formulário", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto(TV);
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await page.goto("/checkout");
+  await page.getByLabel("E-mail", { exact: true }).fill("sem-arroba");
+  await page.getByLabel("Nome de quem recebe").fill("Bia Lima");
+  await page.getByLabel("CPF").fill("529.982.247-25");
+  await page.getByLabel("Celular").fill("(11) 98765-4321");
+  await page.getByLabel("CEP").fill("01310-100");
+  await page.getByLabel("Rua").fill("Avenida Paulista");
+  await page.getByLabel("Número").fill("1000");
+  await page.getByLabel("Bairro").fill("Bela Vista");
+  await page.getByLabel("Cidade").fill("São Paulo");
+  await page.getByLabel("Estado").selectOption("SP");
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+  await expect(page.getByText("Escolha o frete", { exact: false })).toBeVisible();
+  await expect(page.getByLabel("E-mail", { exact: true })).toHaveValue("sem-arroba");
+  await context.close();
+});
+
+test("compra sem conta: o formulário enviado duas vezes faz um pedido só", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto(TV);
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await page.goto("/checkout");
+
+  const form = page.locator("form").filter({ has: page.locator("input[name=idempotency_key]") });
+  const fields = await form.evaluate((f: HTMLFormElement) => [...new FormData(f)] as [string, string][]);
+  const action = new URL((await form.getAttribute("action")) || "/checkout", page.url()).toString();
+  const multipart = {
+    ...Object.fromEntries(fields),
+    email: `duas-vezes-${crypto.randomUUID()}@exemplo.com`,
+    name: "Bia Lima",
+    cpf: "52998224725",
+    phone: "11987654321",
+    zip_code: "01310100",
+    street: "Avenida Paulista",
+    number: "1000",
+    district: "Bela Vista",
+    city: "São Paulo",
+    state: "SP",
+    shipping_service: "economico",
+    method: "pix",
+  };
+
+  const submit = () => context.request.post(action, { multipart, maxRedirects: 0 });
+  const [first, second] = await Promise.all([submit(), submit()]);
+
+  const target = first.headers()["location"];
+  expect(target).toMatch(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
+  expect(second.headers()["location"]).toBe(target);
+  const stats = (await (await page.request.get(`${STUB}/__stats`)).json()) as {
+    ordersByKey: Record<string, number>;
+  };
+  const key = fields.find(([name]) => name === "idempotency_key")?.[1];
+  expect(stats.ordersByKey[String(key)]).toBe(1);
+  await context.close();
+});
+
+test("link do e-mail: só abre a sessão no clique", async ({ page }) => {
+  await page.goto("/acompanhar/abrir?token=link-bom");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Abrir meus pedidos");
+  // abrir o link não abre a sessão: o cabeçalho ainda oferece entrar
+  await expect(page.getByRole("navigation", { name: "Atalhos" })).toContainText("Entrar");
+  await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+  await expect(page).toHaveURL(/\/conta$/);
+  await expect(page.getByText("Você comprou sem conta.")).toBeVisible();
+});
+
+test("link vencido volta para pedir outro, sem dizer se houve compra", async ({ page }) => {
+  await page.goto("/acompanhar/abrir?token=vencido");
+  await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+  await expect(page).toHaveURL(/\/acompanhar\?erro=link$/);
+  await expect(page.getByRole("alert").filter({ hasText: "Esse link não vale mais" })).toBeVisible();
+  await page.getByLabel("E-mail usado na compra").fill("qualquer@exemplo.com");
+  await page.getByRole("button", { name: "Receber o link" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Se houver compra" })).toBeVisible();
 });

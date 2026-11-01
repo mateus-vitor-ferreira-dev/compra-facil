@@ -50,7 +50,7 @@ export function ProductPhotos({ initial, error }: { initial: string[]; error?: s
               onChange={(e) =>
                 setRows(rows.map((r) => (r.id === row.id ? { ...r, url: e.target.value } : r)))
               }
-              className="bg-surface border-ink/25 aria-invalid:border-danger mr-1 h-11 w-full min-w-0 rounded-md border px-3 outline-none focus-visible:outline-2"
+              className="bg-surface border-field-line aria-invalid:border-danger mr-1 h-11 w-full min-w-0 rounded-md border px-3 outline-none focus-visible:outline-2"
             />
             <button
               type="button"

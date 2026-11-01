@@ -9,6 +9,8 @@ const accessTokens = new Map(); // access token -> email
 const stats = { refresh: 0, revoke: 0, ordersPlaced: 0, ordersByKey: {} };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
+const guests = new Map(); // email -> nome, de quem comprou sem conta
+const guestKeys = new Map(); // chave do formulário -> email
 
 // a entrega dos pedidos da Ana (#221): o checkout dela já vem preenchido com ela
 const ANA_DELIVERY = {
@@ -54,7 +56,7 @@ const orderOf = (id, status, reason, qty, unit) => ({
 const orders = [
   // o confirmado já tem a nota fiscal (#221)
   {
-    ...orderOf("4f2a9c1b-0000-7000-8000-000000000001", "confirmed", null, 1, 263992),
+    ...orderOf("01a18d66-0000-7000-8000-00004f2a9c1b", "confirmed", null, 1, 263992),
     invoice: {
       access_key: "31261011222333000181550010000010011000010015",
       number: 1001,
@@ -63,15 +65,15 @@ const orders = [
       cancelled_at: null,
     },
   },
-  orderOf("7c3e5d2a-0000-7000-8000-000000000002", "cancelled", "out_of_stock", 2, 263992),
+  orderOf("01a18d66-0000-7000-8000-00007c3e5d2a", "cancelled", "out_of_stock", 2, 263992),
   {
-    ...orderOf("9d1b6e3f-0000-7000-8000-000000000003", "delivered", null, 1, 263992),
+    ...orderOf("01a18d66-0000-7000-8000-00009d1b6e3f", "delivered", null, 1, 263992),
     delivered_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
     returnable_until: new Date(Date.now() + 5 * 86_400_000).toISOString(),
     return_requested_at: null,
   },
   {
-    ...orderOf("2e6f8a14-0000-7000-8000-000000000004", "shipped", null, 1, 263992),
+    ...orderOf("01a18d66-0000-7000-8000-00002e6f8a14", "shipped", null, 1, 263992),
     sent_to_supplier_at: "2026-10-20T15:02:00Z",
     shipped_at: "2026-10-21T10:00:00Z",
     tracking: {
@@ -595,7 +597,7 @@ function supplierReturns() {
   return [
     {
       ...base,
-      order_id: "7a1c2e90-0000-7000-8000-000000000001",
+      order_id: "01a18d66-0000-7000-8000-00007a1c2e90",
       status: "pending",
       overdue: true,
       due_at: iso(now - 2 * day),
@@ -609,7 +611,7 @@ function supplierReturns() {
     },
     {
       ...base,
-      order_id: "8b2d3fa1-0000-7000-8000-000000000002",
+      order_id: "01a18d66-0000-7000-8000-00008b2d3fa1",
       status: "open",
       overdue: false,
       due_at: iso(now + 10 * day),
@@ -621,7 +623,7 @@ function supplierReturns() {
     },
     {
       ...base,
-      order_id: "6c3e4ab2-0000-7000-8000-000000000003",
+      order_id: "01a18d66-0000-7000-8000-00006c3e4ab2",
       status: "rejected",
       overdue: false,
       due_at: iso(now + 12 * day),
@@ -643,7 +645,7 @@ function overdueOrders() {
   const now = Date.now();
   return [
     {
-      order_id: "5b8e1f20-0000-7000-8000-000000000001",
+      order_id: "01a18d66-0000-7000-8000-00005b8e1f20",
       status: "placed",
       stage: "shipping",
       due_at: iso(now - 4 * day),
@@ -658,7 +660,7 @@ function overdueOrders() {
       shipped_at: null,
     },
     {
-      order_id: "9d2c7a40-0000-7000-8000-000000000002",
+      order_id: "01a18d66-0000-7000-8000-00009d2c7a40",
       status: "shipped",
       stage: "delivery",
       due_at: iso(now - 5 * 60 * 60 * 1000),
@@ -884,6 +886,73 @@ createServer(async (req, res) => {
     if (dlt[2]) return send(res, 200, { replayed: items.length });
     return send(res, 200, { items });
   }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier/status") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, {
+      name: "cj",
+      host: "supplier-sim",
+      reachable: true,
+      latency_ms: 12,
+      error: null,
+      own_credentials: false,
+      webhook_secret_configured: true,
+      products_in_feed: 40,
+      last_stock_read_at: "2026-10-30T12:00:00Z",
+      last_webhook_at: "2026-10-30T12:05:00Z",
+      ship_within_hours: 72,
+      deliver_within_hours: 360,
+      return_within_hours: 360,
+    });
+  }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/order-margins") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const row = (id, outcome, revenue, cost, freight, fee, margin) => ({
+      order_id: id,
+      outcome,
+      revenue_cents: revenue,
+      product_cost_cents: cost,
+      freight_cents: freight,
+      fee_cents: fee,
+      margin_cents: margin,
+      customer_email: "bia@exemplo.com",
+      created_at: "2026-10-20T15:00:00Z",
+    });
+    return send(res, 200, {
+      data: [
+        row("01a18d66-0000-7000-8000-0000a1000000", "delivered", 12000, 6000, 2000, 598, 3402),
+        row("01a18d66-0000-7000-8000-0000a2000000", "in_progress", 5000, 4800, 1000, 249, -1049),
+        row("01a18d66-0000-7000-8000-0000a3000000", "delivered", 9000, null, 1000, 90, null),
+        row("01a18d66-0000-7000-8000-0000a4000000", "returned", 7000, 3000, 1000, 70, null),
+      ],
+    });
+  }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/failed") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return send(res, 200, {
+      data: [
+        {
+          order_id: "01a18d66-0000-7000-8000-00003f6a9c10",
+          reason: "out_of_stock",
+          detail: "Out of stock: SIM-V-003",
+          supplier: "cj",
+          supplier_order_id: null,
+          customer_email: "edu@exemplo.com",
+          attempts: 1,
+          created_at: iso(Date.now() - 86_400_000),
+          failed_at: iso(Date.now() - 86_000_000),
+        },
+      ],
+    });
+  }
+  const orderAction = url.pathname.match(
+    /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/(retry|cancel)$/,
+  );
+  if (req.method === "POST" && orderAction) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    // o pedido 9d2c7a40 já foi despachado: o cancelamento dá 409
+    if (orderAction[1].endsWith("9d2c7a40")) return problem(res, 409, "Ação indisponível");
+    return res.writeHead(204).end();
+  }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-returns") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     return send(res, 200, { data: supplierReturns() });
@@ -1050,6 +1119,23 @@ createServer(async (req, res) => {
         created_at: new Date().toISOString(),
       });
     }
+    case "POST /identity/v1/sessions/guest": {
+      const { email, name, checkout_key: key } = await json(req);
+      if (!/@.+\./.test(email ?? "")) return problem(res, 422, "Dados inválidos");
+      const same = guestKeys.get(key);
+      if (same && same !== email) return problem(res, 409, "Compra já iniciada");
+      guestKeys.set(key, email);
+      guests.set(email, name);
+      return send(res, 200, tokens(email));
+    }
+    case "POST /identity/v1/sessions/guest/access": {
+      const { token } = await json(req);
+      if (token !== "link-bom") return problem(res, 401, "Não autenticado");
+      guests.set("convidada@exemplo.com", "Bia Lima");
+      return send(res, 200, tokens("convidada@exemplo.com"));
+    }
+    case "POST /identity/v1/sessions/guest/access/resend":
+      return send(res, 202, {});
     case "POST /identity/v1/accounts/confirm-email/resend":
       res.writeHead(202).end();
       return;
@@ -1118,8 +1204,9 @@ createServer(async (req, res) => {
       return send(res, 200, {
         id: "0199f6a0-0000-7000-8000-000000000a1a",
         email,
-        name: "Ana Souza",
+        name: guests.get(email) ?? "Ana Souza",
         email_confirmed: true,
+        is_guest: guests.has(email),
         // "admin@..." é da equipe: abre o painel
         roles: email.startsWith("admin@") ? ["admin"] : ["customer"],
         created_at: "2026-10-01T10:00:00Z",

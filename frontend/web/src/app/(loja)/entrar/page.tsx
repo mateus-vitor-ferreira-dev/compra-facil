@@ -45,6 +45,15 @@ export default async function LoginPage({ searchParams }: Props) {
           Criar conta
         </Link>
       </p>
+      <p className="text-ink-soft">
+        Comprou sem conta?{" "}
+        <Link
+          href="/acompanhar"
+          className="text-ink inline-flex min-h-11 items-center font-semibold underline underline-offset-4"
+        >
+          Receber o link dos pedidos
+        </Link>
+      </p>
     </AuthShell>
   );
 }

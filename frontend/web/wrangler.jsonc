@@ -8,14 +8,19 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  // por enquanto, um subdomínio da Digital Codexa: um nível só, que o certificado universal da zona cobre
+  "routes": [{ "pattern": "compra-facil.digitalcodexa.com", "custom_domain": true }],
   // Valores do servidor que não são segredo. Os segredos (BFF_GATEWAY_KEY, GOOGLE_CLIENT_SECRET) vão
   // com `wrangler secret put`.
   "vars": {
-    "API_URL": "https://api.comprafacil.example",
-    "SITE_URL": "https://comprafacil.example",
+    "API_URL": "https://compra-facil-api.49.12.249.23.sslip.io",
+    "SITE_URL": "https://compra-facil.digitalcodexa.com",
     // o IP de quem compra, que a Cloudflare põe em toda requisição e não deixa o cliente forjar: o BFF
     // o repassa ao gateway para o rate limit ser por comprador (#176)
     "CLIENT_IP_HEADER": "cf-connecting-ip",
+    // a loja de demonstração: o provedor simulado, em sslip.io como a API (abre nas redes que bloqueiam a zona)
+    "PAYMENT_PROVIDER_URL": "https://compra-facil-pagamento.49.12.249.23.sslip.io",
+    "DEMO_MODE": "true",
   },
   "assets": {
     "directory": ".open-next/assets",

@@ -319,6 +319,7 @@ services:
       Kafka__BootstrapServers: redpanda:9092
       # link do e-mail de confirmação: a página do front (F8). Sem exigir a confirmação no ambiente local
       Identity__EmailConfirmation__UrlTemplate: ${FRONT_URL:-http://localhost:3000}/conta/confirmar-email?conta={account_id}&token={token}
+      Identity__GuestAccess__UrlTemplate: ${FRONT_URL:-http://localhost:3000}/acompanhar/abrir?token={token}
       Identity__EmailConfirmation__Required: "false"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s

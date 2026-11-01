@@ -8,6 +8,7 @@ import {
 } from "@/components/brand/illustrations";
 import { Logo } from "@/components/brand/logo";
 import { CategoryIcon } from "@/components/commerce/category-icon";
+import { PaymentTerms } from "@/components/commerce/payment-terms";
 import { PriceTag } from "@/components/commerce/price-tag";
 import { ProductCard, ProductCardSkeleton } from "@/components/commerce/product-card";
 import { Badge } from "@/components/ui/badge";
@@ -115,6 +116,7 @@ const palette = [
   ["Superfície", "bg-surface", "campos e painéis"],
   ["Tinta", "bg-ink", "texto e ações"],
   ["Tinta suave", "bg-ink-soft", "texto secundário"],
+  ["Borda de campo", "bg-field-line", "campos e controles: 3:1 ou mais"],
   ["Etiqueta", "bg-tag", "só preço de campanha"],
   ["Sucesso", "bg-success", "pedido confirmado"],
   ["Erro", "bg-danger", "falha e cancelamento"],
@@ -147,19 +149,28 @@ export default function DesignSystem() {
 
       <Section title="Preço">
         <div className="flex flex-wrap items-end gap-10">
-          <PriceTag
-            size="lg"
-            price={{ amount_cents: 329990, currency: "BRL" }}
-            effective={{ amount_cents: 263990, currency: "BRL" }}
-          />
-          <PriceTag
-            price={{ amount_cents: 549990, currency: "BRL" }}
-            effective={{ amount_cents: 494990, currency: "BRL" }}
-          />
-          <PriceTag
-            price={{ amount_cents: 49990, currency: "BRL" }}
-            effective={{ amount_cents: 49990, currency: "BRL" }}
-          />
+          <div className="space-y-2">
+            <PriceTag
+              size="lg"
+              price={{ amount_cents: 329990, currency: "BRL" }}
+              effective={{ amount_cents: 263990, currency: "BRL" }}
+            />
+            <PaymentTerms size="lg" price={{ amount_cents: 263990, currency: "BRL" }} />
+          </div>
+          <div className="space-y-1">
+            <PriceTag
+              price={{ amount_cents: 549990, currency: "BRL" }}
+              effective={{ amount_cents: 494990, currency: "BRL" }}
+            />
+            <PaymentTerms price={{ amount_cents: 494990, currency: "BRL" }} />
+          </div>
+          <div className="space-y-1">
+            <PriceTag
+              price={{ amount_cents: 49990, currency: "BRL" }}
+              effective={{ amount_cents: 49990, currency: "BRL" }}
+            />
+            <PaymentTerms price={{ amount_cents: 49990, currency: "BRL" }} />
+          </div>
         </div>
       </Section>
 
@@ -198,6 +209,7 @@ export default function DesignSystem() {
       <Section title="Selos">
         <div className="flex flex-wrap gap-2">
           <Badge variant="deal">Black Friday</Badge>
+          <Badge variant="campaign">Black Friday</Badge>
           <Badge variant="success">Pedido confirmado</Badge>
           <Badge variant="danger">Cancelado: sem estoque</Badge>
           <Badge variant="neutral">Aguardando pagamento</Badge>

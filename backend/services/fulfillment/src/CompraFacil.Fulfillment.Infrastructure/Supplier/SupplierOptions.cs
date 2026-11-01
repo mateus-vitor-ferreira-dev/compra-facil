@@ -12,7 +12,9 @@ public sealed class SupplierOptions
     /// <summary>Raiz da API, com a barra no fim (ex.: http://supplier-sim:8090/api2.0/v1/).</summary>
     public Uri BaseUrl { get; set; } = new("http://localhost:8090/api2.0/v1/");
 
-    public string Email { get; set; } = "sim@comprafacil.local";
+    public const string SimulatorEmail = "sim@comprafacil.local";
+
+    public string Email { get; set; } = SimulatorEmail;
     public string Password { get; set; } = "sim";
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
 

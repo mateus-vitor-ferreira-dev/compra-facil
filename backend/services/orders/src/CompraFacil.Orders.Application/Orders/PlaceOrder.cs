@@ -77,7 +77,7 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
                 .WithMessage("o cartão precisa do card_token do provedor");
             p.RuleFor(x => x.CardBrand).NotEmpty().MaximumLength(16).When(x => x.Method == PaymentMethod.Card);
             p.RuleFor(x => x.CardToken).Null().When(x => x.Method == PaymentMethod.Pix).WithMessage("PIX não leva card_token");
-            p.RuleFor(x => x.Installments).InclusiveBetween(1, 12).When(x => x.Method == PaymentMethod.Card);
+            p.RuleFor(x => x.Installments).InclusiveBetween(1, Order.MaxInstallments).When(x => x.Method == PaymentMethod.Card);
             p.RuleFor(x => x.Installments).Equal(1).When(x => x.Method == PaymentMethod.Pix).WithMessage("PIX é à vista");
         }).When(c => c.Payment is not null).OverridePropertyName("payment");
     }

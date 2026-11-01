@@ -40,6 +40,12 @@ export default async function AccountPage({ searchParams }: Props) {
           <p className="text-ink-soft" data-testid="account-email">
             {account.name} ({account.email})
           </p>
+          {account.is_guest && (
+            <p className="text-ink-soft max-w-prose">
+              Você comprou sem conta. Para voltar aqui, use o link que enviamos por e-mail. Em computador
+              compartilhado, clique em Sair ao terminar.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {account.roles.includes("admin") && (

@@ -113,8 +113,11 @@ export function orderStatus(order: StatusInput): { label: string; tone: Tone; de
   }
 }
 
-/** "4F2A9C1B": o começo do id, para o cliente reconhecer o pedido sem ler um UUID inteiro. */
-export const orderNumber = (id: string) => id.replace(/-/g, "").slice(0, 8).toUpperCase();
+/**
+ * O número curto do pedido: os 8 últimos caracteres, como nos e-mails. Os primeiros não servem: no UUIDv7 são o
+ * horário, e se repetem entre pedidos próximos.
+ */
+export const orderNumber = (id: string) => id.replace(/-/g, "").slice(-8).toUpperCase();
 
 export type StepState = "done" | "current" | "failed" | "skipped" | "upcoming";
 export type Step = {

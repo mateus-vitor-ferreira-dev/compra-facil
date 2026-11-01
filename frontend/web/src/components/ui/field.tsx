@@ -39,7 +39,7 @@ export function TextField({
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={[describedBy(id, hint, error), extra].filter(Boolean).join(" ") || undefined}
-        className={cn(input, "border-ink/25")}
+        className={cn(input, "border-field-line")}
         {...props}
       />
       <FieldText id={id} hint={hint} error={error} />
@@ -63,7 +63,7 @@ export function PasswordField({ label, hint, error, className, id: fixedId, ...p
           type={visible ? "text" : "password"}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(id, hint, error)}
-          className={cn(input, "border-ink/25 pr-12")}
+          className={cn(input, "border-field-line pr-12")}
           {...props}
         />
         <button

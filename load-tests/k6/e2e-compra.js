@@ -17,6 +17,8 @@
 //   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved;
 //   7. nota fiscal recusada: cliente "+recusar-nota" (a SEFAZ simulada do invoice-sim rejeita) → o pedido
 //      pago não vai ao fornecedor, cancelled (invoice_failed) e a autorização do cartão cancelada.
+//   8. cancelado pela equipe: cliente "+atrasar" fica preso no fornecedor, o painel cancela → avisado, cancelled
+//      e o cartão estornado.
 // No cenário 1, a nota fiscal sai antes do fornecedor, aparece no pedido, vai por e-mail e o DANFE baixa.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
@@ -224,6 +226,16 @@ export default function (products) {
     const peek = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(stranger.token), tags: { name: 'order-status' } });
     check(peek, { 'outro cliente não vê o pedido (404)': (r) => r.status === 404 });
 
+    // a integração (#225): o fornecedor simulado responde, e a resposta não traz segredo
+    const integration = http.get(`${GATEWAY}/fulfillment/v1/admin/supplier/status`, { headers: auth(login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD)), tags: { name: 'supplier-status' } });
+    check(integration, { 'fornecedor respondendo': (r) => r.status === 200 && r.json('reachable') === true && !r.body.includes('sim-secret') });
+
+    // a margem (#225): o produto do cenário não veio do fornecedor, então a conta fica sem custo, mas com a taxa
+    const margins = http.get(`${GATEWAY}/fulfillment/v1/admin/order-margins?limit=200`, { headers: auth(login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD)), tags: { name: 'order-margins' } });
+    check(margins.json('data').find((m) => m.order_id === orderId), {
+      'margem com o que foi pago e a taxa': (m) => m.revenue_cents > 0 && m.fee_cents > 0 && m.margin_cents === null,
+    });
+
     // arrependimento (#223): o entregue volta em 7 dias, e o cartão capturado é estornado com o frete
     const back = http.post(`${GATEWAY}/orders/v1/orders/${orderId}/return`, null, { headers: auth(customer.token), tags: { name: 'order-return' } });
     check(back, { 'desistência aceita (returned)': (r) => r.status === 200 && r.json('status') === 'returned' });
@@ -370,5 +382,29 @@ export default function (products) {
       'não foi ao fornecedor': (o) => !o.sent_to_supplier_at,
     });
     check(paymentOf(orderId, 'voided'), { 'autorização cancelada': (p) => p.status === 'voided' });
+  });
+
+  group('8. cancelado pela equipe', () => {
+    // preso no fornecedor (+atrasar): a equipe cancela pelo painel, ele é avisado e o cliente, estornado
+    const customer = newCustomer(IDENTITY, 'e2e-cancelado', 'atrasar');
+    const orderId = placeOrder(products.supplierRejected, customer);
+    check(eventually('pedido aceito pelo fornecedor', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('sent_to_supplier_at') ? res.json() : null;
+    }), { 'parado no fornecedor': (o) => o.status === 'confirmed' });
+    const admin = login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const cancel = http.post(`${GATEWAY}/fulfillment/v1/admin/supplier-orders/${orderId}/cancel`, null, { headers: auth(admin), tags: { name: 'order-cancel' } });
+    check(cancel, { 'cancelamento aceito': (r) => r.status === 204 });
+    check(eventually('pedido cancelado e estornado', () => {
+      const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
+      return res.status === 200 && res.json('refunded_at') ? res.json() : null;
+    }), {
+      'pedido cancelled': (o) => o.status === 'cancelled',
+      'motivo supplier_failed': (o) => o.cancellation_reason === 'supplier_failed',
+    });
+    // capturado, volta por estorno; ainda só autorizado, a autorização é cancelada
+    check(paymentOf(orderId, 'refunded', 'voided'), { 'nada fica cobrado': (p) => p.status === 'voided' || p.refunded_cents === p.amount.amount_cents });
+    const sim = http.get(`${SUPPLIER_SIM}/sim/orders`, { tags: { name: 'sim-orders' } }).json('data');
+    check(sim.find((o) => o.orderNumber === orderId), { 'cancelado no fornecedor': (o) => o.orderStatus === 'CANCELLED' });
   });
 }

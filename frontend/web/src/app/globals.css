@@ -15,6 +15,7 @@
   --ink: #1b1f3b; /* texto e ações */
   --ink-soft: #5b6075; /* texto secundário (5,8:1 no papel) */
   --line: #dfe2ea;
+  --field-line: #868b9f; /* borda dos campos: 3,2:1 no papel, 3,4:1 no cartão */
   --tag: #ffd23f; /* etiqueta de campanha */
   --tag-ink: #1b1f3b;
   --success: #0b6e50; /* 4,9:1 no próprio selo */
@@ -34,6 +35,7 @@
     --ink: #eef0f7;
     --ink-soft: #aeb3c8;
     --line: #2e3256;
+    --field-line: #7c82a3; /* 4,3:1 no cartão */
     --success: #3fc495;
     --danger: #ff7a80;
     --danger-ink: #ff7a80;
@@ -50,6 +52,7 @@
   --ink: #eef0f7;
   --ink-soft: #aeb3c8;
   --line: #2e3256;
+  --field-line: #7c82a3; /* 4,3:1 no cartão */
   --success: #3fc495;
   --danger: #ff7a80;
   --danger-ink: #ff7a80;
@@ -67,6 +70,7 @@
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-line: var(--line);
+  --color-field-line: var(--field-line);
   --color-tag: var(--tag);
   --color-tag-ink: var(--tag-ink);
   --color-success: var(--success);

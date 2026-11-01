@@ -1,0 +1,271 @@
+# A loja de demonstração no Coolify: a mesma stack de compose.yaml, com o fornecedor, o pagamento e a nota simulados,
+# para ver a compra de ponta a ponta antes das contas de verdade (#156, #226 a #229). Nada é cobrado nem entregue.
+#
+# As diferenças: entram o fulfillment, os três simuladores, as fotos (do próprio repositório) e o Mailpit, que guarda
+# os e-mails sem enviar; saem o backup e o Collector. Só o gateway e o payment-sim têm domínio: o navegador tokeniza
+# o cartão e abre a página do PIX direto no provedor. As imagens são as do GHCR: aqui nada compila. Sem arquivos
+# montados: o Coolify não os acha no repositório, então a configuração e as fotos vão nas imagens (deploy/demo).
+
+x-dotnet: &dotnet
+  restart: unless-stopped
+  mem_limit: 320m
+  depends_on:
+    postgres-databases:
+      condition: service_completed_successfully
+    redpanda:
+      condition: service_started
+
+x-dotnet-env: &dotnet-env
+  Kafka__BootstrapServers: redpanda:9092
+  # os tokens do identity, validados pelo JWKS dele na rede interna
+  Auth__Authority: http://identity:8006
+  Auth__RequireHttpsMetadata: "false"
+
+services:
+  gateway:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-gateway:${SIM_IMAGE_TAG:-develop}
+    restart: unless-stopped
+    mem_limit: 128m
+    command: ["--configFile=/etc/traefik/traefik.yml"]
+    environment:
+      # a loja: o domínio dela e o workers.dev, que abre nas redes que bloqueiam o domínio
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?as URLs da loja}
+      # o mesmo valor no BFF do front (Cloudflare): o rate limit passa a ser por comprador (#176)
+      BFF_GATEWAY_KEY: ${BFF_GATEWAY_KEY:?o segredo do BFF}
+      # atrás do proxy do Coolify: o IP do cliente é o último do X-Forwarded-For
+      CLIENT_IP_DEPTH: "1"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    depends_on: [catalog, orders, inventory, payments, notifications, identity, fulfillment, media]
+
+  postgres:
+    image: postgres:17.11-alpine
+    restart: unless-stopped
+    mem_limit: 768m
+    command:
+      - postgres
+      - -c
+      - shared_buffers=192MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - max_connections=150
+      - -c
+      - log_min_duration_statement=500ms
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?a senha do superusuário}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # a cada deploy: cria o banco e o usuário de um serviço novo e acerta as senhas (idempotente)
+  postgres-databases:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-postgres-init:${SIM_IMAGE_TAG:-develop}
+    restart: "no"
+    # roda e sai: o Coolify não o conta na saúde da stack
+    exclude_from_hc: true
+    entrypoint: ["bash", "/init-databases.sh"]
+    environment:
+      PGHOST: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: postgres
+      SERVICE_DATABASES: catalog,orders,inventory,payments,notifications,identity,fulfillment
+      SERVICE_DB_PASSWORD_CATALOG: ${PG_CATALOG_PASSWORD:?}
+      SERVICE_DB_PASSWORD_ORDERS: ${PG_ORDERS_PASSWORD:?}
+      SERVICE_DB_PASSWORD_INVENTORY: ${PG_INVENTORY_PASSWORD:?}
+      SERVICE_DB_PASSWORD_PAYMENTS: ${PG_PAYMENTS_PASSWORD:?}
+      SERVICE_DB_PASSWORD_NOTIFICATIONS: ${PG_NOTIFICATIONS_PASSWORD:?}
+      SERVICE_DB_PASSWORD_IDENTITY: ${PG_IDENTITY_PASSWORD:?}
+      SERVICE_DB_PASSWORD_FULFILLMENT: ${PG_FULFILLMENT_PASSWORD:?}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:8.8.3-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    # só cache do catalog: sem disco, com teto e descarte dos menos usados
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  redpanda:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-redpanda:${SIM_IMAGE_TAG:-develop}
+    restart: unless-stopped
+    mem_limit: 768m
+    # a configuração de produção (redpanda.yaml) vai para o diretório que o rpk reescreve na partida
+    entrypoint: ["bash", "-c"]
+    command:
+      - cp /config/redpanda.yaml /etc/redpanda/redpanda.yaml
+        && cp /config/redpanda.bootstrap.yaml /etc/redpanda/.bootstrap.yaml
+        && exec /entrypoint.sh redpanda start --smp=1 --memory=512M --reserve-memory=0M --default-log-level=warn
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9644/v1/status/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  catalog:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-catalog:${IMAGE_TAG:-main}
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      CATALOG_APP_ENV: production
+      CATALOG_GRPC_REFLECTION: "false"
+      CATALOG_DB_DSN: postgres://catalog:${PG_CATALOG_PASSWORD}@postgres:5432/catalog?sslmode=disable
+      CATALOG_CACHE_REDIS_ADDR: redis:6379
+      CATALOG_EVENTS_BROKERS: redpanda:9092
+      CATALOG_AUTH_AUTHORITY: http://identity:8006
+      # o feed do simulado nas categorias da loja, e o produto novo já à venda
+      CATALOG_SUPPLIER_CATEGORIES: "Headphones=fones-over-ear;Mouse=mouses;Keyboard=teclados;Lipstick=batons;Frying Pan=frigideiras"
+      CATALOG_SUPPLIER_PUBLISH_NEW: "true"
+    depends_on:
+      postgres-databases:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      redpanda:
+        condition: service_started
+
+  identity:
+    <<: *dotnet
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-identity:${IMAGE_TAG:-main}
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${PG_IDENTITY_PASSWORD}
+      Identity__EmailConfirmation__UrlTemplate: ${FRONT_URL}/conta/confirmar-email?conta={account_id}&token={token}
+      Identity__GuestAccess__UrlTemplate: ${FRONT_URL}/acompanhar/abrir?token={token}
+      # os e-mails ficam no Mailpit, sem chegar a ninguém: a conta não espera a confirmação
+      Identity__EmailConfirmation__Required: "false"
+      # o operador inicial; conta que já existe mantém a senha trocada depois
+      Identity__Admin__Email: ${ADMIN_EMAIL:?o e-mail do operador}
+      Identity__Admin__Password: ${ADMIN_PASSWORD:?a senha inicial do operador}
+      Identity__Google__ClientIds__0: ${GOOGLE_CLIENT_ID:-}
+
+  orders:
+    <<: *dotnet
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-orders:${IMAGE_TAG:-main}
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${PG_ORDERS_PASSWORD}
+      Catalog__GrpcAddress: http://catalog:9001
+      Fulfillment__BaseUrl: http://fulfillment:8007/
+
+  inventory:
+    <<: *dotnet
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-inventory:${IMAGE_TAG:-main}
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${PG_INVENTORY_PASSWORD}
+      # loja de demonstração: produto novo (inclusive os do seed) nasce com estoque para dar para comprar
+      Inventory__InitialOnHandForNewProducts: ${INITIAL_STOCK_FOR_NEW_PRODUCTS:-100}
+      Fulfillment__BaseUrl: http://fulfillment:8007/
+
+  payments:
+    <<: *dotnet
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-payments:${IMAGE_TAG:-main}
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${PG_PAYMENTS_PASSWORD}
+      Payments__MercadoPago__BaseUrl: http://payment-sim:8090/
+      Payments__MercadoPago__WebhookSecret: ${SIM_WEBHOOK_SECRET:?}
+      Payments__MercadoPago__NotificationUrl: http://payments:8004/v1/webhooks/payments
+
+  notifications:
+    <<: *dotnet
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-notifications:${IMAGE_TAG:-main}
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${PG_NOTIFICATIONS_PASSWORD}
+      # o link do pedido nos e-mails
+      Store__BaseUrl: ${FRONT_URL:?a URL da loja}/
+      Smtp__Host: mailpit
+      Smtp__Port: 1025
+
+  # o pedido pago vai ao fornecedor (simulado), com a nota do emissor (simulado) antes
+  fulfillment:
+    <<: *dotnet
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-fulfillment:${IMAGE_TAG:-main}
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${PG_FULFILLMENT_PASSWORD}
+      Supplier__BaseUrl: http://supplier-sim:8090/api2.0/v1/
+      Supplier__WebhookSecret: ${SIM_WEBHOOK_SECRET:?}
+      # ana+recusar@... no checkout faz o simulado recusar: é o que permite demonstrar as falhas
+      Supplier__ScenarioFromEmail: "true"
+      Supplier__AcceptOrdersSince: "2000-01-01T00:00:00Z"
+      Shipping__UsdToBrl: "5.40"
+      Invoice__AuthUrl: http://invoice-sim:8090/oauth/token
+      Invoice__BaseUrl: http://invoice-sim:8090/
+      Invoice__ClientId: sim-client
+      Invoice__ClientSecret: ${SIM_INVOICE_SECRET:?}
+
+  supplier-sim:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-supplier-sim:${SIM_IMAGE_TAG:-develop}
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      SIM_WEBHOOK_URL: http://fulfillment:8007/v1/webhooks/supplier
+      SIM_WEBHOOK_SECRET: ${SIM_WEBHOOK_SECRET:?}
+
+  # o único simulado com domínio: o navegador fala direto com o provedor
+  payment-sim:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-payment-sim:${SIM_IMAGE_TAG:-develop}
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      SIM_WEBHOOK_URL: http://payments:8004/v1/webhooks/payments
+      SIM_WEBHOOK_SECRET: ${SIM_WEBHOOK_SECRET:?}
+      SIM_PUBLIC_URL: ${PAYMENT_PUBLIC_URL:?a URL pública do payment-sim}
+
+  invoice-sim:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-invoice-sim:${SIM_IMAGE_TAG:-develop}
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      SIM_CLIENT_ID: sim-client
+      SIM_CLIENT_SECRET: ${SIM_INVOICE_SECRET:?}
+
+  # as fotos, do repositório, pelo gateway em /media
+  media:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-demo-media:${SIM_IMAGE_TAG:-develop}
+    restart: unless-stopped
+    mem_limit: 64m
+
+  # guarda os e-mails, sem enviar e sem porta aberta
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    restart: unless-stopped
+    mem_limit: 64m
+
+  # os produtos, uma vez: com o catálogo já cheio, ele recusa e sai sem mexer em nada
+  catalog-seed:
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-catalog-seed:${IMAGE_TAG:-main}
+    restart: "no"
+    exclude_from_hc: true
+    command: ["-products", "2000"]
+    environment:
+      CATALOG_DB_DSN: postgres://catalog:${PG_CATALOG_PASSWORD}@postgres:5432/catalog?sslmode=disable
+      CATALOG_SEED_MEDIA_URL: ${API_URL:?a URL pública da API}/media
+    depends_on:
+      catalog:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  redpanda-data:

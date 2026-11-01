@@ -28,6 +28,9 @@ public static class SupplierFailureReasons
 
     /// <summary>A SEFAZ rejeitou a nota da loja: o pedido não vai ao fornecedor (#221).</summary>
     public const string InvoiceRejected = "invoice_rejected";
+
+    /// <summary>A equipe cancelou pelo painel antes do despacho (#225): o cliente é estornado.</summary>
+    public const string StoreCancelled = "store_cancelled";
 }
 
 /// <summary>Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome e a quantidade.</summary>
@@ -93,6 +96,19 @@ public sealed class SupplierOrder
     public DateTimeOffset? DeliveredAt { get; private set; }
     public DateTimeOffset? FailedAt { get; private set; }
     public uint Version { get; private set; }
+
+    /// <summary>O que o cliente pagou, com o frete (#225); nulo nos pedidos de antes disso.</summary>
+    public long? RevenueCents { get; private set; }
+
+    /// <summary>O frete cobrado, que a loja repassa ao fornecedor pelo preço que ele cotou.</summary>
+    public long? FreightCents { get; private set; }
+
+    /// <summary>O custo dos produtos em reais, no câmbio da compra; nulo se algum não veio do fornecedor.</summary>
+    public long? ProductCostCents { get; private set; }
+
+    /// <summary>Fixa os valores da compra: o custo e o câmbio mudam depois, e a margem do pedido, não.</summary>
+    public void RecordEconomics(long revenueCents, long freightCents, long? productCostCents) =>
+        (RevenueCents, FreightCents, ProductCostCents) = (revenueCents, freightCents, productCostCents);
 
     public static SupplierOrder Create(
         Guid orderId, string customerEmail, IReadOnlyList<SupplierOrderItem> items, string supplier, DateTimeOffset now, ShipTo? shipTo = null,
@@ -164,6 +180,17 @@ public sealed class SupplierOrder
         Status = SupplierOrderStatus.Pending;
         NextAttemptAt = now + TimeSpan.FromSeconds(Math.Min(300, Math.Pow(2, Attempts) * 5));
         return SupplierOrderChange.None;
+    }
+
+    /// <summary>A equipe manda tentar agora, sem esperar a próxima tentativa. False se o pedido não está na espera.</summary>
+    public bool RetryNow()
+    {
+        if (Status != SupplierOrderStatus.Pending || NextAttemptAt is null)
+        {
+            return false;
+        }
+        NextAttemptAt = null;
+        return true;
     }
 
     public SupplierOrderChange MarkShipped(Tracking tracking, DateTimeOffset now)

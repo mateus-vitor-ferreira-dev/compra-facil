@@ -49,6 +49,24 @@ for (const scheme of ["light", "dark"] as const) {
       }
     });
 
+    test("compra sem conta", async ({ page }) => {
+      await page.goto(TV);
+      await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+      await expect(page.getByRole("status").filter({ hasText: "Adicionado" })).toBeVisible();
+      for (const path of [
+        "/checkout",
+        "/acompanhar",
+        "/acompanhar/abrir?token=link-bom",
+        "/politicas/entrega",
+        "/politicas/trocas-e-devolucoes",
+        "/politicas/privacidade",
+        "/politicas/termos",
+      ]) {
+        await page.goto(path);
+        await audit(page, path);
+      }
+    });
+
     test("carrinho, checkout e o pedido ao vivo", async ({ page }) => {
       await signIn(page, "ana@exemplo.com");
       await page.goto(TV);
@@ -89,6 +107,7 @@ for (const scheme of ["light", "dark"] as const) {
         "/admin/falhas",
         "/admin/atrasos",
         "/admin/devolucoes",
+        "/admin/margens",
         "/admin/fornecedor",
         "/admin/produtos/0199f6a0-0000-7000-8000-000000000063",
       ]) {

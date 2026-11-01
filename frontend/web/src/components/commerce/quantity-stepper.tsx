@@ -30,7 +30,7 @@ export function QuantityStepper({
       <label htmlFor={id} className="text-ink-soft text-sm">
         Quantidade
       </label>
-      <div className="border-ink/25 bg-surface inline-flex items-center rounded-md border">
+      <div className="border-field-line bg-surface inline-flex items-center rounded-md border">
         <button
           type="button"
           className={step}

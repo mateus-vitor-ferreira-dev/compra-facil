@@ -1,0 +1,56 @@
+# As imagens da loja de demonstração no Coolify (deploy/coolify/compose.demo.yaml): os simuladores e as que levam a
+# configuração e as fotos. Só arm64: é o VPS que as usa, e no local e no CI elas são compiladas pelo compose.
+name: sim-images
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - backend/services/supplier-sim/**
+      - backend/services/payment-sim/**
+      - backend/services/invoice-sim/**
+      - deploy/demo/**
+      - deploy/coolify/traefik.yml
+      - deploy/coolify/redpanda*.yaml
+      - infra/gateway/traefik/**
+      - infra/media/**
+      - infra/compose/postgres/init-databases.sh
+      - .github/workflows/sim-images.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: supplier-sim, context: backend/services/supplier-sim, file: backend/services/supplier-sim/Dockerfile }
+          - { name: payment-sim, context: backend/services/payment-sim, file: backend/services/payment-sim/Dockerfile }
+          - { name: invoice-sim, context: backend/services/invoice-sim, file: backend/services/invoice-sim/Dockerfile }
+          - { name: demo-gateway, context: ., file: deploy/demo/gateway.Dockerfile }
+          - { name: demo-media, context: ., file: deploy/demo/media.Dockerfile }
+          - { name: demo-postgres-init, context: ., file: deploy/demo/postgres-init.Dockerfile }
+          - { name: demo-redpanda, context: ., file: deploy/demo/redpanda.Dockerfile }
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/arm64
+          push: true
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          tags: ghcr.io/${{ github.repository_owner }}/compra-facil-${{ matrix.name }}:develop

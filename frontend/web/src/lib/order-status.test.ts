@@ -43,8 +43,8 @@ describe("orderStatus", () => {
     );
   });
 
-  it("orderNumber mostra os 8 primeiros caracteres em maiúsculas", () => {
-    expect(orderNumber("4f2a9c1b-0000-7000-8000-000000000001")).toBe("4F2A9C1B");
+  it("orderNumber mostra os 8 últimos caracteres em maiúsculas, como os e-mails", () => {
+    expect(orderNumber("01a18d66-0000-7000-8000-00004f2a9c1b")).toBe("4F2A9C1B");
   });
 });
 

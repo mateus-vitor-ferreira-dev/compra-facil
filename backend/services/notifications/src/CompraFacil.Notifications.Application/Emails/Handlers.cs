@@ -156,6 +156,23 @@ public sealed class OnInvoiceIssued(
     }
 }
 
+/// <summary>Registra o e-mail com o link de quem comprou sem conta.</summary>
+public sealed class OnGuestAccessRequested(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<GuestAccessRequestedData>
+{
+    public async Task HandleAsync(GuestAccessRequestedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.GuestAccessAsync(data, clock.GetUtcNow());
+        notifications.Add(Notification.Create(context.EventId, data.AccountId, NotificationEvents.GuestAccessRequested,
+            data.Email, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
 /// <summary>Registra o e-mail com o link de confirmação da conta.</summary>
 public sealed class OnEmailConfirmationRequested(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<EmailConfirmationRequestedData>
 {

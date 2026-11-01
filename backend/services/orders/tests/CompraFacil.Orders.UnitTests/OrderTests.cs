@@ -18,6 +18,26 @@ public sealed class OrderTests
         Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", items.Length == 0 ? [Item()] : items, "chave-123", "hash", s_now,
             s_recipient, s_address, s_shipping);
 
+    private static Order PlaceOnCard(long cents, int installments) =>
+        Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", [Item(quantity: 1, cents: cents)], "chave-123", "hash", s_now,
+            s_recipient, s_address, s_shipping, PaymentMethod.Card, installments);
+
+    [Fact]
+    public void Place_OnCard_AcceptsUpToTheMaximumInstallments() =>
+        Assert.Equal(Order.MaxInstallments, PlaceOnCard(100_000, Order.MaxInstallments).Installments);
+
+    [Fact]
+    public void Place_OnCard_AboveTheMaximumInstallments_Throws() =>
+        Assert.Throws<DomainException>(() => PlaceOnCard(100_000, Order.MaxInstallments + 1));
+
+    [Fact]
+    public void Place_OnCard_InstallmentBelowTheMinimum_Throws() =>
+        Assert.Throws<DomainException>(() => PlaceOnCard(1_000, 2));
+
+    [Fact]
+    public void Place_OnCard_SmallValueInOneInstallment_IsAccepted() =>
+        Assert.Equal(1, PlaceOnCard(1_000, 1).Installments);
+
     [Fact]
     public void Place_StartsPending_WithTotalOfLines()
     {

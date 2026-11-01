@@ -1,3 +1,4 @@
+using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -38,5 +39,25 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
         return [.. notShipped, .. notDelivered];
     }
 
-    public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+    public Task<DateTimeOffset?> LastWebhookAtAsync(CancellationToken ct) =>
+        db.SupplierWebhooks.MaxAsync(w => (DateTimeOffset?)w.ReceivedAt, ct);
+
+    public Task<List<SupplierOrder>> ListFailedAsync(DateTimeOffset since, int limit, CancellationToken ct) =>
+        db.SupplierOrders.AsNoTracking()
+            .Where(o => o.Status == SupplierOrderStatus.Failed && o.FailedAt >= since)
+            .OrderByDescending(o => o.FailedAt).Take(limit).ToListAsync(ct);
+
+    public async Task SaveChangesAsync(CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException e)
+        {
+            throw new ConcurrencyConflictException("o pedido mudou no meio da gravação", e);
+        }
+    }
+
+    public void Reset() => db.ChangeTracker.Clear();
 }

@@ -274,6 +274,9 @@ export function replayDeadLetters(token: string, service: DltService) {
 
 export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"];
 export type SupplierReturn = FulfillmentSchemas["schemas"]["SupplierReturn"];
+export type FailedOrder = FulfillmentSchemas["schemas"]["FailedSupplierOrder"];
+export type OrderMargin = FulfillmentSchemas["schemas"]["OrderMargin"];
+export type SupplierStatus = FulfillmentSchemas["schemas"]["SupplierStatus"];
 
 /**
  * Os pedidos parados além do prazo do fornecedor (despacho ou entrega), os mais atrasados primeiro, e o
@@ -287,6 +290,49 @@ export async function overdueOrders(token: string) {
     }),
   );
   return { result, readAt: Date.now() };
+}
+
+/** Como está a integração com o fornecedor (#225). */
+export function supplierStatus(token: string) {
+  return run(() => api.fulfillment({ token }).GET("/v1/admin/supplier/status", { cache: "no-store" }));
+}
+
+/** A margem real dos pedidos mais recentes (#225). */
+export function orderMargins(token: string) {
+  return run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/order-margins", {
+      params: { query: { limit: 200 } },
+      cache: "no-store",
+    }),
+  );
+}
+
+/** Os pedidos que não chegaram ao fornecedor nos últimos 30 dias (#225). */
+export function failedOrders(token: string) {
+  return run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/supplier-orders/failed", {
+      params: { query: { limit: 200 } },
+      cache: "no-store",
+    }),
+  );
+}
+
+/** Tenta agora o pedido que espera a próxima tentativa. */
+export function retrySupplierOrder(token: string, orderId: string) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/retry", {
+      params: { path: { order_id: orderId } },
+    }),
+  );
+}
+
+/** Cancela o pedido que não foi despachado, e o cliente é estornado. */
+export function cancelSupplierOrder(token: string, orderId: string) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/cancel", {
+      params: { path: { order_id: orderId } },
+    }),
+  );
 }
 
 /** As devoluções ao fornecedor que pedem atenção (#223), e o momento da leitura. */

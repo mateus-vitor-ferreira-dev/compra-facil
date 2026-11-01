@@ -1,8 +1,11 @@
+import { RotateCcw, Truck } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
 import { z } from "zod";
+import { PaymentTerms } from "@/components/commerce/payment-terms";
 import { PriceTag } from "@/components/commerce/price-tag";
 import { ProductGallery } from "@/components/commerce/product-gallery";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
@@ -100,7 +103,7 @@ export default async function ProductPage({ params }: Props) {
   };
 
   return (
-    <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+    <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-1 sm:px-6 sm:pt-6">
       <Breadcrumbs
         items={[
           { href: "/", label: "Início" },
@@ -110,21 +113,37 @@ export default async function ProductPage({ params }: Props) {
         ]}
       />
 
-      <div className="mt-4 grid gap-8 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:gap-12">
-        <ProductGallery
-          images={images}
-          alt={p.name}
-          categorySlug={p.category.slug}
-          sizes="(min-width: 1152px) 640px, (min-width: 768px) 56vw, 100vw"
-        />
+      {/* no celular, nome, foto, preço e compra nessa ordem, o mais perto possível da primeira tela;
+          no desktop, a foto à esquerda e o resto à direita */}
+      <div className="mt-1 grid gap-3 sm:mt-4 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:grid-rows-[auto_1fr] md:gap-x-12 md:gap-y-4">
+        <h1 className="text-xl leading-tight font-semibold tracking-tight sm:text-2xl md:col-start-2">
+          {p.name}
+        </h1>
 
-        <div className="space-y-6 md:sticky md:top-6 md:self-start">
-          <div className="space-y-3">
-            <h1 className="text-xl leading-tight font-semibold tracking-tight sm:text-2xl">{p.name}</h1>
-            <p className="text-ink-soft text-sm">Código {p.sku}</p>
+        <div className="min-w-0 md:col-start-1 md:row-span-2 md:row-start-1">
+          <ProductGallery
+            images={images}
+            alt={p.name}
+            categorySlug={p.category.slug}
+            sizes="(min-width: 1152px) 640px, (min-width: 768px) 56vw, 100vw"
+          />
+        </div>
+
+        <div className="space-y-5 md:sticky md:top-6 md:col-start-2 md:self-start">
+          <div className="space-y-2">
+            <PriceTag price={p.price} effective={p.effective_price} size="lg" />
+            <PaymentTerms price={p.effective_price} size="lg" />
           </div>
 
-          <PriceTag price={p.price} effective={p.effective_price} size="lg" />
+          {availability && <p className={`font-semibold ${availability.tone}`}>{availability.text}</p>}
+
+          {available !== undefined && available <= 0 ? (
+            <p className="text-ink-soft">
+              Sem unidades para vender agora. Veja outros produtos de {p.category.name} logo abaixo.
+            </p>
+          ) : (
+            <AddToCartForm productId={p.id} seenPriceCents={p.effective_price.amount_cents} max={available} />
+          )}
 
           {p.campaign && off > 0 && (
             // a tira do encarte: a mesma campanha da home, com o prazo deste preço
@@ -136,22 +155,26 @@ export default async function ProductPage({ params }: Props) {
             </div>
           )}
 
-          {availability && <p className={`font-semibold ${availability.tone}`}>{availability.text}</p>}
-
-          {available !== undefined && available <= 0 ? (
-            <p className="text-ink-soft">
-              Sem unidades para vender agora. Veja outros produtos de {p.category.name} logo abaixo.
-            </p>
-          ) : (
-            <>
-              <AddToCartForm
-                productId={p.id}
-                seenPriceCents={p.effective_price.amount_cents}
-                max={available}
-              />
-              <ShippingEstimate items={[{ sku: p.sku, quantity: 1 }]} className="border-line border-t pt-5" />
-            </>
+          {(available === undefined || available > 0) && (
+            <ShippingEstimate items={[{ sku: p.sku, quantity: 1 }]} className="border-line border-t pt-5" />
           )}
+
+          <ul className="border-line text-ink-soft space-y-2 border-t pt-5 text-sm">
+            <li className="flex gap-2">
+              <RotateCcw aria-hidden="true" className="text-ink size-5 shrink-0" />
+              <span>
+                Até 7 dias depois da entrega para desistir da compra, sem precisar explicar o motivo.{" "}
+                <Link href="/politicas/trocas-e-devolucoes" className="text-ink underline underline-offset-4">
+                  Veja como
+                </Link>
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <Truck aria-hidden="true" className="text-ink size-5 shrink-0" />
+              Acompanhe o pedido e o rastreio na sua conta.
+            </li>
+          </ul>
+          <p className="text-ink-soft text-sm">Código {p.sku}</p>
         </div>
       </div>
 
