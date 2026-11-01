@@ -1,5 +1,6 @@
-# Pipeline do front (frontend/web, Next.js). Roda quando o front muda ou quando um contrato REST muda
-# (os tipos do front saem de contracts/openapi). Mudança só no backend não dispara este.
+# Pipeline do front (frontend/web, Next.js). Os testes rodam quando o front muda ou quando um contrato REST muda
+# (os tipos do front saem de contracts/openapi). Todo PR dispara o workflow, porque o "web ok" é obrigatório na main:
+# num PR só de backend, ele passa sem rodar os testes.
 name: web
 
 on:
@@ -10,10 +11,6 @@ on:
       - contracts/openapi/**
       - .github/workflows/web.yml
   pull_request:
-    paths:
-      - frontend/web/**
-      - contracts/openapi/**
-      - .github/workflows/web.yml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,8 +24,37 @@ defaults:
     working-directory: frontend/web
 
 jobs:
+  # o paths do pull_request não serve: sem o workflow rodar, o check obrigatório nunca chegaria e o PR ficaria travado
+  mudou:
+    name: o front mudou?
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      web: ${{ steps.arquivos.outputs.web }}
+    steps:
+      - id: arquivos
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          web=true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')
+            grep -qE '^(frontend/web/|contracts/openapi/|\.github/workflows/web\.yml$)' <<<"$files" || web=false
+          fi
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "O front mudou: $web"
+
   check:
     name: lint, tipos, testes, build, e2e e Lighthouse
+    needs: mudou
+    if: needs.mudou.outputs.web == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -49,7 +75,9 @@ jobs:
       - name: Testes de unidade (Vitest + Testing Library)
         run: npm test
       - run: npm run build
+      # o push na main não repete os testes de navegador nem o Lighthouse: o PR de release, obrigatório, já os rodou
       - name: Testes de navegador (Playwright, com a API falsa)
+        if: github.ref != 'refs/heads/main'
         run: |
           npx playwright install --with-deps chromium
           npm run e2e
@@ -60,17 +88,17 @@ jobs:
           path: frontend/web/playwright-report
           retention-days: 7
       # as etapas lentas (5 dos 8 minutos) não rodam no PR para a develop: rodam no push nela e no PR de release,
-      # então nada chega à main sem passar por elas
+      # então nada chega à main sem passar por elas (a proteção da main exige o PR)
       - name: Lighthouse CI (performance, acessibilidade, SEO e boas práticas ≥ 90)
-        if: github.event_name == 'push' || github.base_ref == 'main'
+        if: (github.event_name == 'push' && github.ref != 'refs/heads/main') || github.base_ref == 'main'
         run: npm run lhci
       # os mesmos testes contra o Worker da produção (OpenNext no workerd): o que roda no Next e não no
       # Workers (um pacote de Node no middleware, por exemplo) quebra aqui, e não em produção
       - name: Build do Worker (OpenNext)
-        if: github.event_name == 'push' || github.base_ref == 'main'
+        if: (github.event_name == 'push' && github.ref != 'refs/heads/main') || github.base_ref == 'main'
         run: npx opennextjs-cloudflare build
       - name: Testes de navegador contra o Worker
-        if: github.event_name == 'push' || github.base_ref == 'main'
+        if: (github.event_name == 'push' && github.ref != 'refs/heads/main') || github.base_ref == 'main'
         run: npm run e2e
         env:
           E2E_WORKER: "1"
@@ -122,3 +150,21 @@ jobs:
             [ "$code" = 200 ] || { echo "::error title=A loja não responde::$URL_LOJA$path deu $code"; exit 1; }
             echo "ok  $path"
           done
+
+  # o check obrigatório na main: passa quando os testes passaram ou quando o PR não mexe no front
+  web-ok:
+    name: web ok
+    needs: [mudou, check]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - env:
+          MUDOU: ${{ needs.mudou.result }}
+          CHECK: ${{ needs.check.result }}
+        run: |
+          echo "mudou: $MUDOU, testes: $CHECK"
+          [ "$MUDOU" = success ] && { [ "$CHECK" = success ] || [ "$CHECK" = skipped ]; }

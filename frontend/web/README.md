@@ -45,8 +45,9 @@ O caminho com os serviços de verdade é o e2e da compra (`task e2e`).
 ## Produção (Cloudflare Workers)
 
 A loja roda no Cloudflare Workers pelo OpenNext ([ADR 0006](../../docs/adr/0006-producao-no-coolify-e-cloudflare.md)):
-`wrangler.jsonc` e `open-next.config.ts`. O job `deploy` do `web.yml` publica a partir da `main`, depois dos
-testes (incluindo o e2e contra o Worker), e confere de fora que a loja responde.
+`wrangler.jsonc` e `open-next.config.ts`. O job `deploy` do `web.yml` publica a partir da `main` e confere de fora
+que a loja responde. Os testes de navegador e o Lighthouse rodam no PR de release, e o push na `main` não os repete:
+a `main` só aceita PR, com o check `web ok` aprovado.
 
 Uma vez, na Cloudflare:
 
