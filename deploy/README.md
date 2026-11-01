@@ -145,24 +145,32 @@ As fotos são CC0 ou domínio público; os créditos ficam em
 ## Deploy pelo CI
 
 O [`deploy.yml`](../.github/workflows/deploy.yml) roda ao fim de cada pipeline de imagem na `main`
-(os seis serviços e o backup) e chama o [`coolify/deploy.sh`](coolify/deploy.sh):
+(os serviços, o backup e as imagens da demonstração) e chama o [`coolify/deploy.sh`](coolify/deploy.sh):
 
 1. a `:main` de cada imagem ganha a tag fixa deste deploy, `deploy-<id da execução>`;
-2. o `IMAGE_TAG` da stack no Coolify passa a ser essa tag;
+2. o `IMAGE_TAG` e o `SIM_IMAGE_TAG` da stack no Coolify passam a ser essa tag;
 3. o deploy é pedido pela API, e o job espera o desfecho (`finished`, ou o log do erro);
 4. de fora, pelo domínio, cada serviço responde.
 
-No GitHub, em **Settings → Secrets and variables → Actions**:
+No recurso do Coolify: **Branch** `main` e **Auto Deploy** desligado.
+
+No GitHub:
 
 | Tipo | Nome | Valor |
 |---|---|---|
-| Secret | `COOLIFY_TOKEN` | token da API do Coolify (**Keys & Tokens → API tokens**, com permissão de deploy e de escrita) |
-| Variable | `COOLIFY_URL` | `https://coolify.digitalcodexa.com` |
-| Variable | `COOLIFY_APP_UUID` | o uuid do recurso, que aparece na URL dele no painel |
-| Variable | `URL_API` | `https://api.<domínio>`, sem barra no fim |
+| Secret do ambiente `producao` | `COOLIFY_TOKEN` | token da API do Coolify (**Keys & Tokens → API tokens**, com permissão de deploy e de escrita) |
+| Variable do repositório | `COOLIFY_URL` | `https://coolify.digitalcodexa.com` |
+| Variable do repositório | `URL_API` | `https://api.<domínio>`, sem barra no fim |
+| Variable do repositório | `COOLIFY_APP_UUID` | o uuid do recurso, que aparece na URL dele no painel. É ela que liga o deploy: crie por último |
+
+O segredo fica em **Settings → Environments → producao**, ambiente que só aceita a `main`. As variáveis ficam
+no repositório (**Settings → Secrets and variables → Actions**), porque o `if` do job não enxerga as de ambiente.
 
 Enquanto `COOLIFY_APP_UUID` não existir, o workflow não roda. Para publicar sem merge (depois de mudar
 uma variável no painel, por exemplo): **Actions → deploy → Run workflow**.
+
+A API e a loja publicam em pipelines separados, sem um esperar o outro. O da loja leva mais tempo, então a API
+costuma chegar antes, mas nada garante. Numa mudança em que a loja nova depende da API nova, confira a ordem.
 
 O deploy de um compose recria os contêineres que mudaram: a API fica alguns segundos fora durante a troca
 (o Coolify só faz rolling update de aplicação de um contêiner). O BFF da loja trata a API fora como

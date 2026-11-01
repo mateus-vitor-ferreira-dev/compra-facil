@@ -9,7 +9,10 @@
   "workers_dev": true,
   "preview_urls": false,
   // por enquanto, um subdomínio da Digital Codexa: um nível só, que o certificado universal da zona cobre
-  "routes": [{ "pattern": "compra-facil.digitalcodexa.com", "custom_domain": true }],
+  "routes": [
+    { "pattern": "compra-facil.digitalcodexa.com", "custom_domain": true },
+    { "pattern": "comprafacil.digitalcodexa.com", "custom_domain": true },
+  ],
   // Valores do servidor que não são segredo. Os segredos (BFF_GATEWAY_KEY, GOOGLE_CLIENT_SECRET) vão
   // com `wrangler secret put`.
   "vars": {

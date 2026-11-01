@@ -1,10 +1,11 @@
 # As imagens da loja de demonstração no Coolify (deploy/coolify/compose.demo.yaml): os simuladores e as que levam a
 # configuração e as fotos. Só arm64: é o VPS que as usa, e no local e no CI elas são compiladas pelo compose.
+# A tag é a da branch: a produção usa a :main, então o que entra na develop não chega lá antes do release.
 name: sim-images
 
 on:
   push:
-    branches: [develop]
+    branches: [main, develop]
     paths:
       - backend/services/supplier-sim/**
       - backend/services/payment-sim/**
@@ -53,4 +54,4 @@ jobs:
           platforms: linux/arm64
           push: true
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-          tags: ghcr.io/${{ github.repository_owner }}/compra-facil-${{ matrix.name }}:develop
+          tags: ghcr.io/${{ github.repository_owner }}/compra-facil-${{ matrix.name }}:${{ github.ref_name }}
