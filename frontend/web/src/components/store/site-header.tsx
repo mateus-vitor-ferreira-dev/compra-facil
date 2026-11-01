@@ -84,12 +84,13 @@ export function SiteHeader({
               ))}
             </ul>
           </details>
-          <ul className="hidden flex-wrap gap-x-6 md:flex">
+          {/* sempre uma linha: em telas maiores tudo cabe, e nas menores a lista rola para o lado */}
+          <ul className="hidden [scrollbar-width:none] gap-x-3 overflow-x-auto md:flex xl:justify-between [&::-webkit-scrollbar]:hidden">
             {categories.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="shrink-0">
                 <Link
                   href={`/categoria/${c.slug}`}
-                  className="text-ink-soft hover:text-ink flex h-10 items-center text-sm font-medium"
+                  className="text-ink-soft hover:text-ink flex h-10 items-center text-sm font-medium whitespace-nowrap focus-visible:-outline-offset-2"
                 >
                   {c.name}
                 </Link>
