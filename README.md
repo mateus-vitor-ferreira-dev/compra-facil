@@ -330,3 +330,4 @@ compra-facil/
 <div align="center">
 <sub>Feito por <a href="https://github.com/mateus-vitor-ferreira-dev">@mateus-vitor-ferreira-dev</a> · trabalho de Manutenção e Evolução de Software</sub>
 </div>
+
