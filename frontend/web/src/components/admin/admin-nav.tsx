@@ -28,7 +28,8 @@ export function AdminNav() {
             href={s.href}
             aria-current={current ? "page" : undefined}
             className={cn(
-              "text-on-hero/75 hover:text-on-hero inline-flex min-h-11 items-center border-b-2 border-transparent px-3 font-medium whitespace-nowrap",
+              // o contorno de foco vai para dentro: a barra rola na horizontal e cortaria o de fora (#273)
+              "text-on-hero/75 hover:text-on-hero inline-flex min-h-11 items-center border-b-2 border-transparent px-3 font-medium whitespace-nowrap focus-visible:-outline-offset-2",
               current && "border-on-hero text-on-hero",
             )}
           >

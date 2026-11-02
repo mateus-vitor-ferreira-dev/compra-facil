@@ -15,6 +15,7 @@ import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ShippingEstimate } from "@/components/commerce/shipping-estimate";
 import { acceptCartPrices, removeFromCart, undoRemove, updateQuantity } from "./actions";
+import { RemoveButton, UndoFocus } from "./remove-focus";
 
 export const metadata: Metadata = { title: "Carrinho", robots: { index: false } };
 
@@ -38,11 +39,13 @@ export default async function CartPage({ searchParams }: Props) {
       <p>
         <span className="font-semibold">{removedProduct.data.name}</span> saiu do carrinho.
       </p>
-      <form action={undoRemove}>
-        <SubmitButton variant="secondary" size="sm" pendingLabel="Devolvendo…">
-          Desfazer
-        </SubmitButton>
-      </form>
+      <UndoFocus>
+        <form action={undoRemove}>
+          <SubmitButton variant="secondary" size="sm" pendingLabel="Devolvendo…">
+            Desfazer
+          </SubmitButton>
+        </form>
+      </UndoFocus>
     </div>
   );
 
@@ -192,7 +195,7 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
   const issue = lineIssue(line);
   const productId = <input type="hidden" name="product_id" value={line.id} />;
   const stepper =
-    "text-ink hover:bg-ink/8 grid size-11 cursor-pointer place-items-center rounded-md disabled:cursor-not-allowed disabled:opacity-40 [&_svg]:size-4";
+    "text-ink hover:bg-ink/8 grid size-11 cursor-pointer place-items-center rounded-md aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:bg-transparent [&_svg]:size-4";
   const maxQty = Math.min(MAX_QUANTITY, line.available && line.available > 0 ? line.available : MAX_QUANTITY);
 
   if (!product) {
@@ -256,14 +259,15 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           {brl(lineTotal)}
         </p>
         <div className="flex items-center gap-1">
-          {/* − e + são botões de envio: funcionam sem JavaScript */}
+          {/* − e + são botões de envio: funcionam sem JavaScript. No limite ficam aria-disabled (e não disabled, que
+              derrubaria o foco de quem usa teclado), com o valor travado: o envio não muda nada (#273) */}
           <form action={updateQuantity} className="flex items-center">
             {productId}
             <button
               type="submit"
               name="quantity"
-              value={line.qty - 1}
-              disabled={line.qty <= 1}
+              value={Math.max(1, line.qty - 1)}
+              aria-disabled={line.qty <= 1 || undefined}
               className={stepper}
               aria-label={`Diminuir a quantidade de ${product.name}`}
             >
@@ -278,8 +282,8 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
             <button
               type="submit"
               name="quantity"
-              value={line.qty + 1}
-              disabled={line.qty >= maxQty}
+              value={Math.min(maxQty, line.qty + 1)}
+              aria-disabled={line.qty >= maxQty || undefined}
               className={stepper}
               aria-label={`Aumentar a quantidade de ${product.name}`}
             >
@@ -288,9 +292,13 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           </form>
           <form action={removeFromCart}>
             {productId}
-            <button type="submit" className={stepper} aria-label={`Remover ${product.name} do carrinho`}>
+            <RemoveButton
+              type="submit"
+              className={stepper}
+              aria-label={`Remover ${product.name} do carrinho`}
+            >
               <Trash2 aria-hidden="true" />
-            </button>
+            </RemoveButton>
           </form>
         </div>
       </div>

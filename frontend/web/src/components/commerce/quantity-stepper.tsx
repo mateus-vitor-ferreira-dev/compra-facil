@@ -23,7 +23,7 @@ export function QuantityStepper({
   const limit = Math.max(1, Math.min(max, MAX_QUANTITY));
   const [value, setValue] = useState(Math.min(defaultValue, limit));
   const step =
-    "text-ink hover:bg-ink/8 grid size-11 cursor-pointer place-items-center disabled:cursor-not-allowed disabled:opacity-40";
+    "text-ink hover:bg-ink/8 grid size-11 cursor-pointer place-items-center aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:bg-transparent";
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
@@ -36,7 +36,8 @@ export function QuantityStepper({
           type="button"
           className={step}
           onClick={() => setValue((v) => Math.max(1, v - 1))}
-          disabled={value <= 1}
+          // aria-disabled, e não disabled: o botão desligado derrubaria o foco de quem usa teclado (#273)
+          aria-disabled={value <= 1 || undefined}
           aria-label="Diminuir a quantidade"
           aria-controls={id}
         >
@@ -59,7 +60,7 @@ export function QuantityStepper({
           type="button"
           className={step}
           onClick={() => setValue((v) => Math.min(limit, v + 1))}
-          disabled={value >= limit}
+          aria-disabled={value >= limit || undefined}
           aria-label="Aumentar a quantidade"
           aria-controls={id}
         >
