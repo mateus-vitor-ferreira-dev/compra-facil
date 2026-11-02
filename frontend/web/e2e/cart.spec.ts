@@ -51,6 +51,8 @@ test("adiciona, ajusta e remove no carrinho, com o total e a economia", async ({
   await expect(summary).toContainText("R$ 2.639,92");
 
   await page.getByRole("button", { name: 'Remover Smart TV 55" QLED do carrinho' }).click();
+  // a linha (e o botão focado) some: o foco vai para o "Desfazer", e não para o começo da página
+  await expect(page.getByRole("button", { name: "Desfazer" })).toBeFocused();
   await expect(page.getByRole("heading", { name: "Seu carrinho está vazio" })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "saiu do carrinho" })).toContainText("Smart TV 55");
 
@@ -69,7 +71,13 @@ test("não passa do estoque: o limite vem no aviso e no +", async ({ page }) => 
   await expect(page.getByRole("status").filter({ hasText: "3 unidades no total" })).toBeVisible();
 
   await page.goto("/carrinho");
-  await expect(page.getByRole("button", { name: /Aumentar a quantidade de Notebook/ })).toBeDisabled();
+  const more = page.getByRole("button", { name: /Aumentar a quantidade de Notebook/ });
+  await expect(more).toHaveAttribute("aria-disabled", "true");
+  // no limite, o clique não muda nada e o foco continua no botão
+  await more.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("status", { name: /Quantidade de Notebook/ })).toHaveText("3");
+  await expect(more).toBeFocused();
 });
 
 test("sem JavaScript o carrinho funciona do mesmo jeito", async ({ browser }) => {

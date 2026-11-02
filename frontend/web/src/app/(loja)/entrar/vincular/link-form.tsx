@@ -1,14 +1,19 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { PasswordField } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { linkGoogle, type LinkState } from "./actions";
 
 export function LinkForm({ email }: { email: string }) {
   const [state, action] = useActionState<LinkState, FormData>(linkGoogle, {});
+  const form = useRef<HTMLFormElement>(null);
+  // "senha incorreta" fica no campo: o foco volta para ele, e o leitor de tela lê o erro (#273)
+  useEffect(() => {
+    if (state.error) form.current?.querySelector<HTMLInputElement>("[aria-invalid=true]")?.focus();
+  }, [state]);
   return (
-    <form action={action} className="space-y-4">
+    <form ref={form} action={action} className="space-y-4">
       {/* o e-mail, para o gerenciador de senhas achar a senha certa */}
       <input type="email" name="username" value={email} autoComplete="username" readOnly hidden />
       <PasswordField

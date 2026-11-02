@@ -76,7 +76,8 @@ export function ProductGallery({
         ))}
       </div>
 
-      <ul className="flex [scrollbar-width:none] gap-2 overflow-x-auto p-0.5">
+      {/* folga de 6px: o overflow corta o anel de foco (2px + 2px de afastamento) das miniaturas (#273) */}
+      <ul className="-m-1 flex [scrollbar-width:none] gap-2 overflow-x-auto p-1.5">
         {images.map((image, i) => (
           <li key={image.url} className="shrink-0">
             <button
