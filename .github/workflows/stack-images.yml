@@ -1,0 +1,71 @@
+# As imagens que levam a configuração da stack no Coolify (deploy/images) e os simuladores da demonstração.
+# O Coolify não monta arquivos do repositório (#278): o traefik.yml, as rotas do gateway, o script dos bancos e a
+# configuração do Redpanda e do Collector vão dentro das imagens, que servem a compose.yaml e a compose.demo.yaml.
+# Só arm64: é o VPS que as usa, e no local e no CI elas são compiladas pelo compose.
+# As tags são a da branch e a do commit, como nos serviços: a produção usa a :main, então o que entra na develop
+# não chega lá antes do release.
+name: stack-images
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - backend/services/supplier-sim/**
+      - backend/services/payment-sim/**
+      - backend/services/invoice-sim/**
+      - deploy/images/**
+      - deploy/coolify/traefik.yml
+      - deploy/coolify/redpanda*.yaml
+      - deploy/coolify/otel-collector.yaml
+      - infra/gateway/traefik/**
+      - infra/media/**
+      - infra/compose/postgres/init-databases.sh
+      - .github/workflows/stack-images.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # a configuração da stack, em compose.yaml e compose.demo.yaml
+          - { name: gateway, context: ., file: deploy/images/gateway.Dockerfile }
+          - { name: postgres-init, context: ., file: deploy/images/postgres-init.Dockerfile }
+          - { name: redpanda, context: ., file: deploy/images/redpanda.Dockerfile }
+          - { name: otel-collector, context: ., file: deploy/images/otel-collector.Dockerfile }
+          # só a demonstração: as fotos (a produção usa o R2) e os simuladores
+          - { name: media, context: ., file: deploy/images/media.Dockerfile }
+          - { name: supplier-sim, context: backend/services/supplier-sim, file: backend/services/supplier-sim/Dockerfile }
+          - { name: payment-sim, context: backend/services/payment-sim, file: backend/services/payment-sim/Dockerfile }
+          - { name: invoice-sim, context: backend/services/invoice-sim, file: backend/services/invoice-sim/Dockerfile }
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/compra-facil-${{ matrix.name }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+      - uses: docker/build-push-action@v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

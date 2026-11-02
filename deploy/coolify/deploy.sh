@@ -51,7 +51,7 @@ set_env() { # set_env <variável>
   [[ $code == 2* ]] || platform_down "O Coolify recusou o $1 com HTTP $code."
 }
 set_env IMAGE_TAG
-set_env SIM_IMAGE_TAG # os simuladores e as imagens de configuração da demonstração
+set_env SIM_IMAGE_TAG # os simuladores da demonstração
 
 # ── 3. Pede o deploy ──────────────────────────────────────────────────────────────────────────────
 status=0
