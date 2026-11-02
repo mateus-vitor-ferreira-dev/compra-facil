@@ -169,8 +169,9 @@ no repositório (**Settings → Secrets and variables → Actions**), porque o `
 Enquanto `COOLIFY_APP_UUID` não existir, o workflow não roda. Para publicar sem merge (depois de mudar
 uma variável no painel, por exemplo): **Actions → deploy → Run workflow**.
 
-A API e a loja publicam em pipelines separados, sem um esperar o outro. O da loja leva mais tempo, então a API
-costuma chegar antes, mas nada garante. Numa mudança em que a loja nova depende da API nova, confira a ordem.
+A API vai antes da loja: quando um commit dispara um pipeline de imagem, o job da loja espera o pipeline e o deploy
+da API terminarem ([`esperar-api.sh`](esperar-api.sh)). Se um deles falhar, a loja não é publicada e continua na
+versão anterior: corrija ou reexecute o que falhou e depois reexecute o `web`. Um commit só de front publica direto.
 
 O deploy de um compose recria os contêineres que mudaram: a API fica alguns segundos fora durante a troca
 (o Coolify só faz rolling update de aplicação de um contêiner). O BFF da loja trata a API fora como

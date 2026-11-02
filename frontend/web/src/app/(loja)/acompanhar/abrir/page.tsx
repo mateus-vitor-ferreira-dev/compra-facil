@@ -4,11 +4,12 @@ import { AuthShell } from "@/components/account/auth-shell";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { openGuestLink } from "../actions";
 
-// o token está na URL: nada desta página o manda para outro site
+// o token está na URL: nada desta página o manda para outro site. Com no-referrer, o formulário sem JavaScript
+// sairia com `Origin: null`, e o Next recusaria a ação
 export const metadata: Metadata = {
   title: "Abrir meus pedidos",
   robots: { index: false },
-  referrer: "no-referrer",
+  referrer: "same-origin",
 };
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
