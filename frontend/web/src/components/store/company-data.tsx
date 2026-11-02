@@ -16,7 +16,10 @@ export function CompanyData({ name, cnpj, address, email, phone }: CompanyDataPr
       {address && <p>{address}</p>}
       {email && (
         <p>
-          <a href={`mailto:${email}`} className="inline-flex min-h-11 items-center underline sm:min-h-0">
+          <a
+            href={`mailto:${email}`}
+            className="inline-flex min-h-11 items-center underline pointer-fine:min-h-0"
+          >
             {email}
           </a>
         </p>

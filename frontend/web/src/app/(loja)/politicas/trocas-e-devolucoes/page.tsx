@@ -17,8 +17,8 @@ export default async function ReturnsPolicyPage() {
       </p>
       <ul>
         <li>
-          <strong>Como pedir:</strong> abra o pedido e use &quot;Desistir da compra&quot;. O botão fica
-          disponível na página do pedido até o fim do prazo, com a sua conta ou pelo link enviado por e-mail.
+          <strong>Como pedir:</strong> abra o pedido e use “Desistir da compra”. O botão fica disponível na
+          página do pedido até o fim do prazo, com a sua conta ou pelo link enviado por e-mail.
         </li>
         <li>
           <strong>O que você recebe de volta:</strong> o valor total pago, inclusive o frete da entrega.

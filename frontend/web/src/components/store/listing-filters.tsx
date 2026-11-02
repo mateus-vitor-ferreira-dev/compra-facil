@@ -168,7 +168,7 @@ export function ActiveFilters({
             <Link
               href={c.href}
               scroll={false}
-              className="bg-ink/8 hover:bg-ink/15 inline-flex min-h-11 items-center gap-1.5 rounded-full pr-3 pl-4 text-sm font-medium sm:min-h-9"
+              className="bg-ink/8 hover:bg-ink/15 inline-flex min-h-11 items-center gap-1.5 rounded-full pr-3 pl-4 text-sm font-medium pointer-fine:min-h-9"
             >
               {c.label}
               <X aria-hidden="true" className="size-4" />
@@ -181,7 +181,7 @@ export function ActiveFilters({
             <Link
               href={withoutRefinements(path, params, onSaleFixed ? ["promocao"] : [])}
               scroll={false}
-              className="inline-flex min-h-11 items-center px-2 text-sm font-semibold underline underline-offset-4 sm:min-h-9"
+              className="inline-flex min-h-11 items-center px-2 text-sm font-semibold underline underline-offset-4 pointer-fine:min-h-9"
             >
               Limpar filtros
             </Link>

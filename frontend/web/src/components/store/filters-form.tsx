@@ -199,7 +199,7 @@ export function FiltersForm({
           ))}
           {hidden.length > 0 && (
             <details className="group/marcas">
-              <summary className="text-ink flex min-h-11 cursor-pointer list-none items-center px-2 text-sm font-semibold underline underline-offset-4 sm:min-h-9 [&::-webkit-details-marker]:hidden">
+              <summary className="text-ink flex min-h-11 cursor-pointer list-none items-center px-2 text-sm font-semibold underline underline-offset-4 pointer-fine:min-h-9 [&::-webkit-details-marker]:hidden">
                 <span className="group-open/marcas:hidden">Ver todas as {options.length} marcas</span>
                 <span className="hidden group-open/marcas:inline">Ver menos marcas</span>
               </summary>
@@ -284,7 +284,7 @@ export function FiltersForm({
 }
 
 const choiceClass =
-  "flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-ink/5 sm:min-h-9 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus";
+  "flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-ink/5 pointer-fine:min-h-9 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-focus";
 const inputClass = "accent-ink size-4 shrink-0 cursor-pointer focus-visible:outline-none";
 
 function Count({ n }: { n: number }) {

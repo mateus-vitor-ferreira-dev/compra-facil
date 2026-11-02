@@ -21,7 +21,7 @@ export function FilterChip({
       scroll={false}
       aria-current={active ? "true" : undefined}
       className={cn(
-        "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium sm:min-h-9",
+        "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-medium pointer-fine:min-h-9",
         active ? "bg-ink text-paper border-ink" : "border-ink/25 text-ink hover:border-ink/60",
       )}
     >

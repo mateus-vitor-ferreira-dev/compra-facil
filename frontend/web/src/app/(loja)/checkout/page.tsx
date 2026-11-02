@@ -70,7 +70,7 @@ export default async function CheckoutPage() {
                 </h2>
                 <Link
                   href="/carrinho"
-                  className="inline-flex min-h-11 items-center text-sm font-semibold underline-offset-4 hover:underline sm:min-h-8"
+                  className="inline-flex min-h-11 items-center text-sm font-semibold underline-offset-4 hover:underline pointer-fine:min-h-8"
                 >
                   Alterar o carrinho
                 </Link>
@@ -107,7 +107,9 @@ export default async function CheckoutPage() {
                   Conta
                 </h2>
                 <p>{account.name}</p>
-                <p className="text-ink-soft">A confirmação e o recibo vão para {account.email}.</p>
+                <p className="text-ink-soft [overflow-wrap:anywhere]">
+                  A confirmação e o recibo vão para {account.email}.
+                </p>
               </section>
             )}
           </>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { confirmEmail, type ConfirmState } from "../../auth-actions";
@@ -12,12 +12,17 @@ import { confirmEmail, type ConfirmState } from "../../auth-actions";
  */
 export function ConfirmForm({ accountId, token }: { accountId: string; token: string }) {
   const [state, action] = useActionState<ConfirmState, FormData>(confirmEmail, {});
+  const signIn = useRef<HTMLAnchorElement>(null);
+  // confirmado, o formulário (e o botão focado) sai: o foco vai para o próximo passo, "Entrar" (#273)
+  useEffect(() => {
+    if (state.status === "confirmed") signIn.current?.focus();
+  }, [state]);
 
   if (state.status === "confirmed") {
     return (
       <div role="status" className="space-y-4">
         <p className="text-success font-semibold">E-mail confirmado. Agora é só entrar.</p>
-        <Link href="/entrar" className={buttonVariants()}>
+        <Link ref={signIn} href="/entrar" className={buttonVariants()}>
           Entrar
         </Link>
       </div>

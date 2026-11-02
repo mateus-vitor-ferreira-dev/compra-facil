@@ -283,6 +283,8 @@ export function CheckoutForm({
               label="E-mail"
               name="email"
               type="email"
+              spellCheck={false}
+              autoCapitalize="none"
               autoComplete="email"
               hint="Para o recibo e o link do pedido. Não precisa criar conta nem senha."
               value={email}

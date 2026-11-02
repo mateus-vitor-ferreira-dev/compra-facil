@@ -168,7 +168,8 @@ export function CardFields({
         error={errors.name}
         disabled={disabled}
       />
-      <div className="grid grid-cols-2 gap-4">
+      {/* no celular, um embaixo do outro: lado a lado, "Código de segurança" quebrava e desalinhava os campos */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           label="Validade"
           hint="MM/AA"
@@ -216,7 +217,7 @@ export function CardFields({
           type="button"
           onClick={() => onFill(TEST_CARD)}
           disabled={disabled}
-          className="text-ink inline-flex min-h-11 cursor-pointer items-center font-semibold underline underline-offset-4 sm:min-h-8"
+          className="text-ink inline-flex min-h-11 cursor-pointer items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
         >
           Usar o cartão de teste
         </button>

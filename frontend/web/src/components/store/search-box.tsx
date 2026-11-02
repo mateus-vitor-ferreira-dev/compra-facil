@@ -126,7 +126,7 @@ export function SearchBox({ defaultValue = "", className }: { defaultValue?: str
           enterKeyHint="search"
           minLength={MIN_CHARS}
           required
-          placeholder="Buscar produtos, marcas e categorias"
+          placeholder="Buscar produtos, marcas e categorias…"
           value={value}
           onChange={(e) => {
             setValue(e.target.value);

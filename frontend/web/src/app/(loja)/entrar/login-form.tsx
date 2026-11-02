@@ -22,14 +22,26 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
           label="E-mail"
           name="email"
           type="email"
+          spellCheck={false}
+          autoCapitalize="none"
           inputMode="email"
           autoComplete="email"
           required
           defaultValue={state.email}
+          // o erro vale para o par e-mail e senha: os dois apontam para ele, e quem volta ao campo ouve o motivo
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? "login-erro" : undefined}
         />
-        <PasswordField label="Senha" name="password" autoComplete="current-password" required />
+        <PasswordField
+          label="Senha"
+          name="password"
+          autoComplete="current-password"
+          required
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? "login-erro" : undefined}
+        />
         {state.error && (
-          <p role="alert" className="text-danger font-medium">
+          <p id="login-erro" role="alert" className="text-danger font-medium">
             {state.error}
           </p>
         )}

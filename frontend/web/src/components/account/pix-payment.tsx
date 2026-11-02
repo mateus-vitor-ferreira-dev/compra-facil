@@ -178,7 +178,7 @@ export function PixPayment({ pix, amount, startedAt }: { pix: Pix; amount: strin
                   href={pix.ticket_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-6"
+                  className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 pointer-fine:min-h-6"
                 >
                   Abrir a página do PIX
                   <span className="sr-only"> (abre em outra aba)</span>
