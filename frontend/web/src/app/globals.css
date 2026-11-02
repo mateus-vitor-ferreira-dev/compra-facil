@@ -145,6 +145,8 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      /* sem isto, as animações infinitas (o ponto ao vivo do pedido, o skeleton) seguem em ciclos de 0,01 ms */
+      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
   }

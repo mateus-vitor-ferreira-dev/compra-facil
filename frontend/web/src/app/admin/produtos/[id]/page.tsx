@@ -1,3 +1,4 @@
+import { buttonVariants } from "@/components/ui/button";
 import { CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -86,6 +87,11 @@ export default async function AdminProduct({ params, searchParams }: Props) {
         tone="error"
         title="O produto não carregou"
         description={`O catálogo respondeu ${result.error.status}. Tente de novo em instantes.`}
+        action={
+          <Link href={`/admin/produtos/${id}`} className={buttonVariants({ variant: "secondary" })}>
+            Tentar de novo
+          </Link>
+        }
       />
     );
   }
@@ -95,7 +101,7 @@ export default async function AdminProduct({ params, searchParams }: Props) {
     query.salvo === "1"
       ? "Produto salvo. A vitrine já mostra a versão nova."
       : typeof query.estoque === "string"
-        ? `Estoque ajustado: ${query.estoque} unidades em estoque.`
+        ? `Estoque ajustado: ${query.estoque} ${query.estoque === "1" ? "unidade" : "unidades"} em estoque.`
         : undefined;
 
   return (
@@ -139,7 +145,8 @@ export default async function AdminProduct({ params, searchParams }: Props) {
           }}
         />
 
-        <aside className="space-y-8 lg:sticky lg:top-6 lg:self-start">
+        {/* preso ao rolar, mas nunca mais alto que a tela: o fim (remover) ficava fora da vista, e o Tab caía nele (#273) */}
+        <aside className="space-y-8 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:p-1">
           <section aria-labelledby="estoque" className="space-y-4">
             <h2 id="estoque" className="text-xl font-semibold tracking-tight">
               Estoque
@@ -188,8 +195,8 @@ export default async function AdminProduct({ params, searchParams }: Props) {
               <input type="hidden" name="id" value={p.id} />
               <p className="text-ink-soft text-sm">
                 O produto sai da vitrine e das listas do painel, e o SKU fica livre. Pedidos já feitos
-                continuam com o nome e o preço deles. Para só tirar de venda, mude a situação para &quot;Fora
-                de venda&quot;.
+                continuam com o nome e o preço deles. Para só tirar de venda, mude a situação para “Fora de
+                venda”.
               </p>
               <SubmitButton variant="danger" size="sm" pendingLabel="Removendo…">
                 Remover {p.sku}

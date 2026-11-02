@@ -65,7 +65,7 @@ export default async function AccountPage({ searchParams }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Olá, {firstName}</h1>
-          <p className="text-ink-soft" data-testid="account-email">
+          <p className="text-ink-soft [overflow-wrap:anywhere]" data-testid="account-email">
             {account.name} ({account.email})
           </p>
           {account.is_guest && (

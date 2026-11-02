@@ -12,17 +12,22 @@ export function RegisterForm({ returnTo }: { returnTo: string }) {
   const form = useRef<HTMLFormElement>(null);
 
   const summary = useRef<HTMLDivElement>(null);
+  const done = useRef<HTMLHeadingElement>(null);
 
-  // erro de validação: o foco vai para o resumo, que leva a cada campo a corrigir
+  // erro de validação: o foco vai para o resumo, que leva a cada campo a corrigir. Conta criada: o formulário
+  // (e o botão focado) sai, e o foco vai para o título da confirmação, que o leitor de tela lê (#273)
   useEffect(() => {
-    summary.current?.focus();
+    if (state.confirmTo) done.current?.focus();
+    else summary.current?.focus();
   }, [state]);
 
   if (state.confirmTo) {
     return (
       <section role="status" className="space-y-4">
         <MailCheck aria-hidden="true" className="size-10" strokeWidth={1.5} />
-        <h2 className="text-xl font-semibold tracking-tight">Confirme seu e-mail</h2>
+        <h2 ref={done} tabIndex={-1} className="text-xl font-semibold tracking-tight outline-none">
+          Confirme seu e-mail
+        </h2>
         <p className="text-ink-soft">
           A conta foi criada. Mandamos um link para{" "}
           <span className="text-ink font-semibold">{state.confirmTo}</span>: abra o e-mail e toque em
@@ -57,7 +62,7 @@ export function RegisterForm({ returnTo }: { returnTo: string }) {
               <li key={k}>
                 <a
                   href={`#cadastro-${k}`}
-                  className="text-danger inline-flex min-h-11 items-center font-medium underline underline-offset-4 sm:min-h-8"
+                  className="text-danger inline-flex min-h-11 items-center font-medium underline underline-offset-4 pointer-fine:min-h-8"
                 >
                   {labels[k]}: {f[k]}
                 </a>
@@ -80,6 +85,8 @@ export function RegisterForm({ returnTo }: { returnTo: string }) {
         label="E-mail"
         name="email"
         type="email"
+        spellCheck={false}
+        autoCapitalize="none"
         inputMode="email"
         autoComplete="email"
         required

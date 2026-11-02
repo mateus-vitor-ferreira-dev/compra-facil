@@ -60,7 +60,7 @@ export function ReturnOrder({
         </p>
         <Link
           href="/politicas/trocas-e-devolucoes"
-          className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+          className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
         >
           Ver trocas e devoluções
         </Link>

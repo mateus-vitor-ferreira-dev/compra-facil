@@ -1,3 +1,4 @@
+import { buttonVariants } from "@/components/ui/button";
 import { CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -33,6 +34,16 @@ export default async function AdminCategories({ searchParams }: Props) {
             tone="error"
             title="As categorias não carregaram"
             description={`O catálogo respondeu ${result.error.status}. Tente de novo em instantes.`}
+            action={
+              <Link href="/admin/categorias" className={buttonVariants({ variant: "secondary" })}>
+                Tentar de novo
+              </Link>
+            }
+          />
+        ) : roots.length === 0 ? (
+          <StateMessage
+            title="Nenhuma categoria ainda"
+            description="Crie o primeiro departamento no formulário ao lado; as subcategorias e os tipos vêm depois."
           />
         ) : (
           <ul className="divide-line border-line divide-y rounded-md border">
@@ -57,7 +68,7 @@ export default async function AdminCategories({ searchParams }: Props) {
                           <li key={c.id} className="flex flex-wrap items-center gap-2">
                             <Link
                               href={`/categoria/${c.slug}`}
-                              className="bg-ink/12 hover:bg-ink/20 inline-flex min-h-9 items-center rounded-full px-3 text-sm font-medium"
+                              className="bg-ink/12 hover:bg-ink/20 inline-flex min-h-9 items-center rounded-full px-3 text-sm font-medium pointer-coarse:min-h-11"
                             >
                               {c.name}
                             </Link>
@@ -65,7 +76,7 @@ export default async function AdminCategories({ searchParams }: Props) {
                               <Link
                                 key={t.id}
                                 href={`/categoria/${t.slug}`}
-                                className="bg-ink/6 hover:bg-ink/12 inline-flex min-h-9 items-center rounded-full px-3 text-sm"
+                                className="bg-ink/6 hover:bg-ink/12 inline-flex min-h-9 items-center rounded-full px-3 text-sm pointer-coarse:min-h-11"
                               >
                                 {t.name}
                               </Link>

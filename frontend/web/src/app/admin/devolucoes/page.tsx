@@ -126,7 +126,8 @@ function ReturnItem({ item: r, now }: { item: SupplierReturn; now: number }) {
         )}
       </div>
       <p>{r.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}</p>
-      <p className="text-ink-soft">
+      {/* códigos do fornecedor e da disputa sem espaço para quebrar: no celular, estouravam a largura (#273) */}
+      <p className="text-ink-soft [overflow-wrap:anywhere]">
         Pedida em <time dateTime={r.requested_at}>{when.format(new Date(r.requested_at))}</time>
         {r.dispute_id && <>; disputa {r.dispute_id}</>}
         {r.return_code && <>; código {r.return_code}</>}
@@ -139,14 +140,16 @@ function ReturnItem({ item: r, now }: { item: SupplierReturn; now: number }) {
       <p>
         <a
           href={`mailto:${r.customer_email}`}
-          className="inline-flex min-h-6 items-center font-medium underline underline-offset-4"
+          className="inline-flex min-h-6 items-center font-medium [overflow-wrap:anywhere] underline underline-offset-4 pointer-coarse:min-h-11"
         >
           {r.customer_email}
         </a>
       </p>
       {r.last_error && (
         <details>
-          <summary className="cursor-pointer font-medium">Último erro</summary>
+          <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium pointer-fine:min-h-8">
+            Último erro
+          </summary>
           <pre className="bg-ink/6 mt-1 overflow-x-auto rounded-sm p-2 text-xs whitespace-pre-wrap">
             {r.last_error}
           </pre>

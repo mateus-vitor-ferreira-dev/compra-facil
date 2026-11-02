@@ -50,6 +50,10 @@ test("cria a campanha, inclui produtos pela busca e retira um", async ({ page })
     "Produto retirado da campanha: volta ao preço de tabela.",
   );
   await expect(page.getByRole("heading", { name: "Produtos na campanha (1)" })).toBeVisible();
+  // o toque errado tem volta: o "Desfazer" do aviso devolve o produto
+  await page.getByRole("button", { name: "Desfazer" }).click();
+  await expect(page.getByRole("status")).toHaveText("Produto devolvido à campanha.");
+  await expect(page.getByRole("heading", { name: "Produtos na campanha (2)" })).toBeVisible();
 
   await page
     .getByRole("navigation", { name: "Seções do painel" })

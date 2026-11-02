@@ -55,7 +55,7 @@ export function ShippingChoice({
                     value={o.id}
                     checked={selected === o.id}
                     onChange={() => onChange(o.id)}
-                    className="border-ink/40 checked:border-ink mt-0.5 size-5 shrink-0 cursor-pointer appearance-none rounded-full border-2 outline-none checked:border-[6px]"
+                    className="border-field-line checked:border-ink mt-0.5 size-5 shrink-0 cursor-pointer appearance-none rounded-full border-2 outline-none checked:border-[6px]"
                   />
                   <span className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
                     <span className="space-y-1">

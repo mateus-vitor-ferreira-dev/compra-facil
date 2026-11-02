@@ -65,7 +65,7 @@ export function MethodChoice({
               value={o.value}
               checked={method === o.value}
               onChange={() => onChange(o.value)}
-              className="border-ink/40 checked:border-ink mt-0.5 size-5 shrink-0 cursor-pointer appearance-none rounded-full border-2 outline-none checked:border-[6px]"
+              className="border-field-line checked:border-ink mt-0.5 size-5 shrink-0 cursor-pointer appearance-none rounded-full border-2 outline-none checked:border-[6px]"
             />
             <span className="space-y-1">
               <span className="block font-semibold">{o.title}</span>
@@ -145,12 +145,13 @@ export function CardFields({
           error={errors.number}
           disabled={disabled}
           aria-describedby={brand ? "cartao-bandeira" : undefined}
-          className="[&_input]:pr-36"
+          // a bandeira fica dentro do campo só a partir do tablet: em 320 px, o recuo dela não deixava o número caber
+          className={brand ? "sm:[&_input]:pr-36" : undefined}
         />
         {brand && (
           <span
             id="cartao-bandeira"
-            className="text-ink-soft pointer-events-none absolute top-[1.875rem] right-3 flex h-11 items-center text-sm font-semibold"
+            className="text-ink-soft mt-1 block text-sm font-semibold sm:pointer-events-none sm:absolute sm:top-[1.875rem] sm:right-3 sm:mt-0 sm:flex sm:h-11 sm:items-center"
           >
             {BRAND_NAMES[brand]}
           </span>
@@ -167,7 +168,8 @@ export function CardFields({
         error={errors.name}
         disabled={disabled}
       />
-      <div className="grid grid-cols-2 gap-4">
+      {/* no celular, um embaixo do outro: lado a lado, "Código de segurança" quebrava e desalinhava os campos */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           label="Validade"
           hint="MM/AA"
@@ -215,7 +217,7 @@ export function CardFields({
           type="button"
           onClick={() => onFill(TEST_CARD)}
           disabled={disabled}
-          className="text-ink inline-flex min-h-11 cursor-pointer items-center font-semibold underline underline-offset-4 sm:min-h-8"
+          className="text-ink inline-flex min-h-11 cursor-pointer items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
         >
           Usar o cartão de teste
         </button>

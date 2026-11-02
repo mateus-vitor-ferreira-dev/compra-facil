@@ -31,7 +31,7 @@ export function SiteFooter({ categories }: { categories: Tree }) {
                 <li key={c.id}>
                   <Link
                     href={`/categoria/${c.slug}`}
-                    className="text-ink-soft hover:text-ink flex min-h-11 items-center sm:min-h-9"
+                    className="text-ink-soft hover:text-ink flex min-h-11 items-center pointer-fine:min-h-9"
                   >
                     {c.name}
                   </Link>
@@ -55,7 +55,7 @@ export function SiteFooter({ categories }: { categories: Tree }) {
               <li key={href}>
                 <Link
                   href={href}
-                  className="text-ink-soft hover:text-ink flex min-h-11 items-center sm:min-h-9"
+                  className="text-ink-soft hover:text-ink flex min-h-11 items-center pointer-fine:min-h-9"
                 >
                   {label}
                 </Link>
@@ -72,7 +72,7 @@ export function SiteFooter({ categories }: { categories: Tree }) {
               <li key={href}>
                 <Link
                   href={href}
-                  className="text-ink-soft hover:text-ink flex min-h-11 items-center sm:min-h-9"
+                  className="text-ink-soft hover:text-ink flex min-h-11 items-center pointer-fine:min-h-9"
                 >
                   {label}
                 </Link>

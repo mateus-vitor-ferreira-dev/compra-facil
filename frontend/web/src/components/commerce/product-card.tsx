@@ -27,7 +27,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
       />
       {product.campaign && (
         // em tinta: o amarelo fica para o preço, que numa grade de ofertas já aparece em todo card
-        <Badge variant="campaign" className="absolute top-2 left-2">
+        <Badge variant="campaign" className="absolute top-2 left-2 max-w-[calc(100%-1rem)] truncate">
           {product.campaign.name}
         </Badge>
       )}

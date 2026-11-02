@@ -42,9 +42,12 @@ async function findCategory(slug: string) {
   } as const;
 }
 
-/** No celular, os chips rolam numa linha só e vão até a borda da tela; a partir do tablet, quebram linha. */
+/**
+ * No celular, os chips rolam numa linha só e vão até a borda da tela; a partir do tablet, quebram linha. A folga
+ * vertical de 6px deixa o anel de foco inteiro, que o overflow cortaria (#273).
+ */
 const chipRow =
-  "-mx-4 flex gap-2 [scrollbar-width:none] overflow-x-auto px-4 py-0.5 *:shrink-0 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0";
+  "-mx-4 -my-1 flex gap-2 [scrollbar-width:none] overflow-x-auto px-4 py-1.5 *:shrink-0 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0";
 
 /** O chip de um tipo: mais leve que o da subcategoria, para os dois níveis não competirem. */
 function chip(active: boolean) {

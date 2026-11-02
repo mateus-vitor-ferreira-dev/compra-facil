@@ -96,7 +96,7 @@ export function ShippingEstimate({ items, className }: { items: ShippingItem[]; 
             href="https://buscacepinter.correios.com.br/app/endereco/index.php"
             target="_blank"
             rel="noreferrer"
-            className="text-ink-soft inline-flex min-h-11 items-center text-sm underline underline-offset-4 sm:min-h-6"
+            className="text-ink-soft inline-flex min-h-11 items-center text-sm underline underline-offset-4 pointer-fine:min-h-6"
           >
             Não sei o CEP<span className="sr-only"> (busca dos Correios, abre em outra aba)</span>
           </a>
@@ -104,11 +104,13 @@ export function ShippingEstimate({ items, className }: { items: ShippingItem[]; 
         <div className="flex gap-2">
           <input
             id={`${id}-cep`}
+            name="cep"
             inputMode="numeric"
             autoComplete="postal-code"
             value={zip}
             onChange={(e) => setTyped(formatZipCode(e.target.value))}
             aria-describedby={`${id}-resultado`}
+            aria-invalid={state.kind === "error" || undefined}
             className="border-field-line bg-surface text-ink h-11 w-36 rounded-md border px-3 text-base tabular-nums outline-none focus-visible:outline-2"
           />
           <button

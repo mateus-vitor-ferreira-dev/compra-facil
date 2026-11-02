@@ -15,7 +15,10 @@ export function CampaignHero({ campaign, others }: { campaign: Campaign; others:
     <section aria-labelledby="campanha" className="bg-hero text-on-hero">
       <div className="mx-auto grid max-w-6xl gap-3 px-4 py-5 sm:px-6 md:grid-cols-[1fr_auto] md:items-center md:gap-8 md:py-14">
         <div className="space-y-3 md:space-y-5">
-          <h2 id="campanha" className="font-condensed text-4xl leading-none font-extrabold sm:text-[4rem]">
+          <h2
+            id="campanha"
+            className="font-condensed text-4xl leading-none font-extrabold break-words hyphens-auto sm:text-[4rem]"
+          >
             {campaign.name}
           </h2>
           <p className="max-w-md md:text-lg">

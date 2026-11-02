@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CircleCheck, Search } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -14,7 +15,7 @@ import { campaignProducts, getCampaign, listProducts } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatPeriod, toLocalInput } from "@/lib/campaign-time";
 import { formatMoney } from "@/lib/format";
-import { removeCampaign, removeCampaignProduct } from "../actions";
+import { removeCampaign, removeCampaignProduct, restoreCampaignProduct } from "../actions";
 
 export const metadata: Metadata = { title: "Campanha" };
 
@@ -41,6 +42,11 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
         tone="error"
         title="A campanha não carregou"
         description="O catálogo não respondeu agora. Tente de novo em instantes."
+        action={
+          <Link href={`/admin/campanhas/${id}`} className={buttonVariants({ variant: "secondary" })}>
+            Tentar de novo
+          </Link>
+        }
       />
     );
   }
@@ -52,15 +58,24 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
       ? "Campanha salva. A vitrine já mostra os preços novos."
       : typeof query.incluidos === "string"
         ? `${query.incluidos === "1" ? "1 produto incluído" : `${query.incluidos} produtos incluídos`} na campanha.`
-        : query.retirado === "1"
+        : typeof query.retirado === "string"
           ? "Produto retirado da campanha: volta ao preço de tabela."
-          : undefined;
+          : query.devolvido === "1"
+            ? "Produto devolvido à campanha."
+            : undefined;
+  // o produto que acabou de sair, para o "Desfazer" (o id vem do redirect do retirar)
+  const removedId =
+    typeof query.retirado === "string" && z.uuid().safeParse(query.retirado).success
+      ? query.retirado
+      : undefined;
   const failure =
     query.erro === "retirar"
       ? "O produto não foi retirado. Tente de novo."
-      : query.erro === "remover"
-        ? "A campanha não foi removida. Tente de novo."
-        : undefined;
+      : query.erro === "devolver"
+        ? "O produto não voltou à campanha. Inclua de novo pela busca ao lado."
+        : query.erro === "remover"
+          ? "A campanha não foi removida. Tente de novo."
+          : undefined;
 
   return (
     <div className="space-y-5">
@@ -74,10 +89,21 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
         desconto, {formatPeriod(c)}
       </p>
       {notice && (
-        <p role="status" className="text-success flex items-center gap-2 font-semibold">
-          <CircleCheck aria-hidden="true" className="size-5" />
-          {notice}
-        </p>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p role="status" className="text-success flex items-center gap-2 font-semibold">
+            <CircleCheck aria-hidden="true" className="size-5" />
+            {notice}
+          </p>
+          {removedId && (
+            <form action={restoreCampaignProduct}>
+              <input type="hidden" name="id" value={c.id} />
+              <input type="hidden" name="product_id" value={removedId} />
+              <SubmitButton variant="secondary" size="sm" pendingLabel="Devolvendo…">
+                Desfazer
+              </SubmitButton>
+            </form>
+          )}
+        </div>
       )}
       {failure && (
         <p role="alert" className="text-danger font-semibold">
@@ -143,7 +169,9 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
                 type="search"
                 defaultValue={search}
                 minLength={2}
-                placeholder="Nome, marca ou SKU"
+                placeholder="Nome, marca ou SKU…"
+                autoComplete="off"
+                spellCheck={false}
                 className="bg-surface border-field-line h-11 min-w-0 flex-1 rounded-md border px-3"
               />
               <button type="submit" className={buttonVariants({ variant: "secondary", size: "icon" })}>
@@ -171,7 +199,8 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
           </section>
         </div>
 
-        <aside className="space-y-8 lg:sticky lg:top-6 lg:self-start">
+        {/* preso ao rolar, mas nunca mais alto que a tela: o fim (remover) ficava fora da vista, e o Tab caía nele (#273) */}
+        <aside className="space-y-8 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:p-1">
           <section aria-labelledby="dados" className="space-y-4">
             <h2 id="dados" className="text-xl font-semibold tracking-tight">
               Período e desconto

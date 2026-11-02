@@ -32,7 +32,7 @@ const STATUS_HINT: Record<ProductFormValues["status"], string> = {
 };
 
 const control =
-  "bg-surface border-field-line w-full rounded-md border px-3 outline-none focus-visible:outline-2 aria-invalid:border-danger";
+  "bg-surface text-ink border-field-line w-full rounded-md border px-3 outline-none focus-visible:outline-2 aria-invalid:border-danger";
 
 /**
  * Criar e editar produto. Na edição vai o ETag da leitura (If-Match): se outra pessoa gravou antes, o
@@ -61,6 +61,8 @@ export function ProductForm({
         <TextField
           label="SKU"
           name="sku"
+          spellCheck={false}
+          autoCorrect="off"
           defaultValue={v.sku}
           error={err.sku}
           hint="Letras maiúsculas, dígitos e hífen, de 3 a 32."

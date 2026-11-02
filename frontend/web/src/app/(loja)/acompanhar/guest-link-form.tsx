@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { TextField } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { requestGuestLink, type ResendState } from "./actions";
@@ -8,13 +8,21 @@ import { requestGuestLink, type ResendState } from "./actions";
 /** Pede o link de novo; funciona sem JavaScript. */
 export function GuestLinkForm() {
   const [state, action] = useActionState<ResendState, FormData>(requestGuestLink, {});
+  const form = useRef<HTMLFormElement>(null);
+  // o erro do servidor (e-mail inválido, muitas tentativas) fica no campo: o foco vai até ele, e o leitor de
+  // tela lê o erro junto com o rótulo (#273)
+  useEffect(() => {
+    if (state.error) form.current?.querySelector<HTMLInputElement>("[aria-invalid=true]")?.focus();
+  }, [state]);
   return (
-    <form action={action} noValidate className="space-y-4">
+    <form ref={form} action={action} noValidate className="space-y-4">
       <TextField
         id="acompanhar-email"
         label="E-mail usado na compra"
         name="email"
         type="email"
+        spellCheck={false}
+        autoCapitalize="none"
         autoComplete="email"
         defaultValue={state.email}
         error={state.error}

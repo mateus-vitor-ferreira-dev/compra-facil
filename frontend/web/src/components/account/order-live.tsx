@@ -173,7 +173,8 @@ function StepItem({ step, last, placedAt }: { step: Step; last: boolean; placedA
           done && "border-ink bg-ink text-paper",
           step.state === "current" && "border-ink bg-surface",
           step.state === "failed" && "border-danger bg-danger text-on-danger",
-          quiet && "border-line bg-paper",
+          // a etapa que ainda vem: borda de campo (3:1), e não de divisória, que quase sumia no papel (#273)
+          quiet && "border-field-line bg-paper",
         )}
       >
         {done && <Check strokeWidth={3} />}

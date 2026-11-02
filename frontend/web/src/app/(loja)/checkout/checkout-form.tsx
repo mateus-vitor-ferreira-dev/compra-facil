@@ -229,14 +229,19 @@ export function CheckoutForm({
       }
       setChecking(true);
       const result = await tokenizeCard(provider, checked.card);
+      if (!result.ok && result.field) {
+        // o campo ainda está desligado (checking): o estado é aplicado antes do focus(), senão ele não pega (#273)
+        const field = result.field;
+        flushSync(() => {
+          setChecking(false);
+          setErrors({ [field]: result.message });
+        });
+        fields.current[field]?.focus();
+        return;
+      }
       setChecking(false);
       if (!result.ok) {
-        if (result.field) {
-          setErrors({ [result.field]: result.message });
-          fields.current[result.field]?.focus();
-        } else {
-          setCardProblem(result.message);
-        }
+        setCardProblem(result.message);
         return;
       }
       data.set("card_token", result.token);
@@ -278,6 +283,8 @@ export function CheckoutForm({
               label="E-mail"
               name="email"
               type="email"
+              spellCheck={false}
+              autoCapitalize="none"
               autoComplete="email"
               hint="Para o recibo e o link do pedido. Não precisa criar conta nem senha."
               value={email}
