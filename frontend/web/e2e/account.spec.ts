@@ -78,7 +78,7 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   await signIn(page, "ana@exemplo.com");
   await expect(page).toHaveURL(/\/conta$/);
   const orders = page.getByRole("region", { name: "Meus pedidos" });
-  await expect(orders.getByRole("link")).toHaveCount(4);
+  await expect(orders.getByRole("link")).toHaveCount(5);
   await expect(orders).toContainText("Pedido 4F2A9C1B");
   await expect(orders).toContainText("Em preparação");
   await expect(orders).toContainText("Cancelado");
@@ -120,6 +120,27 @@ test("o pedido a caminho mostra o rastreio, na lista e no pedido", async ({ page
   await expect(link).toHaveAttribute("href", "https://rastreio.example/BR987654321BR");
   await expect(link).toHaveAttribute("target", "_blank");
   await expect(page.getByRole("list", { name: "Andamento do pedido" })).toContainText("A caminho");
+});
+
+test("passado o prazo, a desistência explica que acabou e mostra o caminho do defeito", async ({ page }) => {
+  await signIn(page, "ana@exemplo.com");
+  await expect(page).toHaveURL(/\/conta$/);
+  await page.goto("/conta/pedidos/01a18d66-0000-7000-8000-00005b7c1d90");
+  const section = page.getByRole("region", { name: "Desistir da compra" });
+  await expect(section).toContainText("O prazo para desistir terminou em");
+  await expect(section.getByRole("button")).toHaveCount(0);
+  await expect(section.getByRole("link", { name: "Ver trocas e devoluções" })).toHaveAttribute(
+    "href",
+    "/politicas/trocas-e-devolucoes",
+  );
+});
+
+test("o pedido mostra a foto de cada produto e a data prometida no alto", async ({ page }) => {
+  await signIn(page, "ana@exemplo.com");
+  await expect(page).toHaveURL(/\/conta$/);
+  await page.goto("/conta/pedidos/01a18d66-0000-7000-8000-00004f2a9c1b");
+  const items = page.getByRole("region", { name: "Produtos" }).getByRole("listitem");
+  await expect(items.first().locator("img")).toBeVisible();
 });
 
 test("o pedido entregue aceita a desistência em 7 dias, com confirmação", async ({ page }) => {

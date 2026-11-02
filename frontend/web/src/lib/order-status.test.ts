@@ -5,6 +5,7 @@ import {
   orderNumber,
   orderStatus,
   orderSteps,
+  returnWindowClosed,
   showsTracking,
   trackingHref,
   type OrderProgress,
@@ -253,5 +254,17 @@ describe("rastreio (#224)", () => {
     expect(showsTracking("confirmed")).toBe(false);
     expect(showsTracking("returned")).toBe(false);
     expect(showsTracking("cancelled")).toBe(false);
+  });
+});
+
+describe("returnWindowClosed", () => {
+  const now = new Date("2026-11-10T12:00:00Z");
+  it("fecha depois do fim do prazo, e não antes", () => {
+    expect(returnWindowClosed("2026-11-09T12:00:00Z", now)).toBe(true);
+    expect(returnWindowClosed("2026-11-11T12:00:00Z", now)).toBe(false);
+  });
+  it("sem prazo (não entregue ou já devolvido) não há o que fechar", () => {
+    expect(returnWindowClosed(null, now)).toBe(false);
+    expect(returnWindowClosed(undefined, now)).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { z } from "zod";
 import { OrderLive } from "@/components/account/order-live";
 import { ReturnOrder } from "@/components/account/return-order";
+import { ProductImage } from "@/components/commerce/product-image";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
@@ -12,8 +13,9 @@ import { requireAccount } from "@/lib/auth/current";
 import { addressLines } from "@/lib/delivery";
 import { promised } from "@/lib/shipping";
 import { formatMoney } from "@/lib/format";
-import { orderNumber } from "@/lib/order-status";
+import { orderNumber, returnWindowClosed } from "@/lib/order-status";
 import { getOrder } from "@/lib/orders-api";
+import { getProduct } from "@/lib/catalog-api";
 
 export const metadata: Metadata = { title: "Pedido", robots: { index: false } };
 
@@ -62,6 +64,16 @@ export default async function OrderPage({ params, searchParams }: Props) {
   }
 
   const order = result.data;
+  // as fotos vêm do catálogo (o pedido guarda só o nome e o preço): o produto que saiu dele fica sem foto
+  const products = await Promise.all(order.items.map((item) => getProduct(item.product_id)));
+  const photos = new Map(products.flatMap((p) => (p.ok ? [[p.data.id, p.data] as const] : [])));
+  // a promessa de entrega fica no alto enquanto o pedido anda: é a data que o cliente vem conferir
+  const promise =
+    order.shipping && !["cancelled", "delivered", "returned"].includes(order.status)
+      ? promised(order.shipping.promised_by)
+      : undefined;
+  // passado o prazo, a seção da desistência fica, mas explica que acabou (o servidor recusaria o pedido)
+  const returnExpired = returnWindowClosed(order.returnable_until);
 
   return (
     <main id="conteudo" className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
@@ -83,6 +95,10 @@ export default async function OrderPage({ params, searchParams }: Props) {
         )}
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Pedido {orderNumber(order.id)}</h1>
         <p className="text-ink-soft">Feito em {dateTime.format(new Date(order.created_at))}</p>
+        {promise && (
+          // a data que a loja prometeu: é por ela que o cliente cobra, e o painel mede o atraso
+          <p className="font-condensed pt-2 text-2xl font-extrabold tracking-tight">Chega até {promise}</p>
+        )}
       </div>
 
       <div className="mt-8">
@@ -95,19 +111,37 @@ export default async function OrderPage({ params, searchParams }: Props) {
           Produtos
         </h2>
         <ul className="divide-line border-line mt-3 divide-y border-y">
-          {order.items.map((item) => (
-            <li key={item.product_id} className="flex items-start justify-between gap-4 py-4">
-              <div>
-                <Link href={`/produto/${item.product_id}`} className="font-medium hover:underline">
-                  {item.name}
-                </Link>
-                <p className="text-ink-soft text-sm">
-                  {item.quantity} × {formatMoney(item.unit_price)}
-                </p>
-              </div>
-              <p className="font-condensed text-lg font-extrabold">{formatMoney(item.line_total)}</p>
-            </li>
-          ))}
+          {order.items.map((item) => {
+            const product = photos.get(item.product_id);
+            return (
+              <li
+                key={item.product_id}
+                className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-start gap-4 py-4"
+              >
+                {product ? (
+                  <Link href={`/produto/${item.product_id}`} tabIndex={-1} aria-hidden="true">
+                    <ProductImage
+                      image={product.image}
+                      alt=""
+                      categorySlug={product.category.slug}
+                      sizes="64px"
+                    />
+                  </Link>
+                ) : (
+                  <div aria-hidden="true" className="bg-photo aspect-square w-full rounded-md" />
+                )}
+                <div className="min-w-0">
+                  <Link href={`/produto/${item.product_id}`} className="font-medium hover:underline">
+                    {item.name}
+                  </Link>
+                  <p className="text-ink-soft text-sm">
+                    {item.quantity} × {formatMoney(item.unit_price)}
+                  </p>
+                </div>
+                <p className="font-condensed text-lg font-extrabold">{formatMoney(item.line_total)}</p>
+              </li>
+            );
+          })}
         </ul>
         <dl className="mt-4 space-y-2">
           {order.shipping && (
@@ -138,15 +172,6 @@ export default async function OrderPage({ params, searchParams }: Props) {
           <h2 id="entrega" className="text-xl font-semibold tracking-tight">
             Entrega
           </h2>
-          {order.shipping &&
-            order.status !== "cancelled" &&
-            order.status !== "delivered" &&
-            order.status !== "returned" && (
-              // a data que a loja prometeu: é por ela que o cliente cobra, e o painel mede o atraso
-              <p className="font-condensed pb-1 text-2xl font-extrabold tracking-tight">
-                Chega até {promised(order.shipping.promised_by)}
-              </p>
-            )}
           <p className="font-medium">{order.recipient.name}</p>
           <address className="text-ink-soft not-italic">
             {addressLines(order.shipping_address).map((line) => (
@@ -158,7 +183,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
         </section>
       )}
 
-      {order.status === "delivered" && <ReturnOrder order={order} />}
+      {order.status === "delivered" && <ReturnOrder order={order} expired={returnExpired} />}
 
       {order.invoice && (
         <section aria-labelledby="nota" className="mt-10 space-y-1">
