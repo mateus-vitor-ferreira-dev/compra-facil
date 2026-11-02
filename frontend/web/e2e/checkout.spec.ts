@@ -428,3 +428,26 @@ test("link vencido volta para pedir outro, sem dizer se houve compra", async ({ 
   await page.getByRole("button", { name: "Receber o link" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Se houver compra" })).toBeVisible();
 });
+
+test.describe("link do e-mail sem JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("o link válido abre a sessão", async ({ page }) => {
+    await page.goto("/acompanhar/abrir?token=link-bom");
+    await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+    await expect(page).toHaveURL(/\/conta$/);
+    await expect(page.getByText("Você comprou sem conta.")).toBeVisible();
+  });
+
+  test("o link vencido volta para pedir outro", async ({ page }) => {
+    await page.goto("/acompanhar/abrir?token=vencido");
+    await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+    await expect(page).toHaveURL(/\/acompanhar\?erro=link$/);
+    await expect(page.getByRole("alert").filter({ hasText: "Esse link não vale mais" })).toBeVisible();
+  });
+});
+
+test("o token do link não vai para outros sites: o referrer fica na própria loja", async ({ page }) => {
+  await page.goto("/acompanhar/abrir?token=link-bom");
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "same-origin");
+});

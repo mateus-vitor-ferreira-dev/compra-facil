@@ -10,7 +10,7 @@ O checkout exigia login. Baymard e NN/g recomendam comprar como visitante, e uma
 
 Cada compra sem conta cria uma conta própria no identity, sem senha, com o papel `customer`. O e-mail digitado fica em `guest_email`, fora do login; `email` e `user_name` guardam marcadores que ninguém digita. Os outros serviços não mudam.
 
-O comprador volta à compra por um link enviado por e-mail, guardado só como hash, válido por 180 dias e reutilizável. A sessão só abre no clique, numa página sem envio de referrer. O reenvio responde sempre 202, com um link por compra a cada 5 minutos, no máximo.
+O comprador volta à compra por um link enviado por e-mail, guardado só como hash, válido por 180 dias e reutilizável. A sessão só abre no clique, numa página que não envia o referrer a outros sites (`same-origin`: com `no-referrer`, o formulário sem JavaScript sai com `Origin: null`, e o Next recusa a ação). O reenvio responde sempre 202, com um link por compra a cada 5 minutos, no máximo.
 
 A chave do formulário do checkout identifica o convidado, e o mesmo formulário reenviado não duplica o pedido.
 
