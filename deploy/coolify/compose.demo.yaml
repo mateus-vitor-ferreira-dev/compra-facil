@@ -44,7 +44,8 @@ services:
   postgres:
     image: postgres:17.11-alpine
     restart: unless-stopped
-    mem_limit: 768m
+    # medido em 02/11 (#276): 88 MiB sob carga, com shared_buffers de 192 MB
+    mem_limit: 512m
     command:
       - postgres
       - -c
@@ -144,6 +145,8 @@ services:
 
   identity:
     <<: *dotnet
+    # medido em 02/11 (#276): no máximo 146 MiB sob carga; o orders e o fulfillment ficam nos 320m
+    mem_limit: 256m
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-identity:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
@@ -168,6 +171,8 @@ services:
 
   inventory:
     <<: *dotnet
+    # medido em 02/11 (#276): no máximo 146 MiB sob carga; o orders e o fulfillment ficam nos 320m
+    mem_limit: 256m
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-inventory:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
@@ -178,6 +183,8 @@ services:
 
   payments:
     <<: *dotnet
+    # medido em 02/11 (#276): no máximo 146 MiB sob carga; o orders e o fulfillment ficam nos 320m
+    mem_limit: 256m
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-payments:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
@@ -188,6 +195,8 @@ services:
 
   notifications:
     <<: *dotnet
+    # medido em 02/11 (#276): no máximo 146 MiB sob carga; o orders e o fulfillment ficam nos 320m
+    mem_limit: 256m
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-notifications:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
