@@ -162,6 +162,8 @@ public sealed class EmailTests
         Assert.Contains("Bia", email.HtmlBody, StringComparison.Ordinal);
         Assert.Contains("180 dias", email.TextBody, StringComparison.Ordinal);
         Assert.Contains(url, email.TextBody, StringComparison.Ordinal);
+        // contra o golpe do PIX falso (#343): o código só existe na página do pedido
+        Assert.Contains("nunca envia código PIX por WhatsApp, SMS ou e-mail", email.TextBody, StringComparison.Ordinal);
     }
 
     [Theory]

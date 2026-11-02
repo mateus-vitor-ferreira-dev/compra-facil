@@ -119,6 +119,8 @@ test("o pedido a caminho mostra o rastreio, na lista e no pedido", async ({ page
 
   await shipped.click();
   await expect(page.getByText("Pedido a caminho")).toBeVisible();
+  // a primeira movimentação pode demorar: o pedido avisa antes de o cliente estranhar (#343)
+  await expect(page.getByRole("region", { name: /Rastreio/ })).toContainText("1 a 2 dias úteis");
   const tracking = page.getByRole("region", { name: /Rastreio/ });
   await expect(tracking).toContainText("Correios");
   await expect(tracking).toContainText("BR987654321BR");
@@ -135,6 +137,10 @@ test("passado o prazo, a desistência explica que acabou e mostra o caminho do d
   const section = page.getByRole("region", { name: "Desistir da compra" });
   await expect(section).toContainText("O prazo para desistir terminou em");
   await expect(section.getByRole("button")).toHaveCount(0);
+  // entregue: o rastreio leva ao que fazer se o pacote não chegou (#343)
+  await expect(
+    page.getByRole("region", { name: /Rastreio/ }).getByRole("link", { name: "Veja o que fazer" }),
+  ).toHaveAttribute("href", "/politicas/entrega#nao-recebi");
   await expect(section.getByRole("link", { name: "Ver trocas e devoluções" })).toHaveAttribute(
     "href",
     "/politicas/trocas-e-devolucoes",

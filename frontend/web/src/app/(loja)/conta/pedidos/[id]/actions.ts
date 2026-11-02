@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireAccount } from "@/lib/auth/current";
-import { returnOrder } from "@/lib/orders-api";
+import { readCart, writeCart } from "@/lib/cart";
+import { addItem } from "@/lib/cart-rules";
+import { getAvailability } from "@/lib/inventory-api";
+import { getOrder, returnOrder } from "@/lib/orders-api";
 
 export type ReturnState = { status: "idle" } | { status: "error"; message: string };
 
@@ -28,4 +31,44 @@ export async function desistir(_: ReturnState, form: FormData): Promise<ReturnSt
   }
   revalidatePath(`/conta/pedidos/${id.data}`);
   redirect(`/conta/pedidos/${id.data}?desistencia=1`);
+}
+
+/**
+ * O PIX venceu e o pedido foi cancelado: os produtos voltam ao carrinho, para o cliente pagar de novo sem
+ * refazer a busca (#343). O preço visto é o do pedido: se mudou desde então, o carrinho avisa, como sempre.
+ * O que esgotou fica de fora, e o carrinho conta quantos.
+ */
+export async function refazerPedido(form: FormData): Promise<void> {
+  const id = z.uuid().safeParse(form.get("order_id"));
+  if (!id.success) redirect("/conta");
+  const { token } = await requireAccount(`/conta/pedidos/${id.data}`);
+  const order = await getOrder(token, id.data);
+  // só o PIX vencido: os outros cancelamentos têm outro caminho (estoque, fornecedor, cartão)
+  if (
+    !order.ok ||
+    order.data.status !== "cancelled" ||
+    order.data.cancellation_reason !== "payment_failed" ||
+    order.data.payment?.method !== "pix"
+  ) {
+    redirect(`/conta/pedidos/${id.data}`);
+  }
+  const items = order.data.items;
+  const stock = await getAvailability(items.map((i) => i.product_id));
+  let cart = await readCart();
+  let back = 0;
+  for (const item of items) {
+    const result = addItem(
+      cart,
+      item.product_id,
+      item.quantity,
+      item.unit_price.amount_cents,
+      stock.ok ? stock.data[item.product_id] : undefined,
+    );
+    if (result.ok) {
+      cart = result.cart;
+      back++;
+    }
+  }
+  await writeCart(cart);
+  redirect(`/carrinho?refeito=${back}&fora=${items.length - back}`);
 }

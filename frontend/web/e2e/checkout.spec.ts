@@ -188,10 +188,21 @@ test("PIX vencido: o painel avisa e o pedido é cancelado sem cobrar", async ({ 
   await fillDelivery(page);
   await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
 
-  await expect(page.getByRole("region", { name: "Valor do PIX" })).toBeVisible({ timeout: 10_000 });
+  const panel = page.getByRole("region", { name: "Valor do PIX" });
+  await expect(panel).toBeVisible({ timeout: 10_000 });
+  // contra o PIX falso: o código só existe na página do pedido (#343)
+  await expect(panel).toContainText("nunca envia código PIX por WhatsApp, SMS ou e-mail");
   await expect(page.getByText("Pedido cancelado")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("O PIX venceu sem pagamento. Nada foi cobrado.")).toBeVisible();
   await expect(page.getByRole("list", { name: "Andamento do pedido" })).toContainText("PIX vencido");
+
+  // os produtos voltam ao carrinho para pagar de novo, sem refazer a busca (#343)
+  await page.getByRole("button", { name: "Fazer o pedido de novo" }).click();
+  await expect(page).toHaveURL(/\/carrinho\?refeito=1&fora=0$/);
+  await expect(
+    page.getByRole("status").filter({ hasText: "O produto do pedido voltou ao carrinho." }),
+  ).toBeVisible();
+  await expect(page.getByRole("list", { name: "Produtos no carrinho" })).toContainText('Smart TV 55" QLED');
 });
 
 test("cartão: os erros ficam no campo, e o recusado pelo banco cancela o pedido", async ({ page }) => {
