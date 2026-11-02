@@ -47,7 +47,7 @@ export function StockForm({ productId, idempotencyKey }: { productId: string; id
           required
           aria-invalid={err.reason ? true : undefined}
           aria-describedby={err.reason ? "reason-erro" : undefined}
-          className="bg-surface border-field-line aria-invalid:border-danger h-11 w-full rounded-md border px-3"
+          className="bg-surface text-ink border-field-line aria-invalid:border-danger h-11 w-full rounded-md border px-3"
         >
           <option value="" disabled>
             Escolha o motivo

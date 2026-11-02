@@ -1,3 +1,4 @@
+import { buttonVariants } from "@/components/ui/button";
 import { CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -86,6 +87,11 @@ export default async function AdminProduct({ params, searchParams }: Props) {
         tone="error"
         title="O produto não carregou"
         description={`O catálogo respondeu ${result.error.status}. Tente de novo em instantes.`}
+        action={
+          <Link href={`/admin/produtos/${id}`} className={buttonVariants({ variant: "secondary" })}>
+            Tentar de novo
+          </Link>
+        }
       />
     );
   }
@@ -95,7 +101,7 @@ export default async function AdminProduct({ params, searchParams }: Props) {
     query.salvo === "1"
       ? "Produto salvo. A vitrine já mostra a versão nova."
       : typeof query.estoque === "string"
-        ? `Estoque ajustado: ${query.estoque} unidades em estoque.`
+        ? `Estoque ajustado: ${query.estoque} ${query.estoque === "1" ? "unidade" : "unidades"} em estoque.`
         : undefined;
 
   return (
@@ -189,8 +195,8 @@ export default async function AdminProduct({ params, searchParams }: Props) {
               <input type="hidden" name="id" value={p.id} />
               <p className="text-ink-soft text-sm">
                 O produto sai da vitrine e das listas do painel, e o SKU fica livre. Pedidos já feitos
-                continuam com o nome e o preço deles. Para só tirar de venda, mude a situação para &quot;Fora
-                de venda&quot;.
+                continuam com o nome e o preço deles. Para só tirar de venda, mude a situação para “Fora de
+                venda”.
               </p>
               <SubmitButton variant="danger" size="sm" pendingLabel="Removendo…">
                 Remover {p.sku}

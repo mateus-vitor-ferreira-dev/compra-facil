@@ -19,6 +19,9 @@ export function CategoryForm({ parents }: { parents: { id: string; name: string 
       <TextField
         label="Endereço (opcional)"
         name="slug"
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="none"
         defaultValue={v.slug}
         error={err.slug}
         hint="Fica em /categoria/endereço. Vazio: sai do nome (ex.: fones-de-ouvido)."
@@ -32,7 +35,7 @@ export function CategoryForm({ parents }: { parents: { id: string; name: string 
           id="parent_id"
           name="parent_id"
           defaultValue={v.parent_id ?? ""}
-          className="bg-surface border-field-line h-11 w-full rounded-md border px-3"
+          className="bg-surface text-ink border-field-line h-11 w-full rounded-md border px-3"
         >
           <option value="">Nenhum (é um departamento)</option>
           {parents.map((r) => (

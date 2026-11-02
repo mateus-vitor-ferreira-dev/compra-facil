@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CircleCheck, Search } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -41,6 +42,11 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
         tone="error"
         title="A campanha não carregou"
         description="O catálogo não respondeu agora. Tente de novo em instantes."
+        action={
+          <Link href={`/admin/campanhas/${id}`} className={buttonVariants({ variant: "secondary" })}>
+            Tentar de novo
+          </Link>
+        }
       />
     );
   }
@@ -163,7 +169,9 @@ export default async function AdminCampaign({ params, searchParams }: Props) {
                 type="search"
                 defaultValue={search}
                 minLength={2}
-                placeholder="Nome, marca ou SKU"
+                placeholder="Nome, marca ou SKU…"
+                autoComplete="off"
+                spellCheck={false}
                 className="bg-surface border-field-line h-11 min-w-0 flex-1 rounded-md border px-3"
               />
               <button type="submit" className={buttonVariants({ variant: "secondary", size: "icon" })}>

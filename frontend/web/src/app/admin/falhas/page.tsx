@@ -120,14 +120,16 @@ function DeadLetterItem({ message: m }: { message: DeadLetter }) {
           </time>
         )}
       </div>
-      <p className="text-ink-soft">
+      <p className="text-ink-soft [overflow-wrap:anywhere]">
         {m.topic}, partição {m.partition ?? "?"}, posição {m.offset ?? "?"};{" "}
         {m.attempts === 1 ? "1 tentativa" : `${m.attempts} tentativas`}
         {m.event_id && <>; evento {m.event_id}</>}
       </p>
       {m.error && (
         <details>
-          <summary className="cursor-pointer font-medium">Erro</summary>
+          <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium pointer-fine:min-h-8">
+            Erro
+          </summary>
           <pre className="bg-ink/6 mt-1 overflow-x-auto rounded-sm p-2 text-xs whitespace-pre-wrap">
             {m.error}
           </pre>

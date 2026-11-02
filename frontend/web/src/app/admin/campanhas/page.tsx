@@ -40,6 +40,11 @@ export default async function AdminCampaigns({ searchParams }: Props) {
           tone="error"
           title="As campanhas não carregaram"
           description={`O catálogo respondeu ${result.error.status}. Tente de novo em instantes.`}
+          action={
+            <Link href="/admin/campanhas" className={buttonVariants({ variant: "secondary" })}>
+              Tentar de novo
+            </Link>
+          }
         />
       ) : result.data.data.length === 0 ? (
         <StateMessage

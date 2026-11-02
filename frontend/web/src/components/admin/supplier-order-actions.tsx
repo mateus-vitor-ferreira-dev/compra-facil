@@ -56,12 +56,9 @@ export function SupplierOrderActions({
       {canRetry && (
         <form action={retryOrder}>
           <input type="hidden" name="order_id" value={orderId} />
-          <SubmitButton
-            variant="secondary"
-            pendingLabel="Pedindo…"
-            aria-label={`Tentar de novo agora o pedido ${number}`}
-          >
-            Tentar de novo agora
+          {/* o número em sr-only, e não em aria-label, que encobria o "Pedindo…" durante o envio (#273) */}
+          <SubmitButton variant="secondary" pendingLabel="Pedindo…">
+            Tentar de novo agora<span className="sr-only"> o pedido {number}</span>
           </SubmitButton>
         </form>
       )}
