@@ -12,6 +12,12 @@ export function LinkForm({ email }: { email: string }) {
   useEffect(() => {
     if (state.error) form.current?.querySelector<HTMLInputElement>("[aria-invalid=true]")?.focus();
   }, [state]);
+  // a senha é a única coisa a fazer aqui: com mouse, já começa nela. No celular, não: o teclado aberto
+  // esconderia a explicação acima do campo (#273)
+  useEffect(() => {
+    if (matchMedia("(pointer: fine)").matches)
+      form.current?.querySelector<HTMLInputElement>("input[name=password]")?.focus();
+  }, []);
   return (
     <form ref={form} action={action} className="space-y-4">
       {/* o e-mail, para o gerenciador de senhas achar a senha certa */}
@@ -22,7 +28,6 @@ export function LinkForm({ email }: { email: string }) {
         autoComplete="current-password"
         error={state.error}
         required
-        autoFocus
       />
       <SubmitButton className="w-full" pendingLabel="Vinculando…">
         Vincular e entrar

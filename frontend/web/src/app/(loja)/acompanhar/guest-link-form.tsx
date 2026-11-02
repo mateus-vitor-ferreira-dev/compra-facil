@@ -21,6 +21,8 @@ export function GuestLinkForm() {
         label="E-mail usado na compra"
         name="email"
         type="email"
+        spellCheck={false}
+        autoCapitalize="none"
         autoComplete="email"
         defaultValue={state.email}
         error={state.error}

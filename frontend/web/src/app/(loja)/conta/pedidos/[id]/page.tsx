@@ -201,7 +201,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
             <a
               href={`/api/pedidos/${order.id}/nota`}
               download
-              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
             >
               Baixar a nota (PDF)
             </a>
@@ -230,7 +230,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
             <a
               href={`/api/pedidos/${order.id}/nota?tipo=devolucao`}
               download
-              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+              className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
             >
               Baixar a nota de devolução (PDF)
             </a>

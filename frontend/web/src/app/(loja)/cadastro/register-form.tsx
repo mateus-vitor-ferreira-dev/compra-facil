@@ -62,7 +62,7 @@ export function RegisterForm({ returnTo }: { returnTo: string }) {
               <li key={k}>
                 <a
                   href={`#cadastro-${k}`}
-                  className="text-danger inline-flex min-h-11 items-center font-medium underline underline-offset-4 sm:min-h-8"
+                  className="text-danger inline-flex min-h-11 items-center font-medium underline underline-offset-4 pointer-fine:min-h-8"
                 >
                   {labels[k]}: {f[k]}
                 </a>
@@ -85,6 +85,8 @@ export function RegisterForm({ returnTo }: { returnTo: string }) {
         label="E-mail"
         name="email"
         type="email"
+        spellCheck={false}
+        autoCapitalize="none"
         inputMode="email"
         autoComplete="email"
         required

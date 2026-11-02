@@ -23,7 +23,7 @@ export function OrderTracking({ tracking }: { tracking: NonNullable<Order["track
             href={href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-11 items-center gap-1.5 font-semibold underline underline-offset-4 sm:min-h-8"
+            className="inline-flex min-h-11 items-center gap-1.5 font-semibold underline underline-offset-4 pointer-fine:min-h-8"
           >
             Acompanhar a entrega
             <ExternalLink aria-hidden="true" className="size-4" />
