@@ -176,7 +176,7 @@ function SupplierRules({
                 </div>
                 {/* remover reprecifica na hora os produtos da categoria: pede confirmação, como remover produto */}
                 <details className="shrink-0">
-                  <summary className="text-danger inline-flex min-h-11 cursor-pointer items-center font-semibold sm:min-h-8">
+                  <summary className="text-danger inline-flex min-h-11 cursor-pointer items-center font-semibold pointer-fine:min-h-8">
                     Remover
                     <span className="sr-only">
                       {" "}

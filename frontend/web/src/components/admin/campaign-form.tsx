@@ -29,6 +29,9 @@ export function CampaignForm({ initial }: { initial: CampaignFormValues }) {
       <TextField
         label="Endereço (opcional)"
         name="slug"
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="none"
         defaultValue={v.slug}
         error={err.slug}
         hint="Vazio: sai do nome (ex.: black-friday-2026)."

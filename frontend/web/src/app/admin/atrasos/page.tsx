@@ -119,7 +119,10 @@ export default async function OverdueOrders({ searchParams }: Props) {
 
       <div aria-live="polite">
         {message && (
-          <p role="status" className={message.ok ? "text-success font-medium" : "text-danger font-medium"}>
+          <p
+            role={message.ok ? "status" : "alert"}
+            className={message.ok ? "text-success font-medium" : "text-danger font-medium"}
+          >
             {message.text}
           </p>
         )}
@@ -170,8 +173,10 @@ export default async function OverdueOrders({ searchParams }: Props) {
 
       {!failed.ok ? (
         <p className="text-danger font-medium">
-          Os pedidos que não chegaram ao fornecedor não carregaram ({failed.error.status}). Tente de novo em
-          instantes.
+          Os pedidos que não chegaram ao fornecedor não carregaram ({failed.error.status}).{" "}
+          <Link href="/admin/atrasos" className="text-ink underline underline-offset-4">
+            Tentar de novo
+          </Link>
         </p>
       ) : (
         failed.data.data.length > 0 && (
@@ -206,7 +211,7 @@ export default async function OverdueOrders({ searchParams }: Props) {
                   <p>
                     <a
                       href={`mailto:${o.customer_email}`}
-                      className="inline-flex min-h-6 items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
+                      className="inline-flex min-h-6 items-center font-medium [overflow-wrap:anywhere] underline underline-offset-4 pointer-coarse:min-h-11"
                     >
                       {o.customer_email}
                     </a>
@@ -245,7 +250,7 @@ function OverdueItem({ order: o, now }: { order: OverdueOrder; now: number }) {
       <p className="flex flex-wrap gap-x-4 gap-y-2">
         <a
           href={`mailto:${o.customer_email}`}
-          className="inline-flex min-h-6 items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
+          className="inline-flex min-h-6 items-center font-medium [overflow-wrap:anywhere] underline underline-offset-4 pointer-coarse:min-h-11"
         >
           {o.customer_email}
         </a>
@@ -272,7 +277,9 @@ function OverdueItem({ order: o, now }: { order: OverdueOrder; now: number }) {
       />
       {o.last_error && (
         <details>
-          <summary className="cursor-pointer font-medium">Último erro</summary>
+          <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium pointer-fine:min-h-8">
+            Último erro
+          </summary>
           <pre className="bg-ink/6 mt-1 overflow-x-auto rounded-sm p-2 text-xs whitespace-pre-wrap">
             {o.last_error}
           </pre>

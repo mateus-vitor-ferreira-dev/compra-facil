@@ -66,7 +66,9 @@ export default async function AdminProducts({ searchParams }: Props) {
             type="search"
             defaultValue={q}
             minLength={2}
-            placeholder="Nome, marca ou SKU"
+            placeholder="Nome, marca ou SKU…"
+            autoComplete="off"
+            spellCheck={false}
             className="bg-surface border-field-line h-11 min-w-0 flex-1 rounded-md border px-3"
           />
           <button type="submit" className={buttonVariants({ variant: "secondary", size: "icon" })}>
@@ -95,6 +97,11 @@ export default async function AdminProducts({ searchParams }: Props) {
           tone="error"
           title="A lista não carregou"
           description={`O catálogo respondeu ${result.error.status}. Tente de novo em instantes.`}
+          action={
+            <Link href="/admin/produtos" className={buttonVariants({ variant: "secondary" })}>
+              Tentar de novo
+            </Link>
+          }
         />
       ) : products.length === 0 ? (
         <StateMessage
