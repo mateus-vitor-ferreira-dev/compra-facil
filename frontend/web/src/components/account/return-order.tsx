@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { desistir, type ReturnState } from "@/app/(loja)/conta/pedidos/[id]/actions";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -18,12 +19,16 @@ const until = new Intl.DateTimeFormat("pt-BR", {
 /**
  * O direito de arrependimento (CDC, art. 49): até 7 dias depois da entrega, o cliente desiste da compra e
  * recebe de volta tudo o que pagou, com o frete. A desistência pede uma confirmação, que mostra o valor e a
- * forma do estorno antes de valer.
+ * forma do estorno antes de valer. Passado o prazo, a seção fica e diz quando ele acabou, com o caminho para
+ * defeito ou troca: o botão que some deixa o cliente inseguro (pesquisa de 31/10, #273).
  */
 export function ReturnOrder({
   order,
+  expired = false,
 }: {
   order: Pick<Order, "id" | "total" | "returnable_until" | "payment">;
+  /** o prazo já passou: calculado no servidor, para o texto não mudar entre o HTML e a hidratação */
+  expired?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [state, action] = useActionState<ReturnState, FormData>(desistir, { status: "idle" });
@@ -39,6 +44,29 @@ export function ReturnOrder({
   }, [confirming]);
 
   if (!order.returnable_until) return null;
+  if (expired) {
+    return (
+      <section aria-labelledby="desistir" className="mt-10 space-y-3">
+        <h2 id="desistir" className="text-xl font-semibold tracking-tight">
+          Desistir da compra
+        </h2>
+        <p className="text-ink-soft max-w-prose">
+          O prazo para desistir terminou em{" "}
+          <time dateTime={order.returnable_until} className="text-ink font-medium">
+            {until.format(new Date(order.returnable_until))}
+          </time>
+          , 7 dias depois da entrega. Produto com defeito ou diferente do anunciado tem outro caminho, com
+          prazo maior.
+        </p>
+        <Link
+          href="/politicas/trocas-e-devolucoes"
+          className="inline-flex min-h-11 items-center font-semibold underline underline-offset-4 sm:min-h-8"
+        >
+          Ver trocas e devoluções
+        </Link>
+      </section>
+    );
+  }
   const refundTo =
     order.payment?.method === "card" ? "no cartão usado na compra" : "na conta que pagou o PIX";
 
