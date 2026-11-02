@@ -277,3 +277,11 @@ export function trackingHref(url: string | null | undefined): string | null {
 
 /** Com rastreio para mostrar: a caminho ou entregue (devolvido, o rastreio já não ajuda). */
 export const showsTracking = (status: Status) => status === "shipped" || status === "delivered";
+
+/** O prazo de desistência (7 dias da entrega) já passou: o servidor recusaria o pedido de devolução. */
+export function returnWindowClosed(
+  returnableUntil: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  return !!returnableUntil && new Date(returnableUntil).getTime() < now.getTime();
+}

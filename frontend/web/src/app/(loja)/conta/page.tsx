@@ -9,8 +9,9 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { EmptyCartIllustration } from "@/components/brand/illustrations";
 import { requireAccount } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
-import { orderNumber } from "@/lib/order-status";
-import { listMyOrders } from "@/lib/orders-api";
+import { orderNumber, returnWindowClosed } from "@/lib/order-status";
+import { listMyOrders, type Order } from "@/lib/orders-api";
+import { promised } from "@/lib/shipping";
 import { logout } from "../auth-actions";
 
 export const metadata: Metadata = { title: "Minha conta", robots: { index: false } };
@@ -22,7 +23,34 @@ const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
+const untilFormat = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
+  month: "short",
+  timeZone: "America/Sao_Paulo",
+});
+
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+/** O que dá para comprar de cara: o nome do produto (e quantos mais) no lugar de só contar unidades. */
+function itemsLine(items: Order["items"]) {
+  const [first, ...rest] = items;
+  if (!first) return "";
+  return rest.length === 0 ? first.name : `${first.name} e mais ${rest.length}`;
+}
+
+/**
+ * A data que o cliente vem conferir na lista, sem abrir o pedido (#273): até quando chega, enquanto anda, e até
+ * quando dá para desistir, depois de entregue.
+ */
+function dateHint(order: Order) {
+  if (order.status === "delivered" && order.returnable_until && !returnWindowClosed(order.returnable_until)) {
+    return `Pode desistir até ${untilFormat.format(new Date(order.returnable_until))}`;
+  }
+  if (order.shipping && !["cancelled", "delivered", "returned"].includes(order.status)) {
+    return `Chega até ${promised(order.shipping.promised_by)}`;
+  }
+  return undefined;
+}
 
 /** A conta do cliente: quem está logado, "Meus pedidos" e sair. */
 export default async function AccountPage({ searchParams }: Props) {
@@ -93,7 +121,7 @@ export default async function AccountPage({ searchParams }: Props) {
           <>
             <ul className="divide-line border-line mt-4 divide-y border-y">
               {orders.data.data.map((order) => {
-                const units = order.items.reduce((n, i) => n + i.quantity, 0);
+                const hint = dateHint(order);
                 return (
                   <li key={order.id}>
                     <Link
@@ -101,15 +129,13 @@ export default async function AccountPage({ searchParams }: Props) {
                       className="hover:bg-ink/4 -mx-2 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-4 gap-y-1 rounded-md px-2 py-4"
                     >
                       <span className="font-semibold">Pedido {orderNumber(order.id)}</span>
-                      <span className="font-condensed row-span-2 text-xl font-extrabold">
+                      <span className="font-condensed row-span-3 text-xl font-extrabold">
                         {formatMoney(order.total)}
                       </span>
                       <span className="flex flex-wrap items-center gap-2 text-sm">
                         <OrderBadge order={order} />
-                        <span className="text-ink-soft">
-                          {dateFormat.format(new Date(order.created_at))},{" "}
-                          {units === 1 ? "1 produto" : `${units} produtos`}
-                        </span>
+                        <span className="text-ink-soft">{dateFormat.format(new Date(order.created_at))}</span>
+                        {hint && <span className="font-medium">{hint}</span>}
                         {order.status === "shipped" && order.tracking && (
                           // o código para consultar já daqui; o link da transportadora fica no pedido
                           <span className="text-ink-soft">
@@ -117,9 +143,12 @@ export default async function AccountPage({ searchParams }: Props) {
                           </span>
                         )}
                       </span>
+                      <span className="text-ink-soft col-start-1 truncate text-sm">
+                        {itemsLine(order.items)}
+                      </span>
                       <ChevronRight
                         aria-hidden="true"
-                        className="text-ink-soft col-start-3 row-span-2 row-start-1 size-5"
+                        className="text-ink-soft col-start-3 row-span-3 row-start-1 size-5"
                       />
                     </Link>
                   </li>

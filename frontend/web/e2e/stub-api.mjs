@@ -72,6 +72,13 @@ const orders = [
     returnable_until: new Date(Date.now() + 5 * 86_400_000).toISOString(),
     return_requested_at: null,
   },
+  // entregue há 10 dias: o prazo de 7 dias para desistir já passou
+  {
+    ...orderOf("01a18d66-0000-7000-8000-00005b7c1d90", "delivered", null, 1, 263992),
+    delivered_at: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+    returnable_until: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+    return_requested_at: null,
+  },
   {
     ...orderOf("01a18d66-0000-7000-8000-00002e6f8a14", "shipped", null, 1, 263992),
     sent_to_supplier_at: "2026-10-20T15:02:00Z",

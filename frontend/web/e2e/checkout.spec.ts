@@ -295,7 +295,8 @@ test("frete: trocar pelo expresso muda o total, e o pedido mostra o frete e a da
   await page.getByRole("button", { name: "Fazer o pedido de R$ 2.704,72" }).click();
   await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
 
-  await expect(page.getByRole("region", { name: "Entrega" })).toContainText(/Chega até \d+ de/);
+  // a data prometida fica no alto do pedido, abaixo do número
+  await expect(page.getByRole("main").getByText(/^Chega até \d+ de/)).toBeVisible();
   await expect(page.getByText("Frete expresso")).toBeVisible();
 });
 
