@@ -32,7 +32,8 @@ export function StockForm({ productId, idempotencyKey }: { productId: string; id
         defaultValue={v.delta}
         error={err.delta}
         hint="Positivo entra (20), negativo sai (-3)."
-        inputMode="numeric"
+        // sem inputMode="numeric": o teclado só de dígitos do iPhone não tem o "-", e a saída ficaria impossível
+        autoComplete="off"
         required
       />
       <div className="space-y-1.5">

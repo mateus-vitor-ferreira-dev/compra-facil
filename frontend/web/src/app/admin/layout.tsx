@@ -24,7 +24,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <>
-      <header className="bg-hero text-on-hero">
+      {/* o foco padrão (tinta escura) some na barra escura: aqui ele usa a cor do texto da barra */}
+      <header className="bg-hero text-on-hero [--focus:var(--on-hero)]">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2">
             <Link href="/admin/produtos" className="inline-flex items-center gap-2 rounded-md">

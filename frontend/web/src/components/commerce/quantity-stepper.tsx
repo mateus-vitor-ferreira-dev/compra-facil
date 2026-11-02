@@ -30,7 +30,8 @@ export function QuantityStepper({
       <label htmlFor={id} className="text-ink-soft text-sm">
         Quantidade
       </label>
-      <div className="border-field-line bg-surface inline-flex items-center rounded-md border">
+      {/* o campo não tem contorno próprio (ficaria entre os botões): o foco aparece no grupo inteiro */}
+      <div className="border-field-line bg-surface has-[input:focus-visible]:outline-focus inline-flex items-center rounded-md border has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2">
         <button
           type="button"
           className={step}

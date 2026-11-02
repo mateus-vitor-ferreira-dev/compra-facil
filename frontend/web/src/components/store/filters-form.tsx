@@ -1,7 +1,7 @@
 "use client";
 
 import Form from "next/form";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import type { BrandCount, CategoryCount } from "@/lib/catalog-api";
 import { normalize } from "@/lib/storefront";
@@ -41,6 +41,9 @@ const SEARCHABLE_BRANDS = 15;
  * Ordem, marca, faixa de preço e promoção num formulário GET para a própria listagem: funciona sem
  * JavaScript (o botão aplica) e, com ele, a ordem e as caixas aplicam na hora, sem recarregar a página.
  */
+/** O item marcado pelo teclado, para receber o foco de volta depois que a lista remonta com a URL nova. */
+let refocus: { idPrefix: string; name: string; value: string } | null = null;
+
 export function FiltersForm({
   action,
   idPrefix,
@@ -97,10 +100,28 @@ export function FiltersForm({
     });
   }
 
+  // o clique e o toque aplicam na hora. Pelo teclado, as setas num grupo de radios já mudam a escolha: aplicar
+  // ali recarregaria a lista a cada passo, então o radio espera o Enter ou o botão. O checkbox (espaço) aplica,
+  // e o foco volta ao mesmo item depois da navegação, porque a lista remonta com a URL nova (#273)
+  const lastPointer = useRef(0);
   function applyNow(event: FormEvent<HTMLFormElement>) {
     const target = event.target as HTMLInputElement;
-    if (target.type === "radio" || target.type === "checkbox") event.currentTarget.requestSubmit();
+    if (target.type !== "radio" && target.type !== "checkbox") return;
+    const byPointer = Date.now() - lastPointer.current < 1000;
+    if (target.type === "radio" && !byPointer) return;
+    if (!byPointer) refocus = { idPrefix, name: target.name, value: target.value };
+    event.currentTarget.requestSubmit();
   }
+  useEffect(() => {
+    if (refocus?.idPrefix !== idPrefix) return;
+    const { name, value } = refocus;
+    refocus = null;
+    document
+      .querySelector<HTMLInputElement>(
+        `[data-filters="${idPrefix}"] input[name="${CSS.escape(name)}"][value="${CSS.escape(value)}"]`,
+      )
+      ?.focus();
+  }, [idPrefix]);
 
   const legend = "text-base font-semibold";
   const choice = choiceClass;
@@ -112,6 +133,8 @@ export function FiltersForm({
       scroll={false}
       onSubmit={dropEmpty}
       onChange={applyNow}
+      onPointerDown={() => (lastPointer.current = Date.now())}
+      data-filters={idPrefix}
       className={cn("divide-line divide-y", className)}
     >
       {Object.entries(keep).map(([name, value]) => (
