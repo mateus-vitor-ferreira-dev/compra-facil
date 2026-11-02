@@ -56,4 +56,38 @@ describe("Toaster", () => {
     expect(screen.queryByRole("status")).toBeNull();
     vi.useRealTimers();
   });
+
+  it("o erro não some sozinho: só sai quando o cliente fecha (WCAG 2.2.1)", () => {
+    vi.useFakeTimers();
+    render(
+      <Toaster>
+        <Trigger tone="error" message="Não deu para salvar" />
+      </Toaster>,
+    );
+
+    act(() => screen.getByRole("button", { name: "disparar" }).click());
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(screen.getByRole("alert")).toHaveTextContent("Não deu para salvar");
+    vi.useRealTimers();
+  });
+
+  it("com o mouse em cima, o tempo para; ao sair, recomeça", () => {
+    vi.useFakeTimers();
+    render(
+      <Toaster>
+        <Trigger tone="success" message="Salvo" />
+      </Toaster>,
+    );
+
+    act(() => screen.getByRole("button", { name: "disparar" }).click());
+    const toast = screen.getByRole("status");
+    act(() => vi.advanceTimersByTime(5000));
+    act(() => toast.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    act(() => vi.advanceTimersByTime(20_000));
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    act(() => toast.dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+    act(() => vi.advanceTimersByTime(6000));
+    expect(screen.queryByRole("status")).toBeNull();
+    vi.useRealTimers();
+  });
 });
