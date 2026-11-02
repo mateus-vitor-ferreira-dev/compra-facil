@@ -125,5 +125,15 @@ export async function removeCampaignProduct(form: FormData): Promise<void> {
   const productId = z.uuid().parse(form.get("product_id"));
   const { token } = await requireAdmin(`/admin/campanhas/${id}`);
   const result = await changeProducts(token, id, (ids) => ids.filter((x) => x !== productId));
-  redirect(`/admin/campanhas/${id}${result.ok ? "?retirado=1" : "?erro=retirar"}`);
+  // o aviso leva o produto retirado, para o "Desfazer" devolvê-lo: o toque errado na lista não fica sem volta (#273)
+  redirect(`/admin/campanhas/${id}${result.ok ? `?retirado=${productId}` : "?erro=retirar"}`);
+}
+
+/** "Desfazer" do retirar: o produto volta à campanha. */
+export async function restoreCampaignProduct(form: FormData): Promise<void> {
+  const id = z.uuid().parse(form.get("id"));
+  const productId = z.uuid().parse(form.get("product_id"));
+  const { token } = await requireAdmin(`/admin/campanhas/${id}`);
+  const result = await changeProducts(token, id, (ids) => [...new Set([...ids, productId])]);
+  redirect(`/admin/campanhas/${id}${result.ok ? "?devolvido=1" : "?erro=devolver"}`);
 }

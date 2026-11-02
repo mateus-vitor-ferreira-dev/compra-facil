@@ -139,7 +139,7 @@ function ReturnItem({ item: r, now }: { item: SupplierReturn; now: number }) {
       <p>
         <a
           href={`mailto:${r.customer_email}`}
-          className="inline-flex min-h-6 items-center font-medium underline underline-offset-4"
+          className="inline-flex min-h-6 items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
         >
           {r.customer_email}
         </a>
