@@ -2,6 +2,10 @@
 # Docker Compose; a única entrada de fora é o gateway, com o domínio da API e o HTTPS do proxy do Coolify.
 # As imagens são as do GHCR, geradas pelo CI: aqui nada compila. Passo a passo: deploy/README.md.
 #
+# Nenhum arquivo do repositório é montado: o Coolify resolveria os caminhos no disco do servidor, onde o repositório
+# não fica (#278). A configuração do gateway, do Redpanda, do Collector e o script dos bancos vão nas imagens de
+# deploy/images.
+#
 # Tudo fica na rede desta stack (sem "Connect to Predefined Network"): o VPS roda outros projetos, e
 # nomes como redis ou postgres se confundiriam no DNS da rede compartilhada.
 #
@@ -26,7 +30,8 @@ x-dotnet-env: &dotnet-env
 
 services:
   gateway:
-    image: traefik:v3.7.16
+    # o Traefik com o traefik.yml e as rotas de infra/gateway/traefik/dynamic dentro
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-gateway:${IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 128m
     command: ["--configFile=/etc/traefik/traefik.yml"]
@@ -41,9 +46,6 @@ services:
       GATEWAY_MEDIA: "off"
       # o fulfillment (dropshipping, ADR 0007) entra na produção com o fornecedor de verdade (#227)
       GATEWAY_FULFILLMENT: "off"
-    volumes:
-      - ./traefik.yml:/etc/traefik/traefik.yml:ro
-      - ../../infra/gateway/traefik/dynamic:/etc/traefik/dynamic:ro
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
@@ -78,7 +80,8 @@ services:
 
   # a cada deploy: cria o banco e o usuário de um serviço novo e acerta as senhas (idempotente)
   postgres-databases:
-    image: postgres:17.11-alpine
+    # o postgres com o infra/compose/postgres/init-databases.sh dentro
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-postgres-init:${IMAGE_TAG:-main}
     restart: "no"
     # roda e sai: o Coolify não o conta na saúde da stack
     exclude_from_hc: true
@@ -94,8 +97,6 @@ services:
       SERVICE_DB_PASSWORD_PAYMENTS: ${PG_PAYMENTS_PASSWORD:?}
       SERVICE_DB_PASSWORD_NOTIFICATIONS: ${PG_NOTIFICATIONS_PASSWORD:?}
       SERVICE_DB_PASSWORD_IDENTITY: ${PG_IDENTITY_PASSWORD:?}
-    volumes:
-      - ../../infra/compose/postgres/init-databases.sh:/init-databases.sh:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -134,7 +135,8 @@ services:
       retries: 6
 
   redpanda:
-    image: redpandadata/redpanda:v26.2.5
+    # o Redpanda com o redpanda.yaml e o redpanda.bootstrap.yaml em /config
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-redpanda:${IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 768m
     # a configuração de produção (redpanda.yaml) vai para o diretório que o rpk reescreve na partida
@@ -144,8 +146,6 @@ services:
         && cp /config/redpanda.bootstrap.yaml /etc/redpanda/.bootstrap.yaml
         && exec /entrypoint.sh redpanda start --smp=1 --memory=512M --reserve-memory=0M --default-log-level=warn
     volumes:
-      - ./redpanda.yaml:/config/redpanda.yaml:ro
-      - ./redpanda.bootstrap.yaml:/config/redpanda.bootstrap.yaml:ro
       - redpanda-data:/var/lib/redpanda/data
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:9644/v1/status/ready"]
@@ -155,7 +155,8 @@ services:
       start_period: 60s
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.162.0
+    # o Collector com o otel-collector.yaml em /etc/otelcol/config.yaml
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-otel-collector:${IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 192m
     command: ["--config=/etc/otelcol/config.yaml"]
@@ -163,8 +164,6 @@ services:
       GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT:?o endpoint OTLP do Grafana Cloud}
       # base64 de "<instance id>:<token>"
       GRAFANA_CLOUD_OTLP_AUTH: ${GRAFANA_CLOUD_OTLP_AUTH:?}
-    volumes:
-      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
 
   catalog:
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-catalog:${IMAGE_TAG:-main}
