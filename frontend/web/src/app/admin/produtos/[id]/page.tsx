@@ -139,7 +139,8 @@ export default async function AdminProduct({ params, searchParams }: Props) {
           }}
         />
 
-        <aside className="space-y-8 lg:sticky lg:top-6 lg:self-start">
+        {/* preso ao rolar, mas nunca mais alto que a tela: o fim (remover) ficava fora da vista, e o Tab caía nele (#273) */}
+        <aside className="space-y-8 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:self-start lg:overflow-y-auto lg:p-1">
           <section aria-labelledby="estoque" className="space-y-4">
             <h2 id="estoque" className="text-xl font-semibold tracking-tight">
               Estoque

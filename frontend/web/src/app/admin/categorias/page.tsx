@@ -34,6 +34,11 @@ export default async function AdminCategories({ searchParams }: Props) {
             title="As categorias não carregaram"
             description={`O catálogo respondeu ${result.error.status}. Tente de novo em instantes.`}
           />
+        ) : roots.length === 0 ? (
+          <StateMessage
+            title="Nenhuma categoria ainda"
+            description="Crie o primeiro departamento no formulário ao lado; as subcategorias e os tipos vêm depois."
+          />
         ) : (
           <ul className="divide-line border-line divide-y rounded-md border">
             {roots.map((root) => {

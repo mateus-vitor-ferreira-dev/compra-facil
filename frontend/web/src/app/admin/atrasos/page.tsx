@@ -206,7 +206,7 @@ export default async function OverdueOrders({ searchParams }: Props) {
                   <p>
                     <a
                       href={`mailto:${o.customer_email}`}
-                      className="inline-flex min-h-6 items-center font-medium underline underline-offset-4"
+                      className="inline-flex min-h-6 items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
                     >
                       {o.customer_email}
                     </a>
@@ -245,7 +245,7 @@ function OverdueItem({ order: o, now }: { order: OverdueOrder; now: number }) {
       <p className="flex flex-wrap gap-x-4 gap-y-2">
         <a
           href={`mailto:${o.customer_email}`}
-          className="inline-flex min-h-6 items-center font-medium underline underline-offset-4"
+          className="inline-flex min-h-6 items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
         >
           {o.customer_email}
         </a>
@@ -255,7 +255,7 @@ function OverdueItem({ order: o, now }: { order: OverdueOrder; now: number }) {
               href={o.tracking.url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-6 items-center font-medium underline underline-offset-4"
+              className="inline-flex min-h-6 items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
             >
               Rastreio {o.tracking.number}
               <span className="sr-only"> (abre em outra aba)</span>
