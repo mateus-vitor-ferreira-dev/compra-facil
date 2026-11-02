@@ -80,6 +80,12 @@ test("meus pedidos: situação, motivo do cancelamento e o detalhe", async ({ pa
   const orders = page.getByRole("region", { name: "Meus pedidos" });
   await expect(orders.getByRole("link")).toHaveCount(5);
   await expect(orders).toContainText("Pedido 4F2A9C1B");
+  // o produto e a data que o cliente vem conferir, sem abrir o pedido (#273)
+  await expect(orders).toContainText('Smart TV 55" QLED');
+  const delivered = orders.getByRole("link", { name: /Pedido 9D1B6E3F/ });
+  await expect(delivered).toContainText(/Pode desistir até \d+ de/);
+  // passado o prazo, a lista não promete o que o pedido já não aceita
+  await expect(orders.getByRole("link", { name: /Pedido 5B7C1D90/ })).not.toContainText("Pode desistir");
   await expect(orders).toContainText("Em preparação");
   await expect(orders).toContainText("Cancelado");
 
