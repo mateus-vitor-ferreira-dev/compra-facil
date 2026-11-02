@@ -77,10 +77,11 @@ export default async function Home() {
             </h2>
             <ul className="mt-4 grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 lg:grid-cols-6">
               {tree.map((c) => (
-                <li key={c.id}>
+                <li key={c.id} className="min-w-0">
+                  {/* três colunas no celular: "Eletrodomésticos" só cabe quebrando com hífen (#273) */}
                   <Link
                     href={`/categoria/${c.slug}`}
-                    className="group flex flex-col items-center gap-2 rounded-md py-2 text-center text-sm font-semibold"
+                    className="group flex flex-col items-center gap-2 rounded-md py-2 text-center text-sm font-semibold break-words hyphens-auto"
                   >
                     <span className="bg-photo text-ink group-hover:bg-ink group-hover:text-paper flex size-16 items-center justify-center rounded-full transition-colors">
                       <CategoryIcon slug={c.slug} className="size-7" />
