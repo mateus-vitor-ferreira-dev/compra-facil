@@ -43,6 +43,31 @@ da Cloudflare.
 
 Memória medida com a stack parada: cerca de 1,1 GB. A soma dos tetos (`mem_limit`) é de 3,9 GB.
 
+### Memória do VPS
+
+Medição da demonstração em 02/11 (#276): a stack usa 0,93 GB parada e 1,14 GB sob carga (k6 a 30 req/s pelo
+gateway). Nenhum contêiner passou de 58% do teto. Os tetos da demonstração somam 3,65 GB, e o VPS inteiro, com os
+outros projetos, ficou em 4,7 GB de 8 GB no pico. Os números vêm do Sentinel do Coolify (*Servers → localhost →
+Metrics*) e do `docker stats --no-stream` no terminal do servidor.
+
+O Coolify não tem notificação de memória. O alerta é uma tarefa agendada do recurso (*Scheduled Tasks*), que falha
+quando o VPS passa de 85% e cai no e-mail de **Scheduled task failure**, já ligado nas notificações do time:
+
+| Campo | Valor |
+|---|---|
+| Name | `alerta-memoria-vps` |
+| Schedule | `*/15 * * * *` |
+| Container | `redis` (qualquer um com `awk`; o `/proc/meminfo` do contêiner é o do servidor) |
+| Timeout | `60` (o mínimo do Coolify) |
+
+```sh
+awk '/^MemTotal:/{t=$2} /^MemAvailable:/{a=$2} END{u=int(100-a*100/t); print "memoria do VPS em uso: " u "%"; if (u>=85) exit 1}' /proc/meminfo
+```
+
+O log da execução mostra a porcentagem. Para testar o e-mail, troque `85` por `1`, rode *Execute Now* e volte.
+A tarefa roda dentro desta stack: se ela cair, o aviso que chega é o **Server unreachable** ou o **Restart limit
+reached**.
+
 ## Loja de demonstração
 
 Antes das contas de verdade, [`coolify/compose.demo.yaml`](coolify/compose.demo.yaml) sobe a stack com o fornecedor, o
