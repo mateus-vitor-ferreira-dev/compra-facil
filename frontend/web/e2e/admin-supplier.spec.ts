@@ -33,7 +33,10 @@ test("margem do fornecedor: a conta ao vivo, a regra padrão, a de categoria e a
     .getByRole("listitem")
     .filter({ hasText: escolhida!.replace(" (o departamento todo)", "") });
   await expect(regra).toContainText("120% de margem");
-  await regra.getByRole("button", { name: /Remover/ }).click();
+  // remover reprecifica na hora: o primeiro clique só abre a confirmação
+  await regra.locator("summary").click();
+  await expect(regra).toContainText("voltam à margem padrão");
+  await regra.getByRole("button", { name: "Remover a regra" }).click();
   await expect(page.getByRole("status")).toHaveText("Regra removida: 1 produto mudou de preço.");
 
   await page.getByRole("button", { name: "Ler o feed agora" }).click();

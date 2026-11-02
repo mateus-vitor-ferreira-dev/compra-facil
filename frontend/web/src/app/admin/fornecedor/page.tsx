@@ -174,13 +174,26 @@ function SupplierRules({
                     {r.margin_percent}% de margem, mínimo {brl(r.min_price_cents)}
                   </p>
                 </div>
-                <form action={removePricingRule}>
-                  <input type="hidden" name="category_id" value={r.category_id} />
-                  <SubmitButton variant="ghost" size="sm" pendingLabel="Removendo…">
+                {/* remover reprecifica na hora os produtos da categoria: pede confirmação, como remover produto */}
+                <details className="shrink-0">
+                  <summary className="text-danger inline-flex min-h-11 cursor-pointer items-center font-semibold sm:min-h-8">
                     Remover
-                    <span className="sr-only"> a regra de {names.get(r.category_id ?? "")}</span>
-                  </SubmitButton>
-                </form>
+                    <span className="sr-only">
+                      {" "}
+                      a regra de {names.get(r.category_id ?? "") ?? "uma categoria removida"}
+                    </span>
+                  </summary>
+                  <form action={removePricingRule} className="mt-2 max-w-xs space-y-2">
+                    <input type="hidden" name="category_id" value={r.category_id} />
+                    <p className="text-ink-soft text-sm">
+                      Os produtos desta categoria voltam à margem padrão do fornecedor, e o preço muda na
+                      vitrine na hora.
+                    </p>
+                    <SubmitButton variant="danger" size="sm" pendingLabel="Removendo…">
+                      Remover a regra
+                    </SubmitButton>
+                  </form>
+                </details>
               </li>
             ))}
           </ul>

@@ -2,6 +2,28 @@ import { expect, test } from "@playwright/test";
 
 const FONES = "/categoria/fones";
 
+test("pelo teclado, as setas escolhem a ordem sem recarregar, e a marca aplica sem perder o foco", async ({
+  page,
+}) => {
+  await page.goto(FONES);
+  const filters = page.getByRole("complementary", { name: "Filtrar e ordenar" });
+
+  // as setas andam pelas ordens sem aplicar cada uma; o Enter aplica a escolhida
+  await filters.getByRole("radio", { name: "Novidades" }).focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await expect(filters.getByRole("radio", { name: "Maior preço" })).toBeChecked();
+  await expect(page).not.toHaveURL(/ordem=/);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/ordem=maior-preco/);
+
+  // o espaço marca a marca, a lista recarrega e o foco continua nela
+  await filters.getByRole("checkbox", { name: /^JBL/ }).focus();
+  await page.keyboard.press("Space");
+  await expect(page).toHaveURL(/marca=JBL/);
+  await expect(filters.getByRole("checkbox", { name: /^JBL/ })).toBeFocused();
+});
+
 test("marca, ordem e preço aplicam na hora e ficam na URL", async ({ page }) => {
   await page.goto(FONES);
   const filters = page.getByRole("complementary", { name: "Filtrar e ordenar" });
