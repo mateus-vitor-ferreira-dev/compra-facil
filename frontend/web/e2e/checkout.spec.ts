@@ -327,6 +327,23 @@ test("o produto e o carrinho cotam o frete pelo CEP, e lembram o CEP", async ({ 
   await expect(cart).toContainText("Expresso"); // cotou sozinho com o CEP guardado
 });
 
+test("o clique antes do frete chegar fica guardado e o pedido segue sozinho (#331)", async ({ page }) => {
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await page.getByLabel("E-mail", { exact: true }).fill(`frete-lento-${Date.now()}@exemplo.com`);
+  await page.getByLabel("Nome de quem recebe").fill("Bia Lima");
+  await page.getByLabel("CPF").fill("52998224725");
+  await page.getByLabel("Celular").fill("11987654321");
+  await page.getByLabel("CEP").fill("01310200"); // o stub cota este CEP em 1,5 s
+  await expect(page.getByLabel("Rua")).toHaveValue("Avenida Paulista");
+  await page.getByLabel("Número").fill("1000");
+  await expect(page.getByRole("radio", { name: /Econômico/ })).toHaveCount(0);
+
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+  await expect(page.getByRole("button", { name: "Calculando o frete…" })).toBeVisible();
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]+\?novo=1$/);
+});
+
 test("compra sem conta: só o e-mail, e o pedido abre com o aviso do link", async ({ page }) => {
   await addToCart(page, TV);
   await page.goto("/carrinho");

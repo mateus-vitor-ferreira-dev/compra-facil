@@ -548,7 +548,8 @@ const iso = (ms) => new Date(ms).toISOString();
 const QR_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
-// ---- o frete (#222): duas opções para qualquer CEP, menos o 99999-999, que ninguém atende ----
+// ---- o frete (#222): duas opções para qualquer CEP, menos o 99999-999, que ninguém atende. O 01310-200 cota
+// devagar, para o clique em "Fazer o pedido" chegar antes do frete (#331) ----
 const SHIPPING = [
   { id: "economico", name: "Econômico", price_cents: 2430, min_days: 13, max_days: 21 },
   { id: "expresso", name: "Expresso", price_cents: 6480, min_days: 7, max_days: 11 },
@@ -998,6 +999,7 @@ createServer(async (req, res) => {
     const { zip_code: zip, items } = await json(req);
     const digits = String(zip ?? "").replace(/\D/g, "");
     if (digits.length !== 8 || !items?.length) return problem(res, 422, "Dados inválidos");
+    if (digits === "01310200") await new Promise((r) => setTimeout(r, 1500));
     return send(res, 200, { zip_code: digits, options: shippingFor(digits) });
   }
   // o DANFE da nota (#221): só a do pedido confirmado da Ana
@@ -1018,6 +1020,7 @@ createServer(async (req, res) => {
   if (req.method === "GET" && cep) {
     const known = {
       "01310100": { logradouro: "Avenida Paulista", bairro: "Bela Vista", localidade: "São Paulo", uf: "SP" },
+      "01310200": { logradouro: "Avenida Paulista", bairro: "Bela Vista", localidade: "São Paulo", uf: "SP" },
       37200000: { logradouro: "", bairro: "", localidade: "Lavras", uf: "MG" },
     }[cep[1]];
     return send(res, 200, known ?? { erro: "true" });

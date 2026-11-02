@@ -9,6 +9,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
@@ -105,6 +106,20 @@ export function CheckoutForm({
   const zip = delivery.zip_code.replace(/\D/g, "");
   const quotedZip = quote.kind === "done" ? quote.zip : undefined;
   const itemsKey = JSON.stringify(items);
+  // o frete do CEP digitado ainda não chegou (a espera do debounce ou a cotação em andamento). O clique feito
+  // nesse meio fica guardado, e o pedido segue sozinho quando a cotação chegar (#331): antes, o aviso de esperar
+  // o frete sumia com a cotação, e o clique se perdia sem nada na tela
+  const quotePending =
+    quote.kind === "loading" || (zip.length === 8 && zip !== quotedZip && quote.kind !== "error");
+  const [waitingQuote, setWaitingQuote] = useState(false);
+  const waitingRef = useRef(false);
+  const form = useRef<HTMLFormElement | null>(null);
+  function stopWaiting() {
+    const resume = waitingRef.current;
+    waitingRef.current = false;
+    setWaitingQuote(false);
+    return resume;
+  }
   useEffect(() => {
     if (zip.length !== 8 || zip === quotedZip) return;
     const timer = setTimeout(async () => {
@@ -116,6 +131,7 @@ export function CheckoutForm({
           body: JSON.stringify({ zip_code: zip, items }),
         });
         if (!response.ok) {
+          stopWaiting();
           setQuote({
             kind: "error",
             message:
@@ -127,16 +143,23 @@ export function CheckoutForm({
         }
         const body = (await response.json()) as { zip_code: string; options: ShippingOption[] };
         localStorage.setItem(ZIP_STORAGE_KEY, zip);
-        setQuote(
-          body.options.length
-            ? { kind: "done", zip: body.zip_code, options: body.options }
-            : { kind: "error", message: "Nenhuma transportadora atende este CEP." },
-        );
-        setService((current) =>
-          body.options.some((o) => o.id === current) ? current : cheapest(body.options),
-        );
-        setShippingError(undefined);
+        // aplicado antes do requestSubmit: o submit precisa ver o frete escolhido e o formulário livre
+        let resume = false;
+        flushSync(() => {
+          setQuote(
+            body.options.length
+              ? { kind: "done", zip: body.zip_code, options: body.options }
+              : { kind: "error", message: "Nenhuma transportadora atende este CEP." },
+          );
+          setService((current) =>
+            body.options.some((o) => o.id === current) ? current : cheapest(body.options),
+          );
+          setShippingError(undefined);
+          resume = stopWaiting();
+        });
+        if (resume) form.current?.requestSubmit();
       } catch {
+        stopWaiting();
         setQuote({ kind: "error", message: "A cotação do frete não respondeu. Tente de novo em instantes." });
       }
     }, 300);
@@ -149,7 +172,7 @@ export function CheckoutForm({
   const [cardProblem, setCardProblem] = useState<string>();
   const [checking, setChecking] = useState(false);
   const fields = useRef<Partial<Record<CardField, HTMLInputElement | null>>>({});
-  const busy = pending || checking;
+  const busy = pending || checking || waitingQuote;
 
   function changeCard(field: CardField, value: string) {
     setCard((c) => ({ ...c, [field]: value }));
@@ -182,6 +205,11 @@ export function CheckoutForm({
       return;
     }
     // o frete antes do pagamento: sem ele, a loja não sabe o total nem o prazo
+    if (quotePending) {
+      waitingRef.current = true;
+      setWaitingQuote(true);
+      return;
+    }
     if (!chosen) {
       setShippingError(
         quote.kind === "done"
@@ -219,6 +247,7 @@ export function CheckoutForm({
 
   return (
     <form
+      ref={form}
       action={action}
       onSubmit={submit}
       noValidate
@@ -352,7 +381,13 @@ export function CheckoutForm({
             className={cn("w-full", busy && "cursor-progress opacity-50")}
             aria-disabled={busy || undefined}
           >
-            {checking ? "Conferindo o cartão…" : pending ? "Fazendo o pedido…" : `Fazer o pedido de ${total}`}
+            {checking
+              ? "Conferindo o cartão…"
+              : pending
+                ? "Fazendo o pedido…"
+                : waitingQuote
+                  ? "Calculando o frete…"
+                  : `Fazer o pedido de ${total}`}
           </Button>
           <p className="text-ink-soft mt-3 text-sm">
             Ao fazer o pedido, você concorda com os{" "}
