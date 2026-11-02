@@ -158,6 +158,9 @@ services:
     # o Collector com o otel-collector.yaml em /etc/otelcol/config.yaml
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-otel-collector:${IMAGE_TAG:-main}
     restart: unless-stopped
+    # a imagem não tem shell nem cliente HTTP para chamar o health_check (:13133). Um contêiner sem healthcheck
+    # deixaria a stack inteira como running:unknown no Coolify (#276); o Collector fora do ar só some com a telemetria
+    exclude_from_hc: true
     mem_limit: 192m
     command: ["--config=/etc/otelcol/config.yaml"]
     environment:
