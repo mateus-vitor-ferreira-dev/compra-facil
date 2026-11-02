@@ -1,0 +1,3 @@
+# só o que esta imagem copia (no lugar do .dockerignore da raiz)
+*
+!deploy/coolify/otel-collector.yaml

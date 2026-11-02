@@ -21,7 +21,23 @@ Tudo fica na rede desta stack, sem a rede compartilhada do Coolify ("Connect to 
 Por isso o Postgres está dentro do compose, e não como banco do Coolify.
 
 O gateway é o mesmo do compose local (as rotas e os middlewares de `infra/gateway/traefik/dynamic`),
-atrás do proxy do Coolify. O rate limit usa o IP que o proxy põe no `X-Forwarded-For`, então o DNS da
+atrás do proxy do Coolify.
+
+**Nenhum arquivo do repositório é montado.** O Coolify resolve os caminhos de `volumes` no disco do servidor
+(`/data/coolify/...`), onde o repositório não fica, e foi isso que derrubou o primeiro deploy (#278). A configuração
+vai dentro de imagens próprias, geradas pelo [`stack-images.yml`](../.github/workflows/stack-images.yml) a partir de
+[`images/`](images), com as tags da branch e do commit:
+
+| Imagem | Leva |
+|---|---|
+| `compra-facil-gateway` | `coolify/traefik.yml` e as rotas de `infra/gateway/traefik/dynamic` |
+| `compra-facil-postgres-init` | `infra/compose/postgres/init-databases.sh` |
+| `compra-facil-redpanda` | `coolify/redpanda.yaml` e `coolify/redpanda.bootstrap.yaml` |
+| `compra-facil-otel-collector` | `coolify/otel-collector.yaml` |
+| `compra-facil-media` | as fotos de `infra/media`, só na demonstração |
+
+Mudou um desses arquivos: o pipeline gera a imagem de novo, e o deploy seguinte a leva. Um arquivo novo que a
+stack precise vai para o Dockerfile da imagem, e nunca para um `volumes` do compose. O rate limit usa o IP que o proxy põe no `X-Forwarded-For`, então o DNS da
 API fica **sem o proxy da Cloudflare** ("DNS only"). Com o proxy laranja, todo mundo apareceria com o IP
 da Cloudflare.
 
@@ -145,7 +161,7 @@ As fotos são CC0 ou domínio público; os créditos ficam em
 ## Deploy pelo CI
 
 O [`deploy.yml`](../.github/workflows/deploy.yml) roda ao fim de cada pipeline de imagem na `main`
-(os serviços, o backup e as imagens da demonstração) e chama o [`coolify/deploy.sh`](coolify/deploy.sh):
+(os serviços, o backup e as imagens da stack) e chama o [`coolify/deploy.sh`](coolify/deploy.sh):
 
 1. a `:main` de cada imagem ganha a tag fixa deste deploy, `deploy-<id da execução>`;
 2. o `IMAGE_TAG` e o `SIM_IMAGE_TAG` da stack no Coolify passam a ser essa tag;

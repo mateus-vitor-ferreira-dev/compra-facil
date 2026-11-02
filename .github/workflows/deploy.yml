@@ -10,7 +10,7 @@ name: deploy
 
 on:
   workflow_run:
-    workflows: [catalog, identity, orders, inventory, payments, notifications, fulfillment, backup, sim-images]
+    workflows: [catalog, identity, orders, inventory, payments, notifications, fulfillment, backup, stack-images]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -73,10 +73,11 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/compra-facil-supplier-sim
             ghcr.io/${{ github.repository_owner }}/compra-facil-payment-sim
             ghcr.io/${{ github.repository_owner }}/compra-facil-invoice-sim
-            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-gateway
-            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-media
-            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-postgres-init
-            ghcr.io/${{ github.repository_owner }}/compra-facil-demo-redpanda
+            ghcr.io/${{ github.repository_owner }}/compra-facil-gateway
+            ghcr.io/${{ github.repository_owner }}/compra-facil-postgres-init
+            ghcr.io/${{ github.repository_owner }}/compra-facil-redpanda
+            ghcr.io/${{ github.repository_owner }}/compra-facil-otel-collector
+            ghcr.io/${{ github.repository_owner }}/compra-facil-media
         run: deploy/coolify/deploy.sh
 
       # de fora, pelo domínio: o caminho do comprador (DNS, certificado, proxy do Coolify, gateway).

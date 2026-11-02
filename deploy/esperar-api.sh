@@ -19,7 +19,7 @@ INTERVALO=${ESPERA_API_INTERVALO:-15}
 GATILHO=${ESPERA_API_GATILHO:-180}
 
 # os mesmos de workflow_run em deploy.yml
-PIPELINES='["catalog","identity","orders","inventory","payments","notifications","fulfillment","backup","sim-images"]'
+PIPELINES='["catalog","identity","orders","inventory","payments","notifications","fulfillment","backup","stack-images"]'
 
 erro() {
   echo "::error title=A loja não foi publicada::$1"
