@@ -1,8 +1,9 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { readCart, readUndo, writeCart, writeUndo } from "@/lib/cart";
-import { MAX_ITEMS, acceptPrices, addItem, removeItem, setQuantity } from "@/lib/cart-rules";
+import { MAX_ITEMS, acceptPrices, addItem, emptyCart, removeItem, setQuantity } from "@/lib/cart-rules";
 import { getProduct } from "@/lib/catalog-api";
 import { getAvailability } from "@/lib/inventory-api";
 
@@ -76,6 +77,16 @@ export async function removeFromCart(form: FormData): Promise<void> {
   const cart = await readCart();
   await writeUndo(cart.items.find((i) => i.id === productId.data));
   await writeCart(removeItem(cart, productId.data));
+}
+
+/**
+ * "Esvaziar o carrinho" (#321): tira todos os produtos de uma vez, depois da confirmação na página. Sem
+ * desfazer: o desfazer guarda um produto só, e a confirmação já evita o engano.
+ */
+export async function clearCart(): Promise<void> {
+  await writeUndo(undefined);
+  await writeCart(emptyCart());
+  redirect("/carrinho?esvaziado=1");
 }
 
 /** "Desfazer": devolve o último item removido, com a quantidade e o preço visto de antes. */

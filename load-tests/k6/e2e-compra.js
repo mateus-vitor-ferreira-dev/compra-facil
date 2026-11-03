@@ -18,7 +18,7 @@
 //   7. nota fiscal recusada: cliente "+recusar-nota" (a SEFAZ simulada do invoice-sim rejeita) → o pedido
 //      pago não vai ao fornecedor, cancelled (invoice_failed) e a autorização do cartão cancelada.
 //   8. cancelado pela equipe: cliente "+atrasar" fica preso no fornecedor, o painel cancela → avisado, cancelled
-//      e o cartão estornado.
+//      (store_cancelled) e o cartão estornado.
 //   9. devolução recusada na abertura (#281): cliente "+recusar-abertura" desiste do entregue, o fornecedor recusa
 //      abrir a devolução → o cliente fica sabendo que as instruções vêm da loja, o painel mostra a devolução
 //      esperando a instrução, e a equipe diz que ele fica com o produto → e-mail.
@@ -181,9 +181,10 @@ function reservationOf(orderId) {
   return res.status === 200 ? res.json() : null;
 }
 
-// e-mails para o endereço com o assunto dado (o cliente recebe o de confirmação da conta e o do pedido)
-function emailsTo(address, subject) {
-  const query = `to:${address} subject:"${subject}"`;
+// e-mails para o endereço com o assunto dado (o cliente recebe o de confirmação da conta e o do pedido) e,
+// se houver, com o texto no corpo
+function emailsTo(address, subject, text) {
+  const query = `to:${address} subject:"${subject}"` + (text ? ` "${text}"` : '');
   const res = http.get(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(query)}`, { tags: { name: 'mailpit' } });
   return res.status === 200 ? res.json('messages_count') : 0;
 }
@@ -321,7 +322,8 @@ export default function (products) {
     });
     // o cartão só estava autorizado: a autorização é cancelada, nada chega a ser cobrado
     check(paymentOf(orderId, 'voided'), { 'autorização cancelada': (p) => p.status === 'voided' });
-    check(eventually('e-mail do cancelamento', () => emailsTo(customer.email, 'cancelado')), { 'e-mail do cancelamento': (n) => n >= 1 });
+    check(eventually('e-mail do cancelamento', () => emailsTo(customer.email, 'cancelado', 'o fornecedor não conseguiu atender')),
+      { 'e-mail do cancelamento': (n) => n >= 1 });
   });
 
   group('5. acabou no fornecedor', () => {
@@ -404,8 +406,11 @@ export default function (products) {
       return res.status === 200 && res.json('refunded_at') ? res.json() : null;
     }), {
       'pedido cancelled': (o) => o.status === 'cancelled',
-      'motivo supplier_failed': (o) => o.cancellation_reason === 'supplier_failed',
+      'motivo store_cancelled': (o) => o.cancellation_reason === 'store_cancelled',
     });
+    // o e-mail diz que foi a loja, e não o fornecedor (#283)
+    check(eventually('e-mail do cancelamento pela loja', () => emailsTo(customer.email, 'cancelado', 'cancelamos o pedido antes do envio')),
+      { 'e-mail do cancelamento pela loja': (n) => n >= 1 });
     // capturado, volta por estorno; ainda só autorizado, a autorização é cancelada
     check(paymentOf(orderId, 'refunded', 'voided'), { 'nada fica cobrado': (p) => p.status === 'voided' || p.refunded_cents === p.amount.amount_cents });
     const sim = http.get(`${SUPPLIER_SIM}/sim/orders`, { tags: { name: 'sim-orders' } }).json('data');

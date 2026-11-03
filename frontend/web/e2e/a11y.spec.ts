@@ -95,6 +95,18 @@ for (const scheme of ["light", "dark"] as const) {
       await audit(page, "pedido confirmado");
     });
 
+    test("carrinho com vários produtos e a pergunta antes de esvaziar", async ({ page }) => {
+      for (const id of ["000000000000", "000000000001", "000000000002"]) {
+        await page.goto(`/produto/0199f6a0-0000-7000-8000-${id}`);
+        await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+        await expect(page.getByRole("status").filter({ hasText: "Adicionado" })).toBeVisible();
+      }
+      for (const path of ["/carrinho", "/carrinho?esvaziar=1"]) {
+        await page.goto(path);
+        await audit(page, path);
+      }
+    });
+
     test("painel", async ({ page }) => {
       await signIn(page, "admin@exemplo.com");
       for (const path of [
