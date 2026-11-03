@@ -221,6 +221,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-returns/{order_id}/customer-instruction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Diz ao cliente o que fazer quando o fornecedor recusou a devolução na abertura
+         * @description O fornecedor recusou a devolução já ao abri-la, e o cliente ficou sem o código e o endereço dele (#281).
+         *     A loja é a responsável pela devolução (CDC, art. 49) e registra o que combinou: `keep`, o cliente fica
+         *     com o produto; `send`, o cliente manda para o endereço da loja, com o código dela. Sai
+         *     `CustomerReturnInstructed`, e o notifications avisa o cliente.
+         *
+         *     Vale uma vez por devolução. Repetir a mesma instrução dá 204 sem novo aviso; outra instrução, ou uma
+         *     devolução que não foi recusada na abertura, dá 409.
+         */
+        post: operations["instructSupplierReturnCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-returns": {
         parameters: {
             query?: never;
@@ -230,9 +256,11 @@ export interface paths {
         };
         /**
          * Devoluções ao fornecedor que pedem atenção
-         * @description As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu, as
-         *     paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido) primeiro.
-         *     As que o fornecedor recusou ficam por 30 dias. A nota de devolução rejeitada vem em `invoice_error`.
+         * @description As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu. Primeiro
+         *     as recusadas na abertura que esperam a instrução ao cliente (`awaiting_customer_instruction`, #281),
+         *     depois as paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido).
+         *     As que o fornecedor recusou ficam por 30 dias, e a que espera a instrução fica até ela. A nota de
+         *     devolução rejeitada vem em `invoice_error`.
          */
         get: operations["listSupplierReturns"];
         put?: never;
@@ -508,8 +536,10 @@ export interface components {
             supplier: string;
             supplier_order_id?: string | null;
             dispute_id?: string | null;
-            /** @description O código que o cliente escreve no pacote. */
+            /** @description O código que o cliente escreve no pacote (do fornecedor, ou da loja no `send`). */
             return_code?: string | null;
+            /** @description Para onde o cliente manda o produto (do fornecedor, ou da loja no `send`). */
+            return_address?: string | null;
             /** Format: email */
             customer_email: string;
             items: {
@@ -530,6 +560,27 @@ export interface components {
             opened_at?: string | null;
             /** Format: date-time */
             resolved_at?: string | null;
+            /**
+             * @description O fornecedor recusou na abertura e a loja ainda não disse ao cliente o que fazer (#281): pede a
+             *     equipe (`instructSupplierReturnCustomer`).
+             */
+            awaiting_customer_instruction?: boolean;
+            /**
+             * @description O que a loja combinou depois da recusa na abertura.
+             * @enum {string|null}
+             */
+            customer_instruction?: "keep" | "send" | null;
+            /** Format: date-time */
+            instructed_at?: string | null;
+        };
+        /** @description `keep`: o cliente fica com o produto. `send`: manda para o endereço da loja, com o código dela. */
+        CustomerInstructionRequest: {
+            /** @enum {string} */
+            instruction: "keep" | "send";
+            /** @description Só no `send`. */
+            return_code?: string;
+            /** @description Só no `send`. */
+            return_address?: string;
         };
         /**
          * @description Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido), `STOCK` (a
@@ -1075,6 +1126,36 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    instructSupplierReturnCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerInstructionRequest"];
+            };
+        };
+        responses: {
+            /** @description Registrada; o cliente é avisado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
         };
     };
     listSupplierReturns: {

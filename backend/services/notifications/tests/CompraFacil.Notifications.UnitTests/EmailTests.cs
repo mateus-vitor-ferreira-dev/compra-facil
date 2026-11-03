@@ -131,6 +131,26 @@ public sealed class EmailTests
         Assert.Contains("não depende deste envio", email.TextBody, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ReturnPending_SaysTheStoreWillSendTheInstructions_AndToKeepTheProduct()
+    {
+        var email = await EmailComposer.ReturnPendingAsync(Guid.Parse("01a16430-0000-7000-8000-00000000abcd"));
+
+        Assert.Equal("Devolução do pedido 0000ABCD: as instruções vêm da loja", email.Subject);
+        Assert.Contains("a loja vai mandar por e-mail o que fazer com o produto", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("guarde o produto", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("O estorno já foi pedido", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ReturnKeep_SaysTheCustomerKeepsTheProduct()
+    {
+        var email = await EmailComposer.ReturnKeepAsync(Guid.Parse("01a16430-0000-7000-8000-00000000abcd"));
+
+        Assert.Equal("Pedido 0000ABCD: não precisa devolver o produto", email.Subject);
+        Assert.Contains("Você pode ficar com o produto", email.TextBody, StringComparison.Ordinal);
+    }
+
     private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
     private static EmailConfirmationRequestedData Confirmation(string url, string name = "Ana <b>Souza</b>", double hours = 24) =>

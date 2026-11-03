@@ -24,6 +24,7 @@ internal sealed class SupplierReturnConfiguration : IEntityTypeConfiguration<Sup
         builder.Property(r => r.ReturnAddress).HasMaxLength(500);
         builder.Property(r => r.ResolutionReason).HasMaxLength(500);
         builder.Property(r => r.LastError).HasMaxLength(500);
+        builder.Property(r => r.CustomerInstruction).HasConversion<string>().HasMaxLength(8);
         builder.Property(r => r.Version).IsRowVersion(); // xmin: o laço da abertura e o webhook
         // os itens como foram ao fornecedor: só leitura depois de criados, em jsonb
         builder.Ignore(r => r.Items);
@@ -52,8 +53,11 @@ internal sealed class SupplierReturnRepository(FulfillmentDbContext db) : ISuppl
     public Task<List<SupplierReturn>> ListPendingAsync(DateTimeOffset rejectedSince, int limit, CancellationToken ct) =>
         db.SupplierReturns.AsNoTracking()
             .Where(r => r.Status == SupplierReturnStatus.Pending || r.Status == SupplierReturnStatus.Open
-                || (r.Status == SupplierReturnStatus.Rejected && r.ResolvedAt >= rejectedSince))
+                || (r.Status == SupplierReturnStatus.Rejected && r.ResolvedAt >= rejectedSince)
+                || (r.Status == SupplierReturnStatus.Rejected && r.OpenedAt == null && r.InstructedAt == null))
             .OrderBy(r => r.RequestedAt).Take(limit).ToListAsync(ct);
 
     public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+
+    public void Reset() => db.ChangeTracker.Clear();
 }

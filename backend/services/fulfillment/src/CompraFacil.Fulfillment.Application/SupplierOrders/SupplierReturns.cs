@@ -1,3 +1,4 @@
+using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.Fulfillment.Application.Invoices;
 using CompraFacil.Fulfillment.Domain;
@@ -10,9 +11,19 @@ namespace CompraFacil.Fulfillment.Application.SupplierOrders;
 public sealed record SupplierReturnOpenedData(
     Guid OrderId, string CustomerEmail, string Supplier, string DisputeId, string ReturnCode, string ReturnAddress, DateTimeOffset OpenedAt);
 
-/// <summary>O fornecedor respondeu; outcome: approved | rejected. Sem disputa, ele recusou já na abertura.</summary>
+/// <summary>
+/// O fornecedor respondeu; outcome: approved | rejected. Sem disputa, ele recusou já na abertura, e o e-mail do
+/// cliente vai junto: o notifications avisa que as instruções virão da loja (#281).
+/// </summary>
 public sealed record SupplierReturnResolvedData(
-    Guid OrderId, string Supplier, string? DisputeId, string Outcome, string? Reason, DateTimeOffset ResolvedAt);
+    Guid OrderId, string Supplier, string? DisputeId, string Outcome, string? Reason, DateTimeOffset ResolvedAt, string CustomerEmail);
+
+/// <summary>
+/// O que a loja combinou com o cliente depois da recusa na abertura (#281); instruction: keep | send. No envio, o
+/// código e o endereço são os da loja.
+/// </summary>
+public sealed record CustomerReturnInstructedData(
+    Guid OrderId, string CustomerEmail, string Instruction, string? ReturnCode, string? ReturnAddress, DateTimeOffset InstructedAt);
 
 public interface ISupplierReturnRepository
 {
@@ -21,10 +32,16 @@ public interface ISupplierReturnRepository
     /// <summary>Entra no SaveChanges do consumer (mesma transação do inbox e do outbox).</summary>
     void Add(SupplierReturn supplierReturn);
 
-    /// <summary>As pendentes e abertas, e as recusadas desde <paramref name="rejectedSince"/>, sem rastrear.</summary>
+    /// <summary>
+    /// As pendentes e abertas, as recusadas na abertura que esperam a instrução ao cliente e as outras recusadas
+    /// desde <paramref name="rejectedSince"/>, sem rastrear.
+    /// </summary>
     Task<List<SupplierReturn>> ListPendingAsync(DateTimeOffset rejectedSince, int limit, CancellationToken ct);
 
     Task SaveChangesAsync(CancellationToken ct);
+
+    /// <summary>Esquece o que foi lido, para a nova tentativa depois de um conflito de concorrência.</summary>
+    void Reset();
 }
 
 /// <summary>
@@ -149,8 +166,9 @@ public sealed partial class SupplierReturnUpdates(
 public sealed record PendingSupplierReturn(SupplierReturn Return, DateTimeOffset DueAt, bool Overdue, string? InvoiceError);
 
 /// <summary>
-/// As devoluções que pedem atenção, para o painel: as paradas além do prazo primeiro, depois as outras, as
-/// mais antigas antes. As recusadas ficam por 30 dias, com o tempo de a equipe acertar com o fornecedor.
+/// As devoluções que pedem atenção, para o painel: as recusadas na abertura que esperam a instrução ao cliente
+/// primeiro (#281), depois as paradas além do prazo, depois as outras, as mais antigas antes. As recusadas
+/// ficam por 30 dias, com o tempo de a equipe acertar com o fornecedor; a que espera a instrução fica até ela.
 /// </summary>
 public sealed class PendingSupplierReturns(
     ISupplierReturnRepository returns, IInvoiceRepository invoices, IOptions<SupplierDeadlines> deadlines, TimeProvider clock)
@@ -170,14 +188,56 @@ public sealed class PendingSupplierReturns(
                 var overdue = r.Status is SupplierReturnStatus.Pending or SupplierReturnStatus.Open && due < now;
                 return new PendingSupplierReturn(r, due, overdue, errors.GetValueOrDefault(r.Id));
             })
-            .OrderByDescending(r => r.Overdue)
+            .OrderByDescending(r => r.Return.AwaitingCustomerInstruction)
+            .ThenByDescending(r => r.Overdue)
             .ThenBy(r => r.Return.RequestedAt)];
     }
+}
+
+public enum SupplierReturnActionResult
+{
+    Done,
+    NotFound,
+
+    /// <summary>A devolução não foi recusada na abertura, ou a instrução já foi outra.</summary>
+    NotAllowed,
+}
+
+/// <summary>
+/// O que a equipe faz com uma devolução pelo painel (#281): depois da recusa do fornecedor na abertura, registra o
+/// que combinou com o cliente, e o notifications o avisa. Repetir a mesma instrução não manda outro e-mail.
+/// </summary>
+public sealed class SupplierReturnActions(ISupplierReturnRepository returns, IOutbox outbox, TimeProvider clock)
+{
+    public async Task<SupplierReturnActionResult> InstructCustomerAsync(
+        Guid orderId, CustomerReturnInstruction instruction, string? returnCode, string? returnAddress, CancellationToken ct) =>
+        await OptimisticConcurrency.RetryAsync(returns.Reset, async () =>
+        {
+            if (await returns.GetAsync(orderId, ct) is not { } supplierReturn)
+            {
+                return SupplierReturnActionResult.NotFound;
+            }
+            var now = clock.GetUtcNow();
+            switch (supplierReturn.InstructCustomer(instruction, returnCode, returnAddress, now))
+            {
+                case CustomerInstructionResult.AlreadyDone:
+                    return supplierReturn.CustomerInstruction == instruction ? SupplierReturnActionResult.Done : SupplierReturnActionResult.NotAllowed;
+                case CustomerInstructionResult.NotAllowed:
+                    return SupplierReturnActionResult.NotAllowed;
+            }
+            outbox.Add(FulfillmentEvents.Topic, supplierReturn.Id.ToString(), FulfillmentEvents.CustomerReturnInstructed, new CustomerReturnInstructedData(
+                supplierReturn.Id, supplierReturn.CustomerEmail, instruction == CustomerReturnInstruction.Keep ? "keep" : "send",
+                supplierReturn.ReturnCode, supplierReturn.ReturnAddress, now));
+            FulfillmentMetrics.SupplierReturn(instruction == CustomerReturnInstruction.Keep ? "customer_keeps" : "customer_sends");
+            await returns.SaveChangesAsync(ct);
+            return SupplierReturnActionResult.Done;
+        });
 }
 
 internal static class SupplierReturnEventsExtensions
 {
     public static void PublishResolved(this IOutbox outbox, SupplierReturn r) =>
         outbox.Add(FulfillmentEvents.Topic, r.Id.ToString(), FulfillmentEvents.SupplierReturnResolved, new SupplierReturnResolvedData(
-            r.Id, r.Supplier, r.DisputeId, r.Status == SupplierReturnStatus.Approved ? "approved" : "rejected", r.ResolutionReason, r.ResolvedAt!.Value));
+            r.Id, r.Supplier, r.DisputeId, r.Status == SupplierReturnStatus.Approved ? "approved" : "rejected", r.ResolutionReason, r.ResolvedAt!.Value,
+            r.CustomerEmail));
 }

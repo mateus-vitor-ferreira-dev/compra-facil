@@ -61,6 +61,38 @@ operations:
           type: string
           const: notifications
 
+  onSupplierReturnResolved:
+    action: receive
+    channel:
+      $ref: "#/channels/supplierOrderEvents"
+    summary: |
+      Recusada já na abertura (sem `dispute_id`), avisa o cliente que as instruções da devolução virão da loja
+      (#281). As outras respostas do fornecedor não geram e-mail.
+    messages:
+      - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnResolved"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications
+
+  onCustomerReturnInstructed:
+    action: receive
+    channel:
+      $ref: "#/channels/supplierOrderEvents"
+    summary: |
+      Manda ao cliente o que a loja combinou depois da recusa na abertura (#281): que ele pode ficar com o
+      produto, ou o código e o endereço da loja, no mesmo e-mail das instruções de devolução.
+    messages:
+      - $ref: "#/channels/supplierOrderEvents/messages/CustomerReturnInstructed"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications
+
   onInvoiceIssued:
     action: receive
     channel:

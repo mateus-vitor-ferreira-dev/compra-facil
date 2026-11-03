@@ -445,15 +445,61 @@ paths:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
 
+  /v1/admin/supplier-returns/{order_id}/customer-instruction:
+    post:
+      tags: [admin]
+      operationId: instructSupplierReturnCustomer
+      summary: Diz ao cliente o que fazer quando o fornecedor recusou a devolução na abertura
+      description: |
+        O fornecedor recusou a devolução já ao abri-la, e o cliente ficou sem o código e o endereço dele (#281).
+        A loja é a responsável pela devolução (CDC, art. 49) e registra o que combinou: `keep`, o cliente fica
+        com o produto; `send`, o cliente manda para o endereço da loja, com o código dela. Sai
+        `CustomerReturnInstructed`, e o notifications avisa o cliente.
+
+        Vale uma vez por devolução. Repetir a mesma instrução dá 204 sem novo aviso; outra instrução, ou uma
+        devolução que não foi recusada na abertura, dá 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInstructionRequest"
+      responses:
+        "204":
+          description: Registrada; o cliente é avisado.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/admin/supplier-returns:
     get:
       tags: [admin]
       operationId: listSupplierReturns
       summary: Devoluções ao fornecedor que pedem atenção
       description: |
-        As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu, as
-        paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido) primeiro.
-        As que o fornecedor recusou ficam por 30 dias. A nota de devolução rejeitada vem em `invoice_error`.
+        As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu. Primeiro
+        as recusadas na abertura que esperam a instrução ao cliente (`awaiting_customer_instruction`, #281),
+        depois as paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido).
+        As que o fornecedor recusou ficam por 30 dias, e a que espera a instrução fica até ela. A nota de
+        devolução rejeitada vem em `invoice_error`.
       security:
         - bearerAuth: []
       parameters:
@@ -891,7 +937,10 @@ components:
           type: [string, "null"]
         return_code:
           type: [string, "null"]
-          description: O código que o cliente escreve no pacote.
+          description: O código que o cliente escreve no pacote (do fornecedor, ou da loja no `send`).
+        return_address:
+          type: [string, "null"]
+          description: Para onde o cliente manda o produto (do fornecedor, ou da loja no `send`).
         customer_email:
           type: string
           format: email
@@ -929,6 +978,37 @@ components:
         resolved_at:
           type: [string, "null"]
           format: date-time
+        awaiting_customer_instruction:
+          type: boolean
+          description: |
+            O fornecedor recusou na abertura e a loja ainda não disse ao cliente o que fazer (#281): pede a
+            equipe (`instructSupplierReturnCustomer`).
+        customer_instruction:
+          type: [string, "null"]
+          enum: [keep, send, null]
+          description: O que a loja combinou depois da recusa na abertura.
+        instructed_at:
+          type: [string, "null"]
+          format: date-time
+
+    CustomerInstructionRequest:
+      type: object
+      description: "`keep`: o cliente fica com o produto. `send`: manda para o endereço da loja, com o código dela."
+      required: [instruction]
+      properties:
+        instruction:
+          type: string
+          enum: [keep, send]
+        return_code:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Só no `send`.
+        return_address:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Só no `send`.
 
     SupplierWebhook:
       type: object

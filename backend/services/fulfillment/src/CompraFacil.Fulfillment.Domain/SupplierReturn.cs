@@ -15,6 +15,31 @@ public enum SupplierReturnStatus
     Rejected,
 }
 
+/// <summary>
+/// O que a loja combinou com o cliente quando o fornecedor recusou a devolução já na abertura (#281): o cliente
+/// fica sem o código e o endereço do fornecedor, e a loja, responsável pela devolução (CDC, art. 49), diz o que
+/// fazer.
+/// </summary>
+public enum CustomerReturnInstruction
+{
+    /// <summary>O cliente fica com o produto: não precisa devolver.</summary>
+    Keep,
+
+    /// <summary>O cliente manda o produto para o endereço que a loja informou, com o código dela.</summary>
+    Send,
+}
+
+public enum CustomerInstructionResult
+{
+    Done,
+
+    /// <summary>A instrução já foi dada (pedido repetido do painel).</summary>
+    AlreadyDone,
+
+    /// <summary>A devolução não foi recusada na abertura: o cliente já tem as instruções do fornecedor.</summary>
+    NotAllowed,
+}
+
 /// <summary>O que mudou numa devolução, para o serviço publicar o evento certo.</summary>
 public enum SupplierReturnChange
 {
@@ -59,7 +84,17 @@ public sealed class SupplierReturn
     public DateTimeOffset? ClaimedAt { get; private set; }
     public DateTimeOffset? OpenedAt { get; private set; }
     public DateTimeOffset? ResolvedAt { get; private set; }
+
+    /// <summary>O que a loja disse ao cliente depois da recusa na abertura, e quando (#281).</summary>
+    public CustomerReturnInstruction? CustomerInstruction { get; private set; }
+    public DateTimeOffset? InstructedAt { get; private set; }
     public uint Version { get; private set; }
+
+    /// <summary>O fornecedor recusou já na abertura: o cliente não recebeu instruções de envio dele.</summary>
+    public bool RefusedAtOpening => Status == SupplierReturnStatus.Rejected && OpenedAt is null;
+
+    /// <summary>Recusada na abertura e a loja ainda não disse ao cliente o que fazer: pede a equipe no painel.</summary>
+    public bool AwaitingCustomerInstruction => RefusedAtOpening && InstructedAt is null;
 
     public static SupplierReturn Create(SupplierOrder order, DateTimeOffset requestedAt)
     {
@@ -90,6 +125,33 @@ public sealed class SupplierReturn
             Status = SupplierReturnStatus.Open;
         }
         return SupplierReturnChange.Opened;
+    }
+
+    /// <summary>
+    /// A equipe registra o que combinou com o cliente depois da recusa na abertura (#281). No envio, o código e o
+    /// endereço passam a ser os da loja. Vale uma vez: o cliente não recebe duas instruções diferentes.
+    /// </summary>
+    public CustomerInstructionResult InstructCustomer(
+        CustomerReturnInstruction instruction, string? returnCode, string? returnAddress, DateTimeOffset now)
+    {
+        if (!RefusedAtOpening)
+        {
+            return CustomerInstructionResult.NotAllowed;
+        }
+        if (InstructedAt is not null)
+        {
+            return CustomerInstructionResult.AlreadyDone;
+        }
+        if (instruction == CustomerReturnInstruction.Send)
+        {
+            if (string.IsNullOrWhiteSpace(returnCode) || string.IsNullOrWhiteSpace(returnAddress))
+            {
+                throw new ArgumentException("o envio precisa do código e do endereço da devolução");
+            }
+            (ReturnCode, ReturnAddress) = (returnCode.Trim(), returnAddress.Trim());
+        }
+        (CustomerInstruction, InstructedAt) = (instruction, now);
+        return CustomerInstructionResult.Done;
     }
 
     public void RecordAttempt(string error)
