@@ -15,6 +15,8 @@ public static class DependencyInjection
     public static IHostApplicationBuilder AddInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddPostgres<NotificationsDbContext>();
+        // a retenção da demonstração (#280): só com Demo:AnonymizeAfter
+        builder.AddDemoRetention<NotificationsDemoAnonymizer>();
         builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
         var smtp = builder.Configuration.GetSection("Smtp");

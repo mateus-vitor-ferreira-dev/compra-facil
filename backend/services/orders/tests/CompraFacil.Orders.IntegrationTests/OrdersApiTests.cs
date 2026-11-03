@@ -102,6 +102,31 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     }
 
     [Fact]
+    public async Task DemoRetention_MasksWhoReceivesAndTheStreet_KeepsTheOrder_AndRunsOnce()
+    {
+        var item = fx.Catalog.Add(new CatalogProduct("DEMO-RET-1", "Mouse", 9990));
+        using var response = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = item, quantity = 1 }));
+        var id = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("id").GetGuid();
+
+        // o corte no futuro pega o pedido de agora, como se ele tivesse mais de 7 dias (#280)
+        async Task<int> AnonymizeAsync()
+        {
+            await using var scope = fx.Factory.Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<CompraFacil.BuildingBlocks.Data.IPersonalDataAnonymizer>()
+                .AnonymizeAsync(DateTimeOffset.UtcNow.AddMinutes(1), Ct);
+        }
+        Assert.True(await AnonymizeAsync() >= 1);
+        Assert.Equal(0, await AnonymizeAsync()); // o que já foi mascarado não muda de novo
+
+        await using var check = fx.Factory.Services.CreateAsyncScope();
+        var saved = await check.ServiceProvider.GetRequiredService<OrdersDbContext>().Orders.AsNoTracking().SingleAsync(o => o.Id == id, Ct);
+        Assert.Equal(("Cliente da demonstração", "00000000000", "00000000000"), (saved.Recipient!.Name, saved.Recipient.Cpf, saved.Recipient.Phone));
+        Assert.Equal(("Removido", "0", null, "01310000", "SP"),
+            (saved.ShippingAddress!.Street, saved.ShippingAddress.Number, saved.ShippingAddress.Complement, saved.ShippingAddress.ZipCode, saved.ShippingAddress.State));
+        Assert.Equal(9990L, saved.Items.Single().UnitPrice.AmountCents); // o pedido continua
+    }
+
+    [Fact]
     public async Task Place_KeepsWhoReceivesAndWhere_Normalized_AndSendsThemWithTheConfirmation()
     {
         var item = fx.Catalog.Add(new CatalogProduct("ADDR-1", "Mouse", 9990));
