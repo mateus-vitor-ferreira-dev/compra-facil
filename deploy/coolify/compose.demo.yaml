@@ -20,6 +20,9 @@ x-dotnet-env: &dotnet-env
   # os tokens do identity, validados pelo JWKS dele na rede interna
   Auth__Authority: http://identity:8006
   Auth__RequireHttpsMetadata: "false"
+  # a retenção da demonstração (#280): o orders, o fulfillment e o notifications mascaram os dados pessoais dos
+  # pedidos com mais de 7 dias (nome, CPF, telefone, rua, corpo dos e-mails). Os outros serviços ignoram
+  Demo__AnonymizeAfter: "7.00:00:00"
 
 services:
   gateway:
@@ -263,6 +266,9 @@ services:
     image: axllent/mailpit:v1.31.6
     restart: unless-stopped
     mem_limit: 64m
+    environment:
+      # os e-mails capturados também levam nome e endereço: somem em 7 dias, como na retenção dos serviços (#280)
+      MP_MAX_AGE: 7d
 
   # os produtos, uma vez: com o catálogo já cheio, ele recusa e sai sem mexer em nada
   catalog-seed:

@@ -155,6 +155,31 @@ public sealed class EmailFlowTests(EmailFixture fx) : IClassFixture<EmailFixture
     }
 
     [Fact]
+    public async Task DemoRetention_RemovesTheBodyOfOldResolvedEmails_AndKeepsThePending()
+    {
+        var (sent, pending) = (Guid.NewGuid(), Guid.NewGuid());
+        await HandleAsync<OrderConfirmedData, OnOrderConfirmed>(Confirmed($"gil-{Guid.NewGuid():N}@exemplo.com"), sent);
+        await DispatchAsync();
+        await HandleAsync<OrderConfirmedData, OnOrderConfirmed>(Confirmed($"hel-{Guid.NewGuid():N}@exemplo.com"), pending);
+
+        // o corte no futuro pega os e-mails de agora, como se tivessem mais de 7 dias (#280)
+        async Task<int> AnonymizeAsync()
+        {
+            await using var scope = fx.Factory.Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<CompraFacil.BuildingBlocks.Data.IPersonalDataAnonymizer>()
+                .AnonymizeAsync(DateTimeOffset.UtcNow.AddMinutes(1), Ct);
+        }
+        Assert.True(await AnonymizeAsync() >= 1);
+        Assert.Equal(0, await AnonymizeAsync());
+
+        var done = await NotificationAsync(sent);
+        Assert.DoesNotContain("Lava e Seca", done.TextBody, StringComparison.Ordinal);
+        Assert.Contains("removido", done.HtmlBody, StringComparison.Ordinal);
+        Assert.EndsWith("confirmado", done.Subject, StringComparison.Ordinal); // o assunto e o destinatário ficam
+        Assert.Contains("Lava e Seca", (await NotificationAsync(pending)).TextBody, StringComparison.Ordinal); // ainda vai sair
+    }
+
+    [Fact]
     public async Task EmailConfirmation_ArrivesWithTheLink()
     {
         var to = $"cris-{Guid.NewGuid():N}@exemplo.com";

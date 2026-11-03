@@ -19,6 +19,8 @@ public static class DependencyInjection
     public static IHostApplicationBuilder AddInfrastructure(this IHostApplicationBuilder builder)
     {
         builder.AddPostgres<OrdersDbContext>();
+        // a retenção da demonstração (#280): só com Demo:AnonymizeAfter
+        builder.AddDemoRetention<Persistence.OrdersDemoAnonymizer>();
         builder.Services.AddScoped<IOrderRepository, OrderRepository>();
         builder.Services.AddScoped<ICatalogSnapshotStore, CatalogSnapshotStore>();
 

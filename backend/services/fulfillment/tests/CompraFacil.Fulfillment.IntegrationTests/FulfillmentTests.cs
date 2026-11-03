@@ -394,6 +394,29 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     }
 
     [Fact]
+    public async Task Retencao_da_demonstracao_mascara_o_destino_do_pedido_e_da_nota_uma_vez()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+
+        // o corte no futuro pega o pedido de agora, como se ele tivesse mais de 7 dias (#280)
+        async Task<int> AnonymizeAsync()
+        {
+            await using var scope = fx.Factory.Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<CompraFacil.BuildingBlocks.Data.IPersonalDataAnonymizer>()
+                .AnonymizeAsync(DateTimeOffset.UtcNow.AddMinutes(1), Ct);
+        }
+        Assert.True(await AnonymizeAsync() >= 2); // o pedido ao fornecedor e a nota
+        Assert.Equal(0, await AnonymizeAsync());
+
+        foreach (var to in new[] { (await OrderAsync(id)).ShipTo!, (await InvoiceAsync(id))!.ShipTo })
+        {
+            Assert.Equal(("Cliente da demonstração", "00000000000", "00000000000"), (to.Name, to.Cpf, to.Phone));
+            Assert.Equal(("Removido", "0", null, "Removido", "01310000", "São Paulo"), (to.Street, to.Number, to.Complement, to.District, to.ZipCode, to.City));
+        }
+    }
+
+    [Fact]
     public async Task Cancelado_pelo_fornecedor_depois_de_aceito_vira_falha()
     {
         var id = Guid.NewGuid();
