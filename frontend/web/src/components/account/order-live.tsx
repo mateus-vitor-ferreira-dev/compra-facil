@@ -17,7 +17,7 @@ import type { Order } from "@/lib/orders-api";
 import { cn } from "@/lib/utils";
 import { OrderTracking } from "./order-tracking";
 import { PixPayment } from "./pix-payment";
-import { ReorderPix } from "./reorder-pix";
+import { ReorderPayment } from "./reorder-payment";
 
 const time = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
@@ -125,9 +125,9 @@ export function OrderLive({ initial }: { initial: Order }) {
         />
       )}
 
-      {shown.status === "cancelled" &&
-        shown.cancellation_reason === "payment_failed" &&
-        shown.payment?.method === "pix" && <ReorderPix orderId={shown.id} />}
+      {shown.status === "cancelled" && shown.cancellation_reason === "payment_failed" && (
+        <ReorderPayment orderId={shown.id} method={shown.payment?.method} />
+      )}
 
       {/* chega pelo stream junto com o envio: o cliente vê o código assim que o fornecedor despacha */}
       {showsTracking(shown.status) && shown.tracking && (

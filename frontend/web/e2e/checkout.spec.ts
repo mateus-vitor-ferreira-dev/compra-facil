@@ -224,6 +224,15 @@ test("cartão: os erros ficam no campo, e o recusado pelo banco cancela o pedido
   await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
   await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
   await expect(page.getByText("O cartão foi recusado. Nada foi cobrado.")).toBeVisible({ timeout: 10_000 });
+
+  // os produtos voltam ao carrinho em um clique, para tentar outro cartão ou o PIX (#363)
+  await expect(page.getByText("para você pagar com outro cartão ou com o PIX")).toBeVisible();
+  await page.getByRole("button", { name: "Tentar de novo" }).click();
+  await expect(page).toHaveURL(/\/carrinho\?refeito=1&fora=0$/);
+  await expect(
+    page.getByRole("status").filter({ hasText: "O produto do pedido voltou ao carrinho." }),
+  ).toBeVisible();
+  await expect(page.getByRole("list", { name: "Produtos no carrinho" })).toContainText("Smart TV 55");
 });
 
 test("o número do cartão não vai para a loja: só o token do provedor", async ({ page }) => {
