@@ -33,7 +33,7 @@ export default async function CartPage({ searchParams }: Props) {
   const query = await searchParams;
   // ?conferir=1: o pedido foi recusado porque um preço ou um produto mudou no meio do caminho
   const recheck = query.conferir === "1";
-  // ?refeito=N&fora=M: os produtos de um pedido com o PIX vencido voltaram ao carrinho (#343)
+  // ?refeito=N&fora=M: os produtos de um pedido com o pagamento recusado voltaram ao carrinho (#343, #363)
   const reordered = typeof query.refeito === "string" ? Number(query.refeito) : undefined;
   const left = typeof query.fora === "string" ? Number(query.fora) || 0 : 0;
   const reorder = reordered !== undefined && Number.isInteger(reordered) && (
