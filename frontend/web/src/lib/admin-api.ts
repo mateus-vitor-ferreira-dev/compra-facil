@@ -275,6 +275,7 @@ export function replayDeadLetters(token: string, service: DltService) {
 export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"];
 export type SupplierReturn = FulfillmentSchemas["schemas"]["SupplierReturn"];
 export type FailedOrder = FulfillmentSchemas["schemas"]["FailedSupplierOrder"];
+export type OrderMarginTotals = FulfillmentSchemas["schemas"]["OrderMarginTotals"];
 export type OrderMargin = FulfillmentSchemas["schemas"]["OrderMargin"];
 export type SupplierStatus = FulfillmentSchemas["schemas"]["SupplierStatus"];
 
@@ -298,10 +299,10 @@ export function supplierStatus(token: string) {
 }
 
 /** A margem real dos pedidos mais recentes (#225). */
-export function orderMargins(token: string) {
+export function orderMargins(token: string, period: { from?: string; to?: string } = {}) {
   return run(() =>
     api.fulfillment({ token }).GET("/v1/admin/order-margins", {
-      params: { query: { limit: 200 } },
+      params: { query: { limit: 200, ...period } },
       cache: "no-store",
     }),
   );

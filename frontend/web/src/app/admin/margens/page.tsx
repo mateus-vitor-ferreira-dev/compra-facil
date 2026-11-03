@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
-import { orderMargins, type OrderMargin } from "@/lib/admin-api";
+import { orderMargins, type OrderMargin, type OrderMarginTotals } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
+import { marginPeriod, presets, type MarginPeriod } from "@/lib/margin-period";
 import { orderNumber } from "@/lib/order-status";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Margens" };
+
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
 
 const when = new Intl.DateTimeFormat("pt-BR", {
   day: "numeric",
@@ -34,11 +38,14 @@ function noMargin(o: OrderMargin): string {
 
 /**
  * A margem real por pedido (#225): o que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete
- * repassado ao fornecedor e a taxa do pagamento. A soma só conta os pedidos com a conta completa, e diz quantos.
+ * repassado ao fornecedor e a taxa do pagamento. O período (#282) filtra a lista e a soma; a soma vem da API e
+ * cobre o período inteiro, mesmo quando a lista mostra só os 200 mais recentes.
  */
-export default async function Margins() {
+export default async function Margins({ searchParams }: Props) {
   const { token } = await requireAdmin("/admin/margens");
-  const result = await orderMargins(token);
+  const query = await searchParams;
+  const period = marginPeriod({ de: one(query.de), ate: one(query.ate) });
+  const result = await orderMargins(token, period.error ? {} : { from: period.from, to: period.to });
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -46,9 +53,11 @@ export default async function Margins() {
         <h1 className="text-2xl font-semibold tracking-tight">Margens</h1>
         <p className="text-ink-soft max-w-prose">
           O que sobra de cada pedido depois do custo dos produtos, do frete repassado ao fornecedor e da taxa
-          do pagamento. Mostra os 200 pedidos mais recentes.
+          do pagamento. A lista mostra até 200 pedidos do período, e a soma cobre o período inteiro.
         </p>
       </div>
+
+      <PeriodForm period={period} />
 
       {!result.ok ? (
         <StateMessage
@@ -63,33 +72,150 @@ export default async function Margins() {
         />
       ) : result.data.data.length === 0 ? (
         <StateMessage
-          title="Nenhum pedido ainda"
-          description="A margem aparece aqui quando um pedido pago vai ao fornecedor."
+          title={period.from || period.to ? "Nenhum pedido no período" : "Nenhum pedido ainda"}
+          description={
+            period.from || period.to
+              ? "Escolha outro período, ou veja todos os pedidos."
+              : "A margem aparece aqui quando um pedido pago vai ao fornecedor."
+          }
         />
       ) : (
-        <MarginTable orders={result.data.data} />
+        <>
+          <Totals totals={result.data.totals} />
+          <MarginTable orders={result.data.data} />
+        </>
       )}
     </div>
   );
 }
 
-function MarginTable({ orders }: { orders: OrderMargin[] }) {
-  const counted = orders.filter((o) => o.margin_cents != null);
-  const total = counted.reduce((sum, o) => sum + o.margin_cents!, 0);
-  const revenue = counted.reduce((sum, o) => sum + o.revenue_cents!, 0);
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** O filtro do período: um formulário GET (funciona sem JavaScript), com atalhos para os períodos comuns. */
+function PeriodForm({ period }: { period: MarginPeriod }) {
+  const field =
+    "bg-surface text-ink border-field-line aria-invalid:border-danger h-11 rounded-md border px-3 text-base";
   return (
-    <>
-      {counted.length > 0 && (
-        <p>
-          <span
-            className={cn("font-condensed text-3xl font-extrabold tabular-nums", total < 0 && "text-danger")}
-          >
-            {brl(total)}
-          </span>{" "}
-          de margem em {counted.length === 1 ? "1 pedido" : `${counted.length} pedidos`} com a conta completa
-          {revenue > 0 && <>, {Math.round((total / revenue) * 100)}% do que os clientes pagaram</>}.
+    <form method="get" action="/admin/margens" aria-labelledby="periodo" className="space-y-3">
+      <h2 id="periodo" className="font-semibold">
+        Período
+      </h2>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="space-y-1.5">
+          <span className="block text-sm font-medium">De</span>
+          <input
+            type="date"
+            name="de"
+            defaultValue={period.de}
+            aria-invalid={period.error ? true : undefined}
+            aria-describedby={period.error ? "periodo-erro" : undefined}
+            className={field}
+          />
+        </label>
+        <label className="space-y-1.5">
+          <span className="block text-sm font-medium">Até</span>
+          <input
+            type="date"
+            name="ate"
+            defaultValue={period.ate}
+            aria-invalid={period.error ? true : undefined}
+            aria-describedby={period.error ? "periodo-erro" : undefined}
+            className={field}
+          />
+        </label>
+        <button type="submit" className={buttonVariants({ variant: "secondary" })}>
+          Ver o período
+        </button>
+      </div>
+      {period.error && (
+        <p id="periodo-erro" role="alert" className="text-danger text-sm font-medium">
+          {period.error} A tela mostra todos os pedidos.
         </p>
       )}
+      <ul className="flex flex-wrap gap-x-4 text-sm" aria-label="Atalhos de período">
+        {presets().map((p) => (
+          <li key={p.label}>
+            <Link
+              href={`/admin/margens?de=${p.de}&ate=${p.ate}`}
+              aria-current={p.de === period.de && p.ate === period.ate ? "page" : undefined}
+              className="inline-flex min-h-11 items-center font-medium underline-offset-4 hover:underline aria-[current=page]:underline pointer-fine:min-h-8"
+            >
+              {p.label}
+            </Link>
+          </li>
+        ))}
+        <li>
+          <Link
+            href="/admin/margens"
+            aria-current={!period.de && !period.ate ? "page" : undefined}
+            className="inline-flex min-h-11 items-center font-medium underline-offset-4 hover:underline aria-[current=page]:underline pointer-fine:min-h-8"
+          >
+            Todos os pedidos
+          </Link>
+        </li>
+      </ul>
+    </form>
+  );
+}
+
+/** A soma do período, que vem da API: só os pedidos com a conta completa, e o que ficou fora dela. */
+function Totals({ totals: t }: { totals: OrderMarginTotals }) {
+  const left = [
+    t.refunded > 0 && plural(t.refunded, "estornado", "estornados"),
+    t.incomplete > 0 && `${plural(t.incomplete, "pedido", "pedidos")} sem algum valor`,
+  ].filter(Boolean);
+  return (
+    <section aria-labelledby="soma" className="space-y-3">
+      <h2 id="soma" className="sr-only">
+        Soma do período
+      </h2>
+      {t.counted === 0 ? (
+        <p className="text-ink-soft">Nenhum pedido do período tem a conta completa para somar.</p>
+      ) : (
+        <>
+          <p>
+            <span
+              className={cn(
+                "font-condensed text-3xl font-extrabold tabular-nums",
+                t.margin_cents < 0 && "text-danger",
+              )}
+            >
+              {brl(t.margin_cents)}
+            </span>{" "}
+            de margem em {plural(t.counted, "pedido", "pedidos")} com a conta completa
+            {t.revenue_cents > 0 && (
+              <>, {Math.round((t.margin_cents / t.revenue_cents) * 100)}% do que os clientes pagaram</>
+            )}
+            .
+          </p>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+            {[
+              ["Pago", t.revenue_cents],
+              ["Custo", t.product_cost_cents],
+              ["Frete", t.freight_cents],
+              ["Taxa", t.fee_cents],
+            ].map(([label, cents]) => (
+              <div key={label}>
+                <dt className="text-ink-soft">{label}</dt>
+                <dd className="tabular-nums">{brl(cents as number)}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
+      )}
+      {left.length > 0 && (
+        <p className="text-ink-soft text-sm">
+          Fora da soma: {left.join(" e ")}. Estornado não entra: o quanto a loja perde nele depende do que o
+          fornecedor devolver.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function MarginTable({ orders }: { orders: OrderMargin[] }) {
+  return (
+    <>
       {/* a tabela rola sozinha no celular: tabIndex para rolar também pelo teclado */}
       <div
         role="region"

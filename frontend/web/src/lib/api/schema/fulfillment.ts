@@ -144,10 +144,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * A margem real dos pedidos mais recentes
+         * A margem real dos pedidos mais recentes, de um período e com a soma dele
          * @description O que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete repassado ao fornecedor e a
          *     taxa do pagamento. Em centavos de real. A margem é nula no pedido estornado, e se faltar um dos valores
          *     (produto que não veio do fornecedor, ou pedido de antes desta conta).
+         *
+         *     Com `from` e `to`, ficam só os pedidos criados em [from, to) (#282). A soma (`totals`) cobre todos os
+         *     pedidos do período, sem o `limit` da lista; sem período, todos os pedidos.
          */
         get: operations["listOrderMargins"];
         put?: never;
@@ -502,6 +505,31 @@ export interface components {
             customer_email: string;
             /** Format: date-time */
             created_at: string;
+        };
+        /**
+         * @description A soma do período, só dos pedidos com a margem conhecida (`counted`): receita, custos e margem fecham
+         *     entre si. Os estornados (`refunded`: cancelados ou devolvidos) e os que não têm algum valor
+         *     (`incomplete`) ficam fora da soma.
+         */
+        OrderMarginTotals: {
+            /** @description Pedidos do período. */
+            orders: number;
+            counted: number;
+            refunded: number;
+            incomplete: number;
+            /** Format: int64 */
+            revenue_cents: number;
+            /** Format: int64 */
+            product_cost_cents: number;
+            /** Format: int64 */
+            freight_cents: number;
+            /** Format: int64 */
+            fee_cents: number;
+            /**
+             * Format: int64
+             * @description Pode ser negativa.
+             */
+            margin_cents: number;
         };
         /** @description Um pedido que não chegou ao fornecedor. O cliente já foi estornado. */
         FailedSupplierOrder: {
@@ -1016,6 +1044,10 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                /** @description Início do período, incluído. */
+                from?: string;
+                /** @description Fim do período, excluído. Depois de `from`. */
+                to?: string;
             };
             header?: never;
             path?: never;
@@ -1023,7 +1055,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Pedidos, dos mais recentes aos mais antigos. */
+            /** @description Pedidos, dos mais recentes aos mais antigos, e a soma do período. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1031,6 +1063,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["OrderMargin"][];
+                        totals: components["schemas"]["OrderMarginTotals"];
                     };
                 };
             };
