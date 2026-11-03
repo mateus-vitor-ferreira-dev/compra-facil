@@ -310,7 +310,11 @@ export default function (products) {
   group('4. fornecedor recusa', () => {
     const customer = newCustomer(IDENTITY, 'e2e-fornecedor', 'recusar');
     const orderId = placeOrder(products.supplierRejected, customer);
-    check(finalOrder(orderId, customer), { 'pedido pago (confirmed)': (o) => o.status === 'confirmed' });
+    // o pagamento aprovou: o pedido sai de pending como confirmed. O simulado recusa logo, então a consulta pode
+    // já pegar o cancelamento pelo fornecedor; o que não pode é parar antes do pagamento
+    check(finalOrder(orderId, customer), {
+      'pedido pago (confirmed)': (o) => o.status === 'confirmed' || (o.status === 'cancelled' && o.cancellation_reason === 'supplier_failed'),
+    });
     // compensação: o fornecedor recusou o pedido pago, e o cliente é estornado
     const order = eventually('pedido cancelado e estornado', () => {
       const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
