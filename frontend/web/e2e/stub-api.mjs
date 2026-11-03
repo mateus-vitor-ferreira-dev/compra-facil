@@ -947,7 +947,7 @@ createServer(async (req, res) => {
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/order-margins") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
-    const row = (id, outcome, revenue, cost, freight, fee, margin) => ({
+    const row = (id, outcome, revenue, cost, freight, fee, margin, created) => ({
       order_id: id,
       outcome,
       revenue_cents: revenue,
@@ -956,15 +956,74 @@ createServer(async (req, res) => {
       fee_cents: fee,
       margin_cents: margin,
       customer_email: "bia@exemplo.com",
-      created_at: "2026-10-20T15:00:00Z",
+      created_at: created,
     });
+    const all = [
+      row(
+        "01a18d66-0000-7000-8000-0000a1000000",
+        "delivered",
+        12000,
+        6000,
+        2000,
+        598,
+        3402,
+        "2026-10-20T15:00:00Z",
+      ),
+      row(
+        "01a18d66-0000-7000-8000-0000a2000000",
+        "in_progress",
+        5000,
+        4800,
+        1000,
+        249,
+        -1049,
+        "2026-10-20T16:00:00Z",
+      ),
+      row(
+        "01a18d66-0000-7000-8000-0000a3000000",
+        "delivered",
+        9000,
+        null,
+        1000,
+        90,
+        null,
+        "2026-10-25T15:00:00Z",
+      ),
+      row(
+        "01a18d66-0000-7000-8000-0000a4000000",
+        "returned",
+        7000,
+        3000,
+        1000,
+        70,
+        null,
+        "2026-11-01T15:00:00Z",
+      ),
+    ];
+    // o período (#282): criados em [from, to), e a soma como a do fulfillment
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
+    const data = all.filter(
+      (o) =>
+        (!from || o.created_at >= new Date(from).toISOString()) &&
+        (!to || o.created_at < new Date(to).toISOString()),
+    );
+    const counted = data.filter((o) => o.margin_cents != null);
+    const sum = (key) => counted.reduce((n, o) => n + o[key], 0);
+    const refunded = data.filter((o) => o.outcome === "cancelled" || o.outcome === "returned").length;
     return send(res, 200, {
-      data: [
-        row("01a18d66-0000-7000-8000-0000a1000000", "delivered", 12000, 6000, 2000, 598, 3402),
-        row("01a18d66-0000-7000-8000-0000a2000000", "in_progress", 5000, 4800, 1000, 249, -1049),
-        row("01a18d66-0000-7000-8000-0000a3000000", "delivered", 9000, null, 1000, 90, null),
-        row("01a18d66-0000-7000-8000-0000a4000000", "returned", 7000, 3000, 1000, 70, null),
-      ],
+      data,
+      totals: {
+        orders: data.length,
+        counted: counted.length,
+        refunded,
+        incomplete: data.length - counted.length - refunded,
+        revenue_cents: sum("revenue_cents"),
+        product_cost_cents: sum("product_cost_cents"),
+        freight_cents: sum("freight_cents"),
+        fee_cents: sum("fee_cents"),
+        margin_cents: sum("margin_cents"),
+      },
     });
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/failed") {

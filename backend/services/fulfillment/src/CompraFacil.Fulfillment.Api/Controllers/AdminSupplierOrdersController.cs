@@ -16,16 +16,22 @@ public sealed class AdminSupplierOrdersController(
     OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions, SupplierReturnActions returnActions,
     OrderMargins margins) : ControllerBase
 {
-    /// <summary>listOrderMargins: a margem real dos pedidos mais recentes (#225).</summary>
+    /// <summary>listOrderMargins: a margem real dos pedidos mais recentes (#225), do período e com a soma dele (#282).</summary>
     [HttpGet("v1/admin/order-margins")]
-    public async Task<OrderMarginList> ListMargins([FromQuery] int? limit, CancellationToken ct)
+    public async Task<OrderMarginList> ListMargins(
+        [FromQuery] int? limit, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, CancellationToken ct)
     {
         var n = limit ?? 50;
         if (n is < 1 or > OrderMargins.MaxLimit)
         {
             throw new ValidationException([new ValidationFailure("Limit", $"deve estar entre 1 e {OrderMargins.MaxLimit}")]);
         }
-        return new OrderMarginList([.. (await margins.ListAsync(n, ct)).Select(OrderMarginItem.From)]);
+        if (from is not null && to is not null && from >= to)
+        {
+            throw new ValidationException([new ValidationFailure("To", "deve ser depois do início do período")]);
+        }
+        var report = await margins.ReportAsync(new OrderPeriod(from, to), n, ct);
+        return new OrderMarginList([.. report.Orders.Select(OrderMarginItem.From)], report.Totals);
     }
 
     private const int MaxFailed = 200;
@@ -157,7 +163,7 @@ public sealed record OrderMarginItem(
     }
 }
 
-public sealed record OrderMarginList(IReadOnlyList<OrderMarginItem> Data);
+public sealed record OrderMarginList(IReadOnlyList<OrderMarginItem> Data, OrderMarginTotals Totals);
 
 public sealed record FailedSupplierOrder(
     Guid OrderId,

@@ -297,11 +297,14 @@ paths:
     get:
       tags: [admin]
       operationId: listOrderMargins
-      summary: A margem real dos pedidos mais recentes
+      summary: A margem real dos pedidos mais recentes, de um período e com a soma dele
       description: |
         O que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete repassado ao fornecedor e a
         taxa do pagamento. Em centavos de real. A margem é nula no pedido estornado, e se faltar um dos valores
         (produto que não veio do fornecedor, ou pedido de antes desta conta).
+
+        Com `from` e `to`, ficam só os pedidos criados em [from, to) (#282). A soma (`totals`) cobre todos os
+        pedidos do período, sem o `limit` da lista; sem período, todos os pedidos.
       security:
         - bearerAuth: []
       parameters:
@@ -312,19 +315,33 @@ paths:
             minimum: 1
             maximum: 200
             default: 50
+        - name: from
+          in: query
+          description: Início do período, incluído.
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Fim do período, excluído. Depois de `from`.
+          schema:
+            type: string
+            format: date-time
       responses:
         "200":
-          description: Pedidos, dos mais recentes aos mais antigos.
+          description: Pedidos, dos mais recentes aos mais antigos, e a soma do período.
           content:
             application/json:
               schema:
                 type: object
-                required: [data]
+                required: [data, totals]
                 properties:
                   data:
                     type: array
                     items:
                       $ref: "#/components/schemas/OrderMargin"
+                  totals:
+                    $ref: "#/components/schemas/OrderMarginTotals"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":
@@ -880,6 +897,44 @@ components:
         created_at:
           type: string
           format: date-time
+
+    OrderMarginTotals:
+      type: object
+      description: |
+        A soma do período, só dos pedidos com a margem conhecida (`counted`): receita, custos e margem fecham
+        entre si. Os estornados (`refunded`: cancelados ou devolvidos) e os que não têm algum valor
+        (`incomplete`) ficam fora da soma.
+      required: [orders, counted, refunded, incomplete, revenue_cents, product_cost_cents, freight_cents, fee_cents, margin_cents]
+      properties:
+        orders:
+          type: integer
+          minimum: 0
+          description: Pedidos do período.
+        counted:
+          type: integer
+          minimum: 0
+        refunded:
+          type: integer
+          minimum: 0
+        incomplete:
+          type: integer
+          minimum: 0
+        revenue_cents:
+          type: integer
+          format: int64
+        product_cost_cents:
+          type: integer
+          format: int64
+        freight_cents:
+          type: integer
+          format: int64
+        fee_cents:
+          type: integer
+          format: int64
+        margin_cents:
+          type: integer
+          format: int64
+          description: Pode ser negativa.
 
     FailedSupplierOrder:
       type: object

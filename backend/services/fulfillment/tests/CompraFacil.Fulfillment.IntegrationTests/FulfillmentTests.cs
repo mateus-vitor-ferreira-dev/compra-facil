@@ -816,6 +816,50 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     }
 
     [Fact]
+    public async Task Margem_do_periodo_filtra_pela_criacao_e_soma_o_periodo_inteiro()
+    {
+        var (unknownCost, returned) = (Guid.NewGuid(), Guid.NewGuid());
+        await PaymentApprovedAsync(unknownCost, 300);
+        await ConfirmedAsync(unknownCost);
+        await PaymentApprovedAsync(returned, 200);
+        await ConfirmedAsync(returned);
+        await DispatchAsync();
+        await ReturnedAsync(returned);
+
+        async Task<(HttpStatusCode Status, JsonElement Body)> GetAsync(string query)
+        {
+            using var client = fx.Factory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/order-margins?" + query);
+            request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+            using var response = await client.SendAsync(request, Ct);
+            var json = await response.Content.ReadAsStringAsync(Ct);
+            if (response.IsSuccessStatusCode)
+            {
+                ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1order-margins/get/responses/200/content/application~1json/schema", json);
+            }
+            return (response.StatusCode, JsonDocument.Parse(json).RootElement.Clone());
+        }
+        string At(TimeSpan offset) => Uri.EscapeDataString((DateTimeOffset.UtcNow + offset).ToString("O"));
+
+        // o período de agora tem os dois; a soma vem do período inteiro, mesmo com a lista limitada a 1
+        var (status, now) = await GetAsync($"from={At(TimeSpan.FromMinutes(-5))}&to={At(TimeSpan.FromMinutes(5))}&limit=1");
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Single(now.GetProperty("data").EnumerateArray());
+        var totals = now.GetProperty("totals");
+        Assert.True(totals.GetProperty("orders").GetInt32() >= 2);
+        Assert.True(totals.GetProperty("refunded").GetInt32() >= 1); // o devolvido
+        Assert.True(totals.GetProperty("incomplete").GetInt32() >= 1); // o sem custo
+
+        // um período que ainda não chegou não tem nada
+        var (_, later) = await GetAsync($"from={At(TimeSpan.FromHours(1))}");
+        Assert.Empty(later.GetProperty("data").EnumerateArray());
+        Assert.Equal(0, later.GetProperty("totals").GetProperty("orders").GetInt32());
+
+        var (invalid, _) = await GetAsync($"from={At(TimeSpan.FromHours(1))}&to={At(TimeSpan.Zero)}");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, invalid);
+    }
+
+    [Fact]
     public async Task Margem_e_o_pago_menos_custo_no_cambio_da_compra_frete_e_taxa()
     {
         var id = Guid.NewGuid();
