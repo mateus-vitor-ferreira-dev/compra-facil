@@ -20,8 +20,8 @@ info:
     6. `SupplierOrderPlaced` → segue `confirmed`, com `sent_to_supplier_at`; não publica nada;
     7. `SupplierOrderShipped` → `shipped`, com o rastreio → `OrderShipped`;
     8. `SupplierOrderDelivered` → `delivered` → `OrderDelivered`;
-    9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`, ou `invoice_failed` quando a SEFAZ
-       rejeitou a nota) → `OrderCancelled`, que faz o payments estornar o cliente (compensação);
+    9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`; `invoice_failed` quando a SEFAZ
+       rejeitou a nota; `store_cancelled` quando a equipe cancelou pelo painel) → `OrderCancelled`, que faz o payments estornar o cliente (compensação);
        `PaymentRefunded` → `refunded_at`.
 
     A nota fiscal (`fulfillment.invoice.v1`, #221): `InvoiceIssued` grava a nota no pedido,
@@ -303,7 +303,7 @@ components:
       title: Pedido cancelado
       summary: |
         Fim da SAGA com compensação. O inventory libera a reserva, se houver (com `out_of_stock` não
-        há; com `supplier_failed` ou `invoice_failed` ela já virou baixa), o payments descarta a cobrança
+        há; com `supplier_failed`, `invoice_failed` ou `store_cancelled` ela já virou baixa), o payments descarta a cobrança
         pendente ou estorna o que foi pago, e o notifications avisa o cliente.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
@@ -454,7 +454,7 @@ components:
       title: Dinheiro do pedido devolvido
       summary: |
         O estorno do pedido voltou ao cliente: o devolvido (`returned`) ou o cancelado depois de pago
-        (`supplier_failed`, `invoice_failed`). O notifications avisa.
+        (`supplier_failed`, `invoice_failed`, `store_cancelled`). O notifications avisa.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -484,7 +484,7 @@ components:
                     $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
                   reason:
                     type: string
-                    enum: [returned, supplier_failed, invoice_failed]
+                    enum: [returned, supplier_failed, invoice_failed, store_cancelled]
                   refunded_at:
                     type: string
                     format: date-time

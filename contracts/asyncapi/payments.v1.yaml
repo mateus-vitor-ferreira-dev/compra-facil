@@ -20,8 +20,8 @@ info:
       garantido e o pedido segue. A captura acontece quando o fornecedor aceita o pedido
       (`SupplierOrderPlaced`). Recusado, `PaymentFailed`.
 
-    `OrderCancelled` antes da cobrança descarta a pendência. Depois (o fornecedor não atendeu,
-    `supplier_failed`), o dinheiro volta: a autorização do cartão é cancelada (nada chega a ser cobrado) ou o
+    `OrderCancelled` antes da cobrança descarta a pendência. Depois (o fornecedor não atendeu, a nota foi
+    rejeitada ou a equipe cancelou), o dinheiro volta: a autorização do cartão é cancelada (nada chega a ser cobrado) ou o
     valor pago é estornado, e sai `PaymentRefunded`. O painel também estorna parte de um pagamento.
 
     Cada pedido é cobrado no máximo uma vez, e cada estorno acontece uma vez: as chamadas ao provedor levam

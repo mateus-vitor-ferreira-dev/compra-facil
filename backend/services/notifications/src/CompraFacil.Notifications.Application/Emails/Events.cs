@@ -31,7 +31,7 @@ public sealed record OrderConfirmedData(Guid OrderId, string CustomerEmail, IRea
 /// <summary>data do OrderCancelled (só os campos usados no e-mail).</summary>
 /// <param name="OrderId">Pedido cancelado.</param>
 /// <param name="CustomerEmail">Destino do e-mail.</param>
-/// <param name="Reason">out_of_stock | payment_failed | supplier_failed | invoice_failed.</param>
+/// <param name="Reason">out_of_stock | payment_failed | supplier_failed | invoice_failed | store_cancelled.</param>
 /// <param name="PaymentFailureReason">card_declined, insufficient_funds, ... (só em payment_failed).</param>
 public sealed record OrderCancelledData(Guid OrderId, string CustomerEmail, string Reason, string? PaymentFailureReason);
 
@@ -54,7 +54,7 @@ public sealed class StoreOptions
 /// <summary>data do OrderReturned (só os campos usados no e-mail): a devolução no prazo de arrependimento.</summary>
 public sealed record OrderReturnedData(Guid OrderId, string CustomerEmail, Money Total);
 
-/// <summary>data do OrderRefunded: o estorno feito; reason: returned | supplier_failed | invoice_failed.</summary>
+/// <summary>data do OrderRefunded: o estorno feito; reason: returned | supplier_failed | invoice_failed | store_cancelled.</summary>
 public sealed record OrderRefundedData(Guid OrderId, string CustomerEmail, Money Amount, string Reason);
 
 /// <summary>O rastreio do envio, como o fornecedor mandou (contracts/openapi/orders.v1.yaml: Tracking).</summary>
