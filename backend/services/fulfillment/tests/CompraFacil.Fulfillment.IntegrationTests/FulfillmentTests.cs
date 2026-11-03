@@ -872,12 +872,21 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         await PaymentApprovedAsync(id, 995);
         await ConfirmedAsync(id, sku: "MARGEM-1");
 
+        // antes de ir ao fornecedor, o custo do frete para a loja ainda não é conhecido (#323)
+        var pending = (await MarginsAsync())[id];
+        Assert.Equal(JsonValueKind.Null, pending.GetProperty("freight_cents").ValueKind);
+        Assert.Equal(JsonValueKind.Null, pending.GetProperty("margin_cents").ValueKind);
+
+        // aceito, o custo é cotado no serviço escolhido (econômico, US$ 4,50); o cliente pagou R$ 24,30
+        await DispatchAsync();
         var row = (await MarginsAsync())[id];
         var rate = fx.Factory.Services.GetRequiredService<CompraFacil.Fulfillment.Application.Shipping.ShippingSettings>().UsdToBrl;
         var cost = (long)Math.Ceiling(520 * rate) * 2;
+        var freight = (long)Math.Ceiling(450 * rate);
         Assert.Equal(cost, row.GetProperty("product_cost_cents").GetInt64());
-        Assert.Equal(2430, row.GetProperty("freight_cents").GetInt64());
-        Assert.Equal(19980 - cost - 2430 - 995, row.GetProperty("margin_cents").GetInt64());
+        Assert.Equal(freight, row.GetProperty("freight_cents").GetInt64());
+        Assert.Equal(2430, row.GetProperty("freight_charged_cents").GetInt64());
+        Assert.Equal(19980 - cost - freight - 995, row.GetProperty("margin_cents").GetInt64());
     }
 
     [Fact]

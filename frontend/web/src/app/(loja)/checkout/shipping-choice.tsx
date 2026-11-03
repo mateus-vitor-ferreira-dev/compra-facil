@@ -1,9 +1,7 @@
 "use client";
 
-import { formatMoney } from "@/lib/format";
+import { ShippingPrice } from "@/components/commerce/shipping-price";
 import { arrival, businessDays, type ShippingOption } from "@/lib/shipping";
-
-const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
 
 export type ShippingQuoteState =
   | { kind: "waiting" } // sem CEP completo ainda
@@ -66,7 +64,7 @@ export function ShippingChoice({
                       </span>
                     </span>
                     <span className="font-condensed text-lg font-extrabold whitespace-nowrap tabular-nums">
-                      {o.price_cents === 0 ? "Grátis" : brl(o.price_cents)}
+                      <ShippingPrice option={o} />
                     </span>
                   </span>
                 </label>

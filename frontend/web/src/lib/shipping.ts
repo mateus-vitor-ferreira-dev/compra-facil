@@ -7,10 +7,13 @@ export type ShippingOption = {
   id: string;
   name: string;
   price_cents: number;
+  /** no frete grátis (#323), o preço normal, para mostrar riscado */
+  regular_price_cents?: number | null;
   min_days: number;
   max_days: number;
 };
-export type ShippingItem = { sku: string; quantity: number };
+/** Com o produto da loja, o fulfillment avalia o frete grátis pelo preço do catálogo (#323). */
+export type ShippingItem = { sku: string; quantity: number; product_id?: string };
 
 const BRASILIA = "America/Sao_Paulo";
 

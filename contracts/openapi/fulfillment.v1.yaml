@@ -239,6 +239,12 @@ paths:
         (`Shipping:UsdToBrl`) e soma o processamento dela (`Shipping:ProcessingDays`) ao prazo, em dias
         úteis. Pública: a página do produto e o carrinho cotam sem login. O orders confere por aqui o frete
         do pedido.
+
+        **Frete grátis (#323).** A loja nunca sai no prejuízo: uma opção sai de graça (`price_cents` 0, com o preço
+        normal em `regular_price_cents`) quando a margem dos produtos paga o frete inteiro. A margem é o preço da
+        loja, buscado no catalog pelo `product_id` (nunca o do navegador), menos o custo no fornecedor e a taxa de
+        pagamento do pior caso (`Shipping:WorstPaymentFeePercent`, o cartão em 6x). Sem o `product_id` em todos os
+        itens, com produto sem custo conhecido ou com o catalog fora do ar, não há frete grátis.
       requestBody:
         required: true
         content:
@@ -708,6 +714,10 @@ components:
                 type: string
                 minLength: 1
                 description: O SKU da loja (o vid no fornecedor).
+              product_id:
+                type: string
+                format: uuid
+                description: O produto da loja. Com ele em todos os itens, o frete grátis é avaliado (#323).
               quantity:
                 type: integer
                 minimum: 1
@@ -739,6 +749,11 @@ components:
           type: integer
           format: int64
           minimum: 0
+          description: O que o cliente paga pelo frete; 0 no frete grátis.
+        regular_price_cents:
+          type: [integer, "null"]
+          format: int64
+          description: No frete grátis, o preço normal do frete, para a loja mostrar riscado; nulo nos outros.
         min_days:
           type: integer
           minimum: 1
@@ -882,7 +897,13 @@ components:
         freight_cents:
           type: [integer, "null"]
           format: int64
-          description: O frete cobrado, repassado ao fornecedor pelo preço que ele cotou.
+          description: |
+            O custo do frete para a loja, cotado no fornecedor quando o pedido foi a ele (#323); nos pedidos de
+            antes disso, o cobrado, que era igual. Nulo se a cotação falhou.
+        freight_charged_cents:
+          type: [integer, "null"]
+          format: int64
+          description: O que o cliente pagou pelo frete; 0 no frete grátis, que entra como custo da loja.
         fee_cents:
           type: [integer, "null"]
           format: int64

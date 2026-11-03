@@ -156,7 +156,10 @@ export default async function ProductPage({ params }: Props) {
           )}
 
           {(available === undefined || available > 0) && (
-            <ShippingEstimate items={[{ sku: p.sku, quantity: 1 }]} className="border-line border-t pt-5" />
+            <ShippingEstimate
+              items={[{ sku: p.sku, quantity: 1, product_id: p.id }]}
+              className="border-line border-t pt-5"
+            />
           )}
 
           <ul className="border-line text-ink-soft space-y-2 border-t pt-5 text-sm">

@@ -566,7 +566,16 @@ const SHIPPING = [
   { id: "economico", name: "Econômico", price_cents: 2430, min_days: 13, max_days: 21 },
   { id: "expresso", name: "Expresso", price_cents: 6480, min_days: 7, max_days: 11 },
 ];
-const shippingFor = (zip) => (zip === "99999999" ? [] : SHIPPING);
+// o frete grátis pela margem (#323): o headset vem do fornecedor e tem margem para pagar o econômico. Como no
+// fulfillment, só vale com o product_id de todos os itens
+const FREE_SHIPPING_PRODUCT = "0199f6a0-0000-7000-8000-000000000063";
+const shippingFor = (zip, productIds = []) => {
+  if (zip === "99999999") return [];
+  const free = productIds.length > 0 && productIds.every((id) => id === FREE_SHIPPING_PRODUCT);
+  return SHIPPING.map((o) =>
+    free && o.id === "economico" ? { ...o, price_cents: 0, regular_price_cents: o.price_cents } : o,
+  );
+};
 
 // ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
 const cardTokens = new Map(); // token -> titular
@@ -734,7 +743,7 @@ async function placeOrder(req, res, email) {
     !payment ||
     !recipient?.cpf ||
     !/^\d{8}$/.test(shipping_address?.zip_code ?? "") ||
-    !shippingFor(shipping_address.zip_code).some((o) => o.id === shipping?.service) ||
+    !shippingFor(shipping_address?.zip_code).some((o) => o.id === shipping?.service) ||
     (payment.method === "card" && !cardTokens.has(payment.card_token))
   ) {
     return problem(res, 422, "Dados inválidos");
@@ -770,7 +779,10 @@ async function placeOrder(req, res, email) {
     campaign_id: product.campaign?.id ?? null,
   }));
   const itemsTotal = orderItems.reduce((sum, i) => sum + i.line_total.amount_cents, 0);
-  const option = shippingFor(shipping_address.zip_code).find((o) => o.id === shipping.service);
+  const option = shippingFor(
+    shipping_address.zip_code,
+    items.map((i) => i.product_id),
+  ).find((o) => o.id === shipping.service);
   const total = itemsTotal + option.price_cents;
   const now = Date.now();
   const id = crypto.randomUUID();
@@ -1111,7 +1123,11 @@ createServer(async (req, res) => {
     const digits = String(zip ?? "").replace(/\D/g, "");
     if (digits.length !== 8 || !items?.length) return problem(res, 422, "Dados inválidos");
     if (digits === "01310200") await new Promise((r) => setTimeout(r, 1500));
-    return send(res, 200, { zip_code: digits, options: shippingFor(digits) });
+    const ids = items.map((i) => i.product_id);
+    return send(res, 200, {
+      zip_code: digits,
+      options: shippingFor(digits, ids.every(Boolean) ? ids : []),
+    });
   }
   // o DANFE da nota (#221): só a do pedido confirmado da Ana
   const danfe = url.pathname.match(/^\/fulfillment\/v1\/me\/invoices\/([0-9a-f-]{36})\/danfe$/);

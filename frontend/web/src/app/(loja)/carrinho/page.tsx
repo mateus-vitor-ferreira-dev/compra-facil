@@ -215,7 +215,9 @@ export default async function CartPage({ searchParams }: Props) {
 
           {summary.canCheckout && (
             <ShippingEstimate
-              items={lines.flatMap((l) => (l.product ? [{ sku: l.product.sku, quantity: l.qty }] : []))}
+              items={lines.flatMap((l) =>
+                l.product ? [{ sku: l.product.sku, quantity: l.qty, product_id: l.product.id }] : [],
+              )}
               className="mt-6"
             />
           )}

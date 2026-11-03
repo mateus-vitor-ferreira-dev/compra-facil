@@ -86,10 +86,10 @@ public sealed class FakeShippingQuotes : CompraFacil.Orders.Application.Shipping
     public List<CompraFacil.Orders.Application.Shipping.ShippingQuote>? Options { get; set; } =
         [new("economico", "Econômico", 2430, 13, 21), new("expresso", "Expresso", 6480, 7, 11)];
 
-    public List<(string Zip, IReadOnlyList<(string Sku, int Quantity)> Items)> Calls { get; } = [];
+    public List<(string Zip, IReadOnlyList<(string Sku, int Quantity, Guid ProductId)> Items)> Calls { get; } = [];
 
     public Task<IReadOnlyList<CompraFacil.Orders.Application.Shipping.ShippingQuote>> QuoteAsync(
-        string zipCode, IReadOnlyList<(string Sku, int Quantity)> items, CancellationToken ct)
+        string zipCode, IReadOnlyList<(string Sku, int Quantity, Guid ProductId)> items, CancellationToken ct)
     {
         Calls.Add((zipCode, items));
         return Options is { } options

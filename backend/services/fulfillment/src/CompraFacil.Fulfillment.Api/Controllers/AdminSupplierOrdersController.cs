@@ -154,12 +154,14 @@ public sealed record OrderMarginItem(
     long? FeeCents,
     long? MarginCents,
     string CustomerEmail,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    long? FreightChargedCents)
 {
     public static OrderMarginItem From(OrderMargin m)
     {
         ArgumentNullException.ThrowIfNull(m);
-        return new(m.Order.Id, m.Outcome, m.RevenueCents, m.ProductCostCents, m.FreightCents, m.FeeCents, m.MarginCents, m.Order.CustomerEmail, m.Order.CreatedAt);
+        return new(m.Order.Id, m.Outcome, m.RevenueCents, m.ProductCostCents, m.FreightCents, m.FeeCents, m.MarginCents, m.Order.CustomerEmail, m.Order.CreatedAt,
+            m.FreightChargedCents);
     }
 }
 

@@ -318,6 +318,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("freight_cents");
 
+                    b.Property<long?>("FreightCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("freight_cost_cents");
+
                     b.Property<string>("LastError")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -346,6 +350,11 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ShippedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("shipped_at");
+
+                    b.Property<string>("ShippingService")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("shipping_service");
 
                     b.Property<string>("Status")
                         .IsRequired()

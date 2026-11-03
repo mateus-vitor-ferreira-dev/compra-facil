@@ -100,15 +100,27 @@ public sealed class SupplierOrder
     /// <summary>O que o cliente pagou, com o frete (#225); nulo nos pedidos de antes disso.</summary>
     public long? RevenueCents { get; private set; }
 
-    /// <summary>O frete cobrado, que a loja repassa ao fornecedor pelo preço que ele cotou.</summary>
+    /// <summary>O frete cobrado do cliente: zero no frete grátis (#323).</summary>
     public long? FreightCents { get; private set; }
+
+    /// <summary>O serviço de envio que o cliente escolheu (ex.: economico), para cotar o custo com o fornecedor.</summary>
+    public string? ShippingService { get; private set; }
+
+    /// <summary>
+    /// O que o fornecedor cobra da loja pelo frete, cotado ao enviar o pedido (#323): no frete grátis, é custo da
+    /// loja. Nulo se a cotação falhou.
+    /// </summary>
+    public long? FreightCostCents { get; private set; }
 
     /// <summary>O custo dos produtos em reais, no câmbio da compra; nulo se algum não veio do fornecedor.</summary>
     public long? ProductCostCents { get; private set; }
 
     /// <summary>Fixa os valores da compra: o custo e o câmbio mudam depois, e a margem do pedido, não.</summary>
-    public void RecordEconomics(long revenueCents, long freightCents, long? productCostCents) =>
-        (RevenueCents, FreightCents, ProductCostCents) = (revenueCents, freightCents, productCostCents);
+    public void RecordEconomics(long revenueCents, long freightCents, long? productCostCents, string? shippingService = null) =>
+        (RevenueCents, FreightCents, ProductCostCents, ShippingService) = (revenueCents, freightCents, productCostCents, shippingService);
+
+    /// <summary>O custo do frete para a loja, uma vez: o da hora em que o pedido foi ao fornecedor.</summary>
+    public void RecordFreightCost(long cents) => FreightCostCents ??= cents;
 
     public static SupplierOrder Create(
         Guid orderId, string customerEmail, IReadOnlyList<SupplierOrderItem> items, string supplier, DateTimeOffset now, ShipTo? shipTo = null,
