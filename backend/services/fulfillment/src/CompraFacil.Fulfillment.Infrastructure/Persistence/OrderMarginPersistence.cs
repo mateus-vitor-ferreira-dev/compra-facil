@@ -35,7 +35,8 @@ internal sealed class OrderMarginRepository(FulfillmentDbContext db) : IOrderMar
     public Task<List<OrderEconomicsValues>> ValuesAsync(OrderPeriod period, CancellationToken ct) =>
         In(period).AsNoTracking()
             .Select(o => new OrderEconomicsValues(
-                o.Status, o.RevenueCents, o.ProductCostCents, o.FreightCents,
+                // o custo do frete (#323); nos pedidos de antes dele (sem serviço gravado), o cobrado, que era igual
+                o.Status, o.RevenueCents, o.ProductCostCents, o.FreightCostCents ?? (o.ShippingService == null ? o.FreightCents : null),
                 db.OrderPaymentFees.Where(f => f.OrderId == o.Id).Select(f => (long?)f.FeeCents).FirstOrDefault(),
                 db.SupplierReturns.Any(r => r.Id == o.Id)))
             .ToListAsync(ct);

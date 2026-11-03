@@ -423,6 +423,8 @@ services:
       Auth__RequireHttpsMetadata: "false"
       Supplier__BaseUrl: http://supplier-sim:8090/api2.0/v1/
       Supplier__WebhookSecret: ${SUPPLIER_SIM_WEBHOOK_SECRET:-sim-secret}
+      # os preços da loja para o frete grátis pela margem (#323)
+      Catalog__GrpcAddress: http://catalog:9001
       # ana+recusar@... no checkout faz o simulado recusar (ver backend/services/supplier-sim)
       Supplier__ScenarioFromEmail: "true"
       # o corte de pedidos é obrigatório fora do Development (os contêineres rodam como Production): aqui o

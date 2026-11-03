@@ -37,7 +37,7 @@ public sealed partial class OnOrderConfirmed(
         var order = SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, now, data.ShipTo, data.Shipping?.PromisedBy);
         // o SKU da loja é o vid do fornecedor: dele saem o custo e o NCM
         var supplied = (await products.GetManyAsync(supplier.Name, [.. data.Items.Select(i => i.Sku)], ct)).ToDictionary(p => p.Vid);
-        order.RecordEconomics(data.Total.AmountCents, data.Shipping?.Price.AmountCents ?? 0, ProductCost(data.Items, supplied));
+        order.RecordEconomics(data.Total.AmountCents, data.Shipping?.Price.AmountCents ?? 0, ProductCost(data.Items, supplied), data.Shipping?.Service);
         orders.Add(order);
         if (invoicing.Enabled && data.ShipTo is { } shipTo)
         {
@@ -75,7 +75,8 @@ public sealed partial class OnOrderConfirmed(
 /// invoice_rejected, e o orders cancela e estorna); emissor fora do ar, o pedido volta para a fila.
 /// </summary>
 public sealed partial class SupplierOrderPlacer(
-    ISupplierGateway supplier, IInvoiceIssuer issuer, IOutbox outbox, TimeProvider clock, ILogger<SupplierOrderPlacer> logger)
+    ISupplierGateway supplier, IInvoiceIssuer issuer, Shipping.ShippingQuotes shipping, IOutbox outbox, TimeProvider clock,
+    ILogger<SupplierOrderPlacer> logger)
 {
     /// <summary>Muda o pedido (e a nota) e agenda os eventos; quem chama grava tudo junto com o outbox.</summary>
     public async Task<SupplierOrderChange> PlaceAsync(SupplierOrder order, Invoice? invoice, CancellationToken ct)
@@ -94,6 +95,10 @@ public sealed partial class SupplierOrderPlacer(
             {
                 var result = await supplier.PlaceOrderAsync(new SupplierOrderRequest(
                     order.Id, order.CustomerEmail, order.Items, order.ShipTo, document?.AccessKey, document?.Xml), ct);
+                if (result is SupplierPlacement.Accepted)
+                {
+                    await RecordFreightCostAsync(order, ct);
+                }
                 change = result switch
                 {
                     SupplierPlacement.Accepted a => order.MarkPlaced(a.SupplierOrderId, clock.GetUtcNow()),
@@ -149,6 +154,23 @@ public sealed partial class SupplierOrderPlacer(
     }
 
     private sealed record InvoiceDocument(string AccessKey, string Xml);
+
+    /// <summary>
+    /// O custo do frete para a loja, cotado quando o fornecedor aceita (#323): no frete grátis, a margem precisa dele.
+    /// Sem resposta, fica nulo, e o pedido segue.
+    /// </summary>
+    private async Task RecordFreightCostAsync(SupplierOrder order, CancellationToken ct)
+    {
+        if (order.FreightCostCents is not null || order.ShippingService is not { } service || order.ShipTo is not { } to)
+        {
+            return;
+        }
+        var items = order.Items.Select(i => new Shipping.ShippingItem(i.Sku, i.Quantity)).ToList();
+        if (await shipping.CostAsync(new string([.. to.ZipCode.Where(char.IsAsciiDigit)]), items, service, ct) is { } cost)
+        {
+            order.RecordFreightCost(cost);
+        }
+    }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "fornecedor fora ao enviar o pedido {OrderId} (tentativa {Attempts}, agora {Status})")]
     private static partial void LogUnavailable(ILogger logger, Exception e, Guid orderId, int attempts, SupplierOrderStatus status);

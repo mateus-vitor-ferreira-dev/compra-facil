@@ -8,7 +8,13 @@ const body = z.object({
     .transform((v) => v.replace(/\D/g, ""))
     .pipe(z.string().length(8)),
   items: z
-    .array(z.object({ sku: z.string().min(1).max(64), quantity: z.number().int().min(1).max(99) }))
+    .array(
+      z.object({
+        sku: z.string().min(1).max(64),
+        quantity: z.number().int().min(1).max(99),
+        product_id: z.uuid().optional(),
+      }),
+    )
     .min(1)
     .max(50),
 });

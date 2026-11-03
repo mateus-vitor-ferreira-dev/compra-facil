@@ -550,3 +550,30 @@ test.describe("2 unidades do mesmo produto (#322)", () => {
     await context.close();
   });
 });
+
+test("frete grátis pela margem: o econômico sai de graça, com o preço normal riscado, e o pedido não cobra (#323)", async ({
+  page,
+}) => {
+  // o headset vem do fornecedor e tem margem para pagar o econômico; o expresso continua cobrado
+  const HEADSET = "/produto/0199f6a0-0000-7000-8000-000000000063";
+  await page.goto(HEADSET);
+  const product = page.getByRole("region", { name: "Frete e prazo" });
+  await product.getByLabel("CEP").fill("01310100");
+  await product.getByRole("button", { name: "Calcular" }).click();
+  const economico = product.getByRole("listitem").filter({ hasText: "Econômico" });
+  await expect(economico).toContainText("Grátis");
+  await expect(economico.locator("s")).toHaveText("de R$ 24,30 por");
+  await expect(product.getByRole("listitem").filter({ hasText: "Expresso" })).toContainText("R$ 64,80");
+
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toBeVisible();
+  await page.goto("/checkout");
+  await page.getByLabel("E-mail").fill("frete-gratis@exemplo.com");
+  await fillDelivery(page);
+  const summary = page.getByRole("complementary", { name: "Resumo" });
+  await expect(summary).toContainText("Frete econômico");
+  await expect(summary).toContainText("Grátis");
+  await expect(summary).toContainText("R$ 299,90"); // só o produto
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+  await expect(page).toHaveURL(/\/acompanhar|\/conta\/pedidos\//);
+});

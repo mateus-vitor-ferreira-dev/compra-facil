@@ -52,7 +52,9 @@ export default async function CheckoutPage() {
     ? previous.data.data.map(fromOrder).find((d) => d !== undefined)
     : undefined;
   // o frete cotado já com o CEP de antes: sem JavaScript, o cliente vê e escolhe do mesmo jeito
-  const items = lines.flatMap((l) => (l.product ? [{ sku: l.product.sku, quantity: l.qty }] : []));
+  const items = lines.flatMap((l) =>
+    l.product ? [{ sku: l.product.sku, quantity: l.qty, product_id: l.product.id }] : [],
+  );
   const zip = remembered?.zip_code.replace(/\D/g, "");
   const quote = zip ? await quoteShipping(zip, items) : undefined;
 

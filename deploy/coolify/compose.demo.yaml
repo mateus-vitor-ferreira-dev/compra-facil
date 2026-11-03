@@ -215,6 +215,8 @@ services:
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${PG_FULFILLMENT_PASSWORD}
       Supplier__BaseUrl: http://supplier-sim:8090/api2.0/v1/
       Supplier__WebhookSecret: ${SIM_WEBHOOK_SECRET:?}
+      # os preços da loja para o frete grátis pela margem (#323)
+      Catalog__GrpcAddress: http://catalog:9001
       # ana+recusar@... no checkout faz o simulado recusar: é o que permite demonstrar as falhas
       Supplier__ScenarioFromEmail: "true"
       Supplier__AcceptOrdersSince: "2000-01-01T00:00:00Z"

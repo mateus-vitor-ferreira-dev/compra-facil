@@ -1,8 +1,8 @@
 "use client";
 
+import { ShippingPrice } from "@/components/commerce/shipping-price";
 import { useEffect, useId, useState, useSyncExternalStore, type FormEvent } from "react";
 import { formatZipCode } from "@/lib/delivery";
-import { formatMoney } from "@/lib/format";
 import {
   arrival,
   businessDays,
@@ -17,8 +17,6 @@ type State =
   | { kind: "loading" }
   | { kind: "done"; zip: string; options: ShippingOption[] }
   | { kind: "error"; message: string };
-
-const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
 
 // o CEP guardado no navegador; nulo no servidor (a página sai igual para todos)
 const noop = () => () => {};
@@ -136,7 +134,7 @@ export function ShippingEstimate({ items, className }: { items: ShippingItem[]; 
                   </p>
                 </div>
                 <p className="font-condensed text-lg font-extrabold tabular-nums">
-                  {o.price_cents === 0 ? "Grátis" : brl(o.price_cents)}
+                  <ShippingPrice option={o} />
                 </p>
               </li>
             ))}

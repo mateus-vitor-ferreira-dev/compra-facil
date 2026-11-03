@@ -14,6 +14,12 @@ public sealed record OrderEconomicsRow(SupplierOrder Order, long? FeeCents, bool
 public sealed record OrderEconomicsValues(
     SupplierOrderStatus Status, long? RevenueCents, long? ProductCostCents, long? FreightCents, long? FeeCents, bool Returned);
 
+/// <summary>O frete que entra na margem: o custo para a loja (#323) ou, nos pedidos de antes dele, o cobrado (eram iguais).</summary>
+internal static class FreightCost
+{
+    public static long? Of(SupplierOrder order) => order.FreightCostCents ?? (order.ShippingService is null ? order.FreightCents : null);
+}
+
 /// <summary>Os pedidos criados em [<see cref="From"/>, <see cref="To"/>); sem um dos lados, sem limite nele.</summary>
 public sealed record OrderPeriod(DateTimeOffset? From, DateTimeOffset? To);
 
@@ -52,9 +58,13 @@ public enum OrderOutcome
     Returned,
 }
 
-/// <summary>A conta de um pedido; a margem é nula se falta um valor, ou se o cliente foi estornado.</summary>
+/// <summary>
+/// A conta de um pedido; a margem é nula se falta um valor, ou se o cliente foi estornado. FreightCents é o custo
+/// do frete para a loja; FreightChargedCents, o que o cliente pagou por ele (zero no frete grátis).
+/// </summary>
 public sealed record OrderMargin(
-    SupplierOrder Order, OrderOutcome Outcome, long? RevenueCents, long? ProductCostCents, long? FreightCents, long? FeeCents, long? MarginCents);
+    SupplierOrder Order, OrderOutcome Outcome, long? RevenueCents, long? ProductCostCents, long? FreightCents, long? FeeCents, long? MarginCents,
+    long? FreightChargedCents);
 
 /// <summary>
 /// A soma de um período (#282), só dos pedidos com a margem conhecida (<see cref="Counted"/>): assim receita, custos
@@ -88,8 +98,9 @@ public sealed class OrderMargins(IOrderMarginRepository margins)
     private static OrderMargin From(OrderEconomicsRow row)
     {
         var o = row.Order;
-        var (outcome, margin) = Compute(new OrderEconomicsValues(o.Status, o.RevenueCents, o.ProductCostCents, o.FreightCents, row.FeeCents, row.Returned));
-        return new OrderMargin(o, outcome, o.RevenueCents, o.ProductCostCents, o.FreightCents, row.FeeCents, margin);
+        var freight = FreightCost.Of(o);
+        var (outcome, margin) = Compute(new OrderEconomicsValues(o.Status, o.RevenueCents, o.ProductCostCents, freight, row.FeeCents, row.Returned));
+        return new OrderMargin(o, outcome, o.RevenueCents, o.ProductCostCents, freight, row.FeeCents, margin, o.FreightCents);
     }
 
     private static (OrderOutcome Outcome, long? MarginCents) Compute(OrderEconomicsValues v)

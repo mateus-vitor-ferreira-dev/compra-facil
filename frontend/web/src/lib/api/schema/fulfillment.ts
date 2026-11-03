@@ -107,6 +107,12 @@ export interface paths {
          *     (`Shipping:UsdToBrl`) e soma o processamento dela (`Shipping:ProcessingDays`) ao prazo, em dias
          *     úteis. Pública: a página do produto e o carrinho cotam sem login. O orders confere por aqui o frete
          *     do pedido.
+         *
+         *     **Frete grátis (#323).** A loja nunca sai no prejuízo: uma opção sai de graça (`price_cents` 0, com o preço
+         *     normal em `regular_price_cents`) quando a margem dos produtos paga o frete inteiro. A margem é o preço da
+         *     loja, buscado no catalog pelo `product_id` (nunca o do navegador), menos o custo no fornecedor e a taxa de
+         *     pagamento do pior caso (`Shipping:WorstPaymentFeePercent`, o cartão em 6x). Sem o `product_id` em todos os
+         *     itens, com produto sem custo conhecido ou com o catalog fora do ar, não há frete grátis.
          */
         post: operations["quoteShipping"];
         delete?: never;
@@ -377,6 +383,11 @@ export interface components {
             items: {
                 /** @description O SKU da loja (o vid no fornecedor). */
                 sku: string;
+                /**
+                 * Format: uuid
+                 * @description O produto da loja. Com ele em todos os itens, o frete grátis é avaliado (#323).
+                 */
+                product_id?: string;
                 quantity: number;
             }[];
         };
@@ -389,8 +400,16 @@ export interface components {
             id: string;
             /** @description O nome que o cliente vê. */
             name: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description O que o cliente paga pelo frete; 0 no frete grátis.
+             */
             price_cents: number;
+            /**
+             * Format: int64
+             * @description No frete grátis, o preço normal do frete, para a loja mostrar riscado; nulo nos outros.
+             */
+            regular_price_cents?: number | null;
             /** @description Dias úteis, já com o processamento da loja. */
             min_days: number;
             max_days: number;
@@ -488,9 +507,15 @@ export interface components {
             product_cost_cents?: number | null;
             /**
              * Format: int64
-             * @description O frete cobrado, repassado ao fornecedor pelo preço que ele cotou.
+             * @description O custo do frete para a loja, cotado no fornecedor quando o pedido foi a ele (#323); nos pedidos de
+             *     antes disso, o cobrado, que era igual. Nulo se a cotação falhou.
              */
             freight_cents?: number | null;
+            /**
+             * Format: int64
+             * @description O que o cliente pagou pelo frete; 0 no frete grátis, que entra como custo da loja.
+             */
+            freight_charged_cents?: number | null;
             /**
              * Format: int64
              * @description A taxa do provedor de pagamento.
