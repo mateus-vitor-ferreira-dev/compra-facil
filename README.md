@@ -197,6 +197,8 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 | [0008](docs/adr/0008-compra-sem-conta.md) | Compra sem conta: conta de convidado e link por e-mail |
 | [0009](docs/adr/0009-frete-gratis-pela-margem.md) | Frete grátis quando a margem paga o frete inteiro, com o preço da loja buscado no catalog por gRPC |
 
+Dados pessoais, retenção e o que falta da LGPD antes da venda real: [`docs/lgpd.md`](docs/lgpd.md).
+
 ## 🔌 Para quem consome as APIs
 
 - **Base:** `http://localhost/<serviço>/v1/...` (ex.: `POST http://localhost/orders/v1/orders`). Os contratos, que são a
