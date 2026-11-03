@@ -167,3 +167,36 @@ test("sem dados configurados, a loja não inventa quem vende", async ({ page }) 
   await expect(page.getByText("[Nome empresarial, CNPJ e endereço a definir.]")).toBeVisible();
   await expect(page.locator("address")).toHaveCount(0);
 });
+
+test("menu de categorias que não cabe: a borda esmaece, a seta rola e o foco traz o item à vista (#317)", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+  const nav = page.getByRole("banner").getByRole("navigation", { name: "Categorias" });
+  const list = nav.locator("ul").last();
+  // o stub tem 2 departamentos, que cabem: sem seta
+  await expect(nav.locator("button")).toHaveCount(0);
+
+  // departamentos a mais, como numa loja maior (depois da hidratação, que liga a leitura da rolagem)
+  await page.waitForLoadState("networkidle");
+  await list.evaluate((ul) => {
+    for (let i = 1; i <= 14; i++) {
+      const li = document.createElement("li");
+      li.className = "shrink-0";
+      li.innerHTML = `<a href="/categoria/extra-${i}" class="flex h-10 items-center text-sm whitespace-nowrap">Departamento extra ${i}</a>`;
+      ul.append(li);
+    }
+    ul.dispatchEvent(new Event("scroll"));
+  });
+  const next = nav.locator("button").last();
+  await expect(next).toBeVisible();
+  await next.click();
+  await expect.poll(() => list.evaluate((ul) => ul.scrollLeft)).toBeGreaterThan(0);
+  await expect(nav.locator("button")).toHaveCount(2);
+
+  // pelo teclado, sem as setas: o último departamento fica à vista quando recebe o foco
+  const last = nav.getByRole("link", { name: "Departamento extra 14" });
+  await last.focus();
+  await expect(last).toBeInViewport({ ratio: 1 });
+});
