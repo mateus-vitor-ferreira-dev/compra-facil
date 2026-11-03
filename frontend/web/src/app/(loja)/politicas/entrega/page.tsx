@@ -24,13 +24,22 @@ export default async function DeliveryPolicyPage() {
       <p>
         Quando o pedido sai, enviamos por e-mail o código de rastreio e a transportadora. Você também
         acompanha tudo na página do pedido, com a sua conta ou pelo link enviado por e-mail, se comprou sem
-        conta.
+        conta. A transportadora pode levar de 1 a 2 dias úteis para mostrar a primeira movimentação depois da
+        postagem: o código vale desde o envio, mesmo antes de aparecer no site dela.
       </p>
       <h2>Se houver atraso</h2>
       <p>
         Se o prazo prometido não for cumprido, fale com a gente em <ContactChannel />. Você pode exigir o
         cumprimento da entrega, aceitar outro produto equivalente ou cancelar a compra e receber de volta o
         que pagou, com correção (Código de Defesa do Consumidor, art. 35).
+      </p>
+      <h2 id="nao-recebi" className="scroll-mt-6">
+        Consta como entregue, mas não chegou
+      </h2>
+      <p>
+        Confira com vizinhos, portaria ou quem mais possa ter recebido. Se não estiver com ninguém, fale com a
+        gente em <ContactChannel /> com o número do pedido: a entrega é responsabilidade da loja até chegar a
+        você, e vamos atrás da transportadora para reenviar ou devolver o que você pagou.
       </p>
       <h2>Endereço e tentativa de entrega</h2>
       <p>

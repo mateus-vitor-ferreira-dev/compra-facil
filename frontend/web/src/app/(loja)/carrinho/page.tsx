@@ -26,8 +26,17 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 /** O carrinho: cada linha com o preço de agora, o estoque e o que precisa de atenção antes do pedido. */
 export default async function CartPage({ searchParams }: Props) {
   await connection();
+  const query = await searchParams;
   // ?conferir=1: o pedido foi recusado porque um preço ou um produto mudou no meio do caminho
-  const recheck = (await searchParams).conferir === "1";
+  const recheck = query.conferir === "1";
+  // ?refeito=N&fora=M: os produtos de um pedido com o PIX vencido voltaram ao carrinho (#343)
+  const reordered = typeof query.refeito === "string" ? Number(query.refeito) : undefined;
+  const left = typeof query.fora === "string" ? Number(query.fora) || 0 : 0;
+  const reorder = reordered !== undefined && Number.isInteger(reordered) && (
+    <p role="status" className="border-success bg-surface mt-4 rounded-md border-l-4 px-4 py-3">
+      {reorderMessage(reordered, left)}
+    </p>
+  );
   const [cart, removed] = await Promise.all([readCart(), readUndo()]);
   const removedProduct =
     removed && !cart.items.some((i) => i.id === removed.id) ? await getProduct(removed.id) : undefined;
@@ -53,6 +62,7 @@ export default async function CartPage({ searchParams }: Props) {
     return (
       <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
         <h1 className="sr-only">Carrinho</h1>
+        {reorder}
         {undo}
         <StateMessage
           illustration={<EmptyCartIllustration />}
@@ -75,6 +85,7 @@ export default async function CartPage({ searchParams }: Props) {
   return (
     <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Carrinho</h1>
+      {reorder}
       {undo}
 
       {recheck && (
@@ -188,6 +199,22 @@ export default async function CartPage({ searchParams }: Props) {
       </div>
     </main>
   );
+}
+
+/** O aviso de "Fazer o pedido de novo": quantos produtos voltaram e quantos esgotaram no caminho. */
+function reorderMessage(back: number, left: number) {
+  if (back === 0) return "Os produtos do pedido esgotaram e não voltaram ao carrinho.";
+  const returned =
+    back === 1
+      ? "O produto do pedido voltou ao carrinho."
+      : `Os ${back} produtos do pedido voltaram ao carrinho.`;
+  const out =
+    left === 0
+      ? ""
+      : left === 1
+        ? " 1 produto esgotou e ficou de fora."
+        : ` ${left} produtos esgotaram e ficaram de fora.`;
+  return `${returned}${out} Continue para o pagamento quando quiser.`;
 }
 
 function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: boolean }) {

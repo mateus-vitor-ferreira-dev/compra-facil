@@ -78,6 +78,11 @@ const orders = [
     delivered_at: new Date(Date.now() - 10 * 86_400_000).toISOString(),
     returnable_until: new Date(Date.now() - 3 * 86_400_000).toISOString(),
     return_requested_at: null,
+    tracking: {
+      number: "BR111222333BR",
+      provider: "Correios",
+      url: "https://rastreio.example/BR111222333BR",
+    },
   },
   {
     ...orderOf("01a18d66-0000-7000-8000-00002e6f8a14", "shipped", null, 1, 263992),
