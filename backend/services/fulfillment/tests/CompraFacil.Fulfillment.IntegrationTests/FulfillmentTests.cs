@@ -280,7 +280,7 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         return (response.StatusCode, await response.Content.ReadAsStringAsync(Ct));
     }
 
-    private static object Update(Guid orderId, string status, string? track = null, string? messageId = null) => new
+    private static object Update(Guid orderId, string status, string? track = null, string? messageId = null, string? reason = null) => new
     {
         messageId = messageId ?? Guid.NewGuid().ToString(),
         type = "ORDER",
@@ -293,7 +293,7 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
             trackNumber = track,
             trackingProvider = track is null ? null : "Correios",
             trackingUrl = track is null ? null : $"https://t.17track.net/en#nums={track}",
-            reason = (string?)null,
+            reason,
         },
     };
 
@@ -406,6 +406,22 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(SupplierOrderStatus.Failed, order.Status);
         Assert.Equal(SupplierFailureReasons.SupplierCancelled, order.FailureReason);
         Assert.Equal([FulfillmentEvents.SupplierOrderPlaced, FulfillmentEvents.SupplierOrderFailed], await EventsOfAsync(id));
+    }
+
+    [Fact]
+    public async Task Cancelamento_pedido_pela_loja_que_volta_pelo_webhook_antes_do_painel_fica_como_da_loja()
+    {
+        // o painel pede o cancelamento ao fornecedor, e o webhook dele chega antes de o painel gravar (#283)
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+
+        await WebhookAsync(Update(id, "CANCELLED", reason: SupplierFailureReasons.StoreCancelled));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel")); // o painel grava depois
+
+        var order = await OrderAsync(id);
+        Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.StoreCancelled), (order.Status, order.FailureReason));
+        Assert.Single(await EventsOfAsync(id), e => e == FulfillmentEvents.SupplierOrderFailed);
     }
 
     [Fact]
