@@ -231,6 +231,31 @@ qualquer falha de rede.
 cada execução do workflow diz qual subiu, e as tags `deploy-*` ficam no GHCR) e faça o deploy pelo
 painel. O próximo merge na `main` publica de novo a partir da `:main`.
 
+## Aviso de manutenção
+
+Durante o deploy da API, a loja avisa "Estamos atualizando a loja", troca o erro do catálogo pelo aviso (a página
+tenta de novo sozinha) e segura o "Fazer o pedido" com a explicação (#370). A troca dos contêineres deixa a API
+fora por cerca de 40 s (#310). A marca fica no **Cloudflare KV**, e não na API, porque a API é o que sai do ar:
+
+- o `deploy.yml` liga a marca antes de publicar ([`coolify/aviso-manutencao.sh`](coolify/aviso-manutencao.sh)) e a
+  desliga ao terminar, mesmo se o deploy falhar. Ela tem prazo de 15 min, para sumir sozinha se o job morrer;
+- o KV leva alguns segundos para valer em todo lugar, e a loja guarda a leitura por até 30 s: o aviso pode aparecer
+  um pouco depois do começo da troca e ficar um pouco depois da volta;
+- sem as variáveis, ou com o Cloudflare fora, o deploy segue normalmente, e a loja mostra o erro de antes.
+
+O painel tem **Manutenção** (`/admin/manutencao`), onde a equipe agenda uma janela (até 24 h, com até 90 dias de
+antecedência) e um aviso opcional. A loja mostra a faixa antes e durante a janela, e ela some sozinha no fim.
+
+**Para ligar (uma vez, na conta da Cloudflare):**
+
+1. Crie o namespace: **Workers & Pages → KV → Create**, com o nome `compra-facil-manutencao` (ou
+   `npx wrangler kv namespace create compra-facil-manutencao`). Anote o **id**.
+2. Ponha o id no `binding` `MAINTENANCE` do [`wrangler.jsonc`](../frontend/web/wrangler.jsonc), no lugar dos zeros.
+   O job de deploy da loja recusa publicar com os zeros.
+3. No GitHub, **Settings → Secrets and variables → Actions → Variables**: `CLOUDFLARE_KV_MAINTENANCE_ID` com o mesmo id.
+4. No token do secret `CLOUDFLARE_API_TOKEN` (**My Profile → API Tokens**), acrescente a permissão
+   **Account → Workers KV Storage → Edit**. O Worker lê o KV pelo binding e não precisa do token.
+
 ## Backup e restauração
 
 O `pg-backup` roda às 6h UTC (3h em Brasília). Cada dia fica em `postgres/<AAAA-MM-DD>/` no bucket, com
