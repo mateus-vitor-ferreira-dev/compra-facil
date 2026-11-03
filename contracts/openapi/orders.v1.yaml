@@ -356,8 +356,9 @@ components:
         `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
         `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
         (`refunded_at`) · `invoice_failed`: depois de pago, a SEFAZ rejeitou a nota fiscal e o pedido nem
-        foi ao fornecedor; o cliente é estornado do mesmo jeito.
-      enum: [out_of_stock, payment_failed, supplier_failed, invoice_failed]
+        foi ao fornecedor; o cliente é estornado do mesmo jeito · `store_cancelled`: depois de pago, a equipe
+        cancelou o pedido pelo painel antes do envio (#283), e o cliente é estornado.
+      enum: [out_of_stock, payment_failed, supplier_failed, invoice_failed, store_cancelled]
 
     OrderShipping:
       type: object
@@ -672,8 +673,8 @@ components:
           type: [string, "null"]
           format: date-time
           description: |
-            Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed` ou
-            `invoice_failed`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
+            Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`,
+            `invoice_failed` ou `store_cancelled`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
         return_requested_at:
           type: [string, "null"]
           format: date-time

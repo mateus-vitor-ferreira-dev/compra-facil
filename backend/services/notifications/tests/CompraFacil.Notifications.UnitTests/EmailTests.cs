@@ -18,6 +18,7 @@ public sealed class EmailTests
     [InlineData("out_of_stock", null, "sem estoque")]
     [InlineData("supplier_failed", null, "fornecedor")]
     [InlineData("invoice_failed", null, "nota fiscal")]
+    [InlineData("store_cancelled", null, "cancelamos o pedido antes do envio")]
     [InlineData("payment_failed", "insufficient_funds", "limite insuficiente")]
     [InlineData("payment_failed", "card_declined", "cartão foi recusado")]
     [InlineData("payment_failed", "pix_expired", "PIX não foi pago")]
@@ -67,6 +68,7 @@ public sealed class EmailTests
     [InlineData("returned", "devolução que você pediu")]
     [InlineData("supplier_failed", "fornecedor")]
     [InlineData("invoice_failed", "nota fiscal")]
+    [InlineData("store_cancelled", "cancelamos o pedido antes do envio")]
     public async Task Refunded_SaysWhy(string reason, string expected)
     {
         var email = await EmailComposer.RefundedAsync(new OrderRefundedData(Guid.NewGuid(), "ana@exemplo.com", new Money(4990, "BRL"), reason));

@@ -338,7 +338,9 @@ components:
                       `out_of_stock`: sem estoque no fornecedor · `rejected`: recusado na criação ·
                       `supplier_cancelled`: aceito e depois cancelado pelo fornecedor · `supplier_unavailable`:
                       fornecedor (ou o emissor da nota) fora do ar depois de todas as tentativas ·
-                      `invoice_rejected`: a SEFAZ rejeitou a nota da loja, e o pedido nem foi ao fornecedor.
+                      `invoice_rejected`: a SEFAZ rejeitou a nota da loja, e o pedido nem foi ao fornecedor ·
+                      `store_cancelled`: a equipe cancelou o pedido pelo painel (#225); o orders o mostra
+                      ao cliente com motivo próprio (#283).
                   detail:
                     type: [string, "null"]
                     maxLength: 500

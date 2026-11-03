@@ -96,6 +96,7 @@ public static partial class EmailComposer
         {
             "returned" => "é a devolução que você pediu.",
             "invoice_failed" => "não conseguimos emitir a nota fiscal do pedido.",
+            "store_cancelled" => "cancelamos o pedido antes do envio.",
             _ => "o fornecedor não conseguiu atender o pedido.",
         };
         var html = await s_refunded.RenderAsync(Context(new { order_number = number, amount = Brl(refund.Amount), reason }), s_html);
@@ -211,6 +212,8 @@ public static partial class EmailComposer
             "Entre em contato com o seu banco ou tente outra forma de pagamento."),
         ("supplier_failed", _) => ("o fornecedor não conseguiu atender o pedido.",
             "Nada fica cobrado: o pagamento foi cancelado ou estornado por inteiro, pelo mesmo meio."),
+        ("store_cancelled", _) => ("cancelamos o pedido antes do envio.",
+            "Nada fica cobrado: o pagamento foi cancelado ou estornado por inteiro, pelo mesmo meio. Se ainda quiser os produtos, faça um novo pedido."),
         ("invoice_failed", _) => ("não conseguimos emitir a nota fiscal do pedido.",
             "Nada fica cobrado: o pagamento foi cancelado ou estornado por inteiro, pelo mesmo meio. Confira o CPF e o endereço e faça o pedido de novo."),
         _ => ("o pedido não pôde ser concluído.", "Nada foi cobrado."),

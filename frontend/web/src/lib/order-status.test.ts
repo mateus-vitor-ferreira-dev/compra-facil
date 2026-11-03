@@ -36,6 +36,16 @@ describe("orderStatus", () => {
     expect(isFinal({ ...cancelled, refunded_at: "2026-10-29T10:00:00Z" })).toBe(true);
   });
 
+  it("cancelado pela loja: diz que foi a loja, e não o fornecedor (#283)", () => {
+    const cancelled = { status: "cancelled", cancellation_reason: "store_cancelled" } as const;
+    expect(orderStatus(cancelled).detail).toBe(
+      "Cancelamos o pedido antes do envio. Estamos estornando o valor pago.",
+    );
+    expect(orderStatus(cancelled).detail).not.toContain("fornecedor");
+    expect(isFinal(cancelled)).toBe(false);
+    expect(isFinal({ ...cancelled, refunded_at: "2026-10-29T10:00:00Z" })).toBe(true);
+  });
+
   it("fornecedor não atendeu: diz se o estorno está em andamento ou feito", () => {
     const cancelled = { status: "cancelled", cancellation_reason: "supplier_failed" } as const;
     expect(orderStatus(cancelled).detail).toContain("Estamos estornando");
@@ -136,6 +146,12 @@ describe("orderSteps", () => {
     const o = { ...paid, status: "cancelled" as const, cancellation_reason: "invoice_failed" as const };
     expect(orderSteps(o)[3]).toMatchObject({ label: "Nota fiscal recusada", state: "failed" });
     expect(orderSteps(o)[4]?.label).toBe("Estornando o valor pago");
+  });
+
+  it("cancelado pela loja: a etapa do fornecedor diz que foi a loja, e o estorno vem depois", () => {
+    const o = { ...paid, status: "cancelled" as const, cancellation_reason: "store_cancelled" as const };
+    expect(states(o)).toEqual(["done", "done", "done", "failed", "current"]);
+    expect(orderSteps(o)[3]).toMatchObject({ label: "Cancelado pela loja", state: "failed" });
   });
 
   it("pedido de antes da etapa existir (sem stock_reserved_at) ainda fecha certo", () => {
