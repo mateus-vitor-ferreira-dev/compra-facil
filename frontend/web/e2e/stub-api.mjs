@@ -689,6 +689,9 @@ function supplierReturns() {
   ];
 }
 
+// os produtos com a API fora (POST /__teste/fora/{id}), para a reserva da vitrine
+const productsDown = new Set();
+
 // os pedidos atrasados no fornecedor (#219): um preso no fornecedor e um envio que não chegou
 function overdueOrders() {
   const day = 24 * 60 * 60 * 1000;
@@ -1200,8 +1203,15 @@ createServer(async (req, res) => {
     product.effective_price = { amount_cents, currency: "BRL" };
     return send(res, 200, product);
   }
+  // a API fora para um produto só (a reserva da vitrine): os outros testes, em paralelo, não sentem
+  const down = url.pathname.match(/^\/__teste\/fora\/([0-9a-f-]{36})$/);
+  if (req.method === "POST" && down) {
+    productsDown.add(down[1]);
+    return res.writeHead(204).end();
+  }
   const detail = url.pathname.match(/^\/catalog\/v1\/products\/([0-9a-f-]{36})$/);
   if (req.method === "GET" && detail) {
+    if (productsDown.has(detail[1])) return problem(res, 503, "Serviço indisponível");
     const product = products.find((p) => p.id === detail[1]);
     return product ? send(res, 200, product) : problem(res, 404, "Recurso não encontrado");
   }

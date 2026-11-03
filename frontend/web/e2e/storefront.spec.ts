@@ -200,3 +200,21 @@ test("menu de categorias que não cabe: a borda esmaece, a seta rola e o foco tr
   await last.focus();
   await expect(last).toBeInViewport({ ratio: 1 });
 });
+
+test("com a API fora, a página do produto mostra a última cópia boa em vez do erro", async ({
+  page,
+  request,
+}) => {
+  // o "modelo 43": só este teste o derruba. No next start, o cache de dados do Next já cobriria a queda; no Worker
+  // (E2E_WORKER), sem cache de dados, quem cobre é a reserva da vitrine
+  const path = "/produto/0199f6a0-0000-7000-8000-000000000045";
+  await page.goto(path);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fone de ouvido modelo 43");
+
+  expect(
+    (await request.post("http://localhost:4010/__teste/fora/0199f6a0-0000-7000-8000-000000000045")).status(),
+  ).toBe(204);
+  await page.goto(path);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fone de ouvido modelo 43");
+  await expect(page.getByText("Os produtos não carregaram")).toHaveCount(0);
+});
