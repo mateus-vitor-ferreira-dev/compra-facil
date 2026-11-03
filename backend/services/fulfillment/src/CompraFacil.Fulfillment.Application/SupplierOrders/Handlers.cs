@@ -205,7 +205,11 @@ public sealed partial class SupplierUpdates(ISupplierOrderRepository orders, IOu
             "SHIPPED" when !string.IsNullOrWhiteSpace(update.TrackNumber) =>
                 order.MarkShipped(new Tracking(update.TrackNumber, update.TrackingProvider, update.TrackingUrl), now),
             "DELIVERED" => order.MarkDelivered(now),
-            "CANCELLED" => order.Fail(SupplierFailureReasons.SupplierCancelled, update.Reason, now),
+            // o cancelamento pedido pelo painel volta como webhook com reason store_cancelled, às vezes antes de o
+            // painel gravar: o motivo é o da loja, senão o cliente lê que o fornecedor não atendeu (#283)
+            "CANCELLED" => order.Fail(
+                update.Reason == SupplierFailureReasons.StoreCancelled ? SupplierFailureReasons.StoreCancelled : SupplierFailureReasons.SupplierCancelled,
+                update.Reason == SupplierFailureReasons.StoreCancelled ? SupplierOrderActions.CancelDetail : update.Reason, now),
             _ => SupplierOrderChange.None,
         };
         outbox.Publish(order, change);

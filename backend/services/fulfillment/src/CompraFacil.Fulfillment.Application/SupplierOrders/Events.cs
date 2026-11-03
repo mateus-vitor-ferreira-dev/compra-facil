@@ -47,7 +47,10 @@ public sealed record SupplierOrderShippedData(
 
 public sealed record SupplierOrderDeliveredData(Guid OrderId, string Supplier, string? SupplierOrderId, DateTimeOffset DeliveredAt);
 
-/// <summary>O pedido não chegou ao fornecedor; reason: out_of_stock | rejected | supplier_cancelled | supplier_unavailable.</summary>
+/// <summary>
+/// O pedido não chegou ao fornecedor; reason: out_of_stock | rejected | supplier_cancelled | supplier_unavailable |
+/// invoice_rejected | store_cancelled.
+/// </summary>
 public sealed record SupplierOrderFailedData(Guid OrderId, string Supplier, string? SupplierOrderId, string Reason, string? Detail, DateTimeOffset FailedAt);
 
 internal static class SupplierOrderEventsExtensions
