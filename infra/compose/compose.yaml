@@ -471,6 +471,9 @@ services:
       SIM_WEBHOOK_SECRET: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
       # o navegador abre a página do PIX (o ticket_url) por aqui
       SIM_PUBLIC_URL: http://localhost:${PAYMENT_SIM_PORT:-8092}
+      # as rotas /sim de operação (listar, pagar pela API, resetar): o k6 paga o PIX por elas. Na demonstração
+      # pública, sem a variável, ficam fechadas (#280)
+      SIM_ADMIN_TOKEN: ${PAYMENT_SIM_ADMIN_TOKEN:-sim-admin}
     ports:
       - "127.0.0.1:${PAYMENT_SIM_PORT:-8092}:8090"
     healthcheck:

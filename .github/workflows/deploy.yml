@@ -1,8 +1,9 @@
 # Publica a API no Coolify (ADR 0006) depois que as imagens da main saem. O auto-deploy do Coolify fica
 # desligado: ele subiria a main sem esperar os testes. Cada serviço tem o próprio pipeline (e só roda
-# quando muda), então este dispara ao fim de qualquer um deles: a publicação leva a :main de todas as
-# imagens naquele instante, cada uma com a tag fixa deste deploy. Um merge que mexe em dois serviços
-# publica duas vezes, uma ao fim de cada pipeline; a segunda leva os dois.
+# quando muda), então este dispara ao fim de qualquer um deles, mas só o disparo do último pipeline do
+# commit publica, com todos verdes (deploy/coolify/vez-de-publicar.sh): cada publicação recria os
+# contêineres, e um merge que mexe em vários serviços derrubava a API uma vez por pipeline. A publicação
+# leva a :main de todas as imagens naquele instante, cada uma com a tag fixa deste deploy.
 #
 # Enquanto a variável COOLIFY_APP_UUID não existir no repositório, nada roda. O token fica no ambiente
 # producao, que só aceita a main.
@@ -15,22 +16,50 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# um deploy por vez; o que chega enquanto outro roda espera (e leva as imagens mais novas)
-concurrency:
-  group: deploy-producao
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
 jobs:
-  api:
-    name: API no Coolify
+  # uma publicação por commit: só o disparo do último pipeline a terminar segue (o manual sempre segue)
+  vez:
+    name: é a vez de publicar?
     # só o push: o filtro de branch do workflow_run olha o nome, e o PR de um fork com uma branch "main" passaria nele
     if: >-
       vars.COOLIFY_APP_UUID != '' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read # os pipelines do commit
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: deploy/coolify
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            deploy/coolify/vez-de-publicar.sh
+          fi
+
+  api:
+    name: API no Coolify
+    needs: vez
+    if: needs.vez.outputs.publish == 'true'
+    # uma publicação por vez (a do disparo manual e a do merge, por exemplo); a decisão acima não entra na fila,
+    # senão o GitHub cancelaria os disparos pendentes, e entre eles o do último pipeline
+    concurrency:
+      group: deploy-producao
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment:

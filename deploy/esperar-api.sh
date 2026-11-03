@@ -59,7 +59,8 @@ while :; do
     estado="$abertos de $total pipelines da API rodando"
   else
     [[ -n $fim_pipelines ]] || fim_pipelines=$SECONDS
-    # só os deploys disparados desde o começo destes pipelines; cada pipeline dispara um
+    # só os deploys disparados desde o começo destes pipelines; cada pipeline dispara um (e só o do último
+    # publica: os outros terminam verdes sem publicar, vez-de-publicar.sh)
     desde=$(jq -r 'map(.created_at) | min' <<<"$pipelines")
     deploys=$(consulta "repos/$GITHUB_REPOSITORY/actions/workflows/deploy.yml/runs?event=workflow_run&per_page=100" |
       jq --arg desde "$desde" '[.workflow_runs[] | select(.created_at >= $desde)]')

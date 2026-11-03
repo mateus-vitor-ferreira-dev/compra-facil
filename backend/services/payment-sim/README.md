@@ -15,6 +15,7 @@ conferir os campos na documentação dele: este simulador não foi validado cont
 | `SIM_PIX_EXPIRATION` | `30m` | Validade do PIX sem `date_of_expiration` no pedido. |
 | `SIM_REVIEW_DELAY` | `5s` | Quanto o cartão `CONT` fica em análise antes de aprovar. |
 | `SIM_PUBLIC_URL` | `http://localhost:8092` | De onde o navegador acessa o simulador (o `ticket_url` do PIX). |
+| `SIM_ADMIN_TOKEN` | (aleatório) | Abre as rotas `/sim` de operação, no header `X-Sim-Admin-Token`. Vazio: um token aleatório a cada subida, e elas ficam fechadas. |
 | `SIM_WEBHOOK_URL` | vazio | Destino das notificações quando o pagamento não traz `notification_url`. |
 | `SIM_WEBHOOK_SECRET` | `sim-secret` | Chave do HMAC do `x-signature`. |
 
@@ -54,9 +55,14 @@ pagamento em `GET /v1/payments/{id}`. Uma fila por pagamento (na ordem), até 5 
 
 ## Demonstração
 
-| Método e rota | Efeito |
-|---|---|
-| `GET /sim/pix/{id}` | A página do `ticket_url`: o QR, o copia-e-cola e o botão "Pagar o PIX" (faz o papel do app do banco). |
-| `POST /sim/payments/{id}/pay` | Paga o PIX pendente. |
-| `GET /sim/payments` | Todos os pagamentos. |
-| `POST /sim/reset` | Apaga tudo. |
+| Método e rota | Efeito | Acesso |
+|---|---|---|
+| `GET /sim/pix/{código}` | A página do `ticket_url`: o QR, o copia-e-cola e o botão "Pagar o PIX" (faz o papel do app do banco). | aberta, pelo código aleatório do `ticket_url` |
+| `POST /sim/payments/{id}/pay` | Paga o PIX pendente. | `X-Sim-Admin-Token` |
+| `GET /sim/payments` | Todos os pagamentos. | `X-Sim-Admin-Token` |
+| `POST /sim/reset` | Apaga tudo. | `X-Sim-Admin-Token` |
+
+A página do PIX abre só pelo código de 32 caracteres que vem no `ticket_url` do pagamento, e que só o comprador
+recebe: o `id` é sequencial, como no Mercado Pago, e por ele qualquer um pagaria o PIX de outro (#280). As rotas de
+operação pedem o header `X-Sim-Admin-Token` igual a `SIM_ADMIN_TOKEN`. Sem a variável (a demonstração pública), o
+simulador gera um token aleatório ao subir, e elas ficam fechadas. No compose local, o token é `sim-admin`.

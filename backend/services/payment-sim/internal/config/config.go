@@ -15,6 +15,9 @@ type Config struct {
 
 	AccessToken string
 	PublicKey   string
+	// AdminToken abre as rotas /sim de operação; vazio, o simulador gera um aleatório ao subir, e elas ficam
+	// fechadas (a demonstração pública não precisa delas)
+	AdminToken string
 
 	PIXExpiration time.Duration
 	ReviewDelay   time.Duration
@@ -34,6 +37,7 @@ func load(getenv func(string) string) (Config, error) {
 		LogLevel:      str(getenv, "LOG_LEVEL", "info"),
 		AccessToken:   str(getenv, "SIM_ACCESS_TOKEN", "TEST-sim-access-token"),
 		PublicKey:     str(getenv, "SIM_PUBLIC_KEY", "TEST-sim-public-key"),
+		AdminToken:    strings.TrimSpace(getenv("SIM_ADMIN_TOKEN")),
 		PublicURL:     strings.TrimRight(str(getenv, "SIM_PUBLIC_URL", "http://localhost:8092"), "/"),
 		WebhookURL:    strings.TrimSpace(getenv("SIM_WEBHOOK_URL")),
 		WebhookSecret: str(getenv, "SIM_WEBHOOK_SECRET", "sim-secret"),

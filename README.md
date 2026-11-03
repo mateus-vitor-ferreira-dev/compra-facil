@@ -193,6 +193,11 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 | [0004](docs/adr/0004-contrato-consumer-driven-sem-pact.md) | Contrato consumer-driven orders → catalog sem Pact (o PactNet não suporta gRPC) |
 | [0005](docs/adr/0005-identity-jwt-rs256-jwks.md) | Serviço identity: JWT RS256 com rotação de chave publicada no JWKS, refresh token rotativo |
 | [0006](docs/adr/0006-producao-no-coolify-e-cloudflare.md) | Produção: API no Coolify da Hetzner, loja no Cloudflare Workers, fotos no R2, observabilidade no Grafana Cloud |
+| [0007](docs/adr/0007-dropshipping-por-adaptadores.md) | Dropshipping: fornecedor, pagamento e nota fiscal por adaptadores, com simuladores no contrato dos reais |
+| [0008](docs/adr/0008-compra-sem-conta.md) | Compra sem conta: conta de convidado e link por e-mail |
+| [0009](docs/adr/0009-frete-gratis-pela-margem.md) | Frete grátis quando a margem paga o frete inteiro, com o preço da loja buscado no catalog por gRPC |
+
+Dados pessoais, retenção e o que falta da LGPD antes da venda real: [`docs/lgpd.md`](docs/lgpd.md).
 
 ## 🔌 Para quem consome as APIs
 

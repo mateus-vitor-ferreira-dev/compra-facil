@@ -22,6 +22,9 @@ type Credentials struct {
 	AccessToken string
 	// PublicKey vai em ?public_key= no /v1/card_tokens (no Mercado Pago, quem chama é o navegador)
 	PublicKey string
+	// AdminToken vai em X-Sim-Admin-Token nas rotas /sim de operação (listar, pagar pela API, resetar), que não
+	// existem no Mercado Pago e ficam fechadas na demonstração pública (#280)
+	AdminToken string
 }
 
 type API struct {
@@ -48,14 +51,27 @@ func NewRouter(provider *payment.Provider, creds Credentials, log *slog.Logger) 
 	pays.POST("/:id/refunds", a.refund)
 	pays.GET("/:id/refunds", a.refunds)
 
-	// demonstração e testes, sem token: o banco do cliente pagando o PIX, e o estado de tudo
-	sim := r.Group("/sim")
+	// o banco do cliente pagando o PIX: aberta, mas só pelo código aleatório do ticket_url, que só o comprador
+	// recebe (o id do pagamento é sequencial, e por ele qualquer um pagaria o PIX de outro, #280)
+	r.GET("/sim/pix/:token", a.pixPage)
+	r.POST("/sim/pix/:token", a.pixPagePay)
+
+	// operação e testes: o estado de tudo, o pagamento pela API e o reset, com o token de administração
+	sim := r.Group("/sim", a.requireAdminToken)
 	sim.GET("/payments", func(c *gin.Context) { c.JSON(http.StatusOK, a.provider.List()) })
 	sim.POST("/payments/:id/pay", a.payPIX)
-	sim.GET("/pix/:id", a.pixPage)
-	sim.POST("/pix/:id", a.pixPagePay)
 	sim.POST("/reset", func(c *gin.Context) { a.provider.Reset(); c.Status(http.StatusNoContent) })
 	return r
+}
+
+func (a *API) requireAdminToken(c *gin.Context) {
+	got := c.GetHeader("X-Sim-Admin-Token")
+	if a.creds.AdminToken == "" || subtle.ConstantTimeCompare([]byte(got), []byte(a.creds.AdminToken)) != 1 {
+		apiError(c, http.StatusUnauthorized, "unauthorized", "missing or invalid X-Sim-Admin-Token")
+		c.Abort()
+		return
+	}
+	c.Next()
 }
 
 func (a *API) accessLog(c *gin.Context) {
@@ -279,8 +295,9 @@ button{font:inherit;font-weight:600;min-height:2.75rem;padding:0 1.25rem;border-
 </body></html>`))
 
 func (a *API) pixPage(c *gin.Context) {
-	id, ok := pathID(c)
+	id, ok := a.provider.ByPage(c.Param("token"))
 	if !ok {
+		c.String(http.StatusNotFound, "PIX não encontrado")
 		return
 	}
 	p, err := a.provider.Get(id)
@@ -299,8 +316,9 @@ func (a *API) pixPage(c *gin.Context) {
 }
 
 func (a *API) pixPagePay(c *gin.Context) {
-	id, ok := pathID(c)
+	id, ok := a.provider.ByPage(c.Param("token"))
 	if !ok {
+		c.String(http.StatusNotFound, "PIX não encontrado")
 		return
 	}
 	if _, err := a.provider.PayPIX(id); err != nil && !errors.Is(err, payment.ErrInvalidState) {

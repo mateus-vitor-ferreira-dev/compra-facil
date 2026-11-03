@@ -34,8 +34,8 @@ export async function desistir(_: ReturnState, form: FormData): Promise<ReturnSt
 }
 
 /**
- * O PIX venceu e o pedido foi cancelado: os produtos voltam ao carrinho, para o cliente pagar de novo sem
- * refazer a busca (#343). O preço visto é o do pedido: se mudou desde então, o carrinho avisa, como sempre.
+ * O pagamento foi recusado (o PIX venceu, #343, ou o cartão não passou, #363) e o pedido foi cancelado: os
+ * produtos voltam ao carrinho, para o cliente pagar de novo sem refazer a busca. O preço visto é o do pedido: se mudou desde então, o carrinho avisa, como sempre.
  * O que esgotou fica de fora, e o carrinho conta quantos.
  */
 export async function refazerPedido(form: FormData): Promise<void> {
@@ -43,13 +43,8 @@ export async function refazerPedido(form: FormData): Promise<void> {
   if (!id.success) redirect("/conta");
   const { token } = await requireAccount(`/conta/pedidos/${id.data}`);
   const order = await getOrder(token, id.data);
-  // só o PIX vencido: os outros cancelamentos têm outro caminho (estoque, fornecedor, cartão)
-  if (
-    !order.ok ||
-    order.data.status !== "cancelled" ||
-    order.data.cancellation_reason !== "payment_failed" ||
-    order.data.payment?.method !== "pix"
-  ) {
+  // só o pagamento recusado (PIX vencido, #343, ou cartão, #363): os outros cancelamentos têm outro caminho
+  if (!order.ok || order.data.status !== "cancelled" || order.data.cancellation_reason !== "payment_failed") {
     redirect(`/conta/pedidos/${id.data}`);
   }
   const items = order.data.items;
