@@ -82,20 +82,20 @@ type Refund struct {
 
 // Payment segue os campos do /v1/payments do Mercado Pago que a loja usa.
 type Payment struct {
-	ID                 int64               `json:"id"`
-	Status             string              `json:"status"`
-	StatusDetail       string              `json:"status_detail"`
-	PaymentMethodID    string              `json:"payment_method_id"`
-	PaymentTypeID      string              `json:"payment_type_id"`
-	TransactionAmount  Amount              `json:"transaction_amount"`
-	TransactionRefund  Amount              `json:"transaction_amount_refunded"`
-	Installments       int                 `json:"installments"`
-	Captured           bool                `json:"captured"`
-	Description        string              `json:"description"`
-	ExternalReference  string              `json:"external_reference"`
-	PayerEmail         string              `json:"-"`
+	ID                int64  `json:"id"`
+	Status            string `json:"status"`
+	StatusDetail      string `json:"status_detail"`
+	PaymentMethodID   string `json:"payment_method_id"`
+	PaymentTypeID     string `json:"payment_type_id"`
+	TransactionAmount Amount `json:"transaction_amount"`
+	TransactionRefund Amount `json:"transaction_amount_refunded"`
+	Installments      int    `json:"installments"`
+	Captured          bool   `json:"captured"`
+	Description       string `json:"description"`
+	ExternalReference string `json:"external_reference"`
+	PayerEmail        string `json:"-"`
 	// PageToken abre a página do PIX (o ticket_url): aleatório, para ninguém pagar o PIX de outro pelo id sequencial
-	PageToken string `json:"-"`
+	PageToken          string              `json:"-"`
 	NotificationURL    string              `json:"notification_url,omitempty"`
 	DateCreated        time.Time           `json:"date_created"`
 	DateApproved       *time.Time          `json:"date_approved"`

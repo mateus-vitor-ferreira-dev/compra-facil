@@ -3,9 +3,9 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -76,7 +76,7 @@ func run() error {
 	}, hooks)
 
 	srv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Addr: fmt.Sprintf(":%d", cfg.Port),
 		Handler: handler.NewRouter(provider, handler.Credentials{
 			AccessToken: cfg.AccessToken, PublicKey: cfg.PublicKey, AdminToken: adminToken(cfg.AdminToken, log),
 		}, log),
