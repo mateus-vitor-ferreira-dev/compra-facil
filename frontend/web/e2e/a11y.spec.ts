@@ -105,6 +105,13 @@ for (const scheme of ["light", "dark"] as const) {
         await page.goto(path);
         await audit(page, path);
       }
+      // a TV de novo: 2 unidades, e o pagamento pergunta antes (#322)
+      await page.goto(TV);
+      await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+      await expect(page.getByRole("status").filter({ hasText: "Adicionado" })).toBeVisible();
+      await page.goto("/checkout");
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("2 unidades");
+      await audit(page, "a pergunta das 2 unidades");
     });
 
     test("painel", async ({ page }) => {
