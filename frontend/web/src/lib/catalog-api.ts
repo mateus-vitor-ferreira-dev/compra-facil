@@ -2,6 +2,7 @@ import "server-only";
 import { api } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema/catalog";
 import type { Product } from "@/lib/catalog";
+import { recall, remember } from "@/lib/catalog-reserve";
 
 export type Category = components["schemas"]["Category"];
 export type Campaign = components["schemas"]["Campaign"];
@@ -9,7 +10,14 @@ export type ProductPage = components["schemas"]["ProductPage"];
 
 /** O que deu errado ao falar com o catálogo, para a tela explicar (o 429 tem o próprio texto). */
 export type CatalogError = { status: number; retryAfter?: number };
-export type Result<T> = { ok: true; data: T } | { ok: false; error: CatalogError };
+export type Result<T> =
+  | {
+      ok: true;
+      data: T;
+      /** a cópia guardada da última resposta boa: a API não respondeu agora (catalog-reserve.ts) */
+      stale?: boolean;
+    }
+  | { ok: false; error: CatalogError };
 
 // o catálogo muda pouco e o preço de campanha muda nas viradas: 60 s de cache de dados bastam
 const PRODUCTS_TTL = 60;
@@ -29,31 +37,55 @@ export async function call<T>(run: () => Promise<{ data?: T; response: Response 
   }
 }
 
+/**
+ * Uma leitura do catálogo com a reserva: a resposta boa vira a cópia guardada, e com a API fora (5xx, ou sem
+ * resposta) a vitrine usa essa cópia. O 429 e os 4xx são respostas de verdade, e passam direto.
+ */
+export async function reserved<T>(key: string, read: Promise<Result<T>>): Promise<Result<T>> {
+  const result = await read;
+  if (result.ok) {
+    remember(key, result.data);
+    return result;
+  }
+  if (result.error.status < 500) return result;
+  const copy = await recall<T>(key);
+  return copy === undefined ? result : { ok: true, data: copy, stale: true };
+}
+
 export function getCategories(): Promise<Result<Category[]>> {
-  return call(async () => {
-    const r = await api
-      .catalog({ revalidate: CATEGORIES_TTL, tags: ["catalog:categories"] })
-      .GET("/v1/categories");
-    return { data: r.data?.data, response: r.response };
-  });
+  return reserved(
+    "categories",
+    call(async () => {
+      const r = await api
+        .catalog({ revalidate: CATEGORIES_TTL, tags: ["catalog:categories"] })
+        .GET("/v1/categories");
+      return { data: r.data?.data, response: r.response };
+    }),
+  );
 }
 
 export function getActiveCampaigns(): Promise<Result<Campaign[]>> {
-  return call(async () => {
-    const r = await api
-      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:campaigns"] })
-      .GET("/v1/campaigns");
-    return { data: r.data?.data, response: r.response };
-  });
+  return reserved(
+    "campaigns",
+    call(async () => {
+      const r = await api
+        .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:campaigns"] })
+        .GET("/v1/campaigns");
+      return { data: r.data?.data, response: r.response };
+    }),
+  );
 }
 
 export function getProduct(id: string): Promise<Result<Product>> {
-  return call(async () => {
-    const r = await api
-      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products", `catalog:product:${id}`] })
-      .GET("/v1/products/{product_id}", { params: { path: { product_id: id } } });
-    return { data: r.data, response: r.response };
-  });
+  return reserved(
+    `product:${id}`,
+    call(async () => {
+      const r = await api
+        .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products", `catalog:product:${id}`] })
+        .GET("/v1/products/{product_id}", { params: { path: { product_id: id } } });
+      return { data: r.data, response: r.response };
+    }),
+  );
 }
 
 export type BrandCount = components["schemas"]["BrandCount"];
@@ -89,33 +121,39 @@ function filterParams(query: ProductQuery) {
 }
 
 export function listProducts(query: ProductQuery): Promise<Result<ProductPage>> {
-  return call(async () => {
-    const r = await api
-      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
-      .GET("/v1/products", {
-        params: {
-          query: {
-            ...filterParams(query),
-            brand: query.brands?.length ? query.brands : undefined,
-            sort: query.sort,
-            cursor: query.cursor || undefined,
-            page: query.page,
-            limit: query.limit ?? 24,
+  return reserved(
+    `products:${JSON.stringify(query)}`,
+    call(async () => {
+      const r = await api
+        .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
+        .GET("/v1/products", {
+          params: {
+            query: {
+              ...filterParams(query),
+              brand: query.brands?.length ? query.brands : undefined,
+              sort: query.sort,
+              cursor: query.cursor || undefined,
+              page: query.page,
+              limit: query.limit ?? 24,
+            },
           },
-        },
-      });
-    return { data: r.data, response: r.response };
-  });
+        });
+      return { data: r.data, response: r.response };
+    }),
+  );
 }
 
 /** As marcas da listagem com a contagem (o filtro de marca), pelos mesmos filtros, sem o de marca. */
 export function listBrands(query: ProductQuery): Promise<Result<BrandCount[]>> {
-  return call(async () => {
-    const r = await api
-      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
-      .GET("/v1/brands", { params: { query: filterParams(query) } });
-    return { data: r.data?.data, response: r.response };
-  });
+  return reserved(
+    `brands:${JSON.stringify(query)}`,
+    call(async () => {
+      const r = await api
+        .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
+        .GET("/v1/brands", { params: { query: filterParams(query) } });
+      return { data: r.data?.data, response: r.response };
+    }),
+  );
 }
 
 /**
@@ -125,20 +163,23 @@ export function listBrands(query: ProductQuery): Promise<Result<BrandCount[]>> {
 export function listCategoryCounts(
   query: ProductQuery & { category: string },
 ): Promise<Result<CategoryCount[]>> {
-  return call(async () => {
-    const r = await api
-      .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
-      .GET("/v1/category-counts", {
-        params: {
-          query: {
-            ...filterParams({ ...query, types: undefined }),
-            category: query.category,
-            brand: query.brands?.length ? query.brands : undefined,
+  return reserved(
+    `category-counts:${JSON.stringify(query)}`,
+    call(async () => {
+      const r = await api
+        .catalog({ revalidate: PRODUCTS_TTL, tags: ["catalog:products"] })
+        .GET("/v1/category-counts", {
+          params: {
+            query: {
+              ...filterParams({ ...query, types: undefined }),
+              category: query.category,
+              brand: query.brands?.length ? query.brands : undefined,
+            },
           },
-        },
-      });
-    return { data: r.data?.data, response: r.response };
-  });
+        });
+      return { data: r.data?.data, response: r.response };
+    }),
+  );
 }
 
 /** Árvore de categorias: as raízes e as filhas de cada uma (a API devolve a lista plana). */
