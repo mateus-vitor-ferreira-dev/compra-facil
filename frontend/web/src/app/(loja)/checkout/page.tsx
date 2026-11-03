@@ -60,6 +60,7 @@ export default async function CheckoutPage() {
         provider={{ url: env.PAYMENT_PROVIDER_URL, publicKey: env.PAYMENT_PUBLIC_KEY }}
         initialDelivery={remembered ?? { ...EMPTY_DELIVERY, name: account?.name ?? "" }}
         remembered={remembered !== undefined}
+        demo={env.DEMO_MODE}
         guest={!account}
         review={
           <>
