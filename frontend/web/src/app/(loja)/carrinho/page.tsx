@@ -14,10 +14,14 @@ import { getProduct } from "@/lib/catalog-api";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ShippingEstimate } from "@/components/commerce/shipping-estimate";
-import { acceptCartPrices, removeFromCart, undoRemove, updateQuantity } from "./actions";
+import { acceptCartPrices, clearCart, removeFromCart, undoRemove, updateQuantity } from "./actions";
+import { FocusHeading } from "./focus-on-mount";
 import { RemoveButton, UndoFocus } from "./remove-focus";
 
 export const metadata: Metadata = { title: "Carrinho", robots: { index: false } };
+
+/** A partir de quantos produtos diferentes aparece o "Esvaziar o carrinho" (#321): unidades não contam. */
+const CLEAR_FROM = 3;
 
 const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
 
@@ -38,6 +42,10 @@ export default async function CartPage({ searchParams }: Props) {
     </p>
   );
   const [cart, removed] = await Promise.all([readCart(), readUndo()]);
+  const cleared = query.esvaziado === "1";
+  const canClear = cart.items.length >= CLEAR_FROM;
+  // ?esvaziar=1: a pergunta antes de esvaziar, numa página própria para funcionar sem JavaScript
+  const confirmClear = canClear && query.esvaziar === "1";
   const removedProduct =
     removed && !cart.items.some((i) => i.id === removed.id) ? await getProduct(removed.id) : undefined;
   const undo = removedProduct?.ok && (
@@ -64,6 +72,11 @@ export default async function CartPage({ searchParams }: Props) {
         <h1 className="sr-only">Carrinho</h1>
         {reorder}
         {undo}
+        {cleared && (
+          <p role="status" className="border-success bg-surface mt-4 rounded-md border-l-4 px-4 py-3">
+            Os produtos saíram do carrinho.
+          </p>
+        )}
         <StateMessage
           illustration={<EmptyCartIllustration />}
           title="Seu carrinho está vazio"
@@ -128,11 +141,49 @@ export default async function CartPage({ searchParams }: Props) {
       )}
 
       <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <ul aria-label="Produtos no carrinho" className="divide-line border-line divide-y border-y">
-          {lines.map((line) => (
-            <CartLineItem key={line.id} line={line} unreachable={unreachable} />
-          ))}
-        </ul>
+        <div>
+          {confirmClear ? (
+            <section
+              aria-labelledby="esvaziar"
+              className="border-ink bg-surface mb-4 space-y-3 rounded-md border-2 p-4"
+            >
+              <FocusHeading id="esvaziar">Tirar os {cart.items.length} produtos do carrinho?</FocusHeading>
+              <p className="text-ink-soft text-sm">
+                O carrinho fica vazio. Para comprar algum deles depois, você adiciona de novo.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <form action={clearCart}>
+                  <SubmitButton variant="danger" size="sm" pendingLabel="Esvaziando…">
+                    Esvaziar o carrinho
+                  </SubmitButton>
+                </form>
+                <Link href="/carrinho" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                  Manter os produtos
+                </Link>
+              </div>
+            </section>
+          ) : (
+            canClear && (
+              <div className="mb-2 flex justify-end">
+                <Link
+                  href="/carrinho?esvaziar=1"
+                  prefetch={false}
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "text-ink-soft hover:text-ink -mr-3",
+                  )}
+                >
+                  Esvaziar o carrinho
+                </Link>
+              </div>
+            )
+          )}
+          <ul aria-label="Produtos no carrinho" className="divide-line border-line divide-y border-y">
+            {lines.map((line) => (
+              <CartLineItem key={line.id} line={line} unreachable={unreachable} />
+            ))}
+          </ul>
+        </div>
 
         <aside aria-labelledby="resumo" className="lg:sticky lg:top-6 lg:self-start">
           <h2 id="resumo" className="text-xl font-semibold tracking-tight">
