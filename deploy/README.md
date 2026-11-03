@@ -186,7 +186,11 @@ As fotos são CC0 ou domínio público; os créditos ficam em
 ## Deploy pelo CI
 
 O [`deploy.yml`](../.github/workflows/deploy.yml) roda ao fim de cada pipeline de imagem na `main`
-(os serviços, o backup e as imagens da stack) e chama o [`coolify/deploy.sh`](coolify/deploy.sh):
+(os serviços, o backup e as imagens da stack), mas publica **uma vez por commit**: só o disparo do último
+pipeline a terminar segue, e só com todos verdes ([`coolify/vez-de-publicar.sh`](coolify/vez-de-publicar.sh)).
+Antes, cada pipeline publicava, e cada publicação recria os contêineres: o merge da release #360 derrubou a API
+três vezes. Com um pipeline vermelho, nada do commit é publicado, e o job fica vermelho. A publicação chama o
+[`coolify/deploy.sh`](coolify/deploy.sh):
 
 1. a `:main` de cada imagem ganha a tag fixa deste deploy, `deploy-<id da execução>`;
 2. o `IMAGE_TAG` e o `SIM_IMAGE_TAG` da stack no Coolify passam a ser essa tag;
