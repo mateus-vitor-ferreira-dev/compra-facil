@@ -19,6 +19,7 @@ import {
 import { MAX_INSTALLMENTS } from "@/lib/card";
 import { env } from "@/lib/env";
 import { checkGuestEmail } from "@/lib/guest";
+import { readMaintenance } from "@/lib/maintenance";
 import { placeOrder, type PlaceOrderPayment } from "@/lib/orders-api";
 
 export type CheckoutState = {
@@ -95,6 +96,16 @@ async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutSt
   const values = Object.fromEntries(
     DELIVERY_FIELDS.map((f) => [f, String(form.get(f) ?? "")]),
   ) as DeliveryInput;
+  // a loja está sendo atualizada (#370): o pedido espera, e o que foi digitado volta no formulário
+  if ((await readMaintenance()).deploying) {
+    return {
+      delivery: { errors: {}, values },
+      error: {
+        title: "Estamos atualizando a loja",
+        message: "Os pedidos voltam em cerca de 1 minuto. Nada foi cobrado: confirme de novo em instantes.",
+      },
+    };
+  }
   const deliveryErrors = checkDelivery(values);
   if (Object.keys(deliveryErrors).length > 0) {
     return {

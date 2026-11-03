@@ -87,6 +87,14 @@ jobs:
 
       # todas as imagens que os compose de deploy/coolify pedem com IMAGE_TAG ou SIM_IMAGE_TAG: uma que falte
       # aqui não ganha a tag deste deploy, e o pull dela quebra a publicação
+      # a loja avisa que está sendo atualizada enquanto a API é publicada (#370); nunca reprova o deploy
+      - name: Liga o aviso de manutenção na loja
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_KV_MAINTENANCE_ID: ${{ vars.CLOUDFLARE_KV_MAINTENANCE_ID }}
+        run: deploy/coolify/aviso-manutencao.sh on
+
       - name: Fixa a versão e publica
         env:
           IMAGES: >-
@@ -137,3 +145,12 @@ jobs:
           done
           check /catalog/v1/categories 200 || fail=1
           exit $fail
+
+      # desliga mesmo se o deploy falhar; se nem isto rodar, a marca some sozinha em 15 min
+      - name: Desliga o aviso de manutenção
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_KV_MAINTENANCE_ID: ${{ vars.CLOUDFLARE_KV_MAINTENANCE_ID }}
+        run: deploy/coolify/aviso-manutencao.sh off

@@ -29,6 +29,15 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
+  // a manutenção (#370): a marca do deploy, que o deploy.yml liga pela API do Cloudflare, e a janela agendada
+  // pelo painel. O id é o do namespace criado na conta (deploy/README.md, "Aviso de manutenção"); o de zeros só
+  // serve no wrangler dev, que simula o KV localmente, e o job de deploy da loja recusa publicar com ele
+  "kv_namespaces": [
+    {
+      "binding": "MAINTENANCE",
+      "id": "00000000000000000000000000000000",
+    },
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",

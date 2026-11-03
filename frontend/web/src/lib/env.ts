@@ -32,6 +32,8 @@ const schema = z.object({
   PAYMENT_PUBLIC_KEY: z.string().min(1).default("TEST-sim-public-key"),
   // o endereço do CEP no checkout (#221); trocado só nos testes (o stub faz o papel do ViaCEP)
   CEP_LOOKUP_URL: z.url().default("https://viacep.com.br/ws"),
+  // só nos testes de navegador: a rota que liga e desliga a marca do deploy (#370). Em produção, quem liga é o CI
+  MAINTENANCE_TEST_HOOKS: z.stringbool().default(false),
 });
 
 export const env = schema.parse({
@@ -48,4 +50,5 @@ export const env = schema.parse({
   DEMO_MODE: process.env.DEMO_MODE || undefined,
   PAYMENT_PUBLIC_KEY: process.env.PAYMENT_PUBLIC_KEY || undefined,
   CEP_LOOKUP_URL: process.env.CEP_LOOKUP_URL || undefined,
+  MAINTENANCE_TEST_HOOKS: process.env.MAINTENANCE_TEST_HOOKS || undefined,
 });

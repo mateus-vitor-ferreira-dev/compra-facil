@@ -1212,6 +1212,8 @@ createServer(async (req, res) => {
         res.setHeader("Retry-After", "42");
         return problem(res, 429, "Muitas requisições");
       }
+      // a busca "fora" faz o papel da API fora do ar, como na troca dos contêineres de um deploy (#370)
+      if (url.searchParams.get("q") === "fora") return problem(res, 503, "Serviço indisponível");
       return send(res, 200, listProducts(url));
     case "GET /catalog/v1/brands":
       return send(res, 200, listBrands(url));

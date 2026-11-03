@@ -11,6 +11,7 @@ import { summarize, unconfirmedDoubles } from "@/lib/cart-rules";
 import { EMPTY_DELIVERY, fromOrder } from "@/lib/delivery";
 import { env } from "@/lib/env";
 import { formatMoney } from "@/lib/format";
+import { readMaintenance } from "@/lib/maintenance";
 import { listMyOrders } from "@/lib/orders-api";
 import { quoteShipping } from "@/lib/shipping-api";
 import { CheckoutForm } from "./checkout-form";
@@ -74,6 +75,7 @@ export default async function CheckoutPage() {
         initialDelivery={remembered ?? { ...EMPTY_DELIVERY, name: account?.name ?? "" }}
         remembered={remembered !== undefined}
         demo={env.DEMO_MODE}
+        paused={(await readMaintenance()).deploying}
         guest={!account}
         review={
           <>
