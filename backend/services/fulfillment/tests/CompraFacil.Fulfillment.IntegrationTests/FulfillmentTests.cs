@@ -598,13 +598,82 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 
-    private async Task<HttpStatusCode> AdminPostAsync(string path, string? token = null)
+    private async Task<HttpStatusCode> AdminPostAsync(string path, string? token = null, string? json = null)
     {
         using var client = fx.Factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
         request.Headers.Authorization = new("Bearer", token ?? fx.Identity.AdminToken());
+        if (json is not null)
+        {
+            request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        }
         using var response = await client.SendAsync(request, Ct);
         return response.StatusCode;
+    }
+
+    private async Task<Dictionary<Guid, JsonElement>> SupplierReturnsListAsync()
+    {
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/supplier-returns?limit=200");
+        request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1supplier-returns/get/responses/200/content/application~1json/schema", json);
+        return JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray()
+            .ToDictionary(r => r.GetProperty("order_id").GetGuid(), r => r.Clone());
+    }
+
+    [Fact]
+    public async Task Recusa_na_abertura_espera_a_instrucao_da_loja_ao_cliente_e_ela_vale_uma_vez()
+    {
+        var (keep, send, opened) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        foreach (var id in new[] { keep, send, opened })
+        {
+            await ConfirmedAsync(id);
+            await DispatchAsync();
+            await ReturnedAsync(id);
+        }
+        fx.Supplier.RespondReturn = id => id == opened ? null! : new SupplierReturnOpening.Refused("fora da política");
+        try
+        {
+            await OpenReturnsAsync();
+        }
+        finally
+        {
+            fx.Supplier.RespondReturn = null;
+        }
+
+        var list = await SupplierReturnsListAsync();
+        Assert.True(list[keep].GetProperty("awaiting_customer_instruction").GetBoolean());
+        Assert.False(list[opened].GetProperty("awaiting_customer_instruction").GetBoolean());
+        // a recusa na abertura leva o e-mail do cliente, para o aviso de que as instruções vêm da loja
+        Assert.Contains(FulfillmentEvents.SupplierReturnResolved, await EventsOfAsync(keep));
+
+        string Path(Guid id) => $"/v1/admin/supplier-returns/{id}/customer-instruction";
+        const string Keep = """{"instruction":"keep"}""";
+        const string Send = """{"instruction":"send","return_code":"LOJA-123","return_address":"Rua da Loja, 10 - Lavras/MG"}""";
+
+        Assert.Equal(HttpStatusCode.Forbidden, await AdminPostAsync(Path(keep), fx.Identity.CustomerToken(Guid.NewGuid()), Keep));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, await AdminPostAsync(Path(send), json: """{"instruction":"send"}"""));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, await AdminPostAsync(Path(keep), json: """{"instruction":"keep","return_code":"X"}"""));
+        Assert.Equal(HttpStatusCode.NotFound, await AdminPostAsync(Path(Guid.NewGuid()), json: Keep));
+        // a aberta tem as instruções do fornecedor
+        Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync(Path(opened), json: Keep));
+
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync(Path(keep), json: Keep));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync(Path(keep), json: Keep)); // repetido: sem novo aviso
+        Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync(Path(keep), json: Send)); // outra instrução
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync(Path(send), json: Send));
+
+        Assert.Single(await EventsOfAsync(keep), e => e == FulfillmentEvents.CustomerReturnInstructed);
+        Assert.Single(await EventsOfAsync(send), e => e == FulfillmentEvents.CustomerReturnInstructed);
+        var sent = (await SupplierReturnAsync(send))!;
+        Assert.Equal((CustomerReturnInstruction.Send, "LOJA-123"), (sent.CustomerInstruction!.Value, sent.ReturnCode));
+
+        list = await SupplierReturnsListAsync();
+        Assert.False(list[keep].GetProperty("awaiting_customer_instruction").GetBoolean());
+        Assert.Equal("keep", list[keep].GetProperty("customer_instruction").GetString());
+        Assert.Equal("Rua da Loja, 10 - Lavras/MG", list[send].GetProperty("return_address").GetString());
     }
 
     [Fact]

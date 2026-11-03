@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<SupplierReturnOpener>();
         services.AddScoped<SupplierReturnUpdates>();
         services.AddScoped<PendingSupplierReturns>();
+        services.AddScoped<SupplierReturnActions>();
         services.AddScoped<CatalogSync>();
         services.AddScoped<SupplierStock>();
         services.AddScoped<Shipping.ShippingQuotes>();

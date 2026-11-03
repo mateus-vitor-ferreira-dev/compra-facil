@@ -19,6 +19,9 @@
 //      pago não vai ao fornecedor, cancelled (invoice_failed) e a autorização do cartão cancelada.
 //   8. cancelado pela equipe: cliente "+atrasar" fica preso no fornecedor, o painel cancela → avisado, cancelled
 //      e o cartão estornado.
+//   9. devolução recusada na abertura (#281): cliente "+recusar-abertura" desiste do entregue, o fornecedor recusa
+//      abrir a devolução → o cliente fica sabendo que as instruções vêm da loja, o painel mostra a devolução
+//      esperando a instrução, e a equipe diz que ele fica com o produto → e-mail.
 // No cenário 1, a nota fiscal sai antes do fornecedor, aparece no pedido, vai por e-mail e o DANFE baixa.
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
@@ -108,6 +111,7 @@ export function setup() {
     pix: createProduct(token, categoryId, 'pix'),
     supplierRejected: createProduct(token, categoryId, 'fornecedor-recusa'),
     invoiceRejected: createProduct(token, categoryId, 'nota-recusada'),
+    returnRefused: createProduct(token, categoryId, 'devolucao-recusada'),
     // o produto que o catalog importou do feed do fornecedor (o fulfillment lê o feed ao subir)
     fromSupplier: eventually(`produto ${SUPPLIER_VID} importado do fornecedor`, () => {
       const res = http.get(`${GATEWAY}/catalog/v1/admin/products?sku=${SUPPLIER_VID}`, { headers: auth(token) });
@@ -406,5 +410,28 @@ export default function (products) {
     check(paymentOf(orderId, 'refunded', 'voided'), { 'nada fica cobrado': (p) => p.status === 'voided' || p.refunded_cents === p.amount.amount_cents });
     const sim = http.get(`${SUPPLIER_SIM}/sim/orders`, { tags: { name: 'sim-orders' } }).json('data');
     check(sim.find((o) => o.orderNumber === orderId), { 'cancelado no fornecedor': (o) => o.orderStatus === 'CANCELLED' });
+  });
+  group('9. devolução recusada na abertura', () => {
+    // o fornecedor (simulado) recusa abrir a devolução: sem código nem endereço para o cliente
+    const customer = newCustomer(IDENTITY, 'e2e-devolucao', 'recusar-abertura');
+    const orderId = placeOrder(products.returnRefused, customer);
+    check(orderReaching(orderId, customer, 'delivered'), { 'entregue': (o) => o.status === 'delivered' });
+    const back = http.post(`${GATEWAY}/orders/v1/orders/${orderId}/return`, null, { headers: auth(customer.token), tags: { name: 'order-return' } });
+    check(back, { 'desistência aceita': (r) => r.status === 200 && r.json('status') === 'returned' });
+    check(eventually('aviso de que as instruções vêm da loja', () => emailsTo(customer.email, 'as instruções vêm da loja')),
+      { 'cliente avisado da recusa': (n) => n >= 1 });
+
+    const admin = login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const pending = eventually('devolução esperando a instrução no painel', () => {
+      const res = http.get(`${GATEWAY}/fulfillment/v1/admin/supplier-returns?limit=200`, { headers: auth(admin), tags: { name: 'supplier-returns' } });
+      return res.status === 200 ? (res.json('data') ?? []).find((r) => r.order_id === orderId && r.awaiting_customer_instruction) : null;
+    });
+    check(pending, { 'recusada na abertura, sem código': (r) => r.status === 'rejected' && !r.return_code && !r.dispute_id });
+
+    const instruct = http.post(`${GATEWAY}/fulfillment/v1/admin/supplier-returns/${orderId}/customer-instruction`,
+      json({ instruction: 'keep' }), { headers: auth(admin), tags: { name: 'return-instruction' } });
+    check(instruct, { 'instrução registrada': (r) => r.status === 204 });
+    check(eventually('e-mail de que fica com o produto', () => emailsTo(customer.email, 'não precisa devolver')),
+      { 'cliente sabe o que fazer': (n) => n >= 1 });
   });
 }

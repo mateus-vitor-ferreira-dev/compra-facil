@@ -127,6 +127,34 @@ public sealed class EmailFlowTests(EmailFixture fx) : IClassFixture<EmailFixture
     }
 
     [Fact]
+    public async Task ReturnRefusedAtOpening_TellsTheCustomer_ThenTheStoreInstruction_Arrives()
+    {
+        var (keeps, sends) = ($"dani-{Guid.NewGuid():N}@exemplo.com", $"edu-{Guid.NewGuid():N}@exemplo.com");
+        var (keepOrder, sendOrder) = (Guid.NewGuid(), Guid.NewGuid());
+
+        // a resposta do fornecedor depois de aberta, e o evento de antes da #281 (sem e-mail), não avisam ninguém
+        await HandleAsync<SupplierReturnResolvedData, OnSupplierReturnResolved>(new(keepOrder, "DSP1", "rejected", keeps), Guid.NewGuid());
+        await HandleAsync<SupplierReturnResolvedData, OnSupplierReturnResolved>(new(keepOrder, null, "rejected", null), Guid.NewGuid());
+        // a recusa na abertura avisa uma vez, mesmo com o evento repetido
+        var refused = Guid.NewGuid();
+        await HandleAsync<SupplierReturnResolvedData, OnSupplierReturnResolved>(new(keepOrder, null, "rejected", keeps), refused);
+        await HandleAsync<SupplierReturnResolvedData, OnSupplierReturnResolved>(new(keepOrder, null, "rejected", keeps), refused);
+        await HandleAsync<CustomerReturnInstructedData, OnCustomerReturnInstructed>(new(keepOrder, keeps, "keep", null, null), Guid.NewGuid());
+        await HandleAsync<CustomerReturnInstructedData, OnCustomerReturnInstructed>(
+            new(sendOrder, sends, "send", "LOJA-123", "Rua da Loja, 10"), Guid.NewGuid());
+        await DispatchAsync();
+
+        var subjects = (await InboxAsync(keeps)).Select(m => m.GetProperty("Subject").GetString()).Order().ToList();
+        Assert.Equal(2, subjects.Count);
+        Assert.Contains(subjects, s => s!.EndsWith("as instruções vêm da loja", StringComparison.Ordinal));
+        Assert.Contains(subjects, s => s!.EndsWith("não precisa devolver o produto", StringComparison.Ordinal));
+
+        var send = await MessageAsync(Assert.Single(await InboxAsync(sends)));
+        Assert.StartsWith("Como devolver", send.GetProperty("Subject").GetString(), StringComparison.Ordinal);
+        Assert.Contains("LOJA-123", send.GetProperty("Text").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task EmailConfirmation_ArrivesWithTheLink()
     {
         var to = $"cris-{Guid.NewGuid():N}@exemplo.com";

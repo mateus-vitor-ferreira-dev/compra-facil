@@ -12,6 +12,7 @@ public static class FulfillmentEvents
     public const string SupplierOrderFailed = nameof(SupplierOrderFailed);
     public const string SupplierReturnOpened = nameof(SupplierReturnOpened);
     public const string SupplierReturnResolved = nameof(SupplierReturnResolved);
+    public const string CustomerReturnInstructed = nameof(CustomerReturnInstructed);
 
     public const string OrdersTopic = "orders.order.v1";
     public const string OrderConfirmed = nameof(OrderConfirmed);

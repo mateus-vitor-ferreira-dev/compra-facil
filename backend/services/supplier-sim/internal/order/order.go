@@ -32,6 +32,8 @@ const (
 	MarkStall       = "[atrasar]"        // fica em UNSHIPPED para sempre
 	// a devolução é aberta e o fornecedor a recusa depois do dispute delay
 	MarkRejectReturn = "[recusar-devolucao]"
+	// o fornecedor recusa a devolução já na abertura, sem código nem endereço (#281)
+	MarkRefuseReturn = "[recusar-abertura]"
 )
 
 // Status de uma devolução (disputa).
@@ -56,6 +58,7 @@ var (
 	ErrNotFound       = errors.New("order not found")
 	ErrAlreadyShipped = errors.New("order already shipped")
 	ErrNotDelivered   = errors.New("order not delivered")
+	ErrReturnRefused  = errors.New("return refused by supplier")
 )
 
 // OutOfStockError diz qual vid faltou, para a mensagem "Out of stock: <vid>".
@@ -308,6 +311,9 @@ func (s *Simulator) OpenDispute(orderNumber string) (Dispute, error) {
 	o := s.byID[id]
 	if o.OrderStatus != StatusDelivered {
 		return Dispute{}, ErrNotDelivered
+	}
+	if strings.Contains(o.Remark, MarkRefuseReturn) {
+		return Dispute{}, ErrReturnRefused
 	}
 	s.seq++
 	now := s.now().UTC()

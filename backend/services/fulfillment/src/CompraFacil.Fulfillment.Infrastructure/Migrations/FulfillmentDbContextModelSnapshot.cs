@@ -478,10 +478,19 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("character varying(320)")
                         .HasColumnName("customer_email");
 
+                    b.Property<string>("CustomerInstruction")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("customer_instruction");
+
                     b.Property<string>("DisputeId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("dispute_id");
+
+                    b.Property<DateTimeOffset?>("InstructedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("instructed_at");
 
                     b.Property<string>("LastError")
                         .HasMaxLength(500)

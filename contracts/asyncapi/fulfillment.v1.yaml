@@ -29,7 +29,9 @@ info:
     (entrada, referenciando a chave da nota de venda), e sai `InvoiceReturnIssued`. O mesmo evento põe a
     devolução na fila do fornecedor: aberta, sai `SupplierReturnOpened` e o notifications manda ao cliente o
     código e o endereço; a resposta do fornecedor, por webhook, vira `SupplierReturnResolved`. O estorno ao
-    cliente não depende de nada disso.
+    cliente não depende de nada disso. Se o fornecedor recusa já na abertura, o cliente fica sem as instruções
+    dele: o `SupplierReturnResolved` leva o e-mail do cliente, o notifications avisa que as instruções virão da
+    loja, e a equipe registra no painel o que combinou, que sai como `CustomerReturnInstructed` (#281).
 defaultContentType: application/json
 
 servers:
@@ -56,6 +58,8 @@ channels:
         $ref: "#/components/messages/SupplierReturnOpened"
       SupplierReturnResolved:
         $ref: "#/components/messages/SupplierReturnResolved"
+      CustomerReturnInstructed:
+        $ref: "#/components/messages/CustomerReturnInstructed"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -126,6 +130,7 @@ operations:
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderFailed"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnOpened"
       - $ref: "#/channels/supplierOrderEvents/messages/SupplierReturnResolved"
+      - $ref: "#/channels/supplierOrderEvents/messages/CustomerReturnInstructed"
 
   publishSupplierProductEvents:
     action: send
@@ -482,7 +487,9 @@ components:
     SupplierReturnResolved:
       name: SupplierReturnResolved
       title: O fornecedor respondeu à devolução
-      summary: Aprovada ou recusada. A recusa fica no painel; o cliente já foi estornado.
+      summary: |
+        Aprovada ou recusada. A recusa fica no painel; o cliente já foi estornado. Recusada já na abertura (sem
+        `dispute_id`), o notifications avisa o cliente que as instruções virão da loja (#281).
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -516,6 +523,54 @@ components:
                   reason:
                     type: [string, "null"]
                   resolved_at:
+                    type: string
+                    format: date-time
+                  customer_email:
+                    type: string
+                    format: email
+                    description: Para o aviso da recusa na abertura. Ausente nos eventos de antes da #281.
+
+    CustomerReturnInstructed:
+      name: CustomerReturnInstructed
+      title: A loja disse ao cliente o que fazer com o produto
+      summary: |
+        Depois da recusa do fornecedor na abertura, a equipe registrou o que combinou com o cliente (#281). O
+        notifications manda: `keep`, que ele pode ficar com o produto; `send`, o código e o endereço da loja.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: CustomerReturnInstructed
+              event_version:
+                const: 1
+              producer:
+                const: fulfillment
+              data:
+                type: object
+                required: [order_id, customer_email, instruction, instructed_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  customer_email:
+                    type: string
+                    format: email
+                  instruction:
+                    type: string
+                    enum: [keep, send]
+                  return_code:
+                    type: [string, "null"]
+                    description: Só no `send`.
+                  return_address:
+                    type: [string, "null"]
+                    description: Só no `send`.
+                  instructed_at:
                     type: string
                     format: date-time
 

@@ -137,6 +137,47 @@ public sealed class OnSupplierReturnOpened(INotificationRepository notifications
     }
 }
 
+/// <summary>
+/// O fornecedor recusou a devolução já na abertura: o e-mail da devolução prometeu as instruções, e elas não vêm
+/// dele. O cliente fica sabendo que virão da loja e guarda o produto até lá (#281). As outras respostas do
+/// fornecedor são assunto da loja com ele: o cliente já tem as instruções e o estorno.
+/// </summary>
+public sealed class OnSupplierReturnResolved(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<SupplierReturnResolvedData>
+{
+    public async Task HandleAsync(SupplierReturnResolvedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (!data.RefusedAtOpening || string.IsNullOrWhiteSpace(data.CustomerEmail) || await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ReturnPendingAsync(data.OrderId);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.SupplierReturnResolved,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
+/// <summary>O que a loja combinou depois da recusa na abertura (#281): ficar com o produto, ou o código e o endereço da loja.</summary>
+public sealed class OnCustomerReturnInstructed(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<CustomerReturnInstructedData>
+{
+    public async Task HandleAsync(CustomerReturnInstructedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = data.Instruction == "send"
+            ? await EmailComposer.ReturnInstructionsAsync(
+                new SupplierReturnOpenedData(data.OrderId, data.CustomerEmail, data.ReturnCode ?? "", data.ReturnAddress ?? ""))
+            : await EmailComposer.ReturnKeepAsync(data.OrderId);
+        notifications.Add(Notification.Create(context.EventId, data.OrderId, NotificationEvents.CustomerReturnInstructed,
+            data.CustomerEmail, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}
+
 /// <summary>Registra o e-mail da nota fiscal autorizada, com o link do pedido (onde o cliente baixa o DANFE).</summary>
 public sealed class OnInvoiceIssued(
     INotificationRepository notifications, Microsoft.Extensions.Options.IOptions<StoreOptions> store, TimeProvider clock)
