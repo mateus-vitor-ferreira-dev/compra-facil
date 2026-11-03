@@ -31,6 +31,9 @@ public enum CancellationReason
 
     /// <summary>Depois de pago, a SEFAZ rejeitou a nota fiscal (#221): o pedido nem vai ao fornecedor, e o cliente é estornado.</summary>
     InvoiceFailed,
+
+    /// <summary>Depois de pago, a equipe cancelou o pedido pelo painel antes do envio (#283): o cliente é estornado.</summary>
+    StoreCancelled,
 }
 
 /// <summary>Como o cliente paga (#220).</summary>
@@ -129,8 +132,12 @@ public sealed class Order
     public bool AwaitingRefund =>
         ((Status == OrderStatus.Cancelled && CancelledAfterPayment) || Status == OrderStatus.Returned) && RefundedAt is null;
 
-    /// <summary>Cancelado depois de pago (o fornecedor ou a nota): o cliente é estornado.</summary>
-    public bool CancelledAfterPayment => CancellationReason is Domain.CancellationReason.SupplierFailed or Domain.CancellationReason.InvoiceFailed;
+    /// <summary>Cancelado depois de pago (o fornecedor, a nota ou a equipe): o cliente é estornado.</summary>
+    public bool CancelledAfterPayment => IsAfterPayment(CancellationReason);
+
+    private static bool IsAfterPayment(CancellationReason? reason) =>
+        reason is Domain.CancellationReason.SupplierFailed or Domain.CancellationReason.InvoiceFailed
+            or Domain.CancellationReason.StoreCancelled;
     public IReadOnlyList<OrderItem> Items => _items;
     public Money Total { get; private set; }
 
@@ -299,17 +306,21 @@ public sealed class Order
     /// e o OrderCancelled faz o payments estornar. Depois de enviado não se aplica (vira devolução).
     /// </summary>
     /// <summary>
-    /// O pedido pago não foi atendido: pelo fornecedor, ou porque a SEFAZ rejeitou a nota (aí ele nem foi ao
-    /// fornecedor). O OrderCancelled faz o payments estornar.
+    /// O pedido pago não foi atendido: pelo fornecedor, porque a SEFAZ rejeitou a nota (aí ele nem foi ao
+    /// fornecedor) ou porque a equipe o cancelou pelo painel. O OrderCancelled faz o payments estornar.
     /// </summary>
-    public bool FailAtSupplier(DateTimeOffset now, bool invoiceRejected = false)
+    public bool FailAtSupplier(DateTimeOffset now, CancellationReason reason = Domain.CancellationReason.SupplierFailed)
     {
+        if (!IsAfterPayment(reason))
+        {
+            throw new DomainException("o pedido pago só é cancelado pelo fornecedor, pela nota ou pela equipe");
+        }
         if (Status != OrderStatus.Confirmed)
         {
             return false;
         }
         Status = OrderStatus.Cancelled;
-        CancellationReason = invoiceRejected ? Domain.CancellationReason.InvoiceFailed : Domain.CancellationReason.SupplierFailed;
+        CancellationReason = reason;
         UpdatedAt = now;
         return true;
     }
@@ -392,7 +403,7 @@ public sealed class Order
     public void Cancel(CancellationReason reason, DateTimeOffset now, Guid? paymentId = null, string? paymentFailureReason = null)
     {
         EnsurePending("cancelar");
-        if (reason is Domain.CancellationReason.SupplierFailed or Domain.CancellationReason.InvoiceFailed)
+        if (IsAfterPayment(reason))
         {
             throw new DomainException("o pedido pendente ainda não foi pago nem ao fornecedor");
         }

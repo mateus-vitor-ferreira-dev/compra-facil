@@ -191,7 +191,7 @@ public sealed class OnSupplierOrderDelivered(OrderProgress progress) : IHandleEv
 }
 
 /// <summary>
-/// SupplierOrderFailed → cancelado já pago → OrderCancelled (supplier_failed), que faz o payments
+/// SupplierOrderFailed → cancelado já pago → OrderCancelled (supplier_failed, invoice_failed ou store_cancelled), que faz o payments
 /// estornar e o notifications avisar. A reserva já virou baixa: o inventory não tem o que liberar.
 /// </summary>
 public sealed class OnSupplierOrderFailed(OrderProgress progress) : IHandleEvent<SupplierOrderFailedData>
@@ -199,7 +199,7 @@ public sealed class OnSupplierOrderFailed(OrderProgress progress) : IHandleEvent
     public Task HandleAsync(SupplierOrderFailedData data, EventContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(data);
-        return progress.ApplyAsync(data.OrderId, "SupplierOrderFailed", (order, now) => order.FailAtSupplier(now, data.InvoiceRejected),
+        return progress.ApplyAsync(data.OrderId, "SupplierOrderFailed", (order, now) => order.FailAtSupplier(now, data.CancellationReason),
             order => (OrderEvents.OrderCancelled, OrderCancelledData.From(order)), ct);
     }
 }

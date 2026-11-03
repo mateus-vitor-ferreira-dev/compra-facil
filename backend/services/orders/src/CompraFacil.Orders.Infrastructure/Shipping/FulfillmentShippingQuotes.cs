@@ -24,12 +24,12 @@ internal sealed class FulfillmentShippingQuotes(HttpClient http) : IShippingQuot
     // a API da loja é snake_case (contracts/openapi/fulfillment.v1.yaml)
     private static readonly JsonSerializerOptions s_json = new(JsonSerializerDefaults.Web) { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
-    public async Task<IReadOnlyList<ShippingQuote>> QuoteAsync(string zipCode, IReadOnlyList<(string Sku, int Quantity)> items, CancellationToken ct)
+    public async Task<IReadOnlyList<ShippingQuote>> QuoteAsync(string zipCode, IReadOnlyList<(string Sku, int Quantity, Guid ProductId)> items, CancellationToken ct)
     {
         try
         {
             using var response = await http.PostAsJsonAsync("v1/shipping/quote",
-                new QuoteRequest(zipCode, [.. items.Select(i => new QuoteItem(i.Sku, i.Quantity))]), s_json, ct);
+                new QuoteRequest(zipCode, [.. items.Select(i => new QuoteItem(i.Sku, i.Quantity, i.ProductId))]), s_json, ct);
             if (!response.IsSuccessStatusCode)
             {
                 throw new DependencyUnavailableException($"o fulfillment não cotou o frete ({(int)response.StatusCode})", s_retryAfter);
@@ -43,7 +43,7 @@ internal sealed class FulfillmentShippingQuotes(HttpClient http) : IShippingQuot
         }
     }
 
-    private sealed record QuoteItem(string Sku, int Quantity);
+    private sealed record QuoteItem(string Sku, int Quantity, Guid ProductId);
 
     private sealed record QuoteRequest(string ZipCode, IReadOnlyList<QuoteItem> Items);
 
@@ -55,6 +55,6 @@ internal sealed class FulfillmentShippingQuotes(HttpClient http) : IShippingQuot
 /// <summary>Sem o fulfillment configurado: o pedido não sai (a loja não promete frete nem prazo sem cotar).</summary>
 internal sealed class NoShippingQuotes : IShippingQuotes
 {
-    public Task<IReadOnlyList<ShippingQuote>> QuoteAsync(string zipCode, IReadOnlyList<(string Sku, int Quantity)> items, CancellationToken ct) =>
+    public Task<IReadOnlyList<ShippingQuote>> QuoteAsync(string zipCode, IReadOnlyList<(string Sku, int Quantity, Guid ProductId)> items, CancellationToken ct) =>
         throw new DependencyUnavailableException("a cotação de frete não está configurada (Fulfillment:BaseUrl)", TimeSpan.FromSeconds(30));
 }

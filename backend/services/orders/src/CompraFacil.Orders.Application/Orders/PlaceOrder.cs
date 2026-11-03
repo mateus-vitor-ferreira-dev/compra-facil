@@ -114,7 +114,7 @@ public sealed class PlaceOrder(
 
         // o frete recotado aqui, com os SKUs e as quantidades que o catálogo confirmou
         var now = clock.GetUtcNow();
-        var quotes = await shipping.QuoteAsync(command.ShippingAddress!.ZipCode, [.. priced.Select(p => (p.Sku, p.Quantity))], ct);
+        var quotes = await shipping.QuoteAsync(command.ShippingAddress!.ZipCode, [.. priced.Select(p => (p.Sku, p.Quantity, p.ProductId))], ct);
         var quote = quotes.FirstOrDefault(q => string.Equals(q.Service, command.ShippingService, StringComparison.Ordinal))
             ?? throw new ValidationException([new ValidationFailure("shipping.service",
                 $"o frete {command.ShippingService} não atende o CEP {command.ShippingAddress.ZipCode}; escolha outro")]);

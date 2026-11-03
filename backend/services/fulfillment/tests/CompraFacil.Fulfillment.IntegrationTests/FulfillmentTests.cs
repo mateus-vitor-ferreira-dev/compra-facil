@@ -280,7 +280,7 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         return (response.StatusCode, await response.Content.ReadAsStringAsync(Ct));
     }
 
-    private static object Update(Guid orderId, string status, string? track = null, string? messageId = null) => new
+    private static object Update(Guid orderId, string status, string? track = null, string? messageId = null, string? reason = null) => new
     {
         messageId = messageId ?? Guid.NewGuid().ToString(),
         type = "ORDER",
@@ -293,7 +293,7 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
             trackNumber = track,
             trackingProvider = track is null ? null : "Correios",
             trackingUrl = track is null ? null : $"https://t.17track.net/en#nums={track}",
-            reason = (string?)null,
+            reason,
         },
     };
 
@@ -406,6 +406,22 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(SupplierOrderStatus.Failed, order.Status);
         Assert.Equal(SupplierFailureReasons.SupplierCancelled, order.FailureReason);
         Assert.Equal([FulfillmentEvents.SupplierOrderPlaced, FulfillmentEvents.SupplierOrderFailed], await EventsOfAsync(id));
+    }
+
+    [Fact]
+    public async Task Cancelamento_pedido_pela_loja_que_volta_pelo_webhook_antes_do_painel_fica_como_da_loja()
+    {
+        // o painel pede o cancelamento ao fornecedor, e o webhook dele chega antes de o painel gravar (#283)
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+
+        await WebhookAsync(Update(id, "CANCELLED", reason: SupplierFailureReasons.StoreCancelled));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync($"/v1/admin/supplier-orders/{id}/cancel")); // o painel grava depois
+
+        var order = await OrderAsync(id);
+        Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.StoreCancelled), (order.Status, order.FailureReason));
+        Assert.Single(await EventsOfAsync(id), e => e == FulfillmentEvents.SupplierOrderFailed);
     }
 
     [Fact]
@@ -598,13 +614,82 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 
-    private async Task<HttpStatusCode> AdminPostAsync(string path, string? token = null)
+    private async Task<HttpStatusCode> AdminPostAsync(string path, string? token = null, string? json = null)
     {
         using var client = fx.Factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Post, path);
         request.Headers.Authorization = new("Bearer", token ?? fx.Identity.AdminToken());
+        if (json is not null)
+        {
+            request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        }
         using var response = await client.SendAsync(request, Ct);
         return response.StatusCode;
+    }
+
+    private async Task<Dictionary<Guid, JsonElement>> SupplierReturnsListAsync()
+    {
+        using var client = fx.Factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/supplier-returns?limit=200");
+        request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+        using var response = await client.SendAsync(request, Ct);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1supplier-returns/get/responses/200/content/application~1json/schema", json);
+        return JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray()
+            .ToDictionary(r => r.GetProperty("order_id").GetGuid(), r => r.Clone());
+    }
+
+    [Fact]
+    public async Task Recusa_na_abertura_espera_a_instrucao_da_loja_ao_cliente_e_ela_vale_uma_vez()
+    {
+        var (keep, send, opened) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        foreach (var id in new[] { keep, send, opened })
+        {
+            await ConfirmedAsync(id);
+            await DispatchAsync();
+            await ReturnedAsync(id);
+        }
+        fx.Supplier.RespondReturn = id => id == opened ? null! : new SupplierReturnOpening.Refused("fora da política");
+        try
+        {
+            await OpenReturnsAsync();
+        }
+        finally
+        {
+            fx.Supplier.RespondReturn = null;
+        }
+
+        var list = await SupplierReturnsListAsync();
+        Assert.True(list[keep].GetProperty("awaiting_customer_instruction").GetBoolean());
+        Assert.False(list[opened].GetProperty("awaiting_customer_instruction").GetBoolean());
+        // a recusa na abertura leva o e-mail do cliente, para o aviso de que as instruções vêm da loja
+        Assert.Contains(FulfillmentEvents.SupplierReturnResolved, await EventsOfAsync(keep));
+
+        string Path(Guid id) => $"/v1/admin/supplier-returns/{id}/customer-instruction";
+        const string Keep = """{"instruction":"keep"}""";
+        const string Send = """{"instruction":"send","return_code":"LOJA-123","return_address":"Rua da Loja, 10 - Lavras/MG"}""";
+
+        Assert.Equal(HttpStatusCode.Forbidden, await AdminPostAsync(Path(keep), fx.Identity.CustomerToken(Guid.NewGuid()), Keep));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, await AdminPostAsync(Path(send), json: """{"instruction":"send"}"""));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, await AdminPostAsync(Path(keep), json: """{"instruction":"keep","return_code":"X"}"""));
+        Assert.Equal(HttpStatusCode.NotFound, await AdminPostAsync(Path(Guid.NewGuid()), json: Keep));
+        // a aberta tem as instruções do fornecedor
+        Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync(Path(opened), json: Keep));
+
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync(Path(keep), json: Keep));
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync(Path(keep), json: Keep)); // repetido: sem novo aviso
+        Assert.Equal(HttpStatusCode.Conflict, await AdminPostAsync(Path(keep), json: Send)); // outra instrução
+        Assert.Equal(HttpStatusCode.NoContent, await AdminPostAsync(Path(send), json: Send));
+
+        Assert.Single(await EventsOfAsync(keep), e => e == FulfillmentEvents.CustomerReturnInstructed);
+        Assert.Single(await EventsOfAsync(send), e => e == FulfillmentEvents.CustomerReturnInstructed);
+        var sent = (await SupplierReturnAsync(send))!;
+        Assert.Equal((CustomerReturnInstruction.Send, "LOJA-123"), (sent.CustomerInstruction!.Value, sent.ReturnCode));
+
+        list = await SupplierReturnsListAsync();
+        Assert.False(list[keep].GetProperty("awaiting_customer_instruction").GetBoolean());
+        Assert.Equal("keep", list[keep].GetProperty("customer_instruction").GetString());
+        Assert.Equal("Rua da Loja, 10 - Lavras/MG", list[send].GetProperty("return_address").GetString());
     }
 
     [Fact]
@@ -731,6 +816,50 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     }
 
     [Fact]
+    public async Task Margem_do_periodo_filtra_pela_criacao_e_soma_o_periodo_inteiro()
+    {
+        var (unknownCost, returned) = (Guid.NewGuid(), Guid.NewGuid());
+        await PaymentApprovedAsync(unknownCost, 300);
+        await ConfirmedAsync(unknownCost);
+        await PaymentApprovedAsync(returned, 200);
+        await ConfirmedAsync(returned);
+        await DispatchAsync();
+        await ReturnedAsync(returned);
+
+        async Task<(HttpStatusCode Status, JsonElement Body)> GetAsync(string query)
+        {
+            using var client = fx.Factory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/v1/admin/order-margins?" + query);
+            request.Headers.Authorization = new("Bearer", fx.Identity.AdminToken());
+            using var response = await client.SendAsync(request, Ct);
+            var json = await response.Content.ReadAsStringAsync(Ct);
+            if (response.IsSuccessStatusCode)
+            {
+                ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1order-margins/get/responses/200/content/application~1json/schema", json);
+            }
+            return (response.StatusCode, JsonDocument.Parse(json).RootElement.Clone());
+        }
+        string At(TimeSpan offset) => Uri.EscapeDataString((DateTimeOffset.UtcNow + offset).ToString("O"));
+
+        // o período de agora tem os dois; a soma vem do período inteiro, mesmo com a lista limitada a 1
+        var (status, now) = await GetAsync($"from={At(TimeSpan.FromMinutes(-5))}&to={At(TimeSpan.FromMinutes(5))}&limit=1");
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Single(now.GetProperty("data").EnumerateArray());
+        var totals = now.GetProperty("totals");
+        Assert.True(totals.GetProperty("orders").GetInt32() >= 2);
+        Assert.True(totals.GetProperty("refunded").GetInt32() >= 1); // o devolvido
+        Assert.True(totals.GetProperty("incomplete").GetInt32() >= 1); // o sem custo
+
+        // um período que ainda não chegou não tem nada
+        var (_, later) = await GetAsync($"from={At(TimeSpan.FromHours(1))}");
+        Assert.Empty(later.GetProperty("data").EnumerateArray());
+        Assert.Equal(0, later.GetProperty("totals").GetProperty("orders").GetInt32());
+
+        var (invalid, _) = await GetAsync($"from={At(TimeSpan.FromHours(1))}&to={At(TimeSpan.Zero)}");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, invalid);
+    }
+
+    [Fact]
     public async Task Margem_e_o_pago_menos_custo_no_cambio_da_compra_frete_e_taxa()
     {
         var id = Guid.NewGuid();
@@ -743,12 +872,21 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         await PaymentApprovedAsync(id, 995);
         await ConfirmedAsync(id, sku: "MARGEM-1");
 
+        // antes de ir ao fornecedor, o custo do frete para a loja ainda não é conhecido (#323)
+        var pending = (await MarginsAsync())[id];
+        Assert.Equal(JsonValueKind.Null, pending.GetProperty("freight_cents").ValueKind);
+        Assert.Equal(JsonValueKind.Null, pending.GetProperty("margin_cents").ValueKind);
+
+        // aceito, o custo é cotado no serviço escolhido (econômico, US$ 4,50); o cliente pagou R$ 24,30
+        await DispatchAsync();
         var row = (await MarginsAsync())[id];
         var rate = fx.Factory.Services.GetRequiredService<CompraFacil.Fulfillment.Application.Shipping.ShippingSettings>().UsdToBrl;
         var cost = (long)Math.Ceiling(520 * rate) * 2;
+        var freight = (long)Math.Ceiling(450 * rate);
         Assert.Equal(cost, row.GetProperty("product_cost_cents").GetInt64());
-        Assert.Equal(2430, row.GetProperty("freight_cents").GetInt64());
-        Assert.Equal(19980 - cost - 2430 - 995, row.GetProperty("margin_cents").GetInt64());
+        Assert.Equal(freight, row.GetProperty("freight_cents").GetInt64());
+        Assert.Equal(2430, row.GetProperty("freight_charged_cents").GetInt64());
+        Assert.Equal(19980 - cost - freight - 995, row.GetProperty("margin_cents").GetInt64());
     }
 
     [Fact]

@@ -318,6 +318,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("freight_cents");
 
+                    b.Property<long?>("FreightCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("freight_cost_cents");
+
                     b.Property<string>("LastError")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -346,6 +350,11 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ShippedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("shipped_at");
+
+                    b.Property<string>("ShippingService")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("shipping_service");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -478,10 +487,19 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("character varying(320)")
                         .HasColumnName("customer_email");
 
+                    b.Property<string>("CustomerInstruction")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("customer_instruction");
+
                     b.Property<string>("DisputeId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")
                         .HasColumnName("dispute_id");
+
+                    b.Property<DateTimeOffset?>("InstructedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("instructed_at");
 
                     b.Property<string>("LastError")
                         .HasMaxLength(500)

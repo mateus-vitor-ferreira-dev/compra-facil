@@ -210,6 +210,11 @@ no repositório (**Settings → Secrets and variables → Actions**), porque o `
 Enquanto `COOLIFY_APP_UUID` não existir, o workflow não roda. Para publicar sem merge (depois de mudar
 uma variável no painel, por exemplo): **Actions → deploy → Run workflow**.
 
+Depois do deploy, o passo **Responde de fora** pede a API pelo domínio. Ele confere só os serviços do compose que o
+recurso usa (o **Docker Compose Location** dele, lido por [`coolify/servicos.sh`](coolify/servicos.sh)): o fulfillment
+entra na checagem da demonstração, e não na da produção. Trocar de compose não pede mudança no workflow, mas a lista
+`IMAGES` do `deploy.yml` precisa cobrir as imagens dos dois.
+
 A API vai antes da loja: quando um commit dispara um pipeline de imagem, o job da loja espera o pipeline e o deploy
 da API terminarem ([`esperar-api.sh`](esperar-api.sh)). Se um deles falhar, a loja não é publicada e continua na
 versão anterior: corrija ou reexecute o que falhou e depois reexecute o `web`. Um commit só de front publica direto.

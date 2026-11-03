@@ -13,6 +13,8 @@ public static class NotificationEvents
 
     public const string SupplierOrdersTopic = "fulfillment.supplier-order.v1";
     public const string SupplierReturnOpened = nameof(SupplierReturnOpened);
+    public const string SupplierReturnResolved = nameof(SupplierReturnResolved);
+    public const string CustomerReturnInstructed = nameof(CustomerReturnInstructed);
 
     public const string InvoicesTopic = "fulfillment.invoice.v1";
     public const string InvoiceIssued = nameof(InvoiceIssued);
@@ -31,7 +33,7 @@ public sealed record OrderConfirmedData(Guid OrderId, string CustomerEmail, IRea
 /// <summary>data do OrderCancelled (só os campos usados no e-mail).</summary>
 /// <param name="OrderId">Pedido cancelado.</param>
 /// <param name="CustomerEmail">Destino do e-mail.</param>
-/// <param name="Reason">out_of_stock | payment_failed | supplier_failed | invoice_failed.</param>
+/// <param name="Reason">out_of_stock | payment_failed | supplier_failed | invoice_failed | store_cancelled.</param>
 /// <param name="PaymentFailureReason">card_declined, insufficient_funds, ... (só em payment_failed).</param>
 public sealed record OrderCancelledData(Guid OrderId, string CustomerEmail, string Reason, string? PaymentFailureReason);
 
@@ -54,7 +56,7 @@ public sealed class StoreOptions
 /// <summary>data do OrderReturned (só os campos usados no e-mail): a devolução no prazo de arrependimento.</summary>
 public sealed record OrderReturnedData(Guid OrderId, string CustomerEmail, Money Total);
 
-/// <summary>data do OrderRefunded: o estorno feito; reason: returned | supplier_failed | invoice_failed.</summary>
+/// <summary>data do OrderRefunded: o estorno feito; reason: returned | supplier_failed | invoice_failed | store_cancelled.</summary>
 public sealed record OrderRefundedData(Guid OrderId, string CustomerEmail, Money Amount, string Reason);
 
 /// <summary>O rastreio do envio, como o fornecedor mandou (contracts/openapi/orders.v1.yaml: Tracking).</summary>
@@ -68,3 +70,16 @@ public sealed record OrderDeliveredData(Guid OrderId, string CustomerEmail);
 
 /// <summary>data do SupplierReturnOpened (só os campos usados no e-mail): para onde mandar o produto de volta (#223).</summary>
 public sealed record SupplierReturnOpenedData(Guid OrderId, string CustomerEmail, string ReturnCode, string ReturnAddress);
+
+/// <summary>
+/// data do SupplierReturnResolved (só os campos usados): sem disputa e recusada, o fornecedor recusou já na
+/// abertura, e o cliente fica sabendo que as instruções virão da loja (#281). O e-mail falta nos eventos de antes.
+/// </summary>
+public sealed record SupplierReturnResolvedData(Guid OrderId, string? DisputeId, string Outcome, string? CustomerEmail)
+{
+    public bool RefusedAtOpening => DisputeId is null && Outcome == "rejected";
+}
+
+/// <summary>data do CustomerReturnInstructed: o que a loja combinou depois da recusa na abertura; keep | send (#281).</summary>
+public sealed record CustomerReturnInstructedData(
+    Guid OrderId, string CustomerEmail, string Instruction, string? ReturnCode, string? ReturnAddress);

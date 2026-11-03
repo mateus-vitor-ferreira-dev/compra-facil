@@ -46,6 +46,18 @@ public static class DependencyInjection
         // o frete e o prazo por CEP (#222)
         builder.Services.AddSingleton(builder.Configuration.GetSection(Application.Shipping.ShippingSettings.Section)
             .Get<Application.Shipping.ShippingSettings>() ?? new Application.Shipping.ShippingSettings());
+        // os preços da loja para o frete grátis (#323); sem o catalog configurado, não há frete grátis
+        var catalog = builder.Configuration.GetSection(Catalog.CatalogPricesOptions.Section).Get<Catalog.CatalogPricesOptions>() ?? new();
+        if (catalog.GrpcAddress is { } catalogAddress)
+        {
+            builder.Services.AddSingleton(catalog);
+            builder.Services.AddGrpcClient<CompraFacil.Contracts.Catalog.V1.CatalogService.CatalogServiceClient>(o => o.Address = catalogAddress);
+            builder.Services.AddScoped<Application.Shipping.IStorePrices, Catalog.CatalogStorePrices>();
+        }
+        else
+        {
+            builder.Services.AddSingleton<Application.Shipping.IStorePrices, Catalog.NoStorePrices>();
+        }
 
         // a nota fiscal (#221): emitida pelo despachante antes do fornecedor, cancelada no estorno
         var invoice = builder.Configuration.GetSection("Invoice");

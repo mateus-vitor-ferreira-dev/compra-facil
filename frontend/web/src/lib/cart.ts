@@ -65,11 +65,43 @@ export async function writeUndo(item: CartItem | undefined): Promise<void> {
   });
 }
 
+/**
+ * Os produtos com 2 unidades que o cliente confirmou antes do pagamento (#322): a pergunta não volta na mesma
+ * compra. Vale até o carrinho esvaziar (o pedido feito, ou o esvaziar), e só no navegador (sem maxAge).
+ */
+export const DOUBLES_COOKIE = "cf_cart_dobro";
+const doublesSchema = z.array(z.uuid()).max(MAX_ITEMS);
+
+export async function readConfirmedDoubles(): Promise<string[]> {
+  const raw = (await cookies()).get(DOUBLES_COOKIE)?.value;
+  if (!raw) return [];
+  try {
+    const parsed = doublesSchema.safeParse(JSON.parse(Buffer.from(raw, "base64url").toString("utf8")));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function writeConfirmedDoubles(ids: string[]): Promise<void> {
+  (await cookies()).set(
+    DOUBLES_COOKIE,
+    Buffer.from(JSON.stringify(ids.slice(0, MAX_ITEMS))).toString("base64url"),
+    {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    },
+  );
+}
+
 /** Só em server action ou route handler (onde o Next deixa gravar cookie). */
 export async function writeCart(cart: Cart): Promise<void> {
   const store = await cookies();
   if (cart.items.length === 0) {
     store.delete(CART_COOKIE);
+    store.delete(DOUBLES_COOKIE);
     return;
   }
   store.set(CART_COOKIE, Buffer.from(JSON.stringify(cart)).toString("base64url"), {

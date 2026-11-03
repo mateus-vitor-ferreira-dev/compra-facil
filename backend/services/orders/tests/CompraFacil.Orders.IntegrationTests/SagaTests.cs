@@ -302,19 +302,25 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         Assert.NotEqual(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("refunded_at").ValueKind);
     }
 
-    [Fact]
-    public async Task SupplierFailure_CancelsThePaidOrder_AndWaitsForTheRefund()
+    // o motivo do fulfillment vira o do pedido: a equipe que cancelou pelo painel não é falha do fornecedor (#283)
+    [Theory]
+    [InlineData("out_of_stock", "supplier_failed")]
+    [InlineData("store_cancelled", "store_cancelled")]
+    public async Task SupplierFailure_CancelsThePaidOrder_AndWaitsForTheRefund(string fulfillmentReason, string reason)
     {
         var order = await PaidOrderAsync();
 
-        await HandleAsync<SupplierOrderFailedData, OnSupplierOrderFailed>(new SupplierOrderFailedData(order, "out_of_stock"));
+        await HandleAsync<SupplierOrderFailedData, OnSupplierOrderFailed>(new SupplierOrderFailedData(order, fulfillmentReason));
 
         var cancelled = await GetOrderAsync(order);
-        Assert.Equal(("cancelled", "supplier_failed"), (cancelled.GetProperty("status").GetString(), cancelled.GetProperty("cancellation_reason").GetString()));
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", cancelled.GetRawText());
+        Assert.Equal(("cancelled", reason), (cancelled.GetProperty("status").GetString(), cancelled.GetProperty("cancellation_reason").GetString()));
         Assert.Equal(JsonValueKind.Null, cancelled.GetProperty("refunded_at").ValueKind);
         Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled], await EventTypesAsync(order));
-        var e = EventEnvelope.TryParse((await OutcomeEventsAsync(order)).Single(m => m.EventType == OrderEvents.OrderCancelled).Payload)!;
-        Assert.Equal("supplier_failed", e.Data.GetProperty("reason").GetString());
+        var cancelledEvent = (await OutcomeEventsAsync(order)).Single(m => m.EventType == OrderEvents.OrderCancelled).Payload;
+        ContractAssert.AssertEvent("orders.v1.yaml", "OrderCancelled", cancelledEvent);
+        var e = EventEnvelope.TryParse(cancelledEvent)!;
+        Assert.Equal(reason, e.Data.GetProperty("reason").GetString());
 
         await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), true));
         await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), true)); // repetido
@@ -324,8 +330,10 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", refunded.GetRawText());
         // o estorno avisa o cliente uma vez só, com o motivo do cancelamento
         Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled, OrderEvents.OrderRefunded], await EventTypesAsync(order));
-        var r = EventEnvelope.TryParse((await OutcomeEventsAsync(order)).Single(m => m.EventType == OrderEvents.OrderRefunded).Payload)!;
-        Assert.Equal("supplier_failed", r.Data.GetProperty("reason").GetString());
+        var refundedEvent = (await OutcomeEventsAsync(order)).Single(m => m.EventType == OrderEvents.OrderRefunded).Payload;
+        ContractAssert.AssertEvent("orders.v1.yaml", "OrderRefunded", refundedEvent);
+        var r = EventEnvelope.TryParse(refundedEvent)!;
+        Assert.Equal(reason, r.Data.GetProperty("reason").GetString());
     }
 
     [Fact]

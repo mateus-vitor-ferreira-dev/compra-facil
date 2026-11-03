@@ -76,6 +76,14 @@ export function lineIssue(line: Line): LineIssue | undefined {
   return undefined;
 }
 
+/**
+ * As linhas com exatamente 2 unidades que o cliente ainda não confirmou (#322): duas unidades do mesmo produto
+ * costumam ser um clique repetido. Com 3 ou mais, a quantidade foi escolhida de propósito, e não pergunta.
+ */
+export function unconfirmedDoubles<T extends Line>(lines: T[], confirmed: readonly string[]): T[] {
+  return lines.filter((l) => l.unit && l.qty === 2 && !confirmed.includes(l.id));
+}
+
 /** Totais do que dá para comprar agora (sem os itens que saíram do catálogo ou esgotaram). */
 export function summarize(lines: Line[]) {
   let list = 0;

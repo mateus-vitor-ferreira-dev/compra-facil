@@ -18,6 +18,7 @@ public sealed class EmailTests
     [InlineData("out_of_stock", null, "sem estoque")]
     [InlineData("supplier_failed", null, "fornecedor")]
     [InlineData("invoice_failed", null, "nota fiscal")]
+    [InlineData("store_cancelled", null, "cancelamos o pedido antes do envio")]
     [InlineData("payment_failed", "insufficient_funds", "limite insuficiente")]
     [InlineData("payment_failed", "card_declined", "cartão foi recusado")]
     [InlineData("payment_failed", "pix_expired", "PIX não foi pago")]
@@ -67,6 +68,7 @@ public sealed class EmailTests
     [InlineData("returned", "devolução que você pediu")]
     [InlineData("supplier_failed", "fornecedor")]
     [InlineData("invoice_failed", "nota fiscal")]
+    [InlineData("store_cancelled", "cancelamos o pedido antes do envio")]
     public async Task Refunded_SaysWhy(string reason, string expected)
     {
         var email = await EmailComposer.RefundedAsync(new OrderRefundedData(Guid.NewGuid(), "ana@exemplo.com", new Money(4990, "BRL"), reason));
@@ -129,6 +131,26 @@ public sealed class EmailTests
         Assert.Contains("não depende deste envio", email.TextBody, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ReturnPending_SaysTheStoreWillSendTheInstructions_AndToKeepTheProduct()
+    {
+        var email = await EmailComposer.ReturnPendingAsync(Guid.Parse("01a16430-0000-7000-8000-00000000abcd"));
+
+        Assert.Equal("Devolução do pedido 0000ABCD: as instruções vêm da loja", email.Subject);
+        Assert.Contains("a loja vai mandar por e-mail o que fazer com o produto", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("guarde o produto", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("O estorno já foi pedido", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ReturnKeep_SaysTheCustomerKeepsTheProduct()
+    {
+        var email = await EmailComposer.ReturnKeepAsync(Guid.Parse("01a16430-0000-7000-8000-00000000abcd"));
+
+        Assert.Equal("Pedido 0000ABCD: não precisa devolver o produto", email.Subject);
+        Assert.Contains("Você pode ficar com o produto", email.TextBody, StringComparison.Ordinal);
+    }
+
     private static readonly DateTimeOffset s_now = new(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
 
     private static EmailConfirmationRequestedData Confirmation(string url, string name = "Ana <b>Souza</b>", double hours = 24) =>
@@ -162,6 +184,8 @@ public sealed class EmailTests
         Assert.Contains("Bia", email.HtmlBody, StringComparison.Ordinal);
         Assert.Contains("180 dias", email.TextBody, StringComparison.Ordinal);
         Assert.Contains(url, email.TextBody, StringComparison.Ordinal);
+        // contra o golpe do PIX falso (#343): o código só existe na página do pedido
+        Assert.Contains("nunca envia código PIX por WhatsApp, SMS ou e-mail", email.TextBody, StringComparison.Ordinal);
     }
 
     [Theory]

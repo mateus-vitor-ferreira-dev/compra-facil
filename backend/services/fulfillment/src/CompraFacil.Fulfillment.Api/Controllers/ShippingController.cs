@@ -39,8 +39,8 @@ public sealed class ShippingController(ShippingQuotes quotes) : ControllerBase
         }
         try
         {
-            var options = await quotes.QuoteAsync(zip, [.. body.Items!.Select(i => new ShippingItem(i.Sku!, i.Quantity))], ct);
-            return new ShippingQuoteResponse(zip, [.. options]);
+            var options = await quotes.QuoteAsync(zip, [.. body.Items!.Select(i => new ShippingItem(i.Sku!, i.Quantity, i.ProductId))], ct);
+            return new ShippingQuoteResponse(zip, [.. options.Select(ShippingQuoteOption.From)]);
         }
         catch (SupplierUnavailableException e)
         {
@@ -51,6 +51,16 @@ public sealed class ShippingController(ShippingQuotes quotes) : ControllerBase
 
 public sealed record ShippingQuoteRequest(string? ZipCode, IReadOnlyList<ShippingQuoteItem>? Items);
 
-public sealed record ShippingQuoteItem(string? Sku, int Quantity);
+public sealed record ShippingQuoteItem(string? Sku, int Quantity, Guid? ProductId = null);
 
-public sealed record ShippingQuoteResponse(string ZipCode, IReadOnlyList<ShippingOption> Options);
+/// <summary>A opção como o cliente vê: sem o custo da loja. No frete grátis, o preço normal vem à parte, para riscar.</summary>
+public sealed record ShippingQuoteOption(string Id, string Name, long PriceCents, int MinDays, int MaxDays, long? RegularPriceCents)
+{
+    public static ShippingQuoteOption From(ShippingOption o)
+    {
+        ArgumentNullException.ThrowIfNull(o);
+        return new(o.Id, o.Name, o.PriceCents, o.MinDays, o.MaxDays, o.Free ? o.CostCents : null);
+    }
+}
+
+public sealed record ShippingQuoteResponse(string ZipCode, IReadOnlyList<ShippingQuoteOption> Options);

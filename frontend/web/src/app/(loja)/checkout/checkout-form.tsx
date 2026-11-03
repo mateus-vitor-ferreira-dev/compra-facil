@@ -52,6 +52,8 @@ type Props = {
   /** a entrega para começar: a do último pedido ou, no primeiro, só o nome da conta */
   initialDelivery: DeliveryInput;
   remembered: boolean;
+  /** loja de demonstração: a entrega avisa para não usar dados reais (#280) */
+  demo?: boolean;
   /** sem sessão: a compra pede o e-mail, e a conta é opcional */
   guest: boolean;
   /** os produtos e a conta, renderizados no servidor, antes da entrega e do pagamento */
@@ -76,6 +78,7 @@ export function CheckoutForm({
   provider,
   initialDelivery,
   remembered,
+  demo = false,
   guest,
   review,
   summary,
@@ -300,6 +303,7 @@ export function CheckoutForm({
           delivery={delivery}
           errors={deliveryErrors}
           remembered={remembered}
+          demo={demo}
           onChange={changeDelivery}
           onFill={(values) => {
             setDelivery((d) => ({ ...d, ...values }));

@@ -296,11 +296,29 @@ public sealed class OrderTests
     {
         var order = Paid();
 
-        Assert.True(order.FailAtSupplier(s_now.AddHours(1), invoiceRejected: true));
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1), CancellationReason.InvoiceFailed));
         Assert.Equal(CancellationReason.InvoiceFailed, order.CancellationReason);
         Assert.True(order.AwaitingRefund);
         Assert.True(order.MarkRefunded(s_now.AddHours(2)));
     }
+
+    [Fact]
+    public void StoreCancellation_CancelsThePaidOrder_WithItsOwnReason_UntilRefunded()
+    {
+        var order = Paid();
+
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1), CancellationReason.StoreCancelled));
+        Assert.Equal(CancellationReason.StoreCancelled, order.CancellationReason);
+        Assert.True(order.CancelledAfterPayment);
+        Assert.True(order.AwaitingRefund);
+        Assert.True(order.MarkRefunded(s_now.AddHours(2)));
+    }
+
+    [Theory]
+    [InlineData(CancellationReason.OutOfStock)]
+    [InlineData(CancellationReason.PaymentFailed)]
+    public void PaidOrder_IsNotCancelledWithAReasonFromBeforePayment(CancellationReason reason) =>
+        Assert.Throws<DomainException>(() => Paid().FailAtSupplier(s_now, reason));
 
     [Fact]
     public void Invoice_IsRecordedOnce_AndCancelledAfterTheRefund()
@@ -327,9 +345,11 @@ public sealed class OrderTests
         Assert.Equal(OrderStatus.Shipped, order.Status);
     }
 
-    [Fact]
-    public void PendingOrder_CannotBeCancelledBySupplier() =>
-        Assert.Throws<DomainException>(() => Pending().Cancel(CancellationReason.SupplierFailed, s_now));
+    [Theory]
+    [InlineData(CancellationReason.SupplierFailed)]
+    [InlineData(CancellationReason.StoreCancelled)]
+    public void PendingOrder_CannotBeCancelledAsIfPaid(CancellationReason reason) =>
+        Assert.Throws<DomainException>(() => Pending().Cancel(reason, s_now));
 
     [Fact]
     public void Refund_OnlyForTheOrderCancelledAfterPayment()

@@ -183,10 +183,11 @@ export interface components {
          * @description `out_of_stock`: inventory recusou a reserva · `payment_failed`: payments recusou a cobrança ·
          *     `supplier_failed`: depois de pago, o fornecedor não atendeu, e o cliente é estornado
          *     (`refunded_at`) · `invoice_failed`: depois de pago, a SEFAZ rejeitou a nota fiscal e o pedido nem
-         *     foi ao fornecedor; o cliente é estornado do mesmo jeito.
+         *     foi ao fornecedor; o cliente é estornado do mesmo jeito · `store_cancelled`: depois de pago, a equipe
+         *     cancelou o pedido pelo painel antes do envio (#283), e o cliente é estornado.
          * @enum {string}
          */
-        CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed" | "invoice_failed";
+        CancellationReason: "out_of_stock" | "payment_failed" | "supplier_failed" | "invoice_failed" | "store_cancelled";
         /** @description O frete do pedido (#222) e a data que a loja prometeu. */
         OrderShipping: {
             service: string;
@@ -365,8 +366,8 @@ export interface components {
             delivered_at?: string | null;
             /**
              * Format: date-time
-             * @description Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed` ou
-             *     `invoice_failed`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
+             * @description Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`,
+             *     `invoice_failed` ou `store_cancelled`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
              */
             refunded_at?: string | null;
             /**

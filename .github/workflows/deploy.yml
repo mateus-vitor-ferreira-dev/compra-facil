@@ -81,9 +81,14 @@ jobs:
         run: deploy/coolify/deploy.sh
 
       # de fora, pelo domínio: o caminho do comprador (DNS, certificado, proxy do Coolify, gateway).
-      # Os retries cobrem o gateway, que só manda para um serviço depois que o healthcheck dele passa
+      # Os retries cobrem o gateway, que só manda para um serviço depois que o healthcheck dele passa.
+      # Só confere os serviços do compose que o recurso usa: o compose.yaml não tem o fulfillment, e o
+      # compose.demo.yaml tem (deploy/coolify/servicos.sh)
       - name: Responde de fora
         run: |
+          servicos=$(deploy/coolify/servicos.sh)
+          echo "Serviços conferidos: $servicos"
+          tem() { grep -qw "$1" <<<"$servicos"; }
           check() { # check <caminho> <status esperado>
             for i in $(seq 12); do
               code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$URL_API$1" || true)
@@ -94,10 +99,12 @@ jobs:
             return 1
           }
           fail=0
-          for s in catalog identity orders inventory payments; do check "/$s/health" 200 || fail=1; done
-          # o notifications e o fulfillment só expõem a operação: 401 sem token é ele de pé (fora, seria 503).
-          # O fulfillment é o da demonstração: compose.yaml ainda não tem esse serviço, e lá este daria 404
-          check /notifications/v1/admin/dead-letters 401 || fail=1
-          check /fulfillment/v1/admin/dead-letters 401 || fail=1
+          for s in catalog identity orders inventory payments; do
+            if tem "$s"; then check "/$s/health" 200 || fail=1; fi
+          done
+          # o notifications e o fulfillment só expõem a operação: 401 sem token é ele de pé (fora, seria 503)
+          for s in notifications fulfillment; do
+            if tem "$s"; then check "/$s/v1/admin/dead-letters" 401 || fail=1; fi
+          done
           check /catalog/v1/categories 200 || fail=1
           exit $fail

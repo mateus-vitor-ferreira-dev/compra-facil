@@ -175,3 +175,14 @@ func TestOpenDispute_RefusedBeforeDelivery_AndRejectedByTheMark(t *testing.T) {
 	assert.Equal(t, DisputeRejected, r2.disputes[0].DisputeStatus)
 	assert.NotEmpty(t, r2.disputes[0].Reason)
 }
+
+func TestOpenDispute_RefusedAtOpeningByTheMark(t *testing.T) {
+	r := &recorder{}
+	sim := NewSimulator(catalog.NewStock(nil), Delays{}, r)
+	t.Cleanup(sim.Close)
+	delivered(t, sim, r, "PED-RECUSA", MarkRefuseReturn)
+
+	_, err := sim.OpenDispute("PED-RECUSA")
+	require.ErrorIs(t, err, ErrReturnRefused)
+	assert.Empty(t, sim.Disputes()) // nada aberto: sem código nem endereço
+}

@@ -78,6 +78,11 @@ const orders = [
     delivered_at: new Date(Date.now() - 10 * 86_400_000).toISOString(),
     returnable_until: new Date(Date.now() - 3 * 86_400_000).toISOString(),
     return_requested_at: null,
+    tracking: {
+      number: "BR111222333BR",
+      provider: "Correios",
+      url: "https://rastreio.example/BR111222333BR",
+    },
   },
   {
     ...orderOf("01a18d66-0000-7000-8000-00002e6f8a14", "shipped", null, 1, 263992),
@@ -561,7 +566,16 @@ const SHIPPING = [
   { id: "economico", name: "Econômico", price_cents: 2430, min_days: 13, max_days: 21 },
   { id: "expresso", name: "Expresso", price_cents: 6480, min_days: 7, max_days: 11 },
 ];
-const shippingFor = (zip) => (zip === "99999999" ? [] : SHIPPING);
+// o frete grátis pela margem (#323): o headset vem do fornecedor e tem margem para pagar o econômico. Como no
+// fulfillment, só vale com o product_id de todos os itens
+const FREE_SHIPPING_PRODUCT = "0199f6a0-0000-7000-8000-000000000063";
+const shippingFor = (zip, productIds = []) => {
+  if (zip === "99999999") return [];
+  const free = productIds.length > 0 && productIds.every((id) => id === FREE_SHIPPING_PRODUCT);
+  return SHIPPING.map((o) =>
+    free && o.id === "economico" ? { ...o, price_cents: 0, regular_price_cents: o.price_cents } : o,
+  );
+};
 
 // ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
 const cardTokens = new Map(); // token -> titular
@@ -589,6 +603,10 @@ async function tokenize(req, res, url) {
 }
 
 // as devoluções ao fornecedor (#223): uma recusada, com a nota rejeitada, uma parada e uma no prazo
+const REFUSED_AT_OPENING = "01a18d66-0000-7000-8000-00009d4e5bc3";
+// o que a equipe registrou nas recusadas na abertura, por pedido
+const returnInstructions = new Map();
+
 function supplierReturns() {
   const day = 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -601,8 +619,32 @@ function supplierReturns() {
     resolution_reason: null,
     invoice_error: null,
     resolved_at: null,
+    return_address: null,
+    awaiting_customer_instruction: false,
+    customer_instruction: null,
+    instructed_at: null,
   };
+  // a recusada na abertura (#281): espera a instrução até a equipe registrar
+  const refused = returnInstructions.get(REFUSED_AT_OPENING);
   return [
+    {
+      ...base,
+      order_id: REFUSED_AT_OPENING,
+      status: "rejected",
+      overdue: false,
+      due_at: iso(now + 14 * day),
+      dispute_id: null,
+      return_code: refused?.return_code ?? null,
+      return_address: refused?.return_address ?? null,
+      customer_email: "edu@exemplo.com",
+      resolution_reason: "Return refused: outside the supplier policy",
+      requested_at: iso(now - 1 * day),
+      opened_at: null,
+      resolved_at: iso(now - 1 * day),
+      awaiting_customer_instruction: !refused,
+      customer_instruction: refused?.instruction ?? null,
+      instructed_at: refused?.at ?? null,
+    },
     {
       ...base,
       order_id: "01a18d66-0000-7000-8000-00007a1c2e90",
@@ -701,7 +743,7 @@ async function placeOrder(req, res, email) {
     !payment ||
     !recipient?.cpf ||
     !/^\d{8}$/.test(shipping_address?.zip_code ?? "") ||
-    !shippingFor(shipping_address.zip_code).some((o) => o.id === shipping?.service) ||
+    !shippingFor(shipping_address?.zip_code).some((o) => o.id === shipping?.service) ||
     (payment.method === "card" && !cardTokens.has(payment.card_token))
   ) {
     return problem(res, 422, "Dados inválidos");
@@ -737,7 +779,10 @@ async function placeOrder(req, res, email) {
     campaign_id: product.campaign?.id ?? null,
   }));
   const itemsTotal = orderItems.reduce((sum, i) => sum + i.line_total.amount_cents, 0);
-  const option = shippingFor(shipping_address.zip_code).find((o) => o.id === shipping.service);
+  const option = shippingFor(
+    shipping_address.zip_code,
+    items.map((i) => i.product_id),
+  ).find((o) => o.id === shipping.service);
   const total = itemsTotal + option.price_cents;
   const now = Date.now();
   const id = crypto.randomUUID();
@@ -914,7 +959,7 @@ createServer(async (req, res) => {
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/order-margins") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
-    const row = (id, outcome, revenue, cost, freight, fee, margin) => ({
+    const row = (id, outcome, revenue, cost, freight, fee, margin, created) => ({
       order_id: id,
       outcome,
       revenue_cents: revenue,
@@ -923,15 +968,74 @@ createServer(async (req, res) => {
       fee_cents: fee,
       margin_cents: margin,
       customer_email: "bia@exemplo.com",
-      created_at: "2026-10-20T15:00:00Z",
+      created_at: created,
     });
+    const all = [
+      row(
+        "01a18d66-0000-7000-8000-0000a1000000",
+        "delivered",
+        12000,
+        6000,
+        2000,
+        598,
+        3402,
+        "2026-10-20T15:00:00Z",
+      ),
+      row(
+        "01a18d66-0000-7000-8000-0000a2000000",
+        "in_progress",
+        5000,
+        4800,
+        1000,
+        249,
+        -1049,
+        "2026-10-20T16:00:00Z",
+      ),
+      row(
+        "01a18d66-0000-7000-8000-0000a3000000",
+        "delivered",
+        9000,
+        null,
+        1000,
+        90,
+        null,
+        "2026-10-25T15:00:00Z",
+      ),
+      row(
+        "01a18d66-0000-7000-8000-0000a4000000",
+        "returned",
+        7000,
+        3000,
+        1000,
+        70,
+        null,
+        "2026-11-01T15:00:00Z",
+      ),
+    ];
+    // o período (#282): criados em [from, to), e a soma como a do fulfillment
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
+    const data = all.filter(
+      (o) =>
+        (!from || o.created_at >= new Date(from).toISOString()) &&
+        (!to || o.created_at < new Date(to).toISOString()),
+    );
+    const counted = data.filter((o) => o.margin_cents != null);
+    const sum = (key) => counted.reduce((n, o) => n + o[key], 0);
+    const refunded = data.filter((o) => o.outcome === "cancelled" || o.outcome === "returned").length;
     return send(res, 200, {
-      data: [
-        row("01a18d66-0000-7000-8000-0000a1000000", "delivered", 12000, 6000, 2000, 598, 3402),
-        row("01a18d66-0000-7000-8000-0000a2000000", "in_progress", 5000, 4800, 1000, 249, -1049),
-        row("01a18d66-0000-7000-8000-0000a3000000", "delivered", 9000, null, 1000, 90, null),
-        row("01a18d66-0000-7000-8000-0000a4000000", "returned", 7000, 3000, 1000, 70, null),
-      ],
+      data,
+      totals: {
+        orders: data.length,
+        counted: counted.length,
+        refunded,
+        incomplete: data.length - counted.length - refunded,
+        revenue_cents: sum("revenue_cents"),
+        product_cost_cents: sum("product_cost_cents"),
+        freight_cents: sum("freight_cents"),
+        fee_cents: sum("fee_cents"),
+        margin_cents: sum("margin_cents"),
+      },
     });
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/failed") {
@@ -959,6 +1063,18 @@ createServer(async (req, res) => {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     // o pedido 9d2c7a40 já foi despachado: o cancelamento dá 409
     if (orderAction[1].endsWith("9d2c7a40")) return problem(res, 409, "Ação indisponível");
+    return res.writeHead(204).end();
+  }
+  const instruction = url.pathname.match(
+    /^\/fulfillment\/v1\/admin\/supplier-returns\/([0-9a-f-]{36})\/customer-instruction$/,
+  );
+  if (req.method === "POST" && instruction) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    if (instruction[1] !== REFUSED_AT_OPENING) return problem(res, 409, "Ação indisponível");
+    const body = await json(req);
+    const previous = returnInstructions.get(instruction[1]);
+    if (previous && previous.instruction !== body.instruction) return problem(res, 409, "Ação indisponível");
+    if (!previous) returnInstructions.set(instruction[1], { ...body, at: new Date().toISOString() });
     return res.writeHead(204).end();
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-returns") {
@@ -1007,7 +1123,11 @@ createServer(async (req, res) => {
     const digits = String(zip ?? "").replace(/\D/g, "");
     if (digits.length !== 8 || !items?.length) return problem(res, 422, "Dados inválidos");
     if (digits === "01310200") await new Promise((r) => setTimeout(r, 1500));
-    return send(res, 200, { zip_code: digits, options: shippingFor(digits) });
+    const ids = items.map((i) => i.product_id);
+    return send(res, 200, {
+      zip_code: digits,
+      options: shippingFor(digits, ids.every(Boolean) ? ids : []),
+    });
   }
   // o DANFE da nota (#221): só a do pedido confirmado da Ana
   const danfe = url.pathname.match(/^\/fulfillment\/v1\/me\/invoices\/([0-9a-f-]{36})\/danfe$/);

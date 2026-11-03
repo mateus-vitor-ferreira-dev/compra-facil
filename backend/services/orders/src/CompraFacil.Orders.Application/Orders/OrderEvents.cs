@@ -108,7 +108,12 @@ public sealed record OrderRefundedData(
         ArgumentNullException.ThrowIfNull(order);
         var reason = order.Status == OrderStatus.Returned
             ? "returned"
-            : order.CancellationReason == CancellationReason.InvoiceFailed ? "invoice_failed" : "supplier_failed";
+            : order.CancellationReason switch
+            {
+                CancellationReason.InvoiceFailed => "invoice_failed",
+                CancellationReason.StoreCancelled => "store_cancelled",
+                _ => "supplier_failed",
+            };
         return new(order.Id, order.CustomerId, order.CustomerEmail, order.Total, reason, order.RefundedAt!.Value);
     }
 }
@@ -147,8 +152,16 @@ public sealed record SupplierOrderDeliveredData(Guid OrderId);
 
 public sealed record SupplierOrderFailedData(Guid OrderId, string Reason)
 {
-    /// <summary>A SEFAZ rejeitou a nota da loja: o pedido nem foi ao fornecedor.</summary>
-    public bool InvoiceRejected => Reason == "invoice_rejected";
+    /// <summary>
+    /// O motivo do pedido: a SEFAZ rejeitou a nota da loja (o pedido nem foi ao fornecedor), a equipe o
+    /// cancelou pelo painel (#283), ou o fornecedor não atendeu (os outros motivos do fulfillment).
+    /// </summary>
+    public CancellationReason CancellationReason => Reason switch
+    {
+        "invoice_rejected" => CancellationReason.InvoiceFailed,
+        "store_cancelled" => CancellationReason.StoreCancelled,
+        _ => CancellationReason.SupplierFailed,
+    };
 }
 
 public sealed record InvoiceIssuedData(Guid OrderId, string AccessKey, int Number, int Series, DateTimeOffset IssuedAt);

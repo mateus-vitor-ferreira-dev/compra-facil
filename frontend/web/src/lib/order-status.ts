@@ -57,6 +57,10 @@ function cancelledDetail(reason: Reason, refundedAt?: string | null, method?: Pa
       return refundedAt
         ? "Não conseguimos emitir a nota fiscal do pedido. O valor pago foi estornado."
         : "Não conseguimos emitir a nota fiscal do pedido. Estamos estornando o valor pago.";
+    case "store_cancelled":
+      return refundedAt
+        ? "Cancelamos o pedido antes do envio. O valor pago foi estornado."
+        : "Cancelamos o pedido antes do envio. Estamos estornando o valor pago.";
     default:
       return "O pedido foi cancelado. Nada foi cobrado.";
   }
@@ -140,9 +144,10 @@ export function orderSteps(order: OrderProgress): Step[] {
   const { status, cancellation_reason: reason, stock_reserved_at: reserved } = order;
   const outOfStock = status === "cancelled" && reason === "out_of_stock";
   const paymentFailed = status === "cancelled" && reason === "payment_failed";
-  // cancelado depois de pago: pelo fornecedor, ou porque a nota fiscal foi rejeitada (#221)
+  // cancelado depois de pago: pelo fornecedor, porque a nota fiscal foi rejeitada (#221) ou pela loja (#283)
   const invoiceFailed = status === "cancelled" && reason === "invoice_failed";
-  const supplierFailed = status === "cancelled" && (reason === "supplier_failed" || invoiceFailed);
+  const storeCancelled = status === "cancelled" && reason === "store_cancelled";
+  const supplierFailed = status === "cancelled" && paidThenCancelled(reason);
   const wasPaid = paid(status) || supplierFailed;
   const end = status === "pending" ? undefined : order.updated_at;
 
@@ -181,7 +186,11 @@ export function orderSteps(order: OrderProgress): Step[] {
   const supplier: Step = supplierFailed
     ? {
         key: "supplier",
-        label: invoiceFailed ? "Nota fiscal recusada" : "Fornecedor não atendeu",
+        label: invoiceFailed
+          ? "Nota fiscal recusada"
+          : storeCancelled
+            ? "Cancelado pela loja"
+            : "Fornecedor não atendeu",
         state: "failed",
         at: end,
       }
@@ -255,8 +264,10 @@ export const isFinal = (order: Pick<OrderProgress, "status" | "cancellation_reas
   (order.status === "returned" && !!order.refunded_at) ||
   (order.status === "cancelled" && !(paidThenCancelled(order.cancellation_reason) && !order.refunded_at));
 
-/** Cancelado depois de pago (o fornecedor ou a nota): o estorno ainda pode estar a caminho. */
-const paidThenCancelled = (reason: Reason) => reason === "supplier_failed" || reason === "invoice_failed";
+/** Cancelado depois de pago (o fornecedor, a nota ou a loja): o estorno ainda pode estar a caminho. */
+function paidThenCancelled(reason: Reason) {
+  return reason === "supplier_failed" || reason === "invoice_failed" || reason === "store_cancelled";
+}
 
 /** Já saiu da etapa de pagamento (aprovado, ou terminou): a vitrine de etapas da compra acabou. */
 export const isSettled = (status: Status) => status !== "pending";

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { CategoryIcon } from "@/components/commerce/category-icon";
 import type { categoryTree } from "@/lib/catalog-api";
+import { CategoryStrip } from "./category-strip";
 import { HeaderSearch } from "./search-box";
 
 type Tree = ReturnType<typeof categoryTree>;
@@ -84,8 +85,9 @@ export function SiteHeader({
               ))}
             </ul>
           </details>
-          {/* sempre uma linha: em telas maiores tudo cabe, e nas menores a lista rola para o lado */}
-          <ul className="hidden [scrollbar-width:none] gap-x-3 overflow-x-auto md:flex xl:justify-between [&::-webkit-scrollbar]:hidden">
+          {/* sempre uma linha: em telas maiores tudo cabe, e nas menores a lista rola para o lado, com a borda
+              esmaecida e a seta do lado que tem mais (#317) */}
+          <CategoryStrip>
             {categories.map((c) => (
               <li key={c.id} className="shrink-0">
                 <Link
@@ -96,7 +98,7 @@ export function SiteHeader({
                 </Link>
               </li>
             ))}
-          </ul>
+          </CategoryStrip>
         </nav>
       )}
     </header>

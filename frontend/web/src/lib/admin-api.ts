@@ -275,6 +275,7 @@ export function replayDeadLetters(token: string, service: DltService) {
 export type OverdueOrder = FulfillmentSchemas["schemas"]["OverdueSupplierOrder"];
 export type SupplierReturn = FulfillmentSchemas["schemas"]["SupplierReturn"];
 export type FailedOrder = FulfillmentSchemas["schemas"]["FailedSupplierOrder"];
+export type OrderMarginTotals = FulfillmentSchemas["schemas"]["OrderMarginTotals"];
 export type OrderMargin = FulfillmentSchemas["schemas"]["OrderMargin"];
 export type SupplierStatus = FulfillmentSchemas["schemas"]["SupplierStatus"];
 
@@ -298,10 +299,10 @@ export function supplierStatus(token: string) {
 }
 
 /** A margem real dos pedidos mais recentes (#225). */
-export function orderMargins(token: string) {
+export function orderMargins(token: string, period: { from?: string; to?: string } = {}) {
   return run(() =>
     api.fulfillment({ token }).GET("/v1/admin/order-margins", {
-      params: { query: { limit: 200 } },
+      params: { query: { limit: 200, ...period } },
       cache: "no-store",
     }),
   );
@@ -331,6 +332,18 @@ export function cancelSupplierOrder(token: string, orderId: string) {
   return run(() =>
     api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/cancel", {
       params: { path: { order_id: orderId } },
+    }),
+  );
+}
+
+export type CustomerInstruction = FulfillmentSchemas["schemas"]["CustomerInstructionRequest"];
+
+/** Depois da recusa do fornecedor na abertura, o que a loja combinou com o cliente (#281). */
+export function instructReturnCustomer(token: string, orderId: string, body: CustomerInstruction) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-returns/{order_id}/customer-instruction", {
+      params: { path: { order_id: orderId } },
+      body,
     }),
   );
 }

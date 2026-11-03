@@ -158,11 +158,33 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         Assert.Equal(19980L + 2430, order.GetProperty("total").GetProperty("amount_cents").GetInt64());
         var promised = DateOnly.Parse(shipping.GetProperty("promised_by").GetString()!, System.Globalization.CultureInfo.InvariantCulture);
         Assert.True(promised > DateOnly.FromDateTime(DateTime.UtcNow.AddDays(21)), "21 dias úteis passam de 21 dias corridos");
-        // o fulfillment cotou o CEP e os SKUs do pedido
-        Assert.Contains(fx.Shipping.Calls, c => c.Zip == "01310100" && c.Items.Contains(("SHIP-1", 2)));
+        // o fulfillment cotou o CEP, os SKUs e os produtos do pedido (com eles, avalia o frete grátis, #323)
+        Assert.Contains(fx.Shipping.Calls, c => c.Zip == "01310100" && c.Items.Contains(("SHIP-1", 2, item)));
         // o payments cobra o total com o frete
         var placed = EventEnvelope.TryParse(Assert.Single(await OutboxForAsync(order.GetProperty("id").GetGuid())).Payload)!;
         Assert.Equal(19980L + 2430, placed.Data.GetProperty("total").GetProperty("amount_cents").GetInt64());
+    }
+
+    [Fact]
+    public async Task Place_WithFreeShipping_ChargesOnlyTheItems()
+    {
+        // o fulfillment deu o econômico de graça (#323): o pedido cobra só os produtos
+        var item = fx.Catalog.Add(new CatalogProduct("SHIP-FREE", "Mouse", 9990));
+        var before = fx.Shipping.Options;
+        fx.Shipping.Options = [new("economico", "Econômico", 0, 13, 21), new("expresso", "Expresso", 6480, 7, 11)];
+        try
+        {
+            using var response = await PlaceAsync(Body(Guid.NewGuid(), new { product_id = item, quantity = 2 }));
+
+            Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+            var order = JsonDocument.Parse(await response.Content.ReadAsStringAsync(Ct)).RootElement;
+            Assert.Equal(0L, order.GetProperty("shipping").GetProperty("price").GetProperty("amount_cents").GetInt64());
+            Assert.Equal(19980L, order.GetProperty("total").GetProperty("amount_cents").GetInt64());
+        }
+        finally
+        {
+            fx.Shipping.Options = before;
+        }
     }
 
     [Fact]

@@ -107,6 +107,12 @@ export interface paths {
          *     (`Shipping:UsdToBrl`) e soma o processamento dela (`Shipping:ProcessingDays`) ao prazo, em dias
          *     úteis. Pública: a página do produto e o carrinho cotam sem login. O orders confere por aqui o frete
          *     do pedido.
+         *
+         *     **Frete grátis (#323).** A loja nunca sai no prejuízo: uma opção sai de graça (`price_cents` 0, com o preço
+         *     normal em `regular_price_cents`) quando a margem dos produtos paga o frete inteiro. A margem é o preço da
+         *     loja, buscado no catalog pelo `product_id` (nunca o do navegador), menos o custo no fornecedor e a taxa de
+         *     pagamento do pior caso (`Shipping:WorstPaymentFeePercent`, o cartão em 6x). Sem o `product_id` em todos os
+         *     itens, com produto sem custo conhecido ou com o catalog fora do ar, não há frete grátis.
          */
         post: operations["quoteShipping"];
         delete?: never;
@@ -144,10 +150,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * A margem real dos pedidos mais recentes
+         * A margem real dos pedidos mais recentes, de um período e com a soma dele
          * @description O que o cliente pagou, menos o custo dos produtos no câmbio da compra, o frete repassado ao fornecedor e a
          *     taxa do pagamento. Em centavos de real. A margem é nula no pedido estornado, e se faltar um dos valores
          *     (produto que não veio do fornecedor, ou pedido de antes desta conta).
+         *
+         *     Com `from` e `to`, ficam só os pedidos criados em [from, to) (#282). A soma (`totals`) cobre todos os
+         *     pedidos do período, sem o `limit` da lista; sem período, todos os pedidos.
          */
         get: operations["listOrderMargins"];
         put?: never;
@@ -221,6 +230,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-returns/{order_id}/customer-instruction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Diz ao cliente o que fazer quando o fornecedor recusou a devolução na abertura
+         * @description O fornecedor recusou a devolução já ao abri-la, e o cliente ficou sem o código e o endereço dele (#281).
+         *     A loja é a responsável pela devolução (CDC, art. 49) e registra o que combinou: `keep`, o cliente fica
+         *     com o produto; `send`, o cliente manda para o endereço da loja, com o código dela. Sai
+         *     `CustomerReturnInstructed`, e o notifications avisa o cliente.
+         *
+         *     Vale uma vez por devolução. Repetir a mesma instrução dá 204 sem novo aviso; outra instrução, ou uma
+         *     devolução que não foi recusada na abertura, dá 409.
+         */
+        post: operations["instructSupplierReturnCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-returns": {
         parameters: {
             query?: never;
@@ -230,9 +265,11 @@ export interface paths {
         };
         /**
          * Devoluções ao fornecedor que pedem atenção
-         * @description As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu, as
-         *     paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido) primeiro.
-         *     As que o fornecedor recusou ficam por 30 dias. A nota de devolução rejeitada vem em `invoice_error`.
+         * @description As devoluções que o cliente pediu ao desistir da compra (#223) e o fornecedor ainda não resolveu. Primeiro
+         *     as recusadas na abertura que esperam a instrução ao cliente (`awaiting_customer_instruction`, #281),
+         *     depois as paradas além do prazo (`Supplier:Deadlines:ReturnWithin`, padrão 15 dias, contado do pedido).
+         *     As que o fornecedor recusou ficam por 30 dias, e a que espera a instrução fica até ela. A nota de
+         *     devolução rejeitada vem em `invoice_error`.
          */
         get: operations["listSupplierReturns"];
         put?: never;
@@ -346,6 +383,11 @@ export interface components {
             items: {
                 /** @description O SKU da loja (o vid no fornecedor). */
                 sku: string;
+                /**
+                 * Format: uuid
+                 * @description O produto da loja. Com ele em todos os itens, o frete grátis é avaliado (#323).
+                 */
+                product_id?: string;
                 quantity: number;
             }[];
         };
@@ -358,8 +400,16 @@ export interface components {
             id: string;
             /** @description O nome que o cliente vê. */
             name: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description O que o cliente paga pelo frete; 0 no frete grátis.
+             */
             price_cents: number;
+            /**
+             * Format: int64
+             * @description No frete grátis, o preço normal do frete, para a loja mostrar riscado; nulo nos outros.
+             */
+            regular_price_cents?: number | null;
             /** @description Dias úteis, já com o processamento da loja. */
             min_days: number;
             max_days: number;
@@ -457,9 +507,15 @@ export interface components {
             product_cost_cents?: number | null;
             /**
              * Format: int64
-             * @description O frete cobrado, repassado ao fornecedor pelo preço que ele cotou.
+             * @description O custo do frete para a loja, cotado no fornecedor quando o pedido foi a ele (#323); nos pedidos de
+             *     antes disso, o cobrado, que era igual. Nulo se a cotação falhou.
              */
             freight_cents?: number | null;
+            /**
+             * Format: int64
+             * @description O que o cliente pagou pelo frete; 0 no frete grátis, que entra como custo da loja.
+             */
+            freight_charged_cents?: number | null;
             /**
              * Format: int64
              * @description A taxa do provedor de pagamento.
@@ -474,6 +530,31 @@ export interface components {
             customer_email: string;
             /** Format: date-time */
             created_at: string;
+        };
+        /**
+         * @description A soma do período, só dos pedidos com a margem conhecida (`counted`): receita, custos e margem fecham
+         *     entre si. Os estornados (`refunded`: cancelados ou devolvidos) e os que não têm algum valor
+         *     (`incomplete`) ficam fora da soma.
+         */
+        OrderMarginTotals: {
+            /** @description Pedidos do período. */
+            orders: number;
+            counted: number;
+            refunded: number;
+            incomplete: number;
+            /** Format: int64 */
+            revenue_cents: number;
+            /** Format: int64 */
+            product_cost_cents: number;
+            /** Format: int64 */
+            freight_cents: number;
+            /** Format: int64 */
+            fee_cents: number;
+            /**
+             * Format: int64
+             * @description Pode ser negativa.
+             */
+            margin_cents: number;
         };
         /** @description Um pedido que não chegou ao fornecedor. O cliente já foi estornado. */
         FailedSupplierOrder: {
@@ -508,8 +589,10 @@ export interface components {
             supplier: string;
             supplier_order_id?: string | null;
             dispute_id?: string | null;
-            /** @description O código que o cliente escreve no pacote. */
+            /** @description O código que o cliente escreve no pacote (do fornecedor, ou da loja no `send`). */
             return_code?: string | null;
+            /** @description Para onde o cliente manda o produto (do fornecedor, ou da loja no `send`). */
+            return_address?: string | null;
             /** Format: email */
             customer_email: string;
             items: {
@@ -530,6 +613,27 @@ export interface components {
             opened_at?: string | null;
             /** Format: date-time */
             resolved_at?: string | null;
+            /**
+             * @description O fornecedor recusou na abertura e a loja ainda não disse ao cliente o que fazer (#281): pede a
+             *     equipe (`instructSupplierReturnCustomer`).
+             */
+            awaiting_customer_instruction?: boolean;
+            /**
+             * @description O que a loja combinou depois da recusa na abertura.
+             * @enum {string|null}
+             */
+            customer_instruction?: "keep" | "send" | null;
+            /** Format: date-time */
+            instructed_at?: string | null;
+        };
+        /** @description `keep`: o cliente fica com o produto. `send`: manda para o endereço da loja, com o código dela. */
+        CustomerInstructionRequest: {
+            /** @enum {string} */
+            instruction: "keep" | "send";
+            /** @description Só no `send`. */
+            return_code?: string;
+            /** @description Só no `send`. */
+            return_address?: string;
         };
         /**
          * @description Formato do CJ Dropshipping, `messageType` UPDATE: `ORDER` (o andamento de um pedido), `STOCK` (a
@@ -965,6 +1069,10 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                /** @description Início do período, incluído. */
+                from?: string;
+                /** @description Fim do período, excluído. Depois de `from`. */
+                to?: string;
             };
             header?: never;
             path?: never;
@@ -972,7 +1080,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Pedidos, dos mais recentes aos mais antigos. */
+            /** @description Pedidos, dos mais recentes aos mais antigos, e a soma do período. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -980,6 +1088,7 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["OrderMargin"][];
+                        totals: components["schemas"]["OrderMarginTotals"];
                     };
                 };
             };
@@ -1075,6 +1184,36 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    instructSupplierReturnCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerInstructionRequest"];
+            };
+        };
+        responses: {
+            /** @description Registrada; o cliente é avisado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
         };
     };
     listSupplierReturns: {

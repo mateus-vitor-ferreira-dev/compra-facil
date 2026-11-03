@@ -5,6 +5,16 @@
     <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Grpc.Net.ClientFactory" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- os preços da loja para o frete grátis (#323), pelo contrato gRPC do catalog. O servidor também é gerado
+         (Both) para o catalog falso dos testes de integração -->
+    <Protobuf Include="$(ContractsDir)proto/catalog/v1/catalog.proto" ProtoRoot="$(ContractsDir)proto" GrpcServices="Both" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- o cliente do fornecedor é testado contra respostas HTTP simuladas -->
     <InternalsVisibleTo Include="CompraFacil.Fulfillment.IntegrationTests" />
   </ItemGroup>

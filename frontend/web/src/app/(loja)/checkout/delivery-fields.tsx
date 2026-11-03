@@ -19,6 +19,8 @@ type Props = {
   errors: DeliveryErrors;
   /** veio do pedido anterior: o cliente só confere */
   remembered: boolean;
+  /** loja de demonstração: avisa, junto dos campos, para não usar dados reais (#280) */
+  demo?: boolean;
   onChange: (field: DeliveryField, value: string) => void;
   onFill: (values: Partial<DeliveryInput>) => void;
   register: (field: DeliveryField, el: HTMLElement | null) => void;
@@ -39,7 +41,15 @@ const LOOKUP_TEXT: Record<Lookup, string> = {
  * Com os 8 dígitos do CEP, a rua, o bairro, a cidade e o estado se preenchem, e o foco vai para o
  * número. Os campos têm `name` e autocomplete: sem JavaScript, o formulário funciona igual.
  */
-export function DeliveryFields({ delivery, errors, remembered, onChange, onFill, register }: Props) {
+export function DeliveryFields({
+  delivery,
+  errors,
+  remembered,
+  demo = false,
+  onChange,
+  onFill,
+  register,
+}: Props) {
   const [lookup, setLookup] = useState<Lookup>("idle");
   const asked = useRef("");
 
@@ -83,6 +93,16 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
             : "O nome e o CPF vão na nota fiscal; o telefone é para a transportadora."}
         </p>
       </div>
+      {demo && (
+        <p
+          id="entrega-demo"
+          className="border-ink bg-surface max-w-prose rounded-md border-l-4 px-4 py-3 text-sm"
+        >
+          <strong className="font-semibold">Não use os seus dados reais.</strong> Esta loja é uma demonstração
+          e nada é entregue, mas o que você digitar fica guardado no pedido. Use um nome inventado, um CPF de
+          teste, como 529.982.247-25, e qualquer endereço.
+        </p>
+      )}
 
       <div className="grid grid-cols-6 gap-4">
         <TextField
@@ -95,6 +115,7 @@ export function DeliveryFields({ delivery, errors, remembered, onChange, onFill,
         <TextField
           {...field("cpf")}
           label="CPF"
+          aria-describedby={demo ? "entrega-demo" : undefined}
           inputMode="numeric"
           autoComplete="off"
           onChange={(e) => onChange("cpf", formatCpf(e.target.value))}

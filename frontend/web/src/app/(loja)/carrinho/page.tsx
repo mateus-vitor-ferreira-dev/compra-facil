@@ -14,10 +14,14 @@ import { getProduct } from "@/lib/catalog-api";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ShippingEstimate } from "@/components/commerce/shipping-estimate";
-import { acceptCartPrices, removeFromCart, undoRemove, updateQuantity } from "./actions";
+import { acceptCartPrices, clearCart, removeFromCart, undoRemove, updateQuantity } from "./actions";
+import { FocusHeading } from "@/components/ui/focus-heading";
 import { RemoveButton, UndoFocus } from "./remove-focus";
 
 export const metadata: Metadata = { title: "Carrinho", robots: { index: false } };
+
+/** A partir de quantos produtos diferentes aparece o "Esvaziar o carrinho" (#321): unidades não contam. */
+const CLEAR_FROM = 3;
 
 const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
 
@@ -26,9 +30,22 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 /** O carrinho: cada linha com o preço de agora, o estoque e o que precisa de atenção antes do pedido. */
 export default async function CartPage({ searchParams }: Props) {
   await connection();
+  const query = await searchParams;
   // ?conferir=1: o pedido foi recusado porque um preço ou um produto mudou no meio do caminho
-  const recheck = (await searchParams).conferir === "1";
+  const recheck = query.conferir === "1";
+  // ?refeito=N&fora=M: os produtos de um pedido com o PIX vencido voltaram ao carrinho (#343)
+  const reordered = typeof query.refeito === "string" ? Number(query.refeito) : undefined;
+  const left = typeof query.fora === "string" ? Number(query.fora) || 0 : 0;
+  const reorder = reordered !== undefined && Number.isInteger(reordered) && (
+    <p role="status" className="border-success bg-surface mt-4 rounded-md border-l-4 px-4 py-3">
+      {reorderMessage(reordered, left)}
+    </p>
+  );
   const [cart, removed] = await Promise.all([readCart(), readUndo()]);
+  const cleared = query.esvaziado === "1";
+  const canClear = cart.items.length >= CLEAR_FROM;
+  // ?esvaziar=1: a pergunta antes de esvaziar, numa página própria para funcionar sem JavaScript
+  const confirmClear = canClear && query.esvaziar === "1";
   const removedProduct =
     removed && !cart.items.some((i) => i.id === removed.id) ? await getProduct(removed.id) : undefined;
   const undo = removedProduct?.ok && (
@@ -53,7 +70,13 @@ export default async function CartPage({ searchParams }: Props) {
     return (
       <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
         <h1 className="sr-only">Carrinho</h1>
+        {reorder}
         {undo}
+        {cleared && (
+          <p role="status" className="border-success bg-surface mt-4 rounded-md border-l-4 px-4 py-3">
+            Os produtos saíram do carrinho.
+          </p>
+        )}
         <StateMessage
           illustration={<EmptyCartIllustration />}
           title="Seu carrinho está vazio"
@@ -75,6 +98,7 @@ export default async function CartPage({ searchParams }: Props) {
   return (
     <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Carrinho</h1>
+      {reorder}
       {undo}
 
       {recheck && (
@@ -117,11 +141,49 @@ export default async function CartPage({ searchParams }: Props) {
       )}
 
       <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <ul aria-label="Produtos no carrinho" className="divide-line border-line divide-y border-y">
-          {lines.map((line) => (
-            <CartLineItem key={line.id} line={line} unreachable={unreachable} />
-          ))}
-        </ul>
+        <div>
+          {confirmClear ? (
+            <section
+              aria-labelledby="esvaziar"
+              className="border-ink bg-surface mb-4 space-y-3 rounded-md border-2 p-4"
+            >
+              <FocusHeading id="esvaziar">Tirar os {cart.items.length} produtos do carrinho?</FocusHeading>
+              <p className="text-ink-soft text-sm">
+                O carrinho fica vazio. Para comprar algum deles depois, você adiciona de novo.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <form action={clearCart}>
+                  <SubmitButton variant="danger" size="sm" pendingLabel="Esvaziando…">
+                    Esvaziar o carrinho
+                  </SubmitButton>
+                </form>
+                <Link href="/carrinho" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                  Manter os produtos
+                </Link>
+              </div>
+            </section>
+          ) : (
+            canClear && (
+              <div className="mb-2 flex justify-end">
+                <Link
+                  href="/carrinho?esvaziar=1"
+                  prefetch={false}
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "text-ink-soft hover:text-ink -mr-3",
+                  )}
+                >
+                  Esvaziar o carrinho
+                </Link>
+              </div>
+            )
+          )}
+          <ul aria-label="Produtos no carrinho" className="divide-line border-line divide-y border-y">
+            {lines.map((line) => (
+              <CartLineItem key={line.id} line={line} unreachable={unreachable} />
+            ))}
+          </ul>
+        </div>
 
         <aside aria-labelledby="resumo" className="lg:sticky lg:top-6 lg:self-start">
           <h2 id="resumo" className="text-xl font-semibold tracking-tight">
@@ -153,7 +215,9 @@ export default async function CartPage({ searchParams }: Props) {
 
           {summary.canCheckout && (
             <ShippingEstimate
-              items={lines.flatMap((l) => (l.product ? [{ sku: l.product.sku, quantity: l.qty }] : []))}
+              items={lines.flatMap((l) =>
+                l.product ? [{ sku: l.product.sku, quantity: l.qty, product_id: l.product.id }] : [],
+              )}
               className="mt-6"
             />
           )}
@@ -188,6 +252,22 @@ export default async function CartPage({ searchParams }: Props) {
       </div>
     </main>
   );
+}
+
+/** O aviso de "Fazer o pedido de novo": quantos produtos voltaram e quantos esgotaram no caminho. */
+function reorderMessage(back: number, left: number) {
+  if (back === 0) return "Os produtos do pedido esgotaram e não voltaram ao carrinho.";
+  const returned =
+    back === 1
+      ? "O produto do pedido voltou ao carrinho."
+      : `Os ${back} produtos do pedido voltaram ao carrinho.`;
+  const out =
+    left === 0
+      ? ""
+      : left === 1
+        ? " 1 produto esgotou e ficou de fora."
+        : ` ${left} produtos esgotaram e ficaram de fora.`;
+  return `${returned}${out} Continue para o pagamento quando quiser.`;
 }
 
 function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: boolean }) {
@@ -246,6 +326,22 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           )}
         </p>
         {issue && <LineNotice issue={issue} line={line} />}
+        {/* a ação escrita, e não só a lixeira: com vários produtos, quem compra acha onde desistir de um sem
+            adivinhar o ícone (#320). O nome acessível leva o produto e começa pelo texto visível */}
+        <form action={removeFromCart} className="-ml-2 pt-1">
+          {productId}
+          <RemoveButton
+            type="submit"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "text-ink-soft hover:text-ink px-2",
+            )}
+            aria-label={`Remover ${product.name} do carrinho`}
+          >
+            <Trash2 aria-hidden="true" />
+            Remover
+          </RemoveButton>
+        </form>
       </div>
 
       <div className="col-start-2 flex flex-wrap items-center justify-between gap-3 sm:col-start-3 sm:row-start-1 sm:flex-col sm:items-end">
@@ -258,7 +354,7 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           <span className="sr-only">Subtotal: </span>
           {brl(lineTotal)}
         </p>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           {/* − e + são botões de envio: funcionam sem JavaScript. No limite ficam aria-disabled (e não disabled, que
               derrubaria o foco de quem usa teclado), com o valor travado: o envio não muda nada (#273) */}
           <form action={updateQuantity} className="flex items-center">
@@ -289,16 +385,6 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
             >
               <Plus aria-hidden="true" />
             </button>
-          </form>
-          <form action={removeFromCart}>
-            {productId}
-            <RemoveButton
-              type="submit"
-              className={stepper}
-              aria-label={`Remover ${product.name} do carrinho`}
-            >
-              <Trash2 aria-hidden="true" />
-            </RemoveButton>
           </form>
         </div>
       </div>

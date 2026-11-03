@@ -13,18 +13,25 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 [Produces("application/json")]
 [Authorize(Policy = JwtAuth.AdminPolicy)]
 public sealed class AdminSupplierOrdersController(
-    OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions, OrderMargins margins) : ControllerBase
+    OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions, SupplierReturnActions returnActions,
+    OrderMargins margins) : ControllerBase
 {
-    /// <summary>listOrderMargins: a margem real dos pedidos mais recentes (#225).</summary>
+    /// <summary>listOrderMargins: a margem real dos pedidos mais recentes (#225), do período e com a soma dele (#282).</summary>
     [HttpGet("v1/admin/order-margins")]
-    public async Task<OrderMarginList> ListMargins([FromQuery] int? limit, CancellationToken ct)
+    public async Task<OrderMarginList> ListMargins(
+        [FromQuery] int? limit, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, CancellationToken ct)
     {
         var n = limit ?? 50;
         if (n is < 1 or > OrderMargins.MaxLimit)
         {
             throw new ValidationException([new ValidationFailure("Limit", $"deve estar entre 1 e {OrderMargins.MaxLimit}")]);
         }
-        return new OrderMarginList([.. (await margins.ListAsync(n, ct)).Select(OrderMarginItem.From)]);
+        if (from is not null && to is not null && from >= to)
+        {
+            throw new ValidationException([new ValidationFailure("To", "deve ser depois do início do período")]);
+        }
+        var report = await margins.ReportAsync(new OrderPeriod(from, to), n, ct);
+        return new OrderMarginList([.. report.Orders.Select(OrderMarginItem.From)], report.Totals);
     }
 
     private const int MaxFailed = 200;
@@ -79,6 +86,29 @@ public sealed class AdminSupplierOrdersController(
         return new SupplierReturnList([.. (await returns.ListAsync(n, ct)).Select(SupplierReturnItem.From)]);
     }
 
+    /// <summary>
+    /// instructSupplierReturnCustomer: depois da recusa do fornecedor na abertura, o que a loja combinou com o
+    /// cliente (#281). O cliente recebe por e-mail.
+    /// </summary>
+    [HttpPost("v1/admin/supplier-returns/{order_id:guid}/customer-instruction")]
+    public async Task<IActionResult> InstructCustomer(
+        [FromRoute(Name = "order_id")] Guid orderId, [FromBody] CustomerInstructionRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var failures = request.Validate();
+        if (failures.Count > 0)
+        {
+            throw new ValidationException(failures);
+        }
+        return await returnActions.InstructCustomerAsync(orderId, request.Instruction!.Value, request.ReturnCode, request.ReturnAddress, ct) switch
+        {
+            SupplierReturnActionResult.Done => NoContent(),
+            SupplierReturnActionResult.NotFound => throw new NotFoundException("devolução não encontrada"),
+            _ => throw new ConflictException("Ação indisponível",
+                "A devolução não foi recusada na abertura, ou o cliente já recebeu outra instrução"),
+        };
+    }
+
     [HttpGet("v1/admin/supplier-orders/overdue")]
     public async Task<OverdueSupplierOrderList> ListOverdue([FromQuery] int? limit, CancellationToken ct)
     {
@@ -124,16 +154,18 @@ public sealed record OrderMarginItem(
     long? FeeCents,
     long? MarginCents,
     string CustomerEmail,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    long? FreightChargedCents)
 {
     public static OrderMarginItem From(OrderMargin m)
     {
         ArgumentNullException.ThrowIfNull(m);
-        return new(m.Order.Id, m.Outcome, m.RevenueCents, m.ProductCostCents, m.FreightCents, m.FeeCents, m.MarginCents, m.Order.CustomerEmail, m.Order.CreatedAt);
+        return new(m.Order.Id, m.Outcome, m.RevenueCents, m.ProductCostCents, m.FreightCents, m.FeeCents, m.MarginCents, m.Order.CustomerEmail, m.Order.CreatedAt,
+            m.FreightChargedCents);
     }
 }
 
-public sealed record OrderMarginList(IReadOnlyList<OrderMarginItem> Data);
+public sealed record OrderMarginList(IReadOnlyList<OrderMarginItem> Data, OrderMarginTotals Totals);
 
 public sealed record FailedSupplierOrder(
     Guid OrderId,
@@ -155,6 +187,35 @@ public sealed record FailedSupplierOrder(
 
 public sealed record FailedSupplierOrderList(IReadOnlyList<FailedSupplierOrder> Data);
 
+/// <summary>O corpo do instructSupplierReturnCustomer: no envio, o código e o endereço da loja.</summary>
+public sealed record CustomerInstructionRequest(CustomerReturnInstruction? Instruction, string? ReturnCode, string? ReturnAddress)
+{
+    public List<ValidationFailure> Validate()
+    {
+        List<ValidationFailure> failures = [];
+        if (Instruction is null)
+        {
+            failures.Add(new(nameof(Instruction), "escolha keep ou send"));
+        }
+        else if (Instruction == CustomerReturnInstruction.Send)
+        {
+            if (string.IsNullOrWhiteSpace(ReturnCode) || ReturnCode.Trim().Length > 64)
+            {
+                failures.Add(new(nameof(ReturnCode), "o envio precisa do código da devolução, com até 64 caracteres"));
+            }
+            if (string.IsNullOrWhiteSpace(ReturnAddress) || ReturnAddress.Trim().Length > 500)
+            {
+                failures.Add(new(nameof(ReturnAddress), "o envio precisa do endereço, com até 500 caracteres"));
+            }
+        }
+        else if (ReturnCode is not null || ReturnAddress is not null)
+        {
+            failures.Add(new(nameof(Instruction), "quem fica com o produto não recebe código nem endereço"));
+        }
+        return failures;
+    }
+}
+
 public sealed record SupplierReturnItem(
     Guid OrderId,
     SupplierReturnStatus Status,
@@ -164,6 +225,7 @@ public sealed record SupplierReturnItem(
     string? SupplierOrderId,
     string? DisputeId,
     string? ReturnCode,
+    string? ReturnAddress,
     string CustomerEmail,
     IReadOnlyList<SupplierOrderItem> Items,
     int Attempts,
@@ -172,14 +234,18 @@ public sealed record SupplierReturnItem(
     string? InvoiceError,
     DateTimeOffset RequestedAt,
     DateTimeOffset? OpenedAt,
-    DateTimeOffset? ResolvedAt)
+    DateTimeOffset? ResolvedAt,
+    bool AwaitingCustomerInstruction,
+    CustomerReturnInstruction? CustomerInstruction,
+    DateTimeOffset? InstructedAt)
 {
     public static SupplierReturnItem From(PendingSupplierReturn pending)
     {
         ArgumentNullException.ThrowIfNull(pending);
         var r = pending.Return;
-        return new(r.Id, r.Status, pending.Overdue, pending.DueAt, r.Supplier, r.SupplierOrderId, r.DisputeId, r.ReturnCode, r.CustomerEmail,
-            r.Items, r.Attempts, r.LastError, r.ResolutionReason, pending.InvoiceError, r.RequestedAt, r.OpenedAt, r.ResolvedAt);
+        return new(r.Id, r.Status, pending.Overdue, pending.DueAt, r.Supplier, r.SupplierOrderId, r.DisputeId, r.ReturnCode, r.ReturnAddress,
+            r.CustomerEmail, r.Items, r.Attempts, r.LastError, r.ResolutionReason, pending.InvoiceError, r.RequestedAt, r.OpenedAt, r.ResolvedAt,
+            r.AwaitingCustomerInstruction, r.CustomerInstruction, r.InstructedAt);
     }
 }
 

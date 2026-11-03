@@ -266,6 +266,8 @@ func (a *API) orderError(c *gin.Context, err error) {
 		fail(c, http.StatusOK, CodeNotFound, "Order not found")
 	case errors.Is(err, order.ErrNotDelivered):
 		fail(c, http.StatusOK, CodeRejected, "Order not delivered")
+	case errors.Is(err, order.ErrReturnRefused):
+		fail(c, http.StatusOK, CodeRejected, "Return refused: outside the supplier policy")
 	case errors.Is(err, order.ErrAlreadyShipped):
 		fail(c, http.StatusOK, CodeShipped, "Order already shipped")
 	default:

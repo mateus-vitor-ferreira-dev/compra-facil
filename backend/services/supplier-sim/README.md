@@ -60,7 +60,7 @@ As rotas do prefixo, exceto `getAccessToken`, exigem o header `CJ-Access-Token`.
 | 1600001 | `Invalid token` / `Invalid email or password` | Token ausente/inválido ou credencial errada (HTTP 401). |
 | 1600100 | `Invalid params` | JSON inválido, sem `orderNumber`, sem produtos ou quantidade ≤ 0. |
 | 1603001 | `Out of stock: <vid>` | Vid sem estoque ou quantidade acima do estoque. |
-| 1603002 | `Order rejected by supplier` | `remark` contém `[recusar]`. |
+| 1603002 | `Order rejected by supplier` | `remark` contém `[recusar]`. Na devolução: pedido não entregue, ou `[recusar-abertura]`. |
 | 1603003 | `Order already shipped` | `deleteOrder` depois de SHIPPED. |
 | 1603404 | `Order not found` | `orderId` desconhecido (HTTP 200, como os outros erros de negócio). |
 
@@ -78,6 +78,8 @@ vids do catálogo e um valor fixo derivado do hash para os demais; `orderAmount`
 - `[recusar]`: recusa na criação (1603002), nada é gravado.
 - `[recusar-depois]`: aceita e, após o accept delay, vai a `CANCELLED` com `reason: "supplier_cancelled"`.
 - `[atrasar]`: fica em `UNSHIPPED` para sempre (pedido preso no fornecedor).
+- `[recusar-devolucao]`: a devolução abre e, após o dispute delay, é recusada (`REJECTED`).
+- `[recusar-abertura]`: a devolução é recusada já na abertura (1603002), sem código nem endereço (#281).
 
 Cancelamento pela loja (`deleteOrder`) grava `reason: "store_cancelled"`.
 

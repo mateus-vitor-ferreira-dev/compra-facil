@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { CustomerInstructionForm } from "@/components/admin/customer-instruction-form";
 import { StateMessage } from "@/components/ui/state";
 import { supplierReturns, type SupplierReturn } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
@@ -8,6 +9,8 @@ import { orderNumber } from "@/lib/order-status";
 import { lateBy } from "@/lib/overdue";
 
 export const metadata: Metadata = { title: "Devoluções" };
+
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const when = new Intl.DateTimeFormat("pt-BR", {
   day: "numeric",
@@ -20,10 +23,17 @@ const when = new Intl.DateTimeFormat("pt-BR", {
 // da que pede ação agora à que só espera
 const GROUPS = [
   {
+    key: "instruct",
+    title: "Diga ao cliente o que fazer",
+    description:
+      "O fornecedor recusou a devolução já na abertura, e o cliente recebeu um aviso de que as instruções vêm da loja. Combine com ele e registre aqui: ele recebe por e-mail.",
+    has: (r: SupplierReturn) => r.awaiting_customer_instruction,
+  },
+  {
     key: "rejected",
     title: "Recusadas pelo fornecedor",
     description: "O cliente já foi estornado, e o custo fica com a loja até você acertar com o fornecedor.",
-    has: (r: SupplierReturn) => r.status === "rejected",
+    has: (r: SupplierReturn) => r.status === "rejected" && !r.awaiting_customer_instruction,
   },
   {
     key: "overdue",
@@ -51,9 +61,10 @@ function situation(r: SupplierReturn): string {
  * As devoluções ao fornecedor (#223): o cliente desistiu da compra e já foi estornado, e aqui fica a pendência
  * da loja com o fornecedor, com as recusas primeiro. Também mostra a nota de devolução que a SEFAZ rejeitou.
  */
-export default async function SupplierReturns() {
+export default async function SupplierReturns({ searchParams }: Props) {
   const { token } = await requireAdmin("/admin/devolucoes");
-  const { result, readAt: now } = await supplierReturns(token);
+  const [{ result, readAt: now }, query] = await Promise.all([supplierReturns(token), searchParams]);
+  const instructed = typeof query.instruido === "string" ? query.instruido : undefined;
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -64,6 +75,12 @@ export default async function SupplierReturns() {
           cliente já saiu e não depende de nada daqui.
         </p>
       </div>
+
+      {instructed && (
+        <p role="status" className="border-success bg-surface rounded-md border-l-4 px-4 py-3">
+          Instrução do pedido {orderNumber(instructed)} registrada. O cliente recebe por e-mail.
+        </p>
+      )}
 
       {!result.ok ? (
         <StateMessage
@@ -134,6 +151,14 @@ function ReturnItem({ item: r, now }: { item: SupplierReturn; now: number }) {
         {r.supplier_order_id && <>; no fornecedor, {r.supplier_order_id}</>}
       </p>
       {r.resolution_reason && <p>Motivo da recusa: {r.resolution_reason}</p>}
+      {r.customer_instruction && r.instructed_at && (
+        <p>
+          {r.customer_instruction === "keep"
+            ? "Combinado: o cliente fica com o produto"
+            : `Combinado: o cliente manda para ${r.return_address ?? "a loja"}`}{" "}
+          (avisado em <time dateTime={r.instructed_at}>{when.format(new Date(r.instructed_at))}</time>).
+        </p>
+      )}
       {r.invoice_error && (
         <p className="text-danger font-medium">A SEFAZ rejeitou a nota de devolução: {r.invoice_error}</p>
       )}
@@ -154,6 +179,9 @@ function ReturnItem({ item: r, now }: { item: SupplierReturn; now: number }) {
             {r.last_error}
           </pre>
         </details>
+      )}
+      {r.awaiting_customer_instruction && (
+        <CustomerInstructionForm orderId={r.order_id} number={orderNumber(r.order_id)} />
       )}
     </li>
   );

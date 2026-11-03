@@ -188,10 +188,21 @@ test("PIX vencido: o painel avisa e o pedido é cancelado sem cobrar", async ({ 
   await fillDelivery(page);
   await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
 
-  await expect(page.getByRole("region", { name: "Valor do PIX" })).toBeVisible({ timeout: 10_000 });
+  const panel = page.getByRole("region", { name: "Valor do PIX" });
+  await expect(panel).toBeVisible({ timeout: 10_000 });
+  // contra o PIX falso: o código só existe na página do pedido (#343)
+  await expect(panel).toContainText("nunca envia código PIX por WhatsApp, SMS ou e-mail");
   await expect(page.getByText("Pedido cancelado")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("O PIX venceu sem pagamento. Nada foi cobrado.")).toBeVisible();
   await expect(page.getByRole("list", { name: "Andamento do pedido" })).toContainText("PIX vencido");
+
+  // os produtos voltam ao carrinho para pagar de novo, sem refazer a busca (#343)
+  await page.getByRole("button", { name: "Fazer o pedido de novo" }).click();
+  await expect(page).toHaveURL(/\/carrinho\?refeito=1&fora=0$/);
+  await expect(
+    page.getByRole("status").filter({ hasText: "O produto do pedido voltou ao carrinho." }),
+  ).toBeVisible();
+  await expect(page.getByRole("list", { name: "Produtos no carrinho" })).toContainText('Smart TV 55" QLED');
 });
 
 test("cartão: os erros ficam no campo, e o recusado pelo banco cancela o pedido", async ({ page }) => {
@@ -468,4 +479,101 @@ test.describe("link do e-mail sem JavaScript", () => {
 test("o token do link não vai para outros sites: o referrer fica na própria loja", async ({ page }) => {
   await page.goto("/acompanhar/abrir?token=link-bom");
   await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "same-origin");
+});
+
+/** Põe a quantidade na página do produto e adiciona. */
+async function addQuantity(page: Page, path: string, qty: number) {
+  await page.goto(path);
+  const field = page.getByRole("spinbutton", { name: "Quantidade" });
+  await field.fill(String(qty));
+  await field.blur();
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toBeVisible();
+}
+
+const FONE = "/produto/0199f6a0-0000-7000-8000-000000000001";
+
+test.describe("2 unidades do mesmo produto (#322)", () => {
+  test("foi engano: tira uma unidade e segue para o pagamento com o total novo", async ({ page }) => {
+    await addQuantity(page, TV, 2);
+    await page.goto("/carrinho");
+    await page.getByRole("link", { name: "Continuar para o pagamento" }).click();
+
+    const question = page.getByRole("heading", { level: 1, name: '2 unidades de Smart TV 55" QLED?' });
+    await expect(question).toBeFocused();
+    await expect(page.getByText("Produtos: R$ 5.279,84")).toBeVisible();
+    await expect(page.getByText("Produtos: R$ 2.639,92")).toBeVisible();
+    await page.getByRole("button", { name: "Foi engano, quero 1" }).click();
+
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Revise e faça o pedido");
+    await expect(page.getByRole("complementary", { name: "Resumo" })).toContainText("1 produto");
+  });
+
+  test("está certo: segue com as 2, e a pergunta não volta na mesma compra", async ({ page }) => {
+    await addQuantity(page, TV, 2);
+    // quem entra direto no pagamento também vê a pergunta
+    await page.goto("/checkout");
+    await page.getByRole("button", { name: "Está certo, quero 2" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Revise e faça o pedido");
+    await expect(page.getByRole("complementary", { name: "Resumo" })).toContainText("2 produtos");
+
+    await page.goto("/carrinho");
+    await page.getByRole("link", { name: "Continuar para o pagamento" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Revise e faça o pedido");
+  });
+
+  test("com mais de um repetido, um aviso só; 1 e 3 unidades não perguntam", async ({ page }) => {
+    await addQuantity(page, TV, 2);
+    await addQuantity(page, FONE, 2);
+    await page.goto("/checkout");
+    await expect(page.getByRole("heading", { level: 1, name: "Confira as quantidades" })).toBeFocused();
+    await page.getByRole("button", { name: "Foi engano, 1 de cada" }).click();
+    await expect(page.getByRole("complementary", { name: "Resumo" })).toContainText("2 produtos");
+
+    // 3 unidades foram escolhidas de propósito: segue direto
+    await addQuantity(page, FONE, 2);
+    await page.goto("/checkout");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Revise e faça o pedido");
+  });
+
+  test("sem JavaScript, as duas saídas funcionam", async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.goto(TV);
+    await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+    await page.goto(TV);
+    await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+    await page.goto("/checkout");
+    await page.getByRole("button", { name: "Foi engano, quero 1" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Revise e faça o pedido");
+    await expect(page.getByRole("complementary", { name: "Resumo" })).toContainText("1 produto");
+    await context.close();
+  });
+});
+
+test("frete grátis pela margem: o econômico sai de graça, com o preço normal riscado, e o pedido não cobra (#323)", async ({
+  page,
+}) => {
+  // o headset vem do fornecedor e tem margem para pagar o econômico; o expresso continua cobrado
+  const HEADSET = "/produto/0199f6a0-0000-7000-8000-000000000063";
+  await page.goto(HEADSET);
+  const product = page.getByRole("region", { name: "Frete e prazo" });
+  await product.getByLabel("CEP").fill("01310100");
+  await product.getByRole("button", { name: "Calcular" }).click();
+  const economico = product.getByRole("listitem").filter({ hasText: "Econômico" });
+  await expect(economico).toContainText("Grátis");
+  await expect(economico.locator("s")).toHaveText("de R$ 24,30 por");
+  await expect(product.getByRole("listitem").filter({ hasText: "Expresso" })).toContainText("R$ 64,80");
+
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toBeVisible();
+  await page.goto("/checkout");
+  await page.getByLabel("E-mail").fill("frete-gratis@exemplo.com");
+  await fillDelivery(page);
+  const summary = page.getByRole("complementary", { name: "Resumo" });
+  await expect(summary).toContainText("Frete econômico");
+  await expect(summary).toContainText("Grátis");
+  await expect(summary).toContainText("R$ 299,90"); // só o produto
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+  await expect(page).toHaveURL(/\/acompanhar|\/conta\/pedidos\//);
 });

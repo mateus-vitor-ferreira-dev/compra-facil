@@ -26,6 +26,8 @@ public static partial class EmailComposer
     private static readonly IFluidTemplate s_shipped = Load("order-shipped");
     private static readonly IFluidTemplate s_delivered = Load("order-delivered");
     private static readonly IFluidTemplate s_returnInstructions = Load("return-instructions");
+    private static readonly IFluidTemplate s_returnPending = Load("return-pending");
+    private static readonly IFluidTemplate s_returnKeep = Load("return-keep");
 
     /// <summary>O pedido saiu (#224): o código de rastreio, a transportadora, o link dela e o do pedido.</summary>
     public static async Task<ComposedEmail> ShippedAsync(OrderShippedData order, Uri storeUrl)
@@ -87,6 +89,22 @@ public static partial class EmailComposer
         return new ComposedEmail($"Como devolver o pedido {number}", html, ToText(html));
     }
 
+    /// <summary>O fornecedor recusou a devolução na abertura: as instruções virão da loja (#281).</summary>
+    public static async Task<ComposedEmail> ReturnPendingAsync(Guid orderId)
+    {
+        var number = OrderNumber(orderId);
+        var html = await s_returnPending.RenderAsync(Context(new { order_number = number }), s_html);
+        return new ComposedEmail($"Devolução do pedido {number}: as instruções vêm da loja", html, ToText(html));
+    }
+
+    /// <summary>A loja combinou que o cliente fica com o produto (#281).</summary>
+    public static async Task<ComposedEmail> ReturnKeepAsync(Guid orderId)
+    {
+        var number = OrderNumber(orderId);
+        var html = await s_returnKeep.RenderAsync(Context(new { order_number = number }), s_html);
+        return new ComposedEmail($"Pedido {number}: não precisa devolver o produto", html, ToText(html));
+    }
+
     /// <summary>O estorno feito: do pedido devolvido ou do cancelado depois de pago.</summary>
     public static async Task<ComposedEmail> RefundedAsync(OrderRefundedData refund)
     {
@@ -96,6 +114,7 @@ public static partial class EmailComposer
         {
             "returned" => "é a devolução que você pediu.",
             "invoice_failed" => "não conseguimos emitir a nota fiscal do pedido.",
+            "store_cancelled" => "cancelamos o pedido antes do envio.",
             _ => "o fornecedor não conseguiu atender o pedido.",
         };
         var html = await s_refunded.RenderAsync(Context(new { order_number = number, amount = Brl(refund.Amount), reason }), s_html);
@@ -211,6 +230,8 @@ public static partial class EmailComposer
             "Entre em contato com o seu banco ou tente outra forma de pagamento."),
         ("supplier_failed", _) => ("o fornecedor não conseguiu atender o pedido.",
             "Nada fica cobrado: o pagamento foi cancelado ou estornado por inteiro, pelo mesmo meio."),
+        ("store_cancelled", _) => ("cancelamos o pedido antes do envio.",
+            "Nada fica cobrado: o pagamento foi cancelado ou estornado por inteiro, pelo mesmo meio. Se ainda quiser os produtos, faça um novo pedido."),
         ("invoice_failed", _) => ("não conseguimos emitir a nota fiscal do pedido.",
             "Nada fica cobrado: o pagamento foi cancelado ou estornado por inteiro, pelo mesmo meio. Confira o CPF e o endereço e faça o pedido de novo."),
         _ => ("o pedido não pôde ser concluído.", "Nada foi cobrado."),
