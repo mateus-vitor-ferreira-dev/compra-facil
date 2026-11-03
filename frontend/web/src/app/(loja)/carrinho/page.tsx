@@ -273,6 +273,22 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           )}
         </p>
         {issue && <LineNotice issue={issue} line={line} />}
+        {/* a ação escrita, e não só a lixeira: com vários produtos, quem compra acha onde desistir de um sem
+            adivinhar o ícone (#320). O nome acessível leva o produto e começa pelo texto visível */}
+        <form action={removeFromCart} className="-ml-2 pt-1">
+          {productId}
+          <RemoveButton
+            type="submit"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "text-ink-soft hover:text-ink px-2",
+            )}
+            aria-label={`Remover ${product.name} do carrinho`}
+          >
+            <Trash2 aria-hidden="true" />
+            Remover
+          </RemoveButton>
+        </form>
       </div>
 
       <div className="col-start-2 flex flex-wrap items-center justify-between gap-3 sm:col-start-3 sm:row-start-1 sm:flex-col sm:items-end">
@@ -285,7 +301,7 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           <span className="sr-only">Subtotal: </span>
           {brl(lineTotal)}
         </p>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           {/* − e + são botões de envio: funcionam sem JavaScript. No limite ficam aria-disabled (e não disabled, que
               derrubaria o foco de quem usa teclado), com o valor travado: o envio não muda nada (#273) */}
           <form action={updateQuantity} className="flex items-center">
@@ -316,16 +332,6 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
             >
               <Plus aria-hidden="true" />
             </button>
-          </form>
-          <form action={removeFromCart}>
-            {productId}
-            <RemoveButton
-              type="submit"
-              className={stepper}
-              aria-label={`Remover ${product.name} do carrinho`}
-            >
-              <Trash2 aria-hidden="true" />
-            </RemoveButton>
           </form>
         </div>
       </div>
