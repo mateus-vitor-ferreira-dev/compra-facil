@@ -335,6 +335,18 @@ export function cancelSupplierOrder(token: string, orderId: string) {
   );
 }
 
+export type CustomerInstruction = FulfillmentSchemas["schemas"]["CustomerInstructionRequest"];
+
+/** Depois da recusa do fornecedor na abertura, o que a loja combinou com o cliente (#281). */
+export function instructReturnCustomer(token: string, orderId: string, body: CustomerInstruction) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-returns/{order_id}/customer-instruction", {
+      params: { path: { order_id: orderId } },
+      body,
+    }),
+  );
+}
+
 /** As devoluções ao fornecedor que pedem atenção (#223), e o momento da leitura. */
 export async function supplierReturns(token: string) {
   const result = await run(() =>

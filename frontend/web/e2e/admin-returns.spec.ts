@@ -1,13 +1,22 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-test("mostra as devoluções ao fornecedor, com as recusas primeiro", async ({ page }) => {
+// o stub guarda a instrução registrada: o segundo teste muda o que o primeiro vê
+test.describe.configure({ mode: "serial" });
+
+async function signIn(page: Page) {
   await page.goto("/admin/devolucoes");
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
   await expect(page).toHaveURL(/\/admin\/devolucoes$/);
+}
+
+test("mostra as devoluções ao fornecedor, com o que pede ação primeiro", async ({ page }) => {
+  await signIn(page);
   await expect(page.getByRole("link", { name: "Devoluções" })).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("heading", { level: 2 }).first()).toContainText("Recusadas pelo fornecedor");
+  const headings = page.getByRole("heading", { level: 2 });
+  await expect(headings.nth(0)).toContainText("Diga ao cliente o que fazer");
+  await expect(headings.nth(1)).toContainText("Recusadas pelo fornecedor");
 
   const rejected = page.getByRole("region", { name: /^Recusadas pelo fornecedor/ });
   await expect(rejected).toHaveAccessibleName(/1 devolução$/);
@@ -29,4 +38,33 @@ test("mostra as devoluções ao fornecedor, com as recusas primeiro", async ({ p
   await expect(waiting).toContainText("Aberta no fornecedor");
   await expect(waiting).toContainText("código RMA00000002");
   await expect(waiting).not.toContainText("Prazo venceu");
+});
+
+test("recusada na abertura: a equipe diz ao cliente o que fazer, e a devolução sai do topo (#281)", async ({
+  page,
+}) => {
+  await signIn(page);
+  const instruct = page.getByRole("region", { name: /^Diga ao cliente o que fazer/ });
+  await expect(instruct).toContainText("Pedido 9D4E5BC3, Recusada na abertura");
+  const choice = instruct.getByRole("group", {
+    name: "O que o cliente do pedido 9D4E5BC3 faz com o produto?",
+  });
+
+  // o código e o endereço só aparecem no envio, e são obrigatórios nele
+  await expect(instruct.getByLabel("Código da devolução")).toBeHidden();
+  await choice.getByRole("radio", { name: /Manda para a loja/ }).check();
+  await instruct.getByLabel("Endereço para o envio").fill("Rua da Loja, 10 - Lavras/MG");
+  await instruct.getByRole("button", { name: "Mandar ao cliente" }).click();
+  await expect(instruct.getByRole("alert")).toContainText("Confira os campos marcados.");
+  await expect(instruct.getByLabel("Código da devolução")).toBeFocused();
+  await expect(instruct.getByLabel("Endereço para o envio")).toHaveValue("Rua da Loja, 10 - Lavras/MG");
+
+  await instruct.getByLabel("Código da devolução").fill("LOJA-123");
+  await instruct.getByRole("button", { name: "Mandar ao cliente" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Instrução do pedido 9D4E5BC3 registrada. O cliente recebe por e-mail.",
+  );
+  await expect(page.getByRole("region", { name: /^Diga ao cliente o que fazer/ })).toHaveCount(0);
+  const rejected = page.getByRole("region", { name: /^Recusadas pelo fornecedor/ });
+  await expect(rejected).toContainText("Combinado: o cliente manda para Rua da Loja, 10 - Lavras/MG");
 });

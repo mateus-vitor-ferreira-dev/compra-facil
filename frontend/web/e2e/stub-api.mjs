@@ -594,6 +594,10 @@ async function tokenize(req, res, url) {
 }
 
 // as devoluções ao fornecedor (#223): uma recusada, com a nota rejeitada, uma parada e uma no prazo
+const REFUSED_AT_OPENING = "01a18d66-0000-7000-8000-00009d4e5bc3";
+// o que a equipe registrou nas recusadas na abertura, por pedido
+const returnInstructions = new Map();
+
 function supplierReturns() {
   const day = 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -606,8 +610,32 @@ function supplierReturns() {
     resolution_reason: null,
     invoice_error: null,
     resolved_at: null,
+    return_address: null,
+    awaiting_customer_instruction: false,
+    customer_instruction: null,
+    instructed_at: null,
   };
+  // a recusada na abertura (#281): espera a instrução até a equipe registrar
+  const refused = returnInstructions.get(REFUSED_AT_OPENING);
   return [
+    {
+      ...base,
+      order_id: REFUSED_AT_OPENING,
+      status: "rejected",
+      overdue: false,
+      due_at: iso(now + 14 * day),
+      dispute_id: null,
+      return_code: refused?.return_code ?? null,
+      return_address: refused?.return_address ?? null,
+      customer_email: "edu@exemplo.com",
+      resolution_reason: "Return refused: outside the supplier policy",
+      requested_at: iso(now - 1 * day),
+      opened_at: null,
+      resolved_at: iso(now - 1 * day),
+      awaiting_customer_instruction: !refused,
+      customer_instruction: refused?.instruction ?? null,
+      instructed_at: refused?.at ?? null,
+    },
     {
       ...base,
       order_id: "01a18d66-0000-7000-8000-00007a1c2e90",
@@ -964,6 +992,18 @@ createServer(async (req, res) => {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     // o pedido 9d2c7a40 já foi despachado: o cancelamento dá 409
     if (orderAction[1].endsWith("9d2c7a40")) return problem(res, 409, "Ação indisponível");
+    return res.writeHead(204).end();
+  }
+  const instruction = url.pathname.match(
+    /^\/fulfillment\/v1\/admin\/supplier-returns\/([0-9a-f-]{36})\/customer-instruction$/,
+  );
+  if (req.method === "POST" && instruction) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    if (instruction[1] !== REFUSED_AT_OPENING) return problem(res, 409, "Ação indisponível");
+    const body = await json(req);
+    const previous = returnInstructions.get(instruction[1]);
+    if (previous && previous.instruction !== body.instruction) return problem(res, 409, "Ação indisponível");
+    if (!previous) returnInstructions.set(instruction[1], { ...body, at: new Date().toISOString() });
     return res.writeHead(204).end();
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-returns") {
