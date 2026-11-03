@@ -133,6 +133,14 @@ jobs:
       URL_LOJA: ${{ vars.URL_LOJA }}
     steps:
       - uses: actions/checkout@v7.0.1
+      # o binding MAINTENANCE (#370) precisa do id do namespace da conta: com o de zeros, o wrangler recusaria
+      # publicar no meio do caminho
+      - name: Confere o KV da manutenção
+        run: |
+          if grep -q '"id": "00000000000000000000000000000000"' wrangler.jsonc; then
+            echo "::error title=KV da manutenção sem id::Crie o namespace e ponha o id em wrangler.jsonc (deploy/README.md, \"Aviso de manutenção\")."
+            exit 1
+          fi
       - name: Espera a API deste commit
         env:
           GH_TOKEN: ${{ github.token }}

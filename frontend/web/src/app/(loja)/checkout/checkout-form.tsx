@@ -11,6 +11,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
+import { AutoRefresh } from "@/components/ui/auto-refresh";
 import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { loginHref } from "@/lib/auth/return-to";
@@ -54,6 +55,8 @@ type Props = {
   remembered: boolean;
   /** loja de demonstração: a entrega avisa para não usar dados reais (#280) */
   demo?: boolean;
+  /** a loja está sendo atualizada (#370): o pedido espera, e a página confere de novo sozinha */
+  paused?: boolean;
   /** sem sessão: a compra pede o e-mail, e a conta é opcional */
   guest: boolean;
   /** os produtos e a conta, renderizados no servidor, antes da entrega e do pagamento */
@@ -79,10 +82,18 @@ export function CheckoutForm({
   initialDelivery,
   remembered,
   demo = false,
+  paused = false,
   guest,
   review,
   summary,
 }: Props) {
+  // a loja estava em atualização nesta página e voltou: o aviso de volta (#370)
+  const [resumed, setResumed] = useState(false);
+  const wasPaused = useRef(paused);
+  useEffect(() => {
+    if (wasPaused.current && !paused) setResumed(true);
+    wasPaused.current = paused;
+  }, [paused]);
   const [state, action, pending] = useActionState<CheckoutState, FormData>(confirmOrder, {});
   // sem JavaScript, a página volta da action com o que foi digitado e os erros
   const [delivery, setDelivery] = useState(() => state.delivery?.values ?? initialDelivery);
@@ -189,7 +200,7 @@ export function CheckoutForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || paused) return;
     const data = new FormData(event.currentTarget);
     setCardProblem(undefined);
     if (guest) {
@@ -386,19 +397,40 @@ export function CheckoutForm({
               )}
             </div>
           )}
+          {/* sempre presente: assim o leitor de tela anuncia também a volta dos pedidos, e não só a pausa */}
+          <div role="status">
+            {paused ? (
+              <div className="border-ink bg-surface space-y-1 rounded-md border-l-4 p-4">
+                <AutoRefresh />
+                <p className="font-semibold">Estamos atualizando a loja</p>
+                <p className="text-ink-soft text-sm">
+                  Os pedidos voltam em cerca de 1 minuto. O que você preencheu fica aqui, e o botão volta
+                  sozinho.
+                </p>
+              </div>
+            ) : (
+              resumed && (
+                <p className="border-success bg-surface rounded-md border-l-4 px-4 py-3 text-sm font-semibold">
+                  A loja foi atualizada. Confira e faça o pedido.
+                </p>
+              )
+            )}
+          </div>
           {/* aria-disabled, não disabled: o botão desligado perderia o foco no meio da conferência */}
           <Button
             type="submit"
-            className={cn("w-full", busy && "cursor-progress opacity-50")}
-            aria-disabled={busy || undefined}
+            className={cn("w-full", (busy || paused) && "cursor-progress opacity-50")}
+            aria-disabled={busy || paused || undefined}
           >
-            {checking
-              ? "Conferindo o cartão…"
-              : pending
-                ? "Fazendo o pedido…"
-                : waitingQuote
-                  ? "Calculando o frete…"
-                  : `Fazer o pedido de ${total}`}
+            {paused
+              ? "Aguardando a atualização…"
+              : checking
+                ? "Conferindo o cartão…"
+                : pending
+                  ? "Fazendo o pedido…"
+                  : waitingQuote
+                    ? "Calculando o frete…"
+                    : `Fazer o pedido de ${total}`}
           </Button>
           <p className="text-ink-soft mt-3 text-sm">
             Ao fazer o pedido, você concorda com os{" "}

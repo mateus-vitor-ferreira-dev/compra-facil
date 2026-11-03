@@ -12,6 +12,8 @@ const FRONT_ENV = {
   // o cartão é tokenizado pelo navegador direto no provedor: aqui, o stub
   PAYMENT_PROVIDER_URL: STUB,
   CEP_LOOKUP_URL: `${STUB}/cep`,
+  // a rota de teste que liga a marca do deploy (#370)
+  MAINTENANCE_TEST_HOOKS: "true",
 };
 
 // E2E_WORKER=1: os mesmos testes contra o Worker da produção (o build do OpenNext no workerd, depois de
