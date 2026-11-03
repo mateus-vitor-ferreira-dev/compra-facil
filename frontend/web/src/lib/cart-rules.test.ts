@@ -8,6 +8,7 @@ import {
   removeItem,
   setQuantity,
   summarize,
+  unconfirmedDoubles,
   type Cart,
 } from "./cart-rules";
 
@@ -90,5 +91,24 @@ describe("linhas e resumo", () => {
       canCheckout: false,
     });
     expect(summarize([ok]).canCheckout).toBe(true);
+  });
+});
+
+describe("unconfirmedDoubles (#322)", () => {
+  const line = (id: string, qty: number, unit = true) => ({
+    id,
+    qty,
+    seen: 1000,
+    unit: unit ? { price: 1000, effective: 1000 } : undefined,
+  });
+
+  it("pergunta só das linhas com exatamente 2 unidades", () => {
+    const lines = [line("a", 1), line("b", 2), line("c", 3)];
+    expect(unconfirmedDoubles(lines, []).map((l) => l.id)).toEqual(["b"]);
+  });
+
+  it("não pergunta de novo do que foi confirmado, nem do produto que saiu do catálogo", () => {
+    const lines = [line("a", 2), line("b", 2), line("c", 2, false)];
+    expect(unconfirmedDoubles(lines, ["a"]).map((l) => l.id)).toEqual(["b"]);
   });
 });

@@ -5,15 +5,16 @@ import { connection } from "next/server";
 import { ProductImage } from "@/components/commerce/product-image";
 import { Breadcrumbs } from "@/components/store/breadcrumbs";
 import { accessToken, currentAccount } from "@/lib/auth/current";
-import { readCart } from "@/lib/cart";
+import { readCart, readConfirmedDoubles } from "@/lib/cart";
 import { loadCartLines } from "@/lib/cart-lines";
-import { summarize } from "@/lib/cart-rules";
+import { summarize, unconfirmedDoubles } from "@/lib/cart-rules";
 import { EMPTY_DELIVERY, fromOrder } from "@/lib/delivery";
 import { env } from "@/lib/env";
 import { formatMoney } from "@/lib/format";
 import { listMyOrders } from "@/lib/orders-api";
 import { quoteShipping } from "@/lib/shipping-api";
 import { CheckoutForm } from "./checkout-form";
+import { QuantityCheck } from "./quantity-check";
 
 export const metadata: Metadata = { title: "Pagamento", robots: { index: false } };
 
@@ -35,6 +36,16 @@ export default async function CheckoutPage() {
   const { lines, unreachable } = await loadCartLines(cart);
   const summary = summarize(lines);
   if (!summary.canCheckout || unreachable) redirect("/carrinho");
+  // 2 unidades do mesmo produto: a pergunta vem antes do pagamento (#322)
+  const doubles = unconfirmedDoubles(lines, await readConfirmedDoubles());
+  if (doubles.length > 0) {
+    return (
+      <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+        <Breadcrumbs items={[{ href: "/carrinho", label: "Carrinho" }, { label: "Pagamento" }]} />
+        <QuantityCheck doubles={doubles} itemsTotal={summary.total} />
+      </main>
+    );
+  }
   // a entrega do último pedido: quem compra de novo só confere (sem ela, ou com o orders fora, começa vazia)
   const previous = account && token ? await listMyOrders(token) : undefined;
   const remembered = previous?.ok

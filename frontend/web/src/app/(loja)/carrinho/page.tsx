@@ -15,7 +15,7 @@ import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ShippingEstimate } from "@/components/commerce/shipping-estimate";
 import { acceptCartPrices, clearCart, removeFromCart, undoRemove, updateQuantity } from "./actions";
-import { FocusHeading } from "./focus-on-mount";
+import { FocusHeading } from "@/components/ui/focus-heading";
 import { RemoveButton, UndoFocus } from "./remove-focus";
 
 export const metadata: Metadata = { title: "Carrinho", robots: { index: false } };
