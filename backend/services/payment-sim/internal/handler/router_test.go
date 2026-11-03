@@ -25,7 +25,7 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	p := payment.NewProvider(payment.Options{}, nil)
 	t.Cleanup(p.Close)
-	return &env{t: t, router: NewRouter(p, Credentials{AccessToken: "tok", PublicKey: "pub"}, slog.New(slog.DiscardHandler))}
+	return &env{t: t, router: NewRouter(p, Credentials{AccessToken: "tok", PublicKey: "pub", AdminToken: "adm"}, slog.New(slog.DiscardHandler))}
 }
 
 func (e *env) do(method, path string, body any, headers map[string]string) (int, map[string]any) {
@@ -62,7 +62,10 @@ func TestPIXFlow_OverHTTP(t *testing.T) {
 	assert.InDelta(t, 120.9, pay["transaction_amount"], 0.001)
 	id := strconv.FormatInt(int64(pay["id"].(float64)), 10)
 
+	// pagar pela API é operação: sem o token de administração, 401 (#280)
 	status, _ = e.do(http.MethodPost, "/sim/payments/"+id+"/pay", nil, nil)
+	require.Equal(t, http.StatusUnauthorized, status)
+	status, _ = e.do(http.MethodPost, "/sim/payments/"+id+"/pay", nil, map[string]string{"X-Sim-Admin-Token": "adm"})
 	require.Equal(t, http.StatusOK, status)
 	_, pay = e.do(http.MethodGet, "/v1/payments/"+id, nil, auth(""))
 	assert.Equal(t, "approved", pay["status"])
@@ -71,10 +74,56 @@ func TestPIXFlow_OverHTTP(t *testing.T) {
 	require.Equal(t, http.StatusCreated, status)
 	assert.InDelta(t, 20.0, refund["amount"], 0.001)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/sim/pix/"+id, nil)
-	rec := httptest.NewRecorder()
-	e.router.ServeHTTP(rec, req)
-	assert.Contains(t, rec.Body.String(), "pago")
+	// a página do PIX abre pelo ticket_url (código aleatório), e não pelo id
+	ticket := pay["point_of_interaction"].(map[string]any)["transaction_data"].(map[string]any)["ticket_url"].(string)
+	page := func(path string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		e.router.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
+		return rec
+	}
+	assert.Equal(t, http.StatusNotFound, page("/sim/pix/"+id).Code)
+	path := ticket[len("http://localhost:8092"):]
+	assert.Regexp(t, `^/sim/pix/[0-9a-f]{32}$`, path)
+	assert.Contains(t, page(path).Body.String(), "pago")
+}
+
+func TestPIXPage_PaysByTheTicketCode_AndAnIdPaysNothing(t *testing.T) {
+	e := newEnv(t)
+	_, pay := e.do(http.MethodPost, "/v1/payments", map[string]any{"transaction_amount": 50, "payment_method_id": "pix"}, auth("k2"))
+	id := strconv.FormatInt(int64(pay["id"].(float64)), 10)
+	ticket := pay["point_of_interaction"].(map[string]any)["transaction_data"].(map[string]any)["ticket_url"].(string)
+	post := func(path string) int {
+		rec := httptest.NewRecorder()
+		e.router.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, nil))
+		return rec.Code
+	}
+
+	assert.Equal(t, http.StatusNotFound, post("/sim/pix/"+id)) // o id sequencial não paga
+	_, still := e.do(http.MethodGet, "/v1/payments/"+id, nil, auth(""))
+	assert.Equal(t, "pending", still["status"])
+
+	assert.Equal(t, http.StatusSeeOther, post(ticket[len("http://localhost:8092"):]))
+	_, paid := e.do(http.MethodGet, "/v1/payments/"+id, nil, auth(""))
+	assert.Equal(t, "approved", paid["status"])
+}
+
+func TestOperationRoutes_NeedTheAdminToken(t *testing.T) {
+	e := newEnv(t)
+	for _, r := range []struct{ method, path string }{{http.MethodGet, "/sim/payments"}, {http.MethodPost, "/sim/reset"}} {
+		status, _ := e.do(r.method, r.path, nil, nil)
+		assert.Equal(t, http.StatusUnauthorized, status, r.path)
+		status, _ = e.do(r.method, r.path, nil, map[string]string{"X-Sim-Admin-Token": "errado"})
+		assert.Equal(t, http.StatusUnauthorized, status, r.path)
+		status, _ = e.do(r.method, r.path, nil, map[string]string{"X-Sim-Admin-Token": "adm"})
+		assert.Contains(t, []int{http.StatusOK, http.StatusNoContent}, status, r.path)
+	}
+
+	// sem token configurado, as rotas de operação ficam fechadas para todos
+	p := payment.NewProvider(payment.Options{}, nil)
+	t.Cleanup(p.Close)
+	closed := &env{t: t, router: NewRouter(p, Credentials{AccessToken: "tok", PublicKey: "pub"}, slog.New(slog.DiscardHandler))}
+	status, _ := closed.do(http.MethodGet, "/sim/payments", nil, map[string]string{"X-Sim-Admin-Token": ""})
+	assert.Equal(t, http.StatusUnauthorized, status)
 }
 
 func TestCardFlow_OverHTTP(t *testing.T) {

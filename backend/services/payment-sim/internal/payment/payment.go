@@ -82,18 +82,20 @@ type Refund struct {
 
 // Payment segue os campos do /v1/payments do Mercado Pago que a loja usa.
 type Payment struct {
-	ID                 int64               `json:"id"`
-	Status             string              `json:"status"`
-	StatusDetail       string              `json:"status_detail"`
-	PaymentMethodID    string              `json:"payment_method_id"`
-	PaymentTypeID      string              `json:"payment_type_id"`
-	TransactionAmount  Amount              `json:"transaction_amount"`
-	TransactionRefund  Amount              `json:"transaction_amount_refunded"`
-	Installments       int                 `json:"installments"`
-	Captured           bool                `json:"captured"`
-	Description        string              `json:"description"`
-	ExternalReference  string              `json:"external_reference"`
-	PayerEmail         string              `json:"-"`
+	ID                int64  `json:"id"`
+	Status            string `json:"status"`
+	StatusDetail      string `json:"status_detail"`
+	PaymentMethodID   string `json:"payment_method_id"`
+	PaymentTypeID     string `json:"payment_type_id"`
+	TransactionAmount Amount `json:"transaction_amount"`
+	TransactionRefund Amount `json:"transaction_amount_refunded"`
+	Installments      int    `json:"installments"`
+	Captured          bool   `json:"captured"`
+	Description       string `json:"description"`
+	ExternalReference string `json:"external_reference"`
+	PayerEmail        string `json:"-"`
+	// PageToken abre a página do PIX (o ticket_url): aleatório, para ninguém pagar o PIX de outro pelo id sequencial
+	PageToken          string              `json:"-"`
 	NotificationURL    string              `json:"notification_url,omitempty"`
 	DateCreated        time.Time           `json:"date_created"`
 	DateApproved       *time.Time          `json:"date_approved"`
@@ -130,8 +132,8 @@ type Options struct {
 	PIXExpiration time.Duration
 	// ReviewDelay: o cartão "CONT" fica em análise (in_process) por este tempo e depois é aprovado.
 	ReviewDelay time.Duration
-	// TicketURL monta a página "pague o PIX" do simulador para um pagamento.
-	TicketURL func(id int64) string
+	// TicketURL monta a página "pague o PIX" do simulador a partir do código aleatório do pagamento.
+	TicketURL func(pageToken string) string
 }
 
 // Provider guarda os pagamentos e aplica as regras. Seguro para uso concorrente.
@@ -143,6 +145,7 @@ type Provider struct {
 	mu           sync.Mutex
 	seq, base    int64
 	payments     map[int64]*Payment
+	pages        map[string]int64 // código da página do PIX → pagamento
 	tokens       map[string]*CardToken
 	byKey        map[string]int64  // X-Idempotency-Key → pagamento
 	refundsByKey map[string]Refund // X-Idempotency-Key → estorno
@@ -154,7 +157,7 @@ func NewProvider(opts Options, notify Notifier) *Provider {
 		opts.PIXExpiration = 30 * time.Minute
 	}
 	if opts.TicketURL == nil {
-		opts.TicketURL = func(id int64) string { return fmt.Sprintf("http://localhost:8092/sim/pix/%d", id) }
+		opts.TicketURL = func(token string) string { return "http://localhost:8092/sim/pix/" + token }
 	}
 	p := &Provider{opts: opts, notify: notify, now: time.Now}
 	p.resetLocked()
@@ -169,7 +172,7 @@ func (p *Provider) resetLocked() {
 	// id de um pagamento que a loja já tem no banco (no Mercado Pago, o id nunca se repete)
 	p.base = p.now().UnixMilli()
 	p.seq, p.timers = p.base, nil
-	p.payments, p.tokens = map[int64]*Payment{}, map[string]*CardToken{}
+	p.payments, p.tokens, p.pages = map[int64]*Payment{}, map[string]*CardToken{}, map[string]int64{}
 	p.byKey, p.refundsByKey = map[string]int64{}, map[string]Refund{}
 }
 
@@ -245,8 +248,10 @@ func (p *Provider) Create(key string, req CreateRequest) (Payment, error) {
 		if err != nil {
 			return Payment{}, err
 		}
+		pay.PageToken = randomHex(16)
+		p.pages[pay.PageToken] = pay.ID
 		pay.PointOfInteraction = &PointOfInteraction{Type: "OPENPLATFORM", TransactionData: &TransactionData{
-			QRCode: code, QRCodeBase64: png, TicketURL: p.opts.TicketURL(pay.ID)}}
+			QRCode: code, QRCodeBase64: png, TicketURL: p.opts.TicketURL(pay.PageToken)}}
 		p.schedule(time.Until(expires), func() { p.expire(pay.ID) })
 	default:
 		tok, ok := p.tokens[req.Token]
@@ -347,6 +352,14 @@ func (p *Provider) Get(id int64) (Payment, error) {
 		return Payment{}, ErrNotFound
 	}
 	return *pay, nil
+}
+
+// ByPage acha o pagamento pelo código da página do PIX (o ticket_url que só o comprador recebe).
+func (p *Provider) ByPage(token string) (int64, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	id, ok := p.pages[token]
+	return id, ok
 }
 
 // List devolve todos (rota /sim, para depurar), do mais novo para o mais velho.

@@ -47,6 +47,8 @@ const SUPPLIER_VID = 'SIM-V-007';
 // o provedor de pagamento simulado (Mercado Pago), pela rede do compose
 const PAYMENT_SIM = __ENV.PAYMENT_SIM_URL || 'http://payment-sim:8090';
 const PAYMENT_SIM_PUBLIC_KEY = __ENV.PAYMENT_SIM_PUBLIC_KEY || 'TEST-sim-public-key';
+// as rotas /sim de operação do payment-sim pedem o token de administração (#280)
+const PAYMENT_SIM_ADMIN_TOKEN = __ENV.PAYMENT_SIM_ADMIN_TOKEN || 'sim-admin';
 const SAGA_TIMEOUT_S = 60;
 
 export const options = {
@@ -371,7 +373,8 @@ export default function (products) {
     });
     const payment = paymentOf(orderId, 'pending');
     // o "banco" do cliente paga o QR (a página do ticket_url faz o mesmo)
-    const paid = http.post(`${PAYMENT_SIM}/sim/payments/${payment.provider_reference}/pay`, null, { tags: { name: 'sim-pay' } });
+    const paid = http.post(`${PAYMENT_SIM}/sim/payments/${payment.provider_reference}/pay`, null,
+      { headers: { 'X-Sim-Admin-Token': PAYMENT_SIM_ADMIN_TOKEN }, tags: { name: 'sim-pay' } });
     check(paid, { 'PIX pago no banco': (r) => r.status === 200 });
     check(finalOrder(orderId, customer), { 'pedido confirmed': (o) => o.status === 'confirmed' });
     check(paymentOf(orderId, 'approved'), { 'cobrança approved': (p) => p.method === 'pix' && p.fee_cents > 0 });
