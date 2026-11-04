@@ -43,6 +43,56 @@ internal sealed class OrderRepository(OrdersDbContext db) : IOrderRepository
         return new OrderPage(page, next);
     }
 
+    public async Task<OrderPage> ListAllAsync(AdminOrderFilter filter, string? cursor, int limit, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        var query = db.Orders.AsNoTracking();
+        if (filter.Status is { } s)
+        {
+            query = query.Where(o => o.Status == s);
+        }
+        if (filter.From is { } from)
+        {
+            query = query.Where(o => o.CreatedAt >= from);
+        }
+        if (filter.To is { } to)
+        {
+            query = query.Where(o => o.CreatedAt < to);
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            // o e-mail, o nome de quem recebe ou o começo do número (os 8 primeiros do id, como a loja mostra)
+            var term = filter.Search.Trim();
+            var like = $"%{EscapeLike(term)}%";
+            var prefix = $"{EscapeLike(term.ToLowerInvariant())}%";
+            query = query.Where(o =>
+                EF.Functions.ILike(o.CustomerEmail, like, "\\")
+                || (o.Recipient != null && EF.Functions.ILike(o.Recipient.Name, like, "\\"))
+                || EF.Functions.Like(o.Id.ToString(), prefix, "\\"));
+        }
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            var (createdAt, id) = Decode(cursor);
+            query = query.Where(o => o.CreatedAt < createdAt || (o.CreatedAt == createdAt && o.Id.CompareTo(id) < 0));
+        }
+        var page = await query.OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id).Take(limit + 1).ToListAsync(ct);
+        string? next = null;
+        if (page.Count > limit)
+        {
+            page.RemoveAt(limit);
+            next = Encode(page[^1]);
+        }
+        return new OrderPage(page, next);
+    }
+
+    public async Task<IReadOnlyList<Order>> ListCreatedBetweenAsync(DateTimeOffset since, DateTimeOffset until, CancellationToken ct) =>
+        await db.Orders.AsNoTracking().Where(o => o.CreatedAt >= since && o.CreatedAt < until).ToListAsync(ct);
+
+    // % e _ digitados são texto, não curinga
+    private static string EscapeLike(string term) =>
+        term.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
+
     public void Add(Order order) => db.Orders.Add(order);
 
     public async Task SaveChangesAsync(CancellationToken ct)

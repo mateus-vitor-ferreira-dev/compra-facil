@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<PlaceOrder>();
         services.AddScoped<ReturnOrder>();
         services.AddScoped<OrderQueries>();
+        services.AddScoped<AdminOrders>();
         services.AddSingleton<OrderChangeFeed>();
         services.AddScoped<OrderLive>();
         services.AddScoped<OrderOutcome>();

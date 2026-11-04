@@ -27,6 +27,12 @@ public interface IOrderRepository
     /// <summary>Do mais recente para o mais antigo, paginado por cursor opaco.</summary>
     Task<OrderPage> ListByCustomerAsync(Guid customerId, OrderStatus? status, string? cursor, int limit, CancellationToken ct);
 
+    /// <summary>Todos os pedidos (a lista da equipe), do mais recente para o mais antigo.</summary>
+    Task<OrderPage> ListAllAsync(AdminOrderFilter filter, string? cursor, int limit, CancellationToken ct);
+
+    /// <summary>Os criados em <c>[since, until)</c>, para o resumo de vendas.</summary>
+    Task<IReadOnlyList<Order>> ListCreatedBetweenAsync(DateTimeOffset since, DateTimeOffset until, CancellationToken ct);
+
     void Add(Order order);
 
     /// <summary>Grava o pedido e os eventos do outbox na mesma transação.</summary>
