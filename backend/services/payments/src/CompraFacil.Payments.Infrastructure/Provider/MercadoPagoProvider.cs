@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CompraFacil.Payments.Application.Payments;
@@ -45,6 +46,8 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
+        // sem escapar o "+" do fuso (\u002B): é JSON para uma API, não HTML, e leitores de data como o do Go não desfazem o escape
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public string Name => "mercadopago";

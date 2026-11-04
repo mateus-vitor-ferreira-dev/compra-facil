@@ -23,11 +23,15 @@ public sealed class MercadoPagoProviderTests
     {
         public JsonElement Body { get; private set; }
 
+        /// <summary>O corpo como foi enviado, com os escapes.</summary>
+        public string Raw { get; private set; } = "";
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             if (request.Content is not null)
             {
-                Body = JsonDocument.Parse(await request.Content.ReadAsStringAsync(ct)).RootElement.Clone();
+                Raw = await request.Content.ReadAsStringAsync(ct);
+                Body = JsonDocument.Parse(Raw).RootElement.Clone();
             }
             return new HttpResponseMessage(status) { Content = new StringContent(response, Encoding.UTF8, "application/json") };
         }
@@ -62,6 +66,11 @@ public sealed class MercadoPagoProviderTests
         Assert.Equal(129.90m, body.GetProperty("transaction_amount").GetDecimal());
         // a API lê no máximo milissegundos; o .NET mandaria sete casas
         Assert.Equal("2026-11-04T10:30:00.123-03:00", body.GetProperty("date_of_expiration").GetString());
+        Assert.Contains("\"date_of_expiration\":\"2026-11-04T10:30:00.123-03:00\"", handler.Raw, StringComparison.Ordinal);
+        var utc = Create(PixPending);
+        await utc.Provider.CreatePixAsync(new PixRequest("k9", Guid.NewGuid(), new Money(5000, "BRL"), null, s_expires.ToUniversalTime()),
+            CancellationToken.None);
+        Assert.Contains("13:30:00.123+00:00", utc.Handler.Raw, StringComparison.Ordinal); // o "+" sem escape
         var payer = body.GetProperty("payer");
         Assert.Equal("ana@exemplo.com", payer.GetProperty("email").GetString());
         Assert.Equal("Ana", payer.GetProperty("first_name").GetString());
