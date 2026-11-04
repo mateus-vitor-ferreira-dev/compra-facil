@@ -111,6 +111,23 @@
   --text-2xl: 1.953rem;
   --text-3xl: 2.441rem;
   --text-4xl: 3.052rem;
+
+  /* a etiqueta da 404: balança uma vez, como quem acabou de pendurar (reduzir movimento a deixa parada) */
+  --animate-tag-swing: tag-swing 1.8s cubic-bezier(0.3, 0.7, 0.4, 1) 1;
+  @keyframes tag-swing {
+    0% {
+      transform: rotate(9deg);
+    }
+    35% {
+      transform: rotate(-6deg);
+    }
+    65% {
+      transform: rotate(3deg);
+    }
+    100% {
+      transform: rotate(0deg); /* termina onde a etiqueta fica, sem salto no fim */
+    }
+  }
 }
 
 @layer base {
