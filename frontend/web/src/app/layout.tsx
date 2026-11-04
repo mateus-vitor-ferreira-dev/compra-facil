@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import type { ReactNode } from "react";
+import { InlineScript } from "@/components/inline-script";
 import { Toaster } from "@/components/ui/toast";
 import { WebVitals } from "@/components/web-vitals";
 import { brand } from "@/lib/brand";
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="pt-BR" className={archivo.variable} suppressHydrationWarning>
       <head>
         {/* antes do primeiro desenho: a página já nasce no tema escolhido, sem piscar */}
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <InlineScript html={themeScript} />
       </head>
       <body>
         {/* primeiro foco da página: pula direto para o conteúdo */}
