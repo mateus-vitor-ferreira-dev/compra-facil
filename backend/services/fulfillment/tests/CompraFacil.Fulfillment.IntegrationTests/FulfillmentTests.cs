@@ -1018,7 +1018,7 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         var id = Guid.NewGuid();
         await ConfirmedAsync(id, invoicing: new InvoiceSettings { Enabled = false });
 
-        Assert.Equal(1, await DispatchAsync());
+        await DispatchAsync(); // a fila é da classe: pode levar pedidos de outros testes junto
 
         Assert.Null(await InvoiceAsync(id));
         var call = Assert.Single(fx.Supplier.Calls, c => c.OrderNumber == id);
