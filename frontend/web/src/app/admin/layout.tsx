@@ -1,3 +1,4 @@
+import { ThemeMenu } from "@/components/theme/theme-menu";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -34,6 +35,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             </Link>
             <div className="flex items-center gap-2 text-sm">
               <span className="text-on-hero/75 hidden sm:inline">{account.email}</span>
+              <ThemeMenu className="text-on-hero hover:bg-on-hero/10" />
               <Link
                 href="/"
                 className="hover:bg-on-hero/10 inline-flex min-h-11 items-center rounded-md px-3 font-medium"

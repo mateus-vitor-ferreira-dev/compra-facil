@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { CategoryIcon } from "@/components/commerce/category-icon";
 import type { categoryTree } from "@/lib/catalog-api";
+import { ThemeMenu } from "@/components/theme/theme-menu";
 import { CategoryStrip } from "./category-strip";
 import { HeaderSearch } from "./search-box";
 
@@ -39,6 +40,8 @@ export function SiteHeader({
           <Link href="/ofertas" className={`${iconLink} hidden sm:inline-flex`}>
             Ofertas
           </Link>
+          {/* no celular não cabe ao lado do carrinho: lá, o tema fica no rodapé */}
+          <ThemeMenu className="hidden sm:inline-flex" />
           <Link href={signedIn ? "/conta" : "/entrar"} className={iconLink}>
             <User aria-hidden="true" className="size-5" />
             <span className="sr-only sm:not-sr-only">{signedIn ? "Minha conta" : "Entrar"}</span>
