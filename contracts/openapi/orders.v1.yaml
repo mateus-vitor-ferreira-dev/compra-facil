@@ -19,7 +19,8 @@ info:
 
     **Quem compra vem do token**: o access token do identity (`Authorization: Bearer`, papel `customer`)
     dá o cliente (`sub`) e o e-mail dos avisos (`email`). Cada cliente vê só os próprios pedidos
-    (`/v1/me/orders`); o operador (`admin`) consulta qualquer pedido pelo id.
+    (`/v1/me/orders`); o operador (`admin`) consulta qualquer pedido pelo id, lista todos
+    (`/v1/admin/orders`, sem CPF nem endereço) e vê o resumo das vendas (`/v1/admin/sales-summary`).
 servers:
   - url: http://localhost:8002
     description: Serviço direto (dev)
@@ -282,6 +283,146 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
+  /v1/admin/orders:
+    get:
+      tags: [admin]
+      operationId: listAdminOrders
+      summary: Todos os pedidos, para a equipe
+      description: |
+        Do mais recente para o mais antigo, com o contato de quem comprou: nome, e-mail, telefone e
+        cidade/UF. O CPF e o endereço não saem por aqui (LGPD: só o necessário para atender).
+        `q` procura no e-mail, no nome de quem recebe ou no começo do número do pedido.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Cursor"
+        - $ref: "./common/v1/common.yaml#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/OrderStatus"
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+        - name: from
+          in: query
+          description: Criados a partir de (inclusive).
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Criados antes de (exclusive).
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Página de pedidos.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminOrderSummary"
+                  page:
+                    $ref: "./common/v1/common.yaml#/components/schemas/PageInfo"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/orders/{order_id}:
+    get:
+      tags: [admin]
+      operationId: getAdminOrder
+      summary: Um pedido, para a equipe
+      description: O resumo da lista, com os itens, a entrega, o rastreio e as datas de cada etapa.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Pedido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOrderDetail"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/admin/sales-summary:
+    get:
+      tags: [admin]
+      operationId: getSalesSummary
+      summary: As vendas de um período
+      description: |
+        Os pedidos criados no período. **Pago** é o pedido que chegou a ser cobrado (confirmado,
+        enviado, entregue, devolvido, ou cancelado depois de pago). **Estornado** é o devolvido ou o
+        cancelado depois de pago, pelo total do pedido; o estorno parcial feito no painel do payments não
+        entra. Os dias são os de Brasília (UTC−3). O custo, o frete do fornecedor e as taxas ficam nas
+        margens do fulfillment (`/v1/admin/order-margins`).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "./common/v1/common.yaml#/components/parameters/RequestId"
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          description: Exclusive; no máximo 366 dias depois de `from`.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: O resumo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesSummary"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/admin/dead-letters:
     get:
       tags: [admin]
@@ -341,6 +482,202 @@ paths:
 
 components:
   schemas:
+    AdminCustomer:
+      type: object
+      description: O contato de quem comprou. Sem CPF nem endereço.
+      required: [email, name, phone]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          description: Quem recebe; nulo nos pedidos de antes do #221.
+          type: [string, "null"]
+        phone:
+          description: Só os dígitos, com o DDD.
+          type: [string, "null"]
+
+    AdminOrderDestination:
+      type: object
+      required: [city, state]
+      properties:
+        city:
+          type: string
+        state:
+          type: string
+          minLength: 2
+          maxLength: 2
+
+    AdminOrderSummary:
+      type: object
+      required: [id, status, created_at, total, items_count, payment, customer, destination]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        cancellation_reason:
+          oneOf:
+            - $ref: "#/components/schemas/CancellationReason"
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+        total:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        items_count:
+          description: A soma das quantidades.
+          type: integer
+          minimum: 1
+        payment:
+          type: object
+          required: [method, installments]
+          properties:
+            method:
+              $ref: "./payments.v1.yaml#/components/schemas/PaymentMethod"
+            installments:
+              type: integer
+              minimum: 1
+              maximum: 12
+        customer:
+          $ref: "#/components/schemas/AdminCustomer"
+        destination:
+          oneOf:
+            - $ref: "#/components/schemas/AdminOrderDestination"
+            - type: "null"
+
+    AdminOrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/AdminOrderSummary"
+        - type: object
+          required: [items, items_total, updated_at]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/OrderItem"
+            items_total:
+              $ref: "./common/v1/common.yaml#/components/schemas/Money"
+            shipping:
+              oneOf:
+                - $ref: "#/components/schemas/OrderShipping"
+                - type: "null"
+            tracking:
+              oneOf:
+                - $ref: "#/components/schemas/Tracking"
+                - type: "null"
+            payment_failure_reason:
+              type: [string, "null"]
+            invoice_number:
+              description: O número da nota fiscal, se emitida.
+              type: [integer, "null"]
+            stock_reserved_at:
+              type: [string, "null"]
+              format: date-time
+            sent_to_supplier_at:
+              type: [string, "null"]
+              format: date-time
+            shipped_at:
+              type: [string, "null"]
+              format: date-time
+            delivered_at:
+              type: [string, "null"]
+              format: date-time
+            return_requested_at:
+              type: [string, "null"]
+              format: date-time
+            refunded_at:
+              type: [string, "null"]
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    SalesSummary:
+      type: object
+      required: [from, to, orders, gross_sales, refunds, net_sales, average_ticket, shipping_charged, daily, by_payment_method, top_products]
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        orders:
+          type: object
+          required: [placed, paid, refunded, not_paid]
+          properties:
+            placed:
+              description: Todos os criados no período.
+              type: integer
+            paid:
+              type: integer
+            refunded:
+              description: Pagos e depois estornados (devolvidos ou cancelados depois de pagos).
+              type: integer
+            not_paid:
+              description: Recusados no estoque ou no pagamento, ou ainda pendentes.
+              type: integer
+        gross_sales:
+          description: A soma dos pagos, com o frete cobrado.
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        refunds:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        net_sales:
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        average_ticket:
+          description: Bruto dividido pelos pagos; zero sem pagos.
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        shipping_charged:
+          description: O frete que os clientes pagaram nos pedidos pagos.
+          $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        daily:
+          description: Um item por dia de Brasília do período, inclusive os sem venda.
+          type: array
+          items:
+            type: object
+            required: [date, paid_orders, gross_sales, refunds]
+            properties:
+              date:
+                type: string
+                format: date
+              paid_orders:
+                type: integer
+              gross_sales:
+                $ref: "./common/v1/common.yaml#/components/schemas/Money"
+              refunds:
+                $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        by_payment_method:
+          type: array
+          items:
+            type: object
+            required: [method, paid_orders, gross_sales]
+            properties:
+              method:
+                $ref: "./payments.v1.yaml#/components/schemas/PaymentMethod"
+              paid_orders:
+                type: integer
+              gross_sales:
+                $ref: "./common/v1/common.yaml#/components/schemas/Money"
+        top_products:
+          description: Os 5 que mais faturaram nos pagos e não estornados.
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            required: [product_id, name, quantity, revenue]
+            properties:
+              product_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              quantity:
+                type: integer
+              revenue:
+                $ref: "./common/v1/common.yaml#/components/schemas/Money"
+
     OrderStatus:
       type: string
       description: |

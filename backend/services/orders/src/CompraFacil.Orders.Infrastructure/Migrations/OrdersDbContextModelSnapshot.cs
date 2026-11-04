@@ -420,6 +420,10 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_orders");
 
+                    b.HasIndex("CreatedAt", "Id")
+                        .IsDescending()
+                        .HasDatabaseName("ix_orders_created_at_id");
+
                     b.HasIndex("CustomerId", "IdempotencyKey")
                         .IsUnique()
                         .HasDatabaseName("ix_orders_customer_id_idempotency_key");
