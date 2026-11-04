@@ -108,4 +108,23 @@ public sealed class ChargeTests
         p.Refund(s_amount.AmountCents - 5000, "k3", "r3", s_now);
         Assert.Equal(PaymentStatus.Refunded, p.Status);
     }
+
+    [Fact]
+    public void Payer_IsKeptOnlyUntilCharged()
+    {
+        var payer = new Payer("Ana Souza", "52998224725");
+        var cancelled = Charge.For(Guid.NewGuid(), s_now);
+        cancelled.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now, payer);
+        Assert.Equal(payer, cancelled.Payer);
+        cancelled.Cancel(s_now);
+        Assert.Null(cancelled.Payer); // não vai cobrar: o CPF não fica
+
+        var charged = Charge.For(Guid.NewGuid(), s_now);
+        charged.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now, payer);
+        charged.RecordStockReserved(s_now);
+        charged.AttachPayment(Guid.NewGuid(), s_now);
+        charged.ForgetPayer();
+        Assert.Null(charged.Payer);
+        Assert.Null(charged.PayerCpf);
+    }
 }

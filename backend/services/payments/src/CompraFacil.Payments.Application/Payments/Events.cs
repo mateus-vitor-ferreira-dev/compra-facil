@@ -21,7 +21,11 @@ public static class PaymentEvents
 /// <summary>O payment do OrderPlaced; ausente, o pedido é pago por PIX.</summary>
 public sealed record OrderPaymentData(PaymentMethod Method, int? Installments, string? CardToken, string? CardBrand);
 
-public sealed record OrderPlacedData(Guid OrderId, Guid CustomerId, string? CustomerEmail, Money Total, OrderPaymentData? Payment);
+/// <summary>Quem paga (nome e CPF), para o provedor; nulo nos pedidos de antes do #221.</summary>
+public sealed record OrderPayerData(string Name, string Cpf);
+
+public sealed record OrderPlacedData(
+    Guid OrderId, Guid CustomerId, string? CustomerEmail, Money Total, OrderPaymentData? Payment, OrderPayerData? Payer = null);
 
 public sealed record StockReservedData(Guid OrderId);
 

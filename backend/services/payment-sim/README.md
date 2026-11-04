@@ -24,7 +24,7 @@ conferir os campos na documentação dele: este simulador não foi validado cont
 | Método e rota | Observação |
 |---|---|
 | `POST /v1/card_tokens?public_key=` | Cartão (Luhn, validade, CVV, titular) → token de uso único com os 4 últimos dígitos. |
-| `POST /v1/payments` | `X-Idempotency-Key` obrigatório (a mesma chave devolve o mesmo pagamento). `pix`: `pending` com `point_of_interaction.transaction_data` (`qr_code`, `qr_code_base64`, `ticket_url`) e `date_of_expiration`. Cartão (`visa`, `master`, `amex` + `token`, `installments`, `capture`): `approved`, `authorized` (`capture: false`), `in_process` ou `rejected`. |
+| `POST /v1/payments` | `X-Idempotency-Key` obrigatório (a mesma chave devolve o mesmo pagamento). `pix`: exige `payer.identification` (`CPF` com 11 dígitos ou `CNPJ` com 14, só números), como o Mercado Pago; sem ele, 400. Responde `pending` com `point_of_interaction.transaction_data` (`qr_code`, `qr_code_base64`, `ticket_url`) e `date_of_expiration`. Cartão (`visa`, `master`, `amex` + `token`, `installments`, `capture`): `approved`, `authorized` (`capture: false`), `in_process` ou `rejected`. |
 | `GET /v1/payments/{id}` | |
 | `PUT /v1/payments/{id}` | `{"capture": true}` captura a autorização; `{"status": "cancelled"}` cancela a autorização ou o PIX não pago. |
 | `POST /v1/payments/{id}/refunds` | `{"amount": 20.5}` estorna parte; corpo vazio estorna o que falta. `X-Idempotency-Key` obrigatório. Todo estornado: `refunded`; parte: `approved` com `partially_refunded`. |

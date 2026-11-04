@@ -32,6 +32,17 @@ public sealed class Charge
     public string? CardToken { get; private set; }
 
     public string? CardBrand { get; private set; }
+
+    /// <summary>
+    /// Nome e CPF de quem paga, que o provedor pede (o Mercado Pago, no PIX). Como o token do cartão, só até a
+    /// cobrança: depois ficam no provedor e no pedido, não aqui.
+    /// </summary>
+    public string? PayerName { get; private set; }
+
+    public string? PayerCpf { get; private set; }
+
+    public Payer? Payer => PayerName is not null && PayerCpf is not null ? new Payer(PayerName, PayerCpf) : null;
+
     public bool StockReserved { get; private set; }
     public bool Cancelled { get; private set; }
 
@@ -48,7 +59,7 @@ public sealed class Charge
         new() { OrderId = orderId, CreatedAt = now, UpdatedAt = now };
 
     /// <summary>OrderPlaced: valor, cliente e como pagar.</summary>
-    public void RecordOrder(Guid customerId, string? customerEmail, Money amount, PaymentInstruction payment, DateTimeOffset now)
+    public void RecordOrder(Guid customerId, string? customerEmail, Money amount, PaymentInstruction payment, DateTimeOffset now, Payer? payer = null)
     {
         ArgumentNullException.ThrowIfNull(payment);
         if (amount.AmountCents <= 0)
@@ -64,6 +75,8 @@ public sealed class Charge
         Installments = payment.Method == PaymentMethod.Pix ? 1 : Math.Clamp(payment.Installments, 1, 12);
         CardToken = payment.CardToken;
         CardBrand = payment.CardBrand;
+        PayerName = payer?.Name;
+        PayerCpf = payer?.Cpf;
         CustomerId = customerId;
         AmountCents = amount.AmountCents;
         Currency = amount.Currency;
@@ -81,6 +94,10 @@ public sealed class Charge
     public void Cancel(DateTimeOffset now)
     {
         Cancelled = true;
+        if (PaymentId is null)
+        {
+            ForgetPayer(); // não vai cobrar: nada a guardar
+        }
         UpdatedAt = now;
     }
 
@@ -94,7 +111,17 @@ public sealed class Charge
         CardToken = null; // de uso único: não fica guardado
         UpdatedAt = now;
     }
+
+    /// <summary>Depois de chamar o provedor (ou de desistir de cobrar), o nome e o CPF não ficam aqui.</summary>
+    public void ForgetPayer()
+    {
+        PayerName = null;
+        PayerCpf = null;
+    }
 }
+
+/// <summary>Quem paga, como o provedor pede: o nome e o CPF (só os dígitos).</summary>
+public sealed record Payer(string Name, string Cpf);
 
 /// <summary>Como pagar, como o cliente escolheu no checkout (o payment do OrderPlaced).</summary>
 public sealed record PaymentInstruction(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand)

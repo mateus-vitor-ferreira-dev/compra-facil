@@ -292,6 +292,10 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         var envelope = EventEnvelope.TryParse(outbox.Payload)!;
         Assert.Equal("req-place-1", envelope.CorrelationId);
         Assert.Equal(id, envelope.Data.GetProperty("order_id").GetGuid());
+        // quem paga vai ao payments (o Mercado Pago pede o CPF no PIX): só nome e CPF, sem o telefone
+        var payer = envelope.Data.GetProperty("payer");
+        Assert.Equal(("Ana Souza", "52998224725"), (payer.GetProperty("name").GetString(), payer.GetProperty("cpf").GetString()));
+        Assert.False(payer.TryGetProperty("phone", out _));
     }
 
     [Fact]

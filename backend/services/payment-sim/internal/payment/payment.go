@@ -118,9 +118,30 @@ type CreateRequest struct {
 	ExternalReference string     `json:"external_reference"`
 	NotificationURL   string     `json:"notification_url"`
 	DateOfExpiration  *time.Time `json:"date_of_expiration"`
-	Payer             struct {
-		Email string `json:"email"`
-	} `json:"payer"`
+	Payer             Payer      `json:"payer"`
+}
+
+// Payer é o pagador do POST /v1/payments. No PIX, o Mercado Pago exige o documento (tipo e número).
+type Payer struct {
+	Email          string          `json:"email"`
+	FirstName      string          `json:"first_name"`
+	LastName       string          `json:"last_name"`
+	Identification *Identification `json:"identification"`
+}
+
+// Identification é o documento do pagador.
+type Identification struct {
+	Type   string `json:"type"`
+	Number string `json:"number"`
+}
+
+// validDocument confere o documento como o PIX do Mercado Pago pede: CPF com 11 dígitos ou CNPJ com 14.
+func (p Payer) validDocument() bool {
+	id := p.Identification
+	if id == nil || strings.Trim(id.Number, "0123456789") != "" {
+		return false
+	}
+	return (id.Type == "CPF" && len(id.Number) == 11) || (id.Type == "CNPJ" && len(id.Number) == 14)
 }
 
 // Notifier recebe cada pagamento que mudou (o webhook em produção).
@@ -221,6 +242,9 @@ func (p *Provider) TokenizeCard(number, cvv, holder string, month, year int) (Ca
 func (p *Provider) Create(key string, req CreateRequest) (Payment, error) {
 	if strings.TrimSpace(key) == "" || req.TransactionAmount.Cents <= 0 {
 		return Payment{}, fmt.Errorf("%w: X-Idempotency-Key e transaction_amount são obrigatórios", ErrInvalidRequest)
+	}
+	if req.PaymentMethodID == "pix" && !req.Payer.validDocument() {
+		return Payment{}, fmt.Errorf("%w: payer.identification (CPF ou CNPJ) é obrigatório no PIX", ErrInvalidRequest)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
