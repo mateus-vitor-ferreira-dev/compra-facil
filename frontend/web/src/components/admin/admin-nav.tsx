@@ -7,6 +7,7 @@ import {
   Menu,
   Package,
   Percent,
+  ReceiptText,
   Tag,
   Truck,
   Undo2,
@@ -25,7 +26,10 @@ type Section = { href: string; label: string; Icon: LucideIcon; exact?: boolean 
 export const ADMIN_GROUPS: { label: string; sections: Section[] }[] = [
   {
     label: "Vendas",
-    sections: [{ href: "/admin/margens", label: "Margens", Icon: Percent }],
+    sections: [
+      { href: "/admin/pedidos", label: "Pedidos", Icon: ReceiptText },
+      { href: "/admin/margens", label: "Margens", Icon: Percent },
+    ],
   },
   {
     label: "Catálogo",
