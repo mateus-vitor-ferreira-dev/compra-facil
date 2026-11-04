@@ -179,12 +179,12 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private async Task ConfirmedAsync(
-        Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null, Guid? customer = null, string sku = "MOU-000001")
+        Guid orderId, string email = "ana@exemplo.com", DateTimeOffset? confirmedAt = null, OrderCutoff? cutoff = null, Guid? customer = null, string sku = "MOU-000001",
+        InvoiceSettings? invoicing = null)
     {
         await using var scope = fx.Factory.Services.CreateAsyncScope();
-        var handler = cutoff is null
-            ? ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider)
-            : ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider, cutoff);
+        object[] overrides = [.. new object?[] { cutoff, invoicing }.OfType<object>()];
+        var handler = ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider, overrides);
         var item = new OrderItem(Guid.NewGuid(), sku, "Mouse sem Fio", 2, new Money(9990, "BRL"), new Money(19980, "BRL"));
         await handler.HandleAsync(new OrderConfirmedData(orderId, customer ?? Guid.NewGuid(), email, [item], new Money(19980, "BRL"),
                 new Recipient("Ana Souza", "52998224725", "11987654321"),
@@ -1009,6 +1009,24 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Equal(InvoiceStatus.Authorized, invoice.Status);
         Assert.Contains("prazo", invoice.CancelError, StringComparison.Ordinal);
         Assert.Equal([InvoiceEvents.InvoiceIssued], await EventsOfAsync(id, InvoiceEvents.Topic));
+    }
+
+    [Fact]
+    public async Task Loja_sem_nota_leva_o_pedido_ao_fornecedor_sem_emitir()
+    {
+        // o MEI que vende a pessoa física sem nota (Invoice:Enabled=false): o pedido vai direto, com o endereço
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id, invoicing: new InvoiceSettings { Enabled = false });
+
+        await DispatchAsync(); // a fila é da classe: pode levar pedidos de outros testes junto
+
+        Assert.Null(await InvoiceAsync(id));
+        var call = Assert.Single(fx.Supplier.Calls, c => c.OrderNumber == id);
+        Assert.Null(call.InvoiceKey);
+        Assert.Null(call.InvoiceXml);
+        Assert.Equal("01310100", call.ShipTo?.ZipCode);
+        Assert.Equal(SupplierOrderStatus.Placed, (await OrderAsync(id)).Status);
+        Assert.Empty(await EventsOfAsync(id, InvoiceEvents.Topic));
     }
 
     [Fact]

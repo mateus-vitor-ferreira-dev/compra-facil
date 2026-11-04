@@ -27,8 +27,9 @@ export default async function PrivacyPolicyPage() {
           avisos do pedido e o link de acesso. Com conta, guardamos a senha só em forma protegida (hash).
         </li>
         <li>
-          <strong>Entrega e nota fiscal:</strong> nome de quem recebe, CPF, celular e endereço, para emitir a
-          nota, enviar o pedido e permitir o contato da transportadora.
+          <strong>Entrega, pagamento e nota fiscal:</strong> nome de quem recebe, CPF, celular e endereço,
+          para processar o pagamento, emitir a nota quando houver, enviar o pedido e permitir o contato da
+          transportadora.
         </li>
         <li>
           <strong>Pagamento:</strong> a forma de pagamento e o resultado. Os dados do cartão vão direto para o

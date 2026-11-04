@@ -89,6 +89,14 @@ Antes do Coolify:
 - As senhas: `openssl rand -hex 24` para cada uma das sete do Postgres e `openssl rand -hex 32` para
   o `BFF_GATEWAY_KEY` (o mesmo valor vai para a loja).
 
+### Vender sem nota fiscal (MEI)
+
+O MEI não é obrigado a emitir nota nas vendas a pessoa física, salvo se o cliente pedir (confirmar com o
+contador, #226). Enquanto não houver certificado A1, o fulfillment roda com `Invoice__Enabled=false`: o
+pedido pago vai direto ao fornecedor, com o endereço e sem chave nem XML, e nada é emitido nem cancelado.
+A nota pedida pelo cliente sai à mão, pelo meio que o contador indicar. Quando o A1 e a Nuvem Fiscal
+estiverem prontos (#229), basta tirar a variável: os pedidos novos passam a sair com nota.
+
 ## 2. O recurso no Coolify
 
 **Projects → (projeto) → + New → Docker Compose** a partir deste repositório (GitHub App do Coolify).

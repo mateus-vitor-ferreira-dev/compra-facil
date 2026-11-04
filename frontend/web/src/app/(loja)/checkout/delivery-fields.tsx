@@ -90,7 +90,7 @@ export function DeliveryFields({
         <p className="text-ink-soft max-w-prose text-sm">
           {remembered
             ? "Os dados do seu último pedido. Confira antes de pagar."
-            : "O nome e o CPF vão na nota fiscal; o telefone é para a transportadora."}
+            : "O nome e o CPF identificam quem compra; o telefone é para a transportadora."}
         </p>
       </div>
       {demo && (
