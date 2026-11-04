@@ -28,7 +28,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <div className="lg:grid lg:min-h-dvh lg:grid-cols-[16rem_minmax(0,1fr)]">
       <AdminNav
         brand={
-          <Link href="/admin/produtos" className="inline-flex items-center gap-2 rounded-md">
+          <Link href="/admin" className="inline-flex items-center gap-2 rounded-md">
             <LogoMark className="text-on-hero [&_.fill-paper]:fill-hero [&_.stroke-paper]:stroke-hero size-7" />
             <span className="font-bold tracking-tight">Painel {brand.name}</span>
           </Link>
