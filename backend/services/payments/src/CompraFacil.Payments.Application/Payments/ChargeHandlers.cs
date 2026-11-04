@@ -120,9 +120,10 @@ public sealed class ChargeProcessor(
     private async Task<Payment> ChargeAsync(Charge charge, DateTimeOffset now, CancellationToken ct)
     {
         var amount = charge.Amount!.Value;
-        var (token, brand) = (charge.CardToken, charge.CardBrand);
+        var (token, brand, payer) = (charge.CardToken, charge.CardBrand, charge.Payer);
         var payment = Payment.Start(Guid.CreateVersion7(), charge.OrderId, amount, charge.Method, charge.Installments, provider.Name, now);
         charge.AttachPayment(payment.Id, now);
+        charge.ForgetPayer();
         payments.Add(payment);
 
         // falha temporária sobe: nada é gravado e a mensagem é tentada de novo, com a mesma chave
@@ -130,8 +131,8 @@ public sealed class ChargeProcessor(
         try
         {
             var result = charge.Method == PaymentMethod.Pix
-                ? await provider.CreatePixAsync(new PixRequest(key, charge.OrderId, amount, charge.CustomerEmail, now + options.Value.PixExpiration), ct)
-                : await provider.AuthorizeCardAsync(new CardRequest(key, charge.OrderId, amount, charge.CustomerEmail, token!, brand!, charge.Installments), ct);
+                ? await provider.CreatePixAsync(new PixRequest(key, charge.OrderId, amount, charge.CustomerEmail, now + options.Value.PixExpiration, payer), ct)
+                : await provider.AuthorizeCardAsync(new CardRequest(key, charge.OrderId, amount, charge.CustomerEmail, token!, brand!, charge.Installments, payer), ct);
             outcome.Apply(payment, result);
         }
         catch (PaymentProviderRejectedException) when (charge.Method == PaymentMethod.Card)
@@ -159,7 +160,8 @@ public sealed class OnOrderPlaced(ChargeProcessor processor) : IHandleEvent<Orde
             {
                 try
                 {
-                    charge.RecordOrder(data.CustomerId, data.CustomerEmail, data.Total, instruction, now);
+                    charge.RecordOrder(data.CustomerId, data.CustomerEmail, data.Total, instruction, now,
+                        data.Payer is { } who ? new Payer(who.Name, who.Cpf) : null);
                 }
                 catch (DomainException e)
                 {

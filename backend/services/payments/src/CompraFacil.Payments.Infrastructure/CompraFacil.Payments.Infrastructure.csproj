@@ -4,4 +4,7 @@
     <ProjectReference Include="../CompraFacil.Payments.Application/CompraFacil.Payments.Application.csproj" />
     <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CompraFacil.Payments.IntegrationTests" />
+  </ItemGroup>
 </Project>

@@ -53,7 +53,9 @@ func card(t *testing.T, p *Provider, holder string) CardToken {
 }
 
 func pixRequest(cents int64) CreateRequest {
-	return CreateRequest{TransactionAmount: Amount{cents}, PaymentMethodID: "pix", ExternalReference: "pedido-1"}
+	req := CreateRequest{TransactionAmount: Amount{cents}, PaymentMethodID: "pix", ExternalReference: "pedido-1"}
+	req.Payer.Identification = &Identification{Type: "CPF", Number: "52998224725"}
+	return req
 }
 
 func TestPIX_PaidOrExpired(t *testing.T) {

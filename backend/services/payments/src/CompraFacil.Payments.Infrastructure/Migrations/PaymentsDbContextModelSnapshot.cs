@@ -158,6 +158,16 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasColumnType("character varying(8)")
                         .HasColumnName("method");
 
+                    b.Property<string>("PayerCpf")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)")
+                        .HasColumnName("payer_cpf");
+
+                    b.Property<string>("PayerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("payer_name");
+
                     b.Property<Guid?>("PaymentId")
                         .HasColumnType("uuid")
                         .HasColumnName("payment_id");

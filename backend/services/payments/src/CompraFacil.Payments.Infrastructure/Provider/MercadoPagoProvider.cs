@@ -54,7 +54,7 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
         ArgumentNullException.ThrowIfNull(request);
         return SendAsync(HttpMethod.Post, "v1/payments", request.IdempotencyKey, new CreatePayment(
             Reais(request.Amount), $"Pedido {request.OrderId}", "pix", null, null, null, request.OrderId.ToString(),
-            options.Value.NotificationUrl?.AbsoluteUri, request.ExpiresAt, new Payer(request.PayerEmail)), ct);
+            options.Value.NotificationUrl?.AbsoluteUri, MpDate(request.ExpiresAt), MpPayer.From(request.PayerEmail, request.Payer)), ct);
     }
 
     public Task<ProviderPayment> AuthorizeCardAsync(CardRequest request, CancellationToken ct)
@@ -62,7 +62,7 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
         ArgumentNullException.ThrowIfNull(request);
         return SendAsync(HttpMethod.Post, "v1/payments", request.IdempotencyKey, new CreatePayment(
             Reais(request.Amount), $"Pedido {request.OrderId}", request.CardBrand, request.CardToken, request.Installments,
-            false, request.OrderId.ToString(), options.Value.NotificationUrl?.AbsoluteUri, null, new Payer(request.PayerEmail)), ct);
+            false, request.OrderId.ToString(), options.Value.NotificationUrl?.AbsoluteUri, null, MpPayer.From(request.PayerEmail, request.Payer)), ct);
     }
 
     public Task<ProviderPayment> GetAsync(string reference, CancellationToken ct) =>
@@ -82,7 +82,10 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
         return new ProviderRefund(refund.Id.ToString(CultureInfo.InvariantCulture), (long)Math.Round(refund.Amount * 100m));
     }
 
-    /// <summary>x-signature "ts=…,v1=…": HMAC-SHA256 de "id:&lt;data.id&gt;;request-id:&lt;x-request-id&gt;;ts:&lt;ts&gt;;".</summary>
+    /// <summary>
+    /// x-signature "ts=…,v1=…": HMAC-SHA256 de "id:&lt;data.id&gt;;request-id:&lt;x-request-id&gt;;ts:&lt;ts&gt;;". Pela
+    /// documentação do Mercado Pago, o data.id alfanumérico entra em minúsculas e a parte sem valor sai do manifesto.
+    /// </summary>
     public bool VerifyNotification(string dataId, string? requestId, string? signature)
     {
         if (string.IsNullOrEmpty(signature) || string.IsNullOrEmpty(options.Value.WebhookSecret))
@@ -106,8 +109,17 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
         {
             return false;
         }
-        var manifest = $"id:{dataId};request-id:{requestId};ts:{ts};";
-        var expected = HMACSHA256.HashData(Encoding.UTF8.GetBytes(options.Value.WebhookSecret), Encoding.UTF8.GetBytes(manifest));
+        var manifest = new StringBuilder();
+        if (!string.IsNullOrEmpty(dataId))
+        {
+            manifest.Append(CultureInfo.InvariantCulture, $"id:{dataId.ToLowerInvariant()};");
+        }
+        if (!string.IsNullOrEmpty(requestId))
+        {
+            manifest.Append(CultureInfo.InvariantCulture, $"request-id:{requestId};");
+        }
+        manifest.Append(CultureInfo.InvariantCulture, $"ts:{ts};");
+        var expected = HMACSHA256.HashData(Encoding.UTF8.GetBytes(options.Value.WebhookSecret), Encoding.UTF8.GetBytes(manifest.ToString()));
         byte[] received;
         try
         {
@@ -180,6 +192,13 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
 
     private static decimal Reais(Money amount) => amount.AmountCents / 100m;
 
+    /// <summary>
+    /// A data como o Mercado Pago aceita: com o fuso e no máximo milissegundos (o padrão do .NET manda sete casas,
+    /// que a API não lê). Ex.: 2026-11-04T10:30:00.000-03:00.
+    /// </summary>
+    internal static string MpDate(DateTimeOffset value) =>
+        value.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", CultureInfo.InvariantCulture);
+
     /// <summary>O status do Mercado Pago no da loja.</summary>
     private static ProviderPayment ToProvider(MpPayment p)
     {
@@ -194,6 +213,7 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
             ("cancelled", "expired") => ProviderStatus.Expired,
             ("cancelled", _) => ProviderStatus.Cancelled,
             ("refunded", _) => ProviderStatus.Refunded,
+            ("in_mediation" or "charged_back", _) => ProviderStatus.Disputed,
             _ => throw new PaymentProviderUnavailableException($"status desconhecido do provedor: {p.Status}/{p.StatusDetail}"),
         };
         FailureReason? reason = status == ProviderStatus.Rejected
@@ -211,11 +231,30 @@ internal sealed class MercadoPagoProvider(HttpClient http, IOptions<MercadoPagoO
         return new ProviderPayment(reference, status, reason, pix, p.Card?.LastFourDigits);
     }
 
-    private sealed record Payer(string? Email);
+    internal sealed record MpIdentification(string Type, string Number);
+
+    /// <summary>
+    /// O pagador: o e-mail, e o nome e o CPF quando o pedido os tem. O CPF é exigido no PIX; no cartão, nome e
+    /// documento entram na análise antifraude e pesam na aprovação.
+    /// </summary>
+    internal sealed record MpPayer(string? Email, string? FirstName, string? LastName, MpIdentification? Identification)
+    {
+        public static MpPayer From(string? email, Payer? payer)
+        {
+            if (payer is null)
+            {
+                return new MpPayer(email, null, null, null);
+            }
+            var name = payer.Name.Trim();
+            var space = name.IndexOf(' ', StringComparison.Ordinal);
+            var (first, last) = space < 0 ? (name, null) : (name[..space], name[(space + 1)..].Trim());
+            return new MpPayer(email, first, last, new MpIdentification("CPF", payer.Cpf));
+        }
+    }
 
     private sealed record CreatePayment(
         decimal TransactionAmount, string Description, string PaymentMethodId, string? Token, int? Installments, bool? Capture,
-        string ExternalReference, string? NotificationUrl, DateTimeOffset? DateOfExpiration, Payer Payer);
+        string ExternalReference, string? NotificationUrl, string? DateOfExpiration, MpPayer Payer);
 
     private sealed record MpTransactionData(string? QrCode, string? QrCodeBase64, string? TicketUrl);
 

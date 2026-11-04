@@ -18,4 +18,8 @@ public static class PaymentsMetrics
     /// <summary>Autorizações capturadas quando o fornecedor aceitou o pedido.</summary>
     public static readonly Counter<long> Captures = s_meter.CreateCounter<long>(
         "compra_facil.payments.captures", unit: "{capture}", description: "Autorizações de cartão capturadas.");
+
+    /// <summary>Pagamentos contestados pelo cliente (reclamação ou chargeback), que a equipe responde no provedor.</summary>
+    public static readonly Counter<long> Disputes = s_meter.CreateCounter<long>(
+        "compra_facil.payments.disputes", unit: "{dispute}", description: "Pagamentos contestados (reclamação ou chargeback).");
 }

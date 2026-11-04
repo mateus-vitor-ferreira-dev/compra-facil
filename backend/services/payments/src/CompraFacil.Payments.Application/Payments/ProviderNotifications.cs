@@ -26,13 +26,23 @@ public sealed partial class ProviderNotifications(IPaymentRepository payments, I
                 LogUnknown(logger, reference);
                 return NotificationResult.UnknownPayment;
             }
-            var changed = outcome.Apply(payment, await provider.GetAsync(reference, ct));
+            var result = await provider.GetAsync(reference, ct);
+            if (result.Status == ProviderStatus.Disputed)
+            {
+                // o dinheiro está em disputa: quem responde é a equipe, no painel do provedor, dentro do prazo dele
+                LogDisputed(logger, payment.OrderId, reference);
+                PaymentsMetrics.Disputes.Add(1);
+            }
+            var changed = outcome.Apply(payment, result);
             await payments.SaveChangesAsync(ct);
             return changed ? NotificationResult.Applied : NotificationResult.Ignored;
         });
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "notificação do provedor para uma cobrança desconhecida {Reference}")]
     private static partial void LogUnknown(ILogger logger, string reference);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "pagamento do pedido {OrderId} contestado no provedor ({Reference}): responder no painel do provedor")]
+    private static partial void LogDisputed(ILogger logger, Guid orderId, string reference);
 }
 
 /// <summary>

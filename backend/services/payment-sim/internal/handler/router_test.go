@@ -50,13 +50,32 @@ func auth(key string) map[string]string {
 	return map[string]string{"Authorization": "Bearer tok", "X-Idempotency-Key": key}
 }
 
+// payer é o pagador que o Mercado Pago exige no PIX: com o documento.
+var payer = map[string]any{"email": "ana@exemplo.com", "first_name": "Ana",
+	"identification": map[string]any{"type": "CPF", "number": "52998224725"}}
+
+func TestPIX_WithoutDocument_IsRejected(t *testing.T) {
+	e := newEnv(t)
+	for _, p := range []map[string]any{
+		{"email": "ana@exemplo.com"},
+		{"email": "ana@exemplo.com", "identification": map[string]any{"type": "CPF", "number": "529.982.247-25"}},
+		{"email": "ana@exemplo.com", "identification": map[string]any{"type": "RG", "number": "12345678901"}},
+	} {
+		status, _ := e.do(http.MethodPost, "/v1/payments", map[string]any{"transaction_amount": 50, "payment_method_id": "pix", "payer": p}, auth("sem-doc"))
+		assert.Equal(t, http.StatusBadRequest, status, p)
+	}
+	// com o documento, a mesma chave cria (a recusa não gastou a chave)
+	status, _ := e.do(http.MethodPost, "/v1/payments", map[string]any{"transaction_amount": 50, "payment_method_id": "pix", "payer": payer}, auth("sem-doc"))
+	assert.Equal(t, http.StatusCreated, status)
+}
+
 func TestPIXFlow_OverHTTP(t *testing.T) {
 	e := newEnv(t)
 	status, _ := e.do(http.MethodPost, "/v1/payments", map[string]any{"transaction_amount": 50, "payment_method_id": "pix"}, nil)
 	assert.Equal(t, http.StatusUnauthorized, status)
 
 	status, pay := e.do(http.MethodPost, "/v1/payments", map[string]any{"transaction_amount": 120.9, "payment_method_id": "pix",
-		"external_reference": "pedido-1", "payer": map[string]any{"email": "ana@exemplo.com"}}, auth("k1"))
+		"external_reference": "pedido-1", "payer": payer}, auth("k1"))
 	require.Equal(t, http.StatusCreated, status)
 	assert.Equal(t, "pending", pay["status"])
 	assert.InDelta(t, 120.9, pay["transaction_amount"], 0.001)
@@ -89,7 +108,7 @@ func TestPIXFlow_OverHTTP(t *testing.T) {
 
 func TestPIXPage_PaysByTheTicketCode_AndAnIdPaysNothing(t *testing.T) {
 	e := newEnv(t)
-	_, pay := e.do(http.MethodPost, "/v1/payments", map[string]any{"transaction_amount": 50, "payment_method_id": "pix"}, auth("k2"))
+	_, pay := e.do(http.MethodPost, "/v1/payments", map[string]any{"transaction_amount": 50, "payment_method_id": "pix", "payer": payer}, auth("k2"))
 	id := strconv.FormatInt(int64(pay["id"].(float64)), 10)
 	ticket := pay["point_of_interaction"].(map[string]any)["transaction_data"].(map[string]any)["ticket_url"].(string)
 	post := func(path string) int {

@@ -18,6 +18,9 @@ internal sealed class ChargeConfiguration : IEntityTypeConfiguration<Charge>
         builder.Property(c => c.Method).HasConversion<string>().HasMaxLength(8);
         builder.Property(c => c.CardToken).HasMaxLength(128);
         builder.Property(c => c.CardBrand).HasMaxLength(16);
+        builder.Ignore(c => c.Payer);
+        builder.Property(c => c.PayerName).HasMaxLength(200);
+        builder.Property(c => c.PayerCpf).HasMaxLength(11);
         builder.Property(c => c.Version).IsRowVersion(); // xmin: dois eventos do mesmo pedido em réplicas diferentes
     }
 }

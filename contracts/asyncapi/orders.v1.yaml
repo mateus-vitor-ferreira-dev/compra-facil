@@ -230,6 +230,20 @@ components:
                   total:
                     description: Soma dos `line_total`, com os preços congelados na criação.
                     $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  payer:
+                    description: |
+                      Quem paga, para o provedor de pagamento (o Mercado Pago pede o CPF no PIX): o nome e o CPF
+                      de quem recebe. Nulo só nos pedidos de antes do #221.
+                    oneOf:
+                      - type: object
+                        required: [name, cpf]
+                        properties:
+                          name:
+                            type: string
+                          cpf:
+                            type: string
+                            pattern: "^[0-9]{11}$"
+                      - type: "null"
 
     OrderConfirmed:
       name: OrderConfirmed

@@ -31,15 +31,23 @@ public sealed record OrderItemData(
 /// <summary>Como pagar, para o payments: o token do cartão (de uso único) só passa por aqui, não fica no pedido.</summary>
 public sealed record OrderPaymentData(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
 
+/// <summary>
+/// Quem paga, para o provedor de pagamento: o Mercado Pago pede o CPF no PIX e usa o nome na análise do
+/// cartão. É quem recebe (o mesmo da nota fiscal); só o nome e o CPF, sem o telefone.
+/// </summary>
+public sealed record OrderPayerData(string Name, string Cpf);
+
 /// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor e como cobrar).</summary>
 public sealed record OrderPlacedData(
-    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, OrderPaymentData Payment)
+    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, OrderPaymentData Payment,
+    OrderPayerData? Payer)
 {
     public static OrderPlacedData From(Order order, string? cardToken = null, string? cardBrand = null)
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, [.. order.Items.Select(OrderItemData.From)], order.Total,
-            new OrderPaymentData(order.PaymentMethod, order.Installments, cardToken, cardBrand));
+            new OrderPaymentData(order.PaymentMethod, order.Installments, cardToken, cardBrand),
+            order.Recipient is { } r ? new OrderPayerData(r.Name, r.Cpf) : null);
     }
 }
 

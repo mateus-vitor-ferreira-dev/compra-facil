@@ -22,6 +22,12 @@ public enum ProviderStatus
     Expired,
 
     Refunded,
+
+    /// <summary>
+    /// Pago, mas o cliente contestou: reclamação aberta (in_mediation) ou chargeback no cartão (charged_back). Não
+    /// muda o pedido sozinho; a equipe acompanha no painel do provedor.
+    /// </summary>
+    Disputed,
 }
 
 /// <summary>Uma cobrança como o provedor a devolve.</summary>
@@ -31,10 +37,12 @@ public sealed record ProviderPayment(
 public sealed record ProviderRefund(string Reference, long AmountCents);
 
 /// <summary>PIX a gerar. A chave de idempotência é a do pedido: repetir não gera outro QR.</summary>
-public sealed record PixRequest(string IdempotencyKey, Guid OrderId, Money Amount, string? PayerEmail, DateTimeOffset ExpiresAt);
+public sealed record PixRequest(
+    string IdempotencyKey, Guid OrderId, Money Amount, string? PayerEmail, DateTimeOffset ExpiresAt, Payer? Payer = null);
 
 /// <summary>Cartão a autorizar (sem capturar): a captura vem quando o fornecedor aceita o pedido.</summary>
-public sealed record CardRequest(string IdempotencyKey, Guid OrderId, Money Amount, string? PayerEmail, string CardToken, string CardBrand, int Installments);
+public sealed record CardRequest(
+    string IdempotencyKey, Guid OrderId, Money Amount, string? PayerEmail, string CardToken, string CardBrand, int Installments, Payer? Payer = null);
 
 /// <summary>O provedor recusou o pedido em si (4xx: token usado ou inválido, estado que não permite).</summary>
 public sealed class PaymentProviderRejectedException(string message) : Exception(message);

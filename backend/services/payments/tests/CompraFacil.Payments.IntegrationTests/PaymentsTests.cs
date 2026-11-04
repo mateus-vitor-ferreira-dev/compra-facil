@@ -35,12 +35,18 @@ public sealed class FakeProvider : IPaymentProvider
     public List<string> Captured { get; } = [];
     public List<string> Cancelled { get; } = [];
 
+    /// <summary>Quem pagou cada pedido, como chegou ao provedor.</summary>
+    public ConcurrentDictionary<Guid, Payer?> Payers { get; } = new();
+
     /// <summary>O provedor fora do ar.</summary>
     public bool Down { get; set; }
 
-    public Task<ProviderPayment> CreatePixAsync(PixRequest request, CancellationToken ct) =>
-        Create(request.IdempotencyKey, r => new(r, ProviderStatus.Pending,
+    public Task<ProviderPayment> CreatePixAsync(PixRequest request, CancellationToken ct)
+    {
+        Payers[request.OrderId] = request.Payer;
+        return Create(request.IdempotencyKey, r => new(r, ProviderStatus.Pending,
             Pix: new PixCharge("00020126...SIM" + r, "iVBORw0KGgo=", "http://sim/pix/" + r, request.ExpiresAt)));
+    }
 
     public Task<ProviderPayment> AuthorizeCardAsync(CardRequest request, CancellationToken ct)
     {
@@ -136,8 +142,8 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
 
     private static OrderPaymentData Card(string token, int installments = 1) => new(PaymentMethod.Card, installments, token, "visa");
 
-    private Task OrderPlacedAsync(Guid order, long cents, OrderPaymentData? payment = null) =>
-        HandleAsync<OrderPlacedData, OnOrderPlaced>(new OrderPlacedData(order, Guid.NewGuid(), "ana@exemplo.com", new Money(cents, "BRL"), payment));
+    private Task OrderPlacedAsync(Guid order, long cents, OrderPaymentData? payment = null, OrderPayerData? payer = null) =>
+        HandleAsync<OrderPlacedData, OnOrderPlaced>(new OrderPlacedData(order, Guid.NewGuid(), "ana@exemplo.com", new Money(cents, "BRL"), payment, payer));
 
     private Task StockReservedAsync(Guid order) => HandleAsync<StockReservedData, OnStockReserved>(new StockReservedData(order));
 
@@ -256,6 +262,21 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         Assert.Equal(NotificationResult.Ignored, await NotifyAsync(payment.ProviderReference!)); // repetida
 
         Assert.Equal(PaymentStatus.Authorized, (await PaymentOfAsync(order)).Status);
+    }
+
+    [Fact]
+    public async Task Pix_TakesThePayerToTheProvider_WithoutKeepingTheCpf()
+    {
+        var order = Guid.NewGuid();
+        await OrderPlacedAsync(order, 12090, payer: new OrderPayerData("Ana Souza", "52998224725"));
+        Assert.Equal("52998224725", (await ChargeOfAsync(order)).PayerCpf); // até a cobrança
+
+        await StockReservedAsync(order);
+
+        Assert.Equal(new Payer("Ana Souza", "52998224725"), fx.Provider.Payers[order]);
+        var charge = await ChargeOfAsync(order);
+        Assert.Null(charge.PayerCpf);
+        Assert.Null(charge.PayerName);
     }
 
     [Fact]
