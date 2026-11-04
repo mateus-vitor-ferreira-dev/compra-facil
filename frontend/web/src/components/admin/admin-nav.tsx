@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChartColumn,
   CircleAlert,
   Factory,
   FolderTree,
@@ -27,6 +28,7 @@ export const ADMIN_GROUPS: { label: string; sections: Section[] }[] = [
   {
     label: "Vendas",
     sections: [
+      { href: "/admin", label: "Visão geral", Icon: ChartColumn, exact: true },
       { href: "/admin/pedidos", label: "Pedidos", Icon: ReceiptText },
       { href: "/admin/margens", label: "Margens", Icon: Percent },
     ],

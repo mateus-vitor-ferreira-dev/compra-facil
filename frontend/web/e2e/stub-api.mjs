@@ -1066,6 +1066,54 @@ createServer(async (req, res) => {
       return_within_hours: 360,
     });
   }
+  // o resumo de vendas da visão geral (#382): um dia com venda e estorno, e os outros zerados
+  if (req.method === "GET" && url.pathname === "/orders/v1/admin/sales-summary") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
+    if (!from || !to) return problem(res, 422, "Dados inválidos");
+    const brl = (cents) => ({ amount_cents: cents, currency: "BRL" });
+    const days = Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
+    const daily = Array.from({ length: days }, (_, i) => {
+      const date = new Date(Date.parse(from) + i * 86400000 - 3 * 3600000).toISOString().slice(0, 10);
+      const last = i === days - 1;
+      return {
+        date,
+        paid_orders: last ? 3 : 0,
+        gross_sales: brl(last ? 36900 : 0),
+        refunds: brl(last ? 9900 : 0),
+      };
+    });
+    return send(res, 200, {
+      from,
+      to,
+      orders: { placed: 4, paid: 3, refunded: 1, not_paid: 1 },
+      gross_sales: brl(36900),
+      refunds: brl(9900),
+      net_sales: brl(27000),
+      average_ticket: brl(12300),
+      shipping_charged: brl(4500),
+      daily,
+      by_payment_method: [
+        { method: "card", paid_orders: 2, gross_sales: brl(31900) },
+        { method: "pix", paid_orders: 1, gross_sales: brl(5000) },
+      ],
+      top_products: [
+        {
+          product_id: "0199f6a0-0000-7000-8000-000000000001",
+          name: "Fone Sonix",
+          quantity: 2,
+          revenue: brl(20000),
+        },
+        {
+          product_id: "0199f6a0-0000-7000-8000-000000000002",
+          name: "Mouse sem Fio",
+          quantity: 1,
+          revenue: brl(5500),
+        },
+      ],
+    });
+  }
   // os pedidos do painel (#382): o contato de quem comprou, sem CPF nem endereço
   if (req.method === "GET" && url.pathname === "/orders/v1/admin/orders") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");

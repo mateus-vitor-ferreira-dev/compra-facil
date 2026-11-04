@@ -26,6 +26,9 @@
   --photo: #eceef3; /* fundo das fotos e dos placeholders */
   --hero: #1b1f3b; /* o encarte da campanha: escuro nos dois temas */
   --on-hero: #f6f7f9;
+  /* séries dos gráficos do painel (#382), validadas no validate_palette da skill de dataviz contra o cartão */
+  --chart-1: #3a4fd0; /* anil, da família da tinta */
+  --chart-2: #c98500; /* âmbar, parente da etiqueta */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,6 +46,8 @@
     --focus: #ffd23f;
     --photo: #262a4c;
     --hero: #262b5e;
+    --chart-1: #6f7ff0;
+    --chart-2: #bd8300;
   }
 }
 
@@ -60,6 +65,8 @@
   --focus: #ffd23f;
   --photo: #262a4c;
   --hero: #262b5e;
+  --chart-1: #6f7ff0;
+  --chart-2: #bd8300;
 }
 
 @theme inline {
@@ -81,6 +88,8 @@
   --color-photo: var(--photo);
   --color-hero: var(--hero);
   --color-on-hero: var(--on-hero);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
 
   /* nomes do shadcn/ui, para os componentes que vierem dele */
   --color-background: var(--paper);

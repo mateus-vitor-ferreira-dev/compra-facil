@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function signIn(page: Page, email: string, path = "/admin") {
+async function signIn(page: Page, email: string, path = "/admin/produtos") {
   await page.goto(path);
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
@@ -26,7 +26,7 @@ test("o painel pede login e não existe para quem é cliente", async ({ page }) 
 });
 
 test("edita o preço e ajusta o estoque de um produto", async ({ page }) => {
-  await signIn(page, "admin@exemplo.com");
+  await signIn(page, "admin@exemplo.com", "/admin/produtos");
   await expect(page).toHaveURL(/\/admin\/produtos$/);
   await openProduct(page, "Fone de ouvido modelo 28");
 
@@ -98,7 +98,7 @@ test("duas pessoas editando: a segunda é avisada em vez de apagar a mudança da
 });
 
 test("cadastro recusa SKU repetido e cria categoria", async ({ page }) => {
-  await signIn(page, "admin@exemplo.com");
+  await signIn(page, "admin@exemplo.com", "/admin/produtos");
   await page.getByRole("link", { name: "Novo produto" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Novo produto");
   await page.getByLabel("Nome").fill("Fone repetido");
