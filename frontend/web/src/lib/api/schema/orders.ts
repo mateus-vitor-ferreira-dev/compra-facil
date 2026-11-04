@@ -134,7 +134,8 @@ export interface paths {
          * Todos os pedidos, para a equipe
          * @description Do mais recente para o mais antigo, com o contato de quem comprou: nome, e-mail, telefone e
          *     cidade/UF. O CPF e o endereço não saem por aqui (LGPD: só o necessário para atender).
-         *     `q` procura no e-mail, no nome de quem recebe ou no começo do número do pedido.
+         *     `q` procura no e-mail, no nome de quem recebe ou no número do pedido (os 8 últimos caracteres do
+         *     id, como a loja e os e-mails mostram).
          */
         get: operations["listAdminOrders"];
         put?: never;
