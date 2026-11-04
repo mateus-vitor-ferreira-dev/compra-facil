@@ -16,25 +16,29 @@ export const metadata: Metadata = {
 };
 
 /**
- * O painel da equipe (#154): só papel `admin`. A barra escura separa o bastidor da vitrine; o resto
- * é a mesma tinta e papel da loja, mais denso.
+ * O painel da equipe (#154): só papel `admin`. A coluna escura do menu separa o bastidor da vitrine; o
+ * resto é a mesma tinta e papel da loja, mais denso (#382).
  */
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await connection();
   const { account } = await requireAdmin("/admin");
 
   return (
-    <>
-      {/* o foco padrão (tinta escura) some na barra escura: aqui ele usa a cor do texto da barra */}
-      <header className="bg-hero text-on-hero [--focus:var(--on-hero)]">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2">
-            <Link href="/admin/produtos" className="inline-flex items-center gap-2 rounded-md">
-              <LogoMark className="text-on-hero [&_.fill-paper]:fill-hero [&_.stroke-paper]:stroke-hero size-7" />
-              <span className="font-bold tracking-tight">Painel {brand.name}</span>
-            </Link>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-on-hero/75 hidden sm:inline">{account.email}</span>
+    // telas grandes: a coluna do menu à esquerda e o conteúdo à direita; celular: a barra em cima
+    <div className="lg:grid lg:min-h-dvh lg:grid-cols-[16rem_minmax(0,1fr)]">
+      <AdminNav
+        brand={
+          <Link href="/admin/produtos" className="inline-flex items-center gap-2 rounded-md">
+            <LogoMark className="text-on-hero [&_.fill-paper]:fill-hero [&_.stroke-paper]:stroke-hero size-7" />
+            <span className="font-bold tracking-tight">Painel {brand.name}</span>
+          </Link>
+        }
+        account={
+          <div className="space-y-2 text-sm">
+            <p className="text-on-hero/75 truncate px-1" title={account.email}>
+              {account.email}
+            </p>
+            <div className="flex flex-wrap items-center gap-1">
               <ThemeMenu className="text-on-hero hover:bg-on-hero/10" />
               <Link
                 href="/"
@@ -54,12 +58,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
               </form>
             </div>
           </div>
-          <AdminNav />
-        </div>
-      </header>
-      <main id="conteudo" className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        }
+      />
+      <main id="conteudo" className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {children}
       </main>
-    </>
+    </div>
   );
 }
