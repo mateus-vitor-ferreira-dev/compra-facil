@@ -157,3 +157,25 @@
   font-variation-settings: "wdth" 72;
   font-feature-settings: "tnum" 1;
 }
+
+/*
+ * O menu de tema (popover nativo) abre embaixo do botão, alinhado à direita dele. Sem anchor positioning
+ * no navegador, fica no canto de cima, à direita, logo abaixo do cabeçalho.
+ */
+.theme-anchor {
+  anchor-name: --tema;
+}
+.theme-popover {
+  position-anchor: --tema;
+  inset: auto;
+  margin: 0;
+  top: calc(anchor(bottom) + 0.25rem);
+  right: anchor(right);
+}
+@supports not (anchor-name: --tema) {
+  .theme-popover {
+    position: fixed;
+    top: 4rem;
+    right: 1rem;
+  }
+}

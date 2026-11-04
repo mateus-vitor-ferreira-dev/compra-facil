@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
+import { ThemeChooser } from "@/components/theme/theme-menu";
 import { brand } from "@/lib/brand";
 import type { categoryTree } from "@/lib/catalog-api";
 import { company } from "@/lib/legal";
@@ -20,6 +21,9 @@ export function SiteFooter({ categories }: { categories: Tree }) {
             entregue.
           </p>
           <CompanyData {...company} />
+          <div className="pt-3">
+            <ThemeChooser />
+          </div>
         </div>
         {categories.length > 0 && (
           <nav aria-labelledby="rodape-categorias">
