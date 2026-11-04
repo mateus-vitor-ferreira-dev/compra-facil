@@ -235,6 +235,112 @@ const deadLetterQueues = {
   fulfillment: [],
   catalog: [],
 }; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
+// os pedidos que o painel lista (#382)
+const adminOrder = (
+  id,
+  status,
+  reason,
+  name,
+  email,
+  phone,
+  city,
+  state,
+  method,
+  installments,
+  cents,
+  created,
+  extra = {},
+) => ({
+  id,
+  status,
+  cancellation_reason: reason,
+  created_at: created,
+  total: { amount_cents: cents, currency: "BRL" },
+  items_count: 1,
+  payment: { method, installments },
+  customer: { email, name, phone },
+  destination: city ? { city, state } : null,
+  items: [
+    {
+      product_id: "0199f6a0-0000-7000-8000-000000000001",
+      sku: "FONE-1",
+      name: "Fone Sonix",
+      quantity: 1,
+      unit_price: { amount_cents: cents - 1500, currency: "BRL" },
+      line_total: { amount_cents: cents - 1500, currency: "BRL" },
+      campaign_id: null,
+    },
+  ],
+  items_total: { amount_cents: cents - 1500, currency: "BRL" },
+  shipping: {
+    service: "economico",
+    name: "Econômico",
+    price: { amount_cents: 1500, currency: "BRL" },
+    min_days: 3,
+    max_days: 7,
+    promised_by: "2026-11-12",
+  },
+  tracking: null,
+  invoice_number: null,
+  updated_at: created,
+  ...extra,
+});
+const adminOrders = [
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b1000001",
+    "shipped",
+    null,
+    "Bia Lima",
+    "bia@exemplo.com",
+    "35999990000",
+    "Lavras",
+    "MG",
+    "card",
+    3,
+    21500,
+    "2026-11-03T15:00:00Z",
+    {
+      sent_to_supplier_at: "2026-11-03T16:00:00Z",
+      shipped_at: "2026-11-04T10:00:00Z",
+      tracking: { number: "BR123", provider: "Correios", url: null },
+    },
+  ),
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b2000002",
+    "cancelled",
+    "supplier_failed",
+    "Caio Souza",
+    "caio@exemplo.com",
+    null,
+    "Recife",
+    "PE",
+    "pix",
+    1,
+    9900,
+    "2026-11-02T12:00:00Z",
+    {
+      refunded_at: "2026-11-02T18:00:00Z",
+    },
+  ),
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b3000003",
+    "delivered",
+    null,
+    null,
+    "antigo@exemplo.com",
+    null,
+    null,
+    null,
+    "pix",
+    1,
+    5000,
+    "2026-10-28T09:00:00Z",
+    {
+      delivered_at: "2026-11-01T14:00:00Z",
+    },
+  ),
+];
+
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
 
@@ -959,6 +1065,34 @@ createServer(async (req, res) => {
       deliver_within_hours: 360,
       return_within_hours: 360,
     });
+  }
+  // os pedidos do painel (#382): o contato de quem comprou, sem CPF nem endereço
+  if (req.method === "GET" && url.pathname === "/orders/v1/admin/orders") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const q = (url.searchParams.get("q") ?? "").toLowerCase();
+    const status = url.searchParams.get("status");
+    const data = adminOrders
+      .filter((o) => !status || o.status === status)
+      .filter(
+        (o) =>
+          !q ||
+          o.customer.email.includes(q) ||
+          (o.customer.name ?? "").toLowerCase().includes(q) ||
+          o.id.replace(/-/g, "").endsWith(q),
+      )
+      // a lista leva só o resumo: o que é do detalhe sai
+      .map((o) => {
+        const summary = { ...o };
+        for (const k of ["items", "items_total", "shipping", "tracking", "invoice_number", "updated_at"])
+          delete summary[k];
+        return summary;
+      });
+    return send(res, 200, { data, page: { next_cursor: null, has_more: false } });
+  }
+  if (req.method === "GET" && url.pathname.startsWith("/orders/v1/admin/orders/")) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const order = adminOrders.find((o) => o.id === url.pathname.split("/").pop());
+    return order ? send(res, 200, order) : problem(res, 404, "Pedido não encontrado");
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/order-margins") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");

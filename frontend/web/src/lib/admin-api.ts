@@ -1,6 +1,6 @@
 import "server-only";
 import { updateTag } from "next/cache";
-import { api, type CatalogSchemas, type FulfillmentSchemas } from "@/lib/api/client";
+import { api, type CatalogSchemas, type FulfillmentSchemas, type OrdersSchemas } from "@/lib/api/client";
 import type { components as InventorySchemas } from "@/lib/api/schema/inventory";
 
 /**
@@ -394,4 +394,48 @@ export async function deletePricingRule(token: string, categoryId: string) {
 /** Lê o feed do fornecedor agora; o que mudou chega ao catálogo pelos eventos, em segundos. */
 export function syncSupplierCatalog(token: string) {
   return run(() => api.fulfillment({ token }).POST("/v1/admin/supplier-catalog/sync", {}));
+}
+
+// ---------- pedidos e vendas (#382) ----------
+
+export type AdminOrderSummary = OrdersSchemas["schemas"]["AdminOrderSummary"];
+export type AdminOrderDetail = OrdersSchemas["schemas"]["AdminOrderDetail"];
+export type SalesSummary = OrdersSchemas["schemas"]["SalesSummary"];
+export type AdminOrderStatus = OrdersSchemas["schemas"]["OrderStatus"];
+
+export type AdminOrderFilter = {
+  q?: string;
+  status?: AdminOrderStatus;
+  from?: string;
+  to?: string;
+  cursor?: string;
+};
+
+/** Todos os pedidos, do mais recente para o mais antigo, com o contato de quem comprou (sem CPF nem endereço). */
+export function listAdminOrders(token: string, f: AdminOrderFilter) {
+  return run(() =>
+    api.orders({ token }).GET("/v1/admin/orders", {
+      params: { query: { limit: 50, ...f } },
+      cache: "no-store",
+    }),
+  );
+}
+
+export function getAdminOrder(token: string, id: string) {
+  return run(() =>
+    api.orders({ token }).GET("/v1/admin/orders/{order_id}", {
+      params: { path: { order_id: id } },
+      cache: "no-store",
+    }),
+  );
+}
+
+/** As vendas do período: pagos, estornos, por dia, por meio de pagamento e os mais vendidos. */
+export function salesSummary(token: string, period: { from: string; to: string }) {
+  return run(() =>
+    api.orders({ token }).GET("/v1/admin/sales-summary", {
+      params: { query: period },
+      cache: "no-store",
+    }),
+  );
 }
