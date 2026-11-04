@@ -171,6 +171,11 @@
   margin: 0;
   top: calc(anchor(bottom) + 0.25rem);
   right: anchor(right);
+  /* sem espaço (o botão no pé da coluna do painel), abre para cima e/ou para o outro lado */
+  position-try-fallbacks:
+    flip-block,
+    flip-inline,
+    flip-block flip-inline;
 }
 @supports not (anchor-name: --tema) {
   .theme-popover {
