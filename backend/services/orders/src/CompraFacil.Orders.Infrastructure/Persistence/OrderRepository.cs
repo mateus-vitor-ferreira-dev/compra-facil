@@ -61,14 +61,15 @@ internal sealed class OrderRepository(OrdersDbContext db) : IOrderRepository
         }
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            // o e-mail, o nome de quem recebe ou o começo do número (os 8 primeiros do id, como a loja mostra)
+            // o e-mail, o nome de quem recebe ou o número do pedido: os 8 últimos do id, como a loja e os e-mails
+            // mostram (o fim do id inteiro também casa)
             var term = filter.Search.Trim();
             var like = $"%{EscapeLike(term)}%";
-            var prefix = $"{EscapeLike(term.ToLowerInvariant())}%";
+            var number = $"%{EscapeLike(term.ToLowerInvariant())}";
             query = query.Where(o =>
                 EF.Functions.ILike(o.CustomerEmail, like, "\\")
                 || (o.Recipient != null && EF.Functions.ILike(o.Recipient.Name, like, "\\"))
-                || EF.Functions.Like(o.Id.ToString(), prefix, "\\"));
+                || EF.Functions.Like(o.Id.ToString(), number, "\\"));
         }
         if (!string.IsNullOrEmpty(cursor))
         {

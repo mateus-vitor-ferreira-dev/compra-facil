@@ -118,11 +118,15 @@ public sealed class AdminOrdersTests(OrdersFixture fx) : IClassFixture<OrdersFix
         Assert.DoesNotContain("52998224725", raw, StringComparison.Ordinal); // o CPF não sai
         Assert.DoesNotContain("Rua A", raw, StringComparison.Ordinal); // nem a rua
 
-        // filtro por situação, pelo começo do número e pelo nome; "%" digitado não vira curinga
+        // filtro por situação, pelo número (os 8 últimos do id, como a loja mostra) e pelo nome; "%" digitado
+        // não vira curinga
         var delivered = await JsonAsync(await http.GetAsync($"/v1/admin/orders?q={email}&status=delivered", Ct));
         Assert.Equal(older.Id, Assert.Single(delivered.GetProperty("data").EnumerateArray()).GetProperty("id").GetGuid());
-        var byNumber = await JsonAsync(await http.GetAsync($"/v1/admin/orders?q={newer.Id.ToString()[..8].ToUpperInvariant()}", Ct));
-        Assert.Contains(byNumber.GetProperty("data").EnumerateArray(), o => o.GetProperty("id").GetGuid() == newer.Id);
+        var number = newer.Id.ToString("N")[^8..].ToUpperInvariant();
+        var byNumber = await JsonAsync(await http.GetAsync($"/v1/admin/orders?q={number}", Ct));
+        Assert.Equal(newer.Id, Assert.Single(byNumber.GetProperty("data").EnumerateArray()).GetProperty("id").GetGuid());
+        var byStart = await JsonAsync(await http.GetAsync($"/v1/admin/orders?q={newer.Id.ToString("N")[..8]}", Ct));
+        Assert.DoesNotContain(byStart.GetProperty("data").EnumerateArray(), o => o.GetProperty("id").GetGuid() == newer.Id);
         var wildcard = await JsonAsync(await http.GetAsync("/v1/admin/orders?q=%25", Ct));
         Assert.Empty(wildcard.GetProperty("data").EnumerateArray());
 
