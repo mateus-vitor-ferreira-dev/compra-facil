@@ -25,11 +25,17 @@ async function fillDelivery(page: Page) {
   await expect(page.getByRole("radio", { name: /Econômico/ })).toBeChecked();
 }
 
-/** Paga com o cartão de teste; o titular decide o resultado no provedor (APRO aprova, FUND recusa). */
-async function payByCard(page: Page, holder = "APRO") {
+/**
+ * Paga com um cartão de teste. Como na homologação da Efí, o último dígito decide no provedor: final 1 recusa,
+ * os outros aprovam.
+ */
+const APPROVED_CARD = "4509 9535 6623 3704";
+const REFUSED_CARD = "4111 1111 1111 1111";
+
+async function payByCard(page: Page, number = APPROVED_CARD) {
   await page.getByRole("radio", { name: /Cartão de crédito/ }).check();
-  await page.getByLabel("Número do cartão").fill("4509 9535 6623 3704");
-  await page.getByLabel("Nome impresso no cartão").fill(holder);
+  await page.getByLabel("Número do cartão").fill(number);
+  await page.getByLabel("Nome impresso no cartão").fill("Ana Souza");
   await page.getByLabel("Validade").fill("11/30");
   await page.getByLabel("Código de segurança").fill("123");
 }
@@ -220,7 +226,7 @@ test("cartão: os erros ficam no campo, e o recusado pelo banco cancela o pedido
   await expect(page.getByLabel("Validade")).toHaveAccessibleDescription(/MM\/AA/);
   await expect(page).toHaveURL(/\/checkout$/);
 
-  await payByCard(page, "FUND");
+  await payByCard(page, REFUSED_CARD);
   await page.getByRole("button", { name: /^Fazer o pedido de/ }).click();
   await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]{36}\?novo=1$/);
   await expect(page.getByText("O cartão foi recusado. Nada foi cobrado.")).toBeVisible({ timeout: 10_000 });
