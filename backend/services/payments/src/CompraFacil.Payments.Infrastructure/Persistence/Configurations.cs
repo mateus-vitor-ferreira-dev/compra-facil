@@ -21,6 +21,18 @@ internal sealed class ChargeConfiguration : IEntityTypeConfiguration<Charge>
         builder.Ignore(c => c.Payer);
         builder.Property(c => c.PayerName).HasMaxLength(200);
         builder.Property(c => c.PayerCpf).HasMaxLength(11);
+        builder.Property(c => c.PayerPhone).HasMaxLength(11);
+        // o endereço de cobrança, só até a cobrança (#379)
+        builder.ComplexProperty(c => c.PayerAddress, a =>
+        {
+            a.Property(x => x.ZipCode).HasColumnName("payer_zip_code").HasMaxLength(8);
+            a.Property(x => x.Street).HasColumnName("payer_street").HasMaxLength(60);
+            a.Property(x => x.Number).HasColumnName("payer_number").HasMaxLength(60);
+            a.Property(x => x.Complement).HasColumnName("payer_complement").HasMaxLength(60);
+            a.Property(x => x.District).HasColumnName("payer_district").HasMaxLength(60);
+            a.Property(x => x.City).HasColumnName("payer_city").HasMaxLength(60);
+            a.Property(x => x.State).HasColumnName("payer_state").HasMaxLength(2);
+        });
         builder.Property(c => c.Version).IsRowVersion(); // xmin: dois eventos do mesmo pedido em réplicas diferentes
     }
 }
@@ -55,6 +67,9 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         // a notificação do provedor acha o pagamento pela referência dele
         builder.HasIndex(p => new { p.Provider, p.ProviderReference }).IsUnique().HasFilter("provider_reference IS NOT NULL");
         builder.Property(p => p.RefundReference).HasMaxLength(128);
+        builder.Property(p => p.PendingReversal).HasMaxLength(32);
+        // o job do PIX vencido procura os pendentes pela validade
+        builder.HasIndex(p => p.Status).HasFilter("status = 'Pending'");
         builder.ComplexProperty(p => p.Amount, m =>
         {
             m.Property(x => x.AmountCents).HasColumnName("amount_cents");

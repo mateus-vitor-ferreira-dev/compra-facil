@@ -40,6 +40,8 @@
   </ItemGroup>
   <ItemGroup Label="E-mail">
     <PackageVersion Include="MailKit" Version="4.18.1" />
+    <!-- payments: o QR do PIX em PNG a partir do copia-e-cola (a Efí manda SVG) -->
+    <PackageVersion Include="QRCoder" Version="1.8.1" />
     <PackageVersion Include="Fluid.Core" Version="2.40.0" />
     <PackageVersion Include="Testcontainers" Version="4.15.0" />
   </ItemGroup>

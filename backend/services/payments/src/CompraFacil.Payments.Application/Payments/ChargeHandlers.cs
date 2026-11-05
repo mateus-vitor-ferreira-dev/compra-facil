@@ -42,7 +42,7 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
                 Approved(payment, captured: true);
                 return true;
             case ProviderStatus.Approved when payment.Status == PaymentStatus.Authorized:
-                payment.Capture(now); // capturado (pela nossa chamada, a notificação chega depois)
+                payment.Capture(now); // o cartão aprovado foi liquidado (a notificação de paid)
                 return true;
             case ProviderStatus.Rejected when payment.IsOpen:
                 Failed(payment, result.FailureReason ?? FailureReason.CardDeclined, result.Reference, now);
@@ -85,8 +85,10 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
 
 /// <summary>
 /// Registra um fato sobre o pedido e cobra se já tiver tudo (valor + estoque garantido). PIX: gera o QR
-/// (PaymentPending) e espera o webhook. Cartão: autoriza sem capturar (PaymentApproved com captured=false);
-/// a captura vem quando o fornecedor aceita o pedido.
+/// (PaymentPending) e espera o webhook. Cartão: em dois passos (#379), porque a Efí não tem chave de
+/// idempotência: abre a cobrança no provedor, grava a referência e só então paga; se o payments cair no meio, a
+/// nova tentativa paga a mesma cobrança (e a paga de novo não cobra outra vez). Aprovado, publica PaymentApproved
+/// com captured=false; a liquidação chega pela notificação.
 /// </summary>
 public sealed class ChargeProcessor(
     IPaymentRepository payments, IPaymentProvider provider, PaymentOutcome outcome, IOptions<PaymentOptions> options, TimeProvider clock)
@@ -107,6 +109,10 @@ public sealed class ChargeProcessor(
             {
                 payment = await ChargeAsync(charge, now, ct);
             }
+            else if (charge is { PaymentId: { } id, CardToken: not null, Cancelled: false })
+            {
+                payment = await ResumeCardAsync(charge, id, ct); // o payments caiu entre abrir a cobrança e pagar
+            }
             await payments.SaveChangesAsync(ct);
             if (payment is not null)
             {
@@ -120,28 +126,66 @@ public sealed class ChargeProcessor(
     private async Task<Payment> ChargeAsync(Charge charge, DateTimeOffset now, CancellationToken ct)
     {
         var amount = charge.Amount!.Value;
-        var (token, brand, payer) = (charge.CardToken, charge.CardBrand, charge.Payer);
         var payment = Payment.Start(Guid.CreateVersion7(), charge.OrderId, amount, charge.Method, charge.Installments, provider.Name, now);
         charge.AttachPayment(payment.Id, now);
-        charge.ForgetPayer();
         payments.Add(payment);
 
-        // falha temporária sobe: nada é gravado e a mensagem é tentada de novo, com a mesma chave
-        var key = charge.OrderId.ToString();
+        // falha temporária sobe: nada é gravado e a mensagem é tentada de novo
+        if (charge.Method == PaymentMethod.Pix)
+        {
+            var pix = await provider.CreatePixAsync(
+                new PixRequest(charge.OrderId.ToString(), charge.OrderId, amount, charge.CustomerEmail, now + options.Value.PixExpiration, charge.Payer), ct);
+            charge.Charged(now);
+            outcome.Apply(payment, pix);
+            return payment;
+        }
+
+        string reference;
         try
         {
-            var result = charge.Method == PaymentMethod.Pix
-                ? await provider.CreatePixAsync(new PixRequest(key, charge.OrderId, amount, charge.CustomerEmail, now + options.Value.PixExpiration, payer), ct)
-                : await provider.AuthorizeCardAsync(new CardRequest(key, charge.OrderId, amount, charge.CustomerEmail, token!, brand!, charge.Installments, payer), ct);
-            outcome.Apply(payment, result);
+            reference = await provider.OpenCardChargeAsync(CardRequestOf(charge), ct);
         }
-        catch (PaymentProviderRejectedException) when (charge.Method == PaymentMethod.Card)
+        catch (PaymentProviderRejectedException)
+        {
+            // dados que o provedor não aceita (o pedido de antes do #379, sem o telefone): para o cliente, o cartão recusado
+            charge.Charged(now);
+            outcome.Reject(payment, FailureReason.CardDeclined);
+            return payment;
+        }
+        payment.Track(reference, now);
+        await payments.SaveChangesAsync(ct); // a referência gravada antes de cobrar: a nova tentativa paga a mesma
+        return await PayAsync(charge, payment, ct);
+    }
+
+    private async Task<Payment?> ResumeCardAsync(Charge charge, Guid paymentId, CancellationToken ct)
+    {
+        var payment = await payments.GetPaymentForUpdateAsync(paymentId, ct);
+        if (payment is { Status: PaymentStatus.Processing, ProviderReference: not null })
+        {
+            return await PayAsync(charge, payment, ct);
+        }
+        charge.Charged(clock.GetUtcNow()); // já decidido: o token não serve mais
+        return null;
+    }
+
+    private async Task<Payment> PayAsync(Charge charge, Payment payment, CancellationToken ct)
+    {
+        try
+        {
+            outcome.Apply(payment, await provider.PayCardAsync(payment.ProviderReference!, CardRequestOf(charge), ct));
+        }
+        catch (PaymentProviderRejectedException)
         {
             // token já usado ou inválido: para o cliente, é o cartão recusado (o pedido é cancelado com o motivo)
             outcome.Reject(payment, FailureReason.CardDeclined);
         }
+        charge.Charged(clock.GetUtcNow());
         return payment;
     }
+
+    private static CardRequest CardRequestOf(Charge charge) =>
+        new(charge.OrderId.ToString(), charge.OrderId, charge.Amount!.Value, charge.CustomerEmail, charge.CardToken!, charge.CardBrand!,
+            charge.Installments, charge.Payer);
 }
 
 /// <summary>OrderPlaced → guarda valor, cliente e como pagar (e cobra se o estoque já foi reservado).</summary>
@@ -160,8 +204,7 @@ public sealed class OnOrderPlaced(ChargeProcessor processor) : IHandleEvent<Orde
             {
                 try
                 {
-                    charge.RecordOrder(data.CustomerId, data.CustomerEmail, data.Total, instruction, now,
-                        data.Payer is { } who ? new Payer(who.Name, who.Cpf) : null);
+                    charge.RecordOrder(data.CustomerId, data.CustomerEmail, data.Total, instruction, now, data.Payer?.ToPayer());
                 }
                 catch (DomainException e)
                 {
@@ -183,33 +226,8 @@ public sealed class OnStockReserved(ChargeProcessor processor) : IHandleEvent<St
 }
 
 /// <summary>
-/// SupplierOrderPlaced → o fornecedor aceitou: a autorização do cartão é capturada. Até aqui, um pedido que o
-/// fornecedor recusasse só teria a autorização cancelada, sem estorno nem tarifa.
-/// </summary>
-public sealed class OnSupplierOrderPlaced(IPaymentRepository payments, IPaymentProvider provider, PaymentOutcome outcome) : IHandleEvent<SupplierOrderPlacedData>
-{
-    public Task HandleAsync(SupplierOrderPlacedData data, EventContext context, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        return OptimisticConcurrency.RetryAsync(payments.Reset, async () =>
-        {
-            var payment = await payments.GetPaidForUpdateAsync(data.OrderId, ct);
-            if (payment is not { Status: PaymentStatus.Authorized })
-            {
-                return false; // PIX (já pago), ou capturado antes (evento repetido)
-            }
-            outcome.Apply(payment, await provider.CaptureAsync(payment.ProviderReference!, ct));
-            await payments.SaveChangesAsync(ct);
-            PaymentsMetrics.Captures.Add(1);
-            return true;
-        });
-    }
-}
-
-/// <summary>
-/// OrderCancelled → descarta a cobrança que ainda não aconteceu; com o pedido já pago (o fornecedor não
-/// atendeu), devolve o dinheiro: cancela a autorização do cartão (nada é cobrado) ou estorna o PIX pago
-/// (e o cartão já capturado). Publica PaymentRefunded. Chave do estorno: o payment_id.
+/// OrderCancelled → descarta a cobrança que ainda não aconteceu; com o pedido já pago (o fornecedor não atendeu),
+/// devolve o dinheiro (<see cref="PaymentReversal"/>). Publica PaymentRefunded. Chave do estorno: o payment_id.
 /// </summary>
 public sealed class OnOrderCancelled(IPaymentRepository payments, PaymentReversal reversal, TimeProvider clock)
     : IHandleEvent<OrderCancelledData>
@@ -229,6 +247,10 @@ public sealed class OnOrderCancelled(IPaymentRepository payments, PaymentReversa
             charge.Cancel(now);
 
             var payment = charge.PaymentId is { } id ? await payments.GetPaymentForUpdateAsync(id, ct) : null;
+            if (payment is not null)
+            {
+                charge.Charged(now); // entre os dois passos do cartão: não se paga mais
+            }
             var kind = payment is null ? null : await reversal.ReverseAsync(payment, "cancel", ct);
             await payments.SaveChangesAsync(ct);
             if (kind is not null)
@@ -241,33 +263,45 @@ public sealed class OnOrderCancelled(IPaymentRepository payments, PaymentReversa
 }
 
 /// <summary>
-/// Devolve o dinheiro de um pagamento: cancela a autorização do cartão ou o PIX não pago (nada é cobrado), ou
-/// estorna o que foi pago, tudo o que falta (com o frete). Publica PaymentRefunded. A chave do estorno é o
-/// payment_id com o motivo, então a mensagem repetida não estorna duas vezes. Devolve o tipo, ou nulo se não
-/// havia o que devolver.
+/// Devolve o dinheiro de um pagamento, conforme onde ele está:
+/// <list type="bullet">
+/// <item>PIX não pago ou cartão ainda em análise: cancela no provedor (nada é cobrado);</item>
+/// <item>cartão aprovado e não liquidado: a Efí não cancela nem estorna nessa janela, então a devolução fica
+/// esperando (<see cref="Payment.PendingReversal"/>) e sai quando a liquidação chega (<see cref="ResumeAsync"/>);</item>
+/// <item>pago: estorna tudo o que falta (com o frete).</item>
+/// </list>
+/// Publica PaymentRefunded quando o dinheiro volta. A chave do estorno é o payment_id com o motivo, então a mensagem
+/// repetida não estorna duas vezes. Devolve o tipo ("void", "refund", "deferred"), ou nulo se não havia o que devolver.
 /// </summary>
 public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome outcome, TimeProvider clock)
 {
     public async Task<string?> ReverseAsync(Payment payment, string reason, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(payment);
+        if (payment is { Status: PaymentStatus.Pending or PaymentStatus.Processing, ProviderReference: { } reference })
+        {
+            // falha temporária sobe: a mensagem é tentada de novo (cancelar de novo devolve o mesmo)
+            try
+            {
+                await provider.CancelAsync(reference, ct);
+                payment.Void(clock.GetUtcNow());
+                return null; // nada foi cobrado, e o pedido nunca soube de pagamento: não há o que avisar
+            }
+            catch (PaymentProviderRejectedException)
+            {
+                // já não se cancela: o cliente pagou o PIX, ou o cartão saiu da análise. A verdade vem do provedor
+                outcome.Apply(payment, await provider.GetAsync(reference, ct));
+            }
+        }
         switch (payment.Status)
         {
-            case PaymentStatus.Authorized or PaymentStatus.Pending:
-                // falha temporária sobe: a mensagem é tentada de novo (cancelar de novo devolve o mesmo)
-                await provider.CancelAsync(payment.ProviderReference!, ct);
-                var wasAuthorized = payment.Status == PaymentStatus.Authorized;
-                payment.Void(clock.GetUtcNow());
-                if (wasAuthorized)
-                {
-                    outcome.Refunded(payment, payment.Amount.AmountCents, RefundKind.Void, reason);
-                    return "void";
-                }
-                return null;
+            case PaymentStatus.Authorized:
+                return payment.DeferReversal(reason, clock.GetUtcNow()) ? "deferred" : null;
             case PaymentStatus.Approved:
                 var left = payment.Amount.AmountCents - payment.RefundedCents;
                 var key = $"{payment.Id}:{reason}";
                 var refund = await provider.RefundAsync(payment.ProviderReference!, left, key, ct);
+                payment.ClearPendingReversal(clock.GetUtcNow());
                 if (payment.Refund(refund.AmountCents, key, refund.Reference, clock.GetUtcNow()))
                 {
                     outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund, reason);
@@ -277,6 +311,28 @@ public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome ou
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Depois de o provedor mudar a cobrança: a devolução que esperava a liquidação sai agora; se o cartão acabou
+    /// recusado, não há mais o que devolver.
+    /// </summary>
+    public async Task<string?> ResumeAsync(Payment payment, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(payment);
+        if (payment.PendingReversal is not { } reason)
+        {
+            return null;
+        }
+        if (payment.Status == PaymentStatus.Approved)
+        {
+            return await ReverseAsync(payment, reason, ct);
+        }
+        if (payment.Status is not (PaymentStatus.Processing or PaymentStatus.Authorized))
+        {
+            payment.ClearPendingReversal(clock.GetUtcNow());
+        }
+        return null;
     }
 }
 

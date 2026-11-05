@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<PaymentOutcome>();
         services.AddScoped<PaymentReversal>();
         services.AddScoped<ProviderNotifications>();
+        services.AddScoped<PixExpiry>();
         services.AddScoped<RefundPayment>();
         services.AddScoped<PaymentQueries>();
         services.TryAddSingleton(TimeProvider.System); // o AddPostgres troca pelo relógio do banco

@@ -2,21 +2,21 @@
 //
 // Quatro cenários, cada um com o próprio produto criado pelo admin do catálogo (o teste não depende
 // do seed nem do estoque que outros testes consumiram):
-//   1. compra confirmada no cartão (titular APRO no payment-sim): reserva → cartão autorizado → pedido
+//   1. compra confirmada no cartão (aprovado na Efí simulada): reserva → cartão aprovado → pedido
 //      confirmed, reserva committed, e-mail; segue o fornecedor simulado até delivered, com o rastreio, e o
-//      cartão é capturado quando o fornecedor aceita; depois o cliente desiste (#223) e o valor todo, com o
+//      cartão é liquidado pela notificação da Efí; depois o cliente desiste (#223) e o valor todo, com o
 //      frete, é estornado, com os e-mails da devolução e do estorno;
 //   2. estoque insuficiente: estoque zerado pelo admin do inventory → cancelled (out_of_stock);
-//   3. pagamento recusado: cartão do titular FUND → cancelled (payment_failed), cobrança failed
-//      (insufficient_funds) e a reserva devolvida ao estoque;
-//   4. fornecedor recusa: cliente "+recusar" (o fulfillment repassa o cenário ao simulado) → autorizado,
-//      cancelled (supplier_failed), a autorização cancelada (voided: nada cobrado), refunded_at no pedido e o
-//      e-mail do cancelamento;
+//   3. pagamento recusado: cartão com final 1 (a regra de homologação da Efí) → cancelled (payment_failed),
+//      cobrança failed (card_declined) e a reserva devolvida ao estoque;
+//   4. fornecedor recusa: cliente "+recusar" (o fulfillment repassa o cenário ao simulado) → aprovado,
+//      cancelled (supplier_failed), o estorno quando o cartão liquida (a Efí não estorna antes), refunded_at
+//      no pedido e o e-mail do cancelamento;
 //   5. acabou no fornecedor: um produto do feed do simulado esgota lá → o webhook de estoque zera o
 //      espelho do inventory em segundos, e o pedido é recusado (out_of_stock) antes de qualquer cobrança;
-//   6. PIX: o pedido mostra o QR, o "banco" paga pela página do payment-sim → confirmed, cobrança approved;
+//   6. PIX: o pedido mostra o QR, o "banco" paga no payment-sim → confirmed, cobrança approved;
 //   7. nota fiscal recusada: cliente "+recusar-nota" (a SEFAZ simulada do invoice-sim rejeita) → o pedido
-//      pago não vai ao fornecedor, cancelled (invoice_failed) e a autorização do cartão cancelada.
+//      pago não vai ao fornecedor, cancelled (invoice_failed) e o cartão estornado depois de liquidar.
 //   8. cancelado pela equipe: cliente "+atrasar" fica preso no fornecedor, o painel cancela → avisado, cancelled
 //      (store_cancelled) e o cartão estornado.
 //   9. devolução recusada na abertura (#281): cliente "+recusar-abertura" desiste do entregue, o fornecedor recusa
@@ -44,9 +44,10 @@ const IDENTITY = `${GATEWAY}/identity`;
 const SUPPLIER_SIM = __ENV.SUPPLIER_SIM_URL || 'http://supplier-sim:8090';
 // uma variante do feed do simulado (Wireless Optical Mouse), importada pelo catalog
 const SUPPLIER_VID = 'SIM-V-007';
-// o provedor de pagamento simulado (Mercado Pago), pela rede do compose
+// o provedor de pagamento simulado (Efí), pela rede do compose
 const PAYMENT_SIM = __ENV.PAYMENT_SIM_URL || 'http://payment-sim:8090';
-const PAYMENT_SIM_PUBLIC_KEY = __ENV.PAYMENT_SIM_PUBLIC_KEY || 'TEST-sim-public-key';
+// o identificador de conta da Efí simulada (o navegador o manda na tokenização)
+const EFI_PAYEE_CODE = __ENV.EFI_PAYEE_CODE || '0123456789abcdef0123456789abcdef';
 // as rotas /sim de operação do payment-sim pedem o token de administração (#280)
 const PAYMENT_SIM_ADMIN_TOKEN = __ENV.PAYMENT_SIM_ADMIN_TOKEN || 'sim-admin';
 const SAGA_TIMEOUT_S = 60;
@@ -133,17 +134,21 @@ export function setup() {
   return products;
 }
 
-// o cartão tokenizado no provedor (como o checkout faz); o titular decide o resultado no payment-sim
-function card(holder) {
-  const res = http.post(`${PAYMENT_SIM}/v1/card_tokens?public_key=${PAYMENT_SIM_PUBLIC_KEY}`, json({
-    card_number: '4235647728025682', security_code: '123', expiration_month: 12, expiration_year: 2030,
-    cardholder: { name: holder },
+// cartões que passam no Luhn: na homologação da Efí (e no simulado), o último dígito decide
+const APPROVED_CARD = '4485785674290087';
+const REFUSED_CARD = '4111111111111111'; // final 1: "Dados do cartão inválidos."
+
+// o cartão tokenizado no provedor (como o checkout faz, no lugar da biblioteca da Efí)
+function card(number = APPROVED_CARD) {
+  const res = http.post(`${PAYMENT_SIM}/sim/card-token`, json({
+    payee_code: EFI_PAYEE_CODE, brand: 'visa', number, cvv: '123', expiration_month: '12', expiration_year: '2030',
+    holder_name: 'Cliente de Teste',
   }), { headers: { 'Content-Type': 'application/json' }, tags: { name: 'card-token' } });
-  if (res.status !== 201) fail(`token do cartão: ${res.status} ${res.body}`);
-  return { method: 'card', card_token: res.json('id'), card_brand: res.json('payment_method_id'), installments: 1 };
+  if (res.status !== 200) fail(`token do cartão: ${res.status} ${res.body}`);
+  return { method: 'card', card_token: res.json('data.payment_token'), card_brand: 'visa', installments: 1 };
 }
 
-function placeOrder(productId, customer, payment = card('APRO')) {
+function placeOrder(productId, customer, payment = card()) {
   const res = http.post(`${GATEWAY}/orders/v1/orders`, json({ items: [{ product_id: productId, quantity: 1 }], payment, ...DELIVERY }), {
     headers: { ...auth(customer.token), 'Idempotency-Key': uuid() }, tags: { name: 'order' },
   });
@@ -197,7 +202,7 @@ export default function (products) {
     const orderId = placeOrder(products.happy, customer);
     const order = finalOrder(orderId, customer);
     check(order, { 'pedido confirmed': (o) => o.status === 'confirmed' });
-    check(paymentOf(orderId, 'authorized', 'approved'), { 'cartão autorizado': (p) => p.method === 'card' });
+    check(paymentOf(orderId, 'authorized', 'approved'), { 'cartão aprovado': (p) => p.method === 'card' });
     check(eventually('reserva committed', () => {
       const r = reservationOf(orderId);
       return r && r.status === 'committed' ? r : null;
@@ -217,8 +222,8 @@ export default function (products) {
       'com o frete no total e o prazo prometido': (o) => !!o.shipping && o.shipping.price.amount_cents > 0
         && o.total.amount_cents === o.items_total.amount_cents + o.shipping.price.amount_cents && !!o.shipping.promised_by,
     });
-    // o fornecedor aceitou: a autorização foi capturada
-    check(paymentOf(orderId, 'approved'), { 'cartão capturado': (p) => !!p.captured_at });
+    // a Efí liquidou o cartão (a notificação de paid)
+    check(paymentOf(orderId, 'approved'), { 'cartão liquidado': (p) => !!p.captured_at });
     // a nota fiscal: o e-mail com o link do pedido e o DANFE para o dono baixar pelo gateway
     check(eventually('e-mail da nota fiscal', () => emailsTo(customer.email, 'Nota fiscal')), { 'e-mail da nota fiscal': (n) => n >= 1 });
     // o envio, com o rastreio, e a entrega, com o prazo para desistir (#224)
@@ -288,7 +293,7 @@ export default function (products) {
   group('3. pagamento recusado', () => {
     const before = stockOf(products.declined).available;
     const customer = newCustomer(IDENTITY, 'e2e-recusado');
-    const orderId = placeOrder(products.declined, customer, card('FUND'));
+    const orderId = placeOrder(products.declined, customer, card(REFUSED_CARD));
     const order = finalOrder(orderId, customer);
     check(order, {
       'pedido cancelled': (o) => o.status === 'cancelled',
@@ -296,7 +301,7 @@ export default function (products) {
     });
     check(paymentOf(orderId), {
       'cobrança failed': (p) => p.status === 'failed',
-      'motivo insufficient_funds': (p) => p.failure_reason === 'insufficient_funds',
+      'motivo card_declined': (p) => p.failure_reason === 'card_declined',
     });
     // compensação: a reserva volta ao estoque
     check(eventually('reserva released', () => {
@@ -326,8 +331,8 @@ export default function (products) {
       'pedido cancelled': (o) => o.status === 'cancelled',
       'motivo supplier_failed': (o) => o.cancellation_reason === 'supplier_failed',
     });
-    // o cartão só estava autorizado: a autorização é cancelada, nada chega a ser cobrado
-    check(paymentOf(orderId, 'voided'), { 'autorização cancelada': (p) => p.status === 'voided' });
+    // o cartão aprovado se estorna quando liquida: o valor todo volta
+    check(paymentOf(orderId, 'refunded'), { 'cartão estornado': (p) => p.refunded_cents === p.amount.amount_cents });
     check(eventually('e-mail do cancelamento', () => emailsTo(customer.email, 'cancelado', 'o fornecedor não conseguiu atender')),
       { 'e-mail do cancelamento': (n) => n >= 1 });
   });
@@ -372,8 +377,8 @@ export default function (products) {
       'PIX com validade': (o) => Date.parse(o.payment.pix.expires_at) > Date.now(),
     });
     const payment = paymentOf(orderId, 'pending');
-    // o "banco" do cliente paga o QR (a página do ticket_url faz o mesmo)
-    const paid = http.post(`${PAYMENT_SIM}/sim/payments/${payment.provider_reference}/pay`, null,
+    // o "banco" do cliente paga o QR (a página do linkVisualizacao faz o mesmo); a referência é o txid
+    const paid = http.post(`${PAYMENT_SIM}/sim/efi/cobs/${payment.provider_reference}/pay`, null,
       { headers: { 'X-Sim-Admin-Token': PAYMENT_SIM_ADMIN_TOKEN }, tags: { name: 'sim-pay' } });
     check(paid, { 'PIX pago no banco': (r) => r.status === 200 });
     check(finalOrder(orderId, customer), { 'pedido confirmed': (o) => o.status === 'confirmed' });
@@ -394,7 +399,7 @@ export default function (products) {
       'sem nota no pedido': (o) => o.invoice === null,
       'não foi ao fornecedor': (o) => !o.sent_to_supplier_at,
     });
-    check(paymentOf(orderId, 'voided'), { 'autorização cancelada': (p) => p.status === 'voided' });
+    check(paymentOf(orderId, 'refunded'), { 'cartão estornado': (p) => p.refunded_cents === p.amount.amount_cents });
   });
 
   group('8. cancelado pela equipe', () => {
