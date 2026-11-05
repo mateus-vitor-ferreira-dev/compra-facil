@@ -21,7 +21,9 @@
     // o IP de quem compra, que a Cloudflare põe em toda requisição e não deixa o cliente forjar: o BFF
     // o repassa ao gateway para o rate limit ser por comprador (#176)
     "CLIENT_IP_HEADER": "cf-connecting-ip",
-    // a loja de demonstração: o provedor simulado, em sslip.io como a API (abre nas redes que bloqueiam a zona)
+    // a loja de demonstração: a Efí simulada (o payment-sim), em sslip.io como a API (abre nas redes que
+    // bloqueiam a zona). Na venda de verdade: "production" e o identificador de conta da Efí (#379)
+    "PAYMENT_PROVIDER": "simulator",
     "PAYMENT_PROVIDER_URL": "https://compra-facil-pagamento.49.12.249.23.sslip.io",
     "DEMO_MODE": "true",
   },

@@ -684,27 +684,36 @@ const shippingFor = (zip, productIds = []) => {
 };
 
 // ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
-const cardTokens = new Map(); // token -> titular
+const cardTokens = new Map(); // payment_token -> número do cartão
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
-async function tokenize(req, res, url) {
+async function tokenize(req, res) {
   for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
   if (req.method === "OPTIONS") return res.writeHead(204).end();
-  if (url.searchParams.get("public_key") !== "TEST-sim-public-key")
-    return send(res, 401, { message: "invalid public key" });
-  const { card_number: number, cardholder } = await json(req);
-  if (!/^4\d{15}$|^5\d{15}$/.test(String(number))) {
-    return send(res, 400, { message: "invalid card: número", error: "invalid_card" });
+  // o /sim/card-token do payment-sim, no lugar da biblioteca da Efí (#379)
+  const body = await json(req);
+  if (body.payee_code !== "0123456789abcdef0123456789abcdef")
+    return send(res, 401, {
+      code: 3500008,
+      error: "invalid_request",
+      error_description: "Identificador de conta inválido.",
+    });
+  const number = String(body.number ?? "");
+  if (!/^4\d{15}$|^5\d{15}$/.test(number)) {
+    return send(res, 400, {
+      code: 3500057,
+      error: "invalid_card_number",
+      error_description: "O número do cartão é inválido.",
+    });
   }
-  const id = crypto.randomUUID().replace(/-/g, "");
-  cardTokens.set(id, String(cardholder?.name ?? "").toUpperCase());
-  return send(res, 201, {
-    id,
-    payment_method_id: number.startsWith("4") ? "visa" : "master",
-    last_four_digits: number.slice(-4),
+  const token = crypto.randomUUID().replace(/-/g, "") + "00000000";
+  cardTokens.set(token, number);
+  return send(res, 200, {
+    code: 200,
+    data: { payment_token: token, card_mask: "XXXXXXXXXXXX" + number.slice(-4) },
   });
 }
 
@@ -919,12 +928,12 @@ async function placeOrder(req, res, email) {
     created_at: iso(now),
     updated_at: iso(now),
   };
-  // o titular decide o cartão, como no provedor (FUND: sem saldo); o inventory recusa acima do saldo
-  const holder = payment.method === "card" ? cardTokens.get(payment.card_token) : "";
+  // o último dígito decide o cartão, como na homologação da Efí (final 1 recusa); o inventory recusa acima do saldo
+  const cardNumber = payment.method === "card" ? (cardTokens.get(payment.card_token) ?? "") : "";
   cardTokens.delete(payment.card_token);
   const outcome = lines.some((l) => l.quantity > stock(l.product.id))
     ? "out_of_stock"
-    : holder === "FUND"
+    : cardNumber.endsWith("1")
       ? "payment_failed"
       : "confirmed";
   // "pix-curto@...": o PIX vence em segundos, para o teste ver o prazo acabar
@@ -1302,7 +1311,7 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
     return admin(req, res, url);
   }
-  if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  if (url.pathname === "/sim/card-token") return tokenize(req, res);
   if (req.method === "POST" && url.pathname === "/fulfillment/v1/shipping/quote") {
     const { zip_code: zip, items } = await json(req);
     const digits = String(zip ?? "").replace(/\D/g, "");

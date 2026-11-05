@@ -71,7 +71,11 @@ export default async function CheckoutPage() {
         initialQuote={
           quote?.ok && quote.options.length ? { zip: quote.zipCode, options: quote.options } : undefined
         }
-        provider={{ url: env.PAYMENT_PROVIDER_URL, publicKey: env.PAYMENT_PUBLIC_KEY }}
+        provider={{
+          environment: env.PAYMENT_PROVIDER,
+          payeeCode: env.PAYMENT_PAYEE_CODE,
+          url: env.PAYMENT_PROVIDER_URL,
+        }}
         initialDelivery={remembered ?? { ...EMPTY_DELIVERY, name: account?.name ?? "" }}
         remembered={remembered !== undefined}
         demo={env.DEMO_MODE}
