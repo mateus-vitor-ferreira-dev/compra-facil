@@ -232,8 +232,10 @@ components:
                     $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
                   payer:
                     description: |
-                      Quem paga, para o provedor de pagamento (o Mercado Pago pede o CPF no PIX): o nome e o CPF
-                      de quem recebe. Nulo só nos pedidos de antes do #221.
+                      Quem paga, para o provedor de pagamento: quem recebe. A Efí (#379) pede o nome, o CPF e o
+                      telefone no cartão e usa o endereço de cobrança (o de entrega) na análise antifraude; no
+                      PIX, só o nome e o CPF. Nulo só nos pedidos de antes do #221; o telefone e o endereço,
+                      nos de antes do #379.
                     oneOf:
                       - type: object
                         required: [name, cpf]
@@ -243,6 +245,14 @@ components:
                           cpf:
                             type: string
                             pattern: "^[0-9]{11}$"
+                          phone:
+                            type: [string, "null"]
+                            description: Com DDD, 10 ou 11 dígitos.
+                            pattern: "^[0-9]{10,11}$"
+                          billing_address:
+                            oneOf:
+                              - $ref: "../openapi/orders.v1.yaml#/components/schemas/ShippingAddress"
+                              - type: "null"
                       - type: "null"
 
     OrderConfirmed:
