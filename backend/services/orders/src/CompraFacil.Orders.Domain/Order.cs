@@ -128,6 +128,12 @@ public sealed class Order
     /// <summary>Quando o payments devolveu o valor ao cliente (pedido cancelado depois de pago).</summary>
     public DateTimeOffset? RefundedAt { get; private set; }
 
+    /// <summary>
+    /// A última vez que o provedor aceitou o estorno e não o realizou (#396): o pedido voltou a esperar o estorno, e
+    /// a equipe estorna de novo. Fica como histórico depois que o estorno sai.
+    /// </summary>
+    public DateTimeOffset? RefundFailedAt { get; private set; }
+
     /// <summary>Cancelado depois de pago e o estorno ainda não voltou.</summary>
     public bool AwaitingRefund =>
         ((Status == OrderStatus.Cancelled && CancelledAfterPayment) || Status == OrderStatus.Returned) && RefundedAt is null;
@@ -395,6 +401,22 @@ public sealed class Order
             return false;
         }
         RefundedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// O estorno que voltou o pedido ao cliente não foi realizado pelo provedor (#396): o pedido volta a esperar o
+    /// estorno. False se o pedido não estava estornado (a falha é de um estorno parcial do painel).
+    /// </summary>
+    public bool MarkRefundFailed(DateTimeOffset now)
+    {
+        if (RefundedAt is null)
+        {
+            return false;
+        }
+        RefundedAt = null;
+        RefundFailedAt = now;
         UpdatedAt = now;
         return true;
     }

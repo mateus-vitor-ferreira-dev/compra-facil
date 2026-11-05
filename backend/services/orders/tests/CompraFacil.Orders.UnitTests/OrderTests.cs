@@ -289,6 +289,13 @@ public sealed class OrderTests
         Assert.False(order.MarkRefunded(s_now.AddHours(3)));
         Assert.Equal(s_now.AddHours(2), order.RefundedAt);
         Assert.False(order.AwaitingRefund);
+
+        // o provedor não realizou o estorno (#396): volta a esperar, e o próximo estorno fecha de novo
+        Assert.True(order.MarkRefundFailed(s_now.AddHours(4)));
+        Assert.False(order.MarkRefundFailed(s_now.AddHours(5)));
+        Assert.Equal((true, (DateTimeOffset?)null, (DateTimeOffset?)s_now.AddHours(4)), (order.AwaitingRefund, order.RefundedAt, order.RefundFailedAt));
+        Assert.True(order.MarkRefunded(s_now.AddHours(6)));
+        Assert.False(order.AwaitingRefund);
     }
 
     [Fact]

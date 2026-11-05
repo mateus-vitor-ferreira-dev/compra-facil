@@ -22,7 +22,8 @@ info:
     8. `SupplierOrderDelivered` → `delivered` → `OrderDelivered`;
     9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`; `invoice_failed` quando a SEFAZ
        rejeitou a nota; `store_cancelled` quando a equipe cancelou pelo painel) → `OrderCancelled`, que faz o payments estornar o cliente (compensação);
-       `PaymentRefunded` → `refunded_at`.
+       `PaymentRefunded` → `refunded_at`; `PaymentRefundFailed` (o provedor não realizou o estorno, #396) →
+       `refunded_at` volta a nulo e `refund_failed_at`, sem publicar.
 
     A nota fiscal (`fulfillment.invoice.v1`, #221): `InvoiceIssued` grava a nota no pedido,
     `InvoiceCancelled`, o cancelamento dela, e `InvoiceReturnIssued`, a nota de devolução; nenhum publica.
@@ -115,6 +116,7 @@ operations:
       - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
       - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
+      - $ref: "#/channels/paymentEvents/messages/PaymentRefundFailed"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"
 
