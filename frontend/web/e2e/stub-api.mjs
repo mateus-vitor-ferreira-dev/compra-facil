@@ -339,7 +339,28 @@ const adminOrders = [
       delivered_at: "2026-11-01T14:00:00Z",
     },
   ),
+  // o estorno do PIX que a Efí aceitou e não realizou, sem saldo na conta (#396)
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b4000004",
+    "cancelled",
+    "supplier_failed",
+    "Duda Reis",
+    "duda@exemplo.com",
+    null,
+    "Lavras",
+    "MG",
+    "pix",
+    1,
+    7900,
+    "2026-11-04T09:00:00Z",
+    {
+      refunded_at: null,
+      refund_failed_at: "2026-11-04T12:00:00Z",
+    },
+  ),
 ];
+/** Os estornos pedidos de novo pelo painel (#396), pela chave. */
+const refundsAgain = new Set();
 
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
@@ -1145,6 +1166,27 @@ createServer(async (req, res) => {
         return summary;
       });
     return send(res, 200, { data, page: { next_cursor: null, has_more: false } });
+  }
+  // o pagamento do pedido e o estorno pelo painel (#396)
+  if (req.method === "GET" && url.pathname === "/payments/v1/payments") {
+    const order = adminOrders.find((o) => o.id === url.searchParams.get("order_id"));
+    const data = order
+      ? [
+          {
+            id: "01a18d66-0000-7000-8000-0000c4000004",
+            order_id: order.id,
+            status: "approved",
+            method: order.payment.method,
+          },
+        ]
+      : [];
+    return send(res, 200, { data });
+  }
+  const refundAgain = url.pathname.match(/^\/payments\/v1\/admin\/payments\/([0-9a-f-]{36})\/refunds$/);
+  if (req.method === "POST" && refundAgain) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    refundsAgain.add(req.headers["idempotency-key"]);
+    return send(res, 200, { id: refundAgain[1], status: "refunded" });
   }
   if (req.method === "GET" && url.pathname.startsWith("/orders/v1/admin/orders/")) {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");

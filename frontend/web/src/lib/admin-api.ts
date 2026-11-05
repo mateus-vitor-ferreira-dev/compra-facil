@@ -439,3 +439,29 @@ export function salesSummary(token: string, period: { from: string; to: string }
     }),
   );
 }
+
+// ---------- estorno que o provedor não realizou (#396) ----------
+
+/**
+ * Estorna de novo o pedido cujo estorno o provedor aceitou e não realizou (a devolução do PIX sem saldo na conta).
+ * Acha o pagamento aprovado do pedido e estorna o que falta; a chave sai da falha, então o clique repetido não
+ * estorna duas vezes.
+ */
+export async function refundOrderAgain(
+  token: string,
+  orderId: string,
+  failedAt: string,
+): Promise<AdminResult<unknown>> {
+  const payments = await run(() =>
+    api.payments({ token }).GET("/v1/payments", { params: { query: { order_id: orderId } } }),
+  );
+  if (!payments.ok) return payments;
+  const paid = payments.data.data.find((p) => p.status === "approved");
+  if (!paid) return { ok: false, error: { status: 409, detail: "o pedido não tem pagamento a estornar" } };
+  return run(() =>
+    api.payments({ token }).POST("/v1/admin/payments/{payment_id}/refunds", {
+      params: { path: { payment_id: paid.id }, header: { "Idempotency-Key": `de-novo-${failedAt}` } },
+      body: { amount_cents: null },
+    }),
+  );
+}
