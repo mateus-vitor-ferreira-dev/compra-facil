@@ -13,19 +13,13 @@ type Config struct {
 	Port     int
 	LogLevel string
 
-	AccessToken string
-	PublicKey   string
 	// AdminToken abre as rotas /sim de operação; vazio, o simulador gera um aleatório ao subir, e elas ficam
 	// fechadas (a demonstração pública não precisa delas)
 	AdminToken string
 
-	PIXExpiration time.Duration
-	ReviewDelay   time.Duration
 	// PublicURL é de onde o navegador acessa o simulador (o ticket_url do PIX aponta para lá)
 	PublicURL string
 
-	WebhookURL       string
-	WebhookSecret    string
 	WebhookRetryBase time.Duration
 
 	// a Efí (#379): as credenciais da aplicação, o identificador de conta (vai no navegador) e a chave PIX
@@ -43,13 +37,9 @@ func Load() (Config, error) { return load(os.Getenv) }
 
 func load(getenv func(string) string) (Config, error) {
 	c := Config{
-		LogLevel:      str(getenv, "LOG_LEVEL", "info"),
-		AccessToken:   str(getenv, "SIM_ACCESS_TOKEN", "TEST-sim-access-token"),
-		PublicKey:     str(getenv, "SIM_PUBLIC_KEY", "TEST-sim-public-key"),
-		AdminToken:    strings.TrimSpace(getenv("SIM_ADMIN_TOKEN")),
-		PublicURL:     strings.TrimRight(str(getenv, "SIM_PUBLIC_URL", "http://localhost:8092"), "/"),
-		WebhookURL:    strings.TrimSpace(getenv("SIM_WEBHOOK_URL")),
-		WebhookSecret: str(getenv, "SIM_WEBHOOK_SECRET", "sim-secret"),
+		LogLevel:   str(getenv, "LOG_LEVEL", "info"),
+		AdminToken: strings.TrimSpace(getenv("SIM_ADMIN_TOKEN")),
+		PublicURL:  strings.TrimRight(str(getenv, "SIM_PUBLIC_URL", "http://localhost:8092"), "/"),
 
 		EfiClientID:     str(getenv, "SIM_EFI_CLIENT_ID", "Client_Id_sim"),
 		EfiClientSecret: str(getenv, "SIM_EFI_CLIENT_SECRET", "Client_Secret_sim"),
@@ -65,8 +55,6 @@ func load(getenv func(string) string) (Config, error) {
 		name string
 		def  time.Duration
 	}{
-		{&c.PIXExpiration, "SIM_PIX_EXPIRATION", 30 * time.Minute},
-		{&c.ReviewDelay, "SIM_REVIEW_DELAY", 5 * time.Second},
 		{&c.WebhookRetryBase, "SIM_WEBHOOK_RETRY_BASE", time.Second},
 		{&c.EfiSettleDelay, "SIM_EFI_SETTLE_DELAY", 5 * time.Second},
 		{&c.EfiRefundDelay, "SIM_EFI_REFUND_DELAY", time.Second},

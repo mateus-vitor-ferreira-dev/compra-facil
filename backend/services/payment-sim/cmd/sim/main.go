@@ -19,8 +19,6 @@ import (
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/config"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/handler"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/payment"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/webhook"
 )
 
 func main() {
@@ -67,15 +65,6 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	hooks := webhook.NewDispatcher(webhook.Options{URL: cfg.WebhookURL, Secret: cfg.WebhookSecret, RetryBase: cfg.WebhookRetryBase}, log)
-	if cfg.WebhookURL == "" {
-		log.Warn("SIM_WEBHOOK_URL vazia: só os pagamentos com notification_url avisam a loja")
-	}
-	provider := payment.NewProvider(payment.Options{
-		PIXExpiration: cfg.PIXExpiration, ReviewDelay: cfg.ReviewDelay,
-		TicketURL: func(token string) string { return cfg.PublicURL + "/sim/pix/" + token },
-	}, hooks)
-
 	efiHooks := efi.NewDispatcher(efi.DispatcherOptions{RetryBase: cfg.WebhookRetryBase}, log)
 	efiProvider := efi.NewProvider(efi.Options{
 		ClientID: cfg.EfiClientID, ClientSecret: cfg.EfiClientSecret, PayeeCode: cfg.EfiPayeeCode, PixKey: cfg.EfiPixKey,
@@ -84,17 +73,15 @@ func run() error {
 	}, efiHooks)
 
 	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", cfg.Port),
-		Handler: handler.NewRouter(provider, efiProvider, handler.Credentials{
-			AccessToken: cfg.AccessToken, PublicKey: cfg.PublicKey, AdminToken: adminToken(cfg.AdminToken, log),
-		}, log),
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Handler:           handler.NewRouter(efiProvider, handler.Credentials{AdminToken: adminToken(cfg.AdminToken, log)}, log),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		log.Info("simulador no ar", "addr", srv.Addr, "webhook_url", cfg.WebhookURL, "pix_expiration", cfg.PIXExpiration.String())
+		log.Info("simulador no ar", "addr", srv.Addr, "settle_delay", cfg.EfiSettleDelay.String())
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("servidor HTTP: %w", err)
 		}
@@ -110,9 +97,7 @@ func run() error {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}
-	provider.Close()
 	efiProvider.Close()
-	hooks.Close()
 	efiHooks.Close()
 	return nil
 }

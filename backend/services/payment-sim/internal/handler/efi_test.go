@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/payment"
 )
 
 const payee = "0123456789abcdef0123456789abcdef"
@@ -62,9 +61,7 @@ func newEfiEnv(t *testing.T) *efiEnv {
 	p := efi.NewProvider(efi.Options{ClientID: "id", ClientSecret: "secret", PayeeCode: payee, PixKey: "chave-sim",
 		SettleDelay: time.Hour, RefundDelay: 10 * time.Millisecond}, hooks)
 	t.Cleanup(p.Close)
-	mp := payment.NewProvider(payment.Options{}, nil)
-	t.Cleanup(mp.Close)
-	router := NewRouter(mp, p, Credentials{AccessToken: "tok", PublicKey: "pub", AdminToken: "adm"}, slog.New(slog.DiscardHandler))
+	router := NewRouter(p, Credentials{AdminToken: "adm"}, slog.New(slog.DiscardHandler))
 	return &efiEnv{env: &env{t: t, router: router}, provider: p, hooks: hooks, store: store, got: got}
 }
 
