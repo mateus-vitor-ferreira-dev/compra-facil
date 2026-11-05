@@ -30,6 +30,16 @@ type Config struct {
 	Events EventsConfig `mapstructure:"events"`
 	// Supplier é o catálogo do fornecedor de dropshipping (#217): o consumo do feed e a regra de margem.
 	Supplier SupplierConfig `mapstructure:"supplier"`
+	// Demo é só da loja de demonstração.
+	Demo DemoConfig `mapstructure:"demo"`
+}
+
+// DemoConfig: as campanhas do seed têm datas relativas ao dia da carga e acabam. Com KeepCampaignActive, a
+// cada CampaignCheckInterval, se nenhuma estiver ativa, a que terminou por último é reaberta (nunca em produção:
+// lá quem cuida das campanhas é a equipe).
+type DemoConfig struct {
+	KeepCampaignActive    bool          `mapstructure:"keep_campaign_active"`
+	CampaignCheckInterval time.Duration `mapstructure:"campaign_check_interval"`
 }
 
 // SupplierConfig liga o consumo dos eventos do feed (fulfillment.supplier-product.v1) e diz como o
@@ -206,6 +216,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("supplier.publish_new", false)
 	v.SetDefault("supplier.default_margin_percent", 80)
 	v.SetDefault("supplier.default_min_price_cents", 1990)
+	v.SetDefault("demo.keep_campaign_active", false)
+	v.SetDefault("demo.campaign_check_interval", "15m")
 }
 
 func (c Config) validate() error {
