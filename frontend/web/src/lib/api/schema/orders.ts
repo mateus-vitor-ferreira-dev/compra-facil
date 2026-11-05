@@ -123,6 +123,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Todos os pedidos, para a equipe
+         * @description Do mais recente para o mais antigo, com o contato de quem comprou: nome, e-mail, telefone e
+         *     cidade/UF. O CPF e o endereço não saem por aqui (LGPD: só o necessário para atender).
+         *     `q` procura no e-mail, no nome de quem recebe ou no número do pedido (os 8 últimos caracteres do
+         *     id, como a loja e os e-mails mostram).
+         */
+        get: operations["listAdminOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Um pedido, para a equipe
+         * @description O resumo da lista, com os itens, a entrega, o rastreio e as datas de cada etapa.
+         */
+        get: operations["getAdminOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/sales-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * As vendas de um período
+         * @description Os pedidos criados no período. **Pago** é o pedido que chegou a ser cobrado (confirmado,
+         *     enviado, entregue, devolvido, ou cancelado depois de pago). **Estornado** é o devolvido ou o
+         *     cancelado depois de pago, pelo total do pedido; o estorno parcial feito no painel do payments não
+         *     entra. Os dias são os de Brasília (UTC−3). O custo, o frete do fornecedor e as taxas ficam nas
+         *     margens do fulfillment (`/v1/admin/order-margins`).
+         */
+        get: operations["getSalesSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/dead-letters": {
         parameters: {
             query?: never;
@@ -171,6 +238,103 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description O contato de quem comprou. Sem CPF nem endereço. */
+        AdminCustomer: {
+            /** Format: email */
+            email: string;
+            /** @description Quem recebe; nulo nos pedidos de antes do */
+            name: string | null;
+            /** @description Só os dígitos, com o DDD. */
+            phone: string | null;
+        };
+        AdminOrderDestination: {
+            city: string;
+            state: string;
+        };
+        AdminOrderSummary: {
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["OrderStatus"];
+            cancellation_reason?: components["schemas"]["CancellationReason"] | null;
+            /** Format: date-time */
+            created_at: string;
+            total: components["schemas"]["Money"];
+            /** @description A soma das quantidades. */
+            items_count: number;
+            payment: {
+                method: components["schemas"]["PaymentMethod"];
+                installments: number;
+            };
+            customer: components["schemas"]["AdminCustomer"];
+            destination: components["schemas"]["AdminOrderDestination"] | null;
+        };
+        AdminOrderDetail: components["schemas"]["AdminOrderSummary"] & {
+            items: components["schemas"]["OrderItem"][];
+            items_total: components["schemas"]["Money"];
+            shipping?: components["schemas"]["OrderShipping"] | null;
+            tracking?: components["schemas"]["Tracking"] | null;
+            payment_failure_reason?: string | null;
+            /** @description O número da nota fiscal, se emitida. */
+            invoice_number?: number | null;
+            /** Format: date-time */
+            stock_reserved_at?: string | null;
+            /** Format: date-time */
+            sent_to_supplier_at?: string | null;
+            /** Format: date-time */
+            shipped_at?: string | null;
+            /** Format: date-time */
+            delivered_at?: string | null;
+            /** Format: date-time */
+            return_requested_at?: string | null;
+            /** Format: date-time */
+            refunded_at?: string | null;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        SalesSummary: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            orders: {
+                /** @description Todos os criados no período. */
+                placed: number;
+                paid: number;
+                /** @description Pagos e depois estornados (devolvidos ou cancelados depois de pagos). */
+                refunded: number;
+                /** @description Recusados no estoque ou no pagamento, ou ainda pendentes. */
+                not_paid: number;
+            };
+            /** @description A soma dos pagos, com o frete cobrado. */
+            gross_sales: components["schemas"]["Money"];
+            refunds: components["schemas"]["Money"];
+            net_sales: components["schemas"]["Money"];
+            /** @description Bruto dividido pelos pagos; zero sem pagos. */
+            average_ticket: components["schemas"]["Money"];
+            /** @description O frete que os clientes pagaram nos pedidos pagos. */
+            shipping_charged: components["schemas"]["Money"];
+            /** @description Um item por dia de Brasília do período, inclusive os sem venda. */
+            daily: {
+                /** Format: date */
+                date: string;
+                paid_orders: number;
+                gross_sales: components["schemas"]["Money"];
+                refunds: components["schemas"]["Money"];
+            }[];
+            by_payment_method: {
+                method: components["schemas"]["PaymentMethod"];
+                paid_orders: number;
+                gross_sales: components["schemas"]["Money"];
+            }[];
+            /** @description Os 5 que mais faturaram nos pagos e não estornados. */
+            top_products: {
+                /** Format: uuid */
+                product_id: string;
+                name: string;
+                quantity: number;
+                revenue: components["schemas"]["Money"];
+            }[];
+        };
         /**
          * @description `pending`: reservando o estoque e cobrando · `confirmed`: pago, com o fornecedor ·
          *     `shipped`: despachado, com o rastreio · `delivered`: entregue · `cancelled`: não concluído
@@ -805,6 +969,109 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listAdminOrders: {
+        parameters: {
+            query?: {
+                /** @description Cursor opaco devolvido em `page.next_cursor`. Omitir para a primeira página. */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Itens por página. */
+                limit?: components["parameters"]["Limit"];
+                status?: components["schemas"]["OrderStatus"];
+                q?: string;
+                /** @description Criados a partir de (inclusive). */
+                from?: string;
+                /** @description Criados antes de (exclusive). */
+                to?: string;
+            };
+            header?: {
+                /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de pedidos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminOrderSummary"][];
+                        page: components["schemas"]["PageInfo"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getAdminOrder: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pedido. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOrderDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getSalesSummary: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description Exclusive; no máximo 366 dias depois de `from`. */
+                to: string;
+            };
+            header?: {
+                /** @description Identificador da requisição; gerado pelo serviço se ausente e devolvido na resposta. */
+                "X-Request-ID"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O resumo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalError"];
         };
     };

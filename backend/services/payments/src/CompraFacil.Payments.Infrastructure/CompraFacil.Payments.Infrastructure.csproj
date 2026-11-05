@@ -1,7 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- EF Core + Npgsql (banco payments); depois, Kafka e clientes de outros serviços. -->
+  <!-- EF Core + Npgsql (banco payments), o cliente da Efí e o QR do PIX. -->
   <ItemGroup>
     <ProjectReference Include="../CompraFacil.Payments.Application/CompraFacil.Payments.Application.csproj" />
     <ProjectReference Include="$(RepoRoot)libs/dotnet/CompraFacil.BuildingBlocks/CompraFacil.BuildingBlocks.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CompraFacil.Payments.IntegrationTests" />
   </ItemGroup>
 </Project>

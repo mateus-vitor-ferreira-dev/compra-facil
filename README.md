@@ -196,6 +196,7 @@ Por que duas stacks e o que cada uma usa: [`docs/stack.md`](docs/stack.md) · te
 | [0007](docs/adr/0007-dropshipping-por-adaptadores.md) | Dropshipping: fornecedor, pagamento e nota fiscal por adaptadores, com simuladores no contrato dos reais |
 | [0008](docs/adr/0008-compra-sem-conta.md) | Compra sem conta: conta de convidado e link por e-mail |
 | [0009](docs/adr/0009-frete-gratis-pela-margem.md) | Frete grátis quando a margem paga o frete inteiro, com o preço da loja buscado no catalog por gRPC |
+| [0010](docs/adr/0010-pagamento-pela-efi.md) | Pagamento pela Efí: cartão cobrado em dois passos (sem idempotência no provedor), devolução que espera a liquidação, PIX vencido conferido pelo payments |
 
 Dados pessoais, retenção e o que falta da LGPD antes da venda real: [`docs/lgpd.md`](docs/lgpd.md).
 

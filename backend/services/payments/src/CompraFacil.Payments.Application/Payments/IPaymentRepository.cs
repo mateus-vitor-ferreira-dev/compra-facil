@@ -19,8 +19,8 @@ public interface IPaymentRepository
     /// <summary>A cobrança de um pedido pela referência no provedor, rastreada (o webhook).</summary>
     Task<Payment?> GetByReferenceForUpdateAsync(string provider, string reference, CancellationToken ct);
 
-    /// <summary>O pagamento pago (autorizado ou aprovado) do pedido, rastreado (a captura).</summary>
-    Task<Payment?> GetPaidForUpdateAsync(Guid orderId, CancellationToken ct);
+    /// <summary>Os PIX ainda pendentes cuja validade passou antes de <paramref name="before"/>, os mais antigos primeiro.</summary>
+    Task<List<Guid>> ListPendingPixDueAsync(DateTimeOffset before, int limit, CancellationToken ct);
 
     Task<List<Payment>> ListByOrderAsync(Guid orderId, CancellationToken ct);
 

@@ -235,6 +235,112 @@ const deadLetterQueues = {
   fulfillment: [],
   catalog: [],
 }; // campanhas criadas pelo painel nos testes (não mudam o preço da vitrine)
+// os pedidos que o painel lista (#382)
+const adminOrder = (
+  id,
+  status,
+  reason,
+  name,
+  email,
+  phone,
+  city,
+  state,
+  method,
+  installments,
+  cents,
+  created,
+  extra = {},
+) => ({
+  id,
+  status,
+  cancellation_reason: reason,
+  created_at: created,
+  total: { amount_cents: cents, currency: "BRL" },
+  items_count: 1,
+  payment: { method, installments },
+  customer: { email, name, phone },
+  destination: city ? { city, state } : null,
+  items: [
+    {
+      product_id: "0199f6a0-0000-7000-8000-000000000001",
+      sku: "FONE-1",
+      name: "Fone Sonix",
+      quantity: 1,
+      unit_price: { amount_cents: cents - 1500, currency: "BRL" },
+      line_total: { amount_cents: cents - 1500, currency: "BRL" },
+      campaign_id: null,
+    },
+  ],
+  items_total: { amount_cents: cents - 1500, currency: "BRL" },
+  shipping: {
+    service: "economico",
+    name: "Econômico",
+    price: { amount_cents: 1500, currency: "BRL" },
+    min_days: 3,
+    max_days: 7,
+    promised_by: "2026-11-12",
+  },
+  tracking: null,
+  invoice_number: null,
+  updated_at: created,
+  ...extra,
+});
+const adminOrders = [
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b1000001",
+    "shipped",
+    null,
+    "Bia Lima",
+    "bia@exemplo.com",
+    "35999990000",
+    "Lavras",
+    "MG",
+    "card",
+    3,
+    21500,
+    "2026-11-03T15:00:00Z",
+    {
+      sent_to_supplier_at: "2026-11-03T16:00:00Z",
+      shipped_at: "2026-11-04T10:00:00Z",
+      tracking: { number: "BR123", provider: "Correios", url: null },
+    },
+  ),
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b2000002",
+    "cancelled",
+    "supplier_failed",
+    "Caio Souza",
+    "caio@exemplo.com",
+    null,
+    "Recife",
+    "PE",
+    "pix",
+    1,
+    9900,
+    "2026-11-02T12:00:00Z",
+    {
+      refunded_at: "2026-11-02T18:00:00Z",
+    },
+  ),
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b3000003",
+    "delivered",
+    null,
+    null,
+    "antigo@exemplo.com",
+    null,
+    null,
+    null,
+    "pix",
+    1,
+    5000,
+    "2026-10-28T09:00:00Z",
+    {
+      delivered_at: "2026-11-01T14:00:00Z",
+    },
+  ),
+];
+
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
 
@@ -578,27 +684,36 @@ const shippingFor = (zip, productIds = []) => {
 };
 
 // ---- o provedor de pagamento: o navegador tokeniza o cartão aqui (outra origem, com CORS) ----
-const cardTokens = new Map(); // token -> titular
+const cardTokens = new Map(); // payment_token -> número do cartão
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
-async function tokenize(req, res, url) {
+async function tokenize(req, res) {
   for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
   if (req.method === "OPTIONS") return res.writeHead(204).end();
-  if (url.searchParams.get("public_key") !== "TEST-sim-public-key")
-    return send(res, 401, { message: "invalid public key" });
-  const { card_number: number, cardholder } = await json(req);
-  if (!/^4\d{15}$|^5\d{15}$/.test(String(number))) {
-    return send(res, 400, { message: "invalid card: número", error: "invalid_card" });
+  // o /sim/card-token do payment-sim, no lugar da biblioteca da Efí (#379)
+  const body = await json(req);
+  if (body.payee_code !== "0123456789abcdef0123456789abcdef")
+    return send(res, 401, {
+      code: 3500008,
+      error: "invalid_request",
+      error_description: "Identificador de conta inválido.",
+    });
+  const number = String(body.number ?? "");
+  if (!/^4\d{15}$|^5\d{15}$/.test(number)) {
+    return send(res, 400, {
+      code: 3500057,
+      error: "invalid_card_number",
+      error_description: "O número do cartão é inválido.",
+    });
   }
-  const id = crypto.randomUUID().replace(/-/g, "");
-  cardTokens.set(id, String(cardholder?.name ?? "").toUpperCase());
-  return send(res, 201, {
-    id,
-    payment_method_id: number.startsWith("4") ? "visa" : "master",
-    last_four_digits: number.slice(-4),
+  const token = crypto.randomUUID().replace(/-/g, "") + "00000000";
+  cardTokens.set(token, number);
+  return send(res, 200, {
+    code: 200,
+    data: { payment_token: token, card_mask: "XXXXXXXXXXXX" + number.slice(-4) },
   });
 }
 
@@ -813,12 +928,12 @@ async function placeOrder(req, res, email) {
     created_at: iso(now),
     updated_at: iso(now),
   };
-  // o titular decide o cartão, como no provedor (FUND: sem saldo); o inventory recusa acima do saldo
-  const holder = payment.method === "card" ? cardTokens.get(payment.card_token) : "";
+  // o último dígito decide o cartão, como na homologação da Efí (final 1 recusa); o inventory recusa acima do saldo
+  const cardNumber = payment.method === "card" ? (cardTokens.get(payment.card_token) ?? "") : "";
   cardTokens.delete(payment.card_token);
   const outcome = lines.some((l) => l.quantity > stock(l.product.id))
     ? "out_of_stock"
-    : holder === "FUND"
+    : cardNumber.endsWith("1")
       ? "payment_failed"
       : "confirmed";
   // "pix-curto@...": o PIX vence em segundos, para o teste ver o prazo acabar
@@ -959,6 +1074,82 @@ createServer(async (req, res) => {
       deliver_within_hours: 360,
       return_within_hours: 360,
     });
+  }
+  // o resumo de vendas da visão geral (#382): um dia com venda e estorno, e os outros zerados
+  if (req.method === "GET" && url.pathname === "/orders/v1/admin/sales-summary") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
+    if (!from || !to) return problem(res, 422, "Dados inválidos");
+    const brl = (cents) => ({ amount_cents: cents, currency: "BRL" });
+    const days = Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
+    const daily = Array.from({ length: days }, (_, i) => {
+      const date = new Date(Date.parse(from) + i * 86400000 - 3 * 3600000).toISOString().slice(0, 10);
+      const last = i === days - 1;
+      return {
+        date,
+        paid_orders: last ? 3 : 0,
+        gross_sales: brl(last ? 36900 : 0),
+        refunds: brl(last ? 9900 : 0),
+      };
+    });
+    return send(res, 200, {
+      from,
+      to,
+      orders: { placed: 4, paid: 3, refunded: 1, not_paid: 1 },
+      gross_sales: brl(36900),
+      refunds: brl(9900),
+      net_sales: brl(27000),
+      average_ticket: brl(12300),
+      shipping_charged: brl(4500),
+      daily,
+      by_payment_method: [
+        { method: "card", paid_orders: 2, gross_sales: brl(31900) },
+        { method: "pix", paid_orders: 1, gross_sales: brl(5000) },
+      ],
+      top_products: [
+        {
+          product_id: "0199f6a0-0000-7000-8000-000000000001",
+          name: "Fone Sonix",
+          quantity: 2,
+          revenue: brl(20000),
+        },
+        {
+          product_id: "0199f6a0-0000-7000-8000-000000000002",
+          name: "Mouse sem Fio",
+          quantity: 1,
+          revenue: brl(5500),
+        },
+      ],
+    });
+  }
+  // os pedidos do painel (#382): o contato de quem comprou, sem CPF nem endereço
+  if (req.method === "GET" && url.pathname === "/orders/v1/admin/orders") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const q = (url.searchParams.get("q") ?? "").toLowerCase();
+    const status = url.searchParams.get("status");
+    const data = adminOrders
+      .filter((o) => !status || o.status === status)
+      .filter(
+        (o) =>
+          !q ||
+          o.customer.email.includes(q) ||
+          (o.customer.name ?? "").toLowerCase().includes(q) ||
+          o.id.replace(/-/g, "").endsWith(q),
+      )
+      // a lista leva só o resumo: o que é do detalhe sai
+      .map((o) => {
+        const summary = { ...o };
+        for (const k of ["items", "items_total", "shipping", "tracking", "invoice_number", "updated_at"])
+          delete summary[k];
+        return summary;
+      });
+    return send(res, 200, { data, page: { next_cursor: null, has_more: false } });
+  }
+  if (req.method === "GET" && url.pathname.startsWith("/orders/v1/admin/orders/")) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const order = adminOrders.find((o) => o.id === url.pathname.split("/").pop());
+    return order ? send(res, 200, order) : problem(res, 404, "Pedido não encontrado");
   }
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/order-margins") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
@@ -1120,7 +1311,7 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/catalog/v1/admin/") || url.pathname.startsWith("/inventory/v1/admin/")) {
     return admin(req, res, url);
   }
-  if (url.pathname === "/v1/card_tokens") return tokenize(req, res, url);
+  if (url.pathname === "/sim/card-token") return tokenize(req, res);
   if (req.method === "POST" && url.pathname === "/fulfillment/v1/shipping/quote") {
     const { zip_code: zip, items } = await json(req);
     const digits = String(zip ?? "").replace(/\D/g, "");

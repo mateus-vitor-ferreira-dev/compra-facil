@@ -87,7 +87,7 @@ test("'Só em promoção' fica na URL e filtra a categoria", async ({ page }) =>
 test("categoria inexistente é 404", async ({ page }) => {
   const res = await page.goto("/categoria/nao-existe");
   expect(res?.status()).toBe(404);
-  await expect(page.getByRole("heading", { name: "Esta página não existe" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Esta página não está na prateleira" })).toBeVisible();
 });
 
 test("busca pelo cabeçalho: sugestões pelo teclado e a página de resultados", async ({ page }) => {

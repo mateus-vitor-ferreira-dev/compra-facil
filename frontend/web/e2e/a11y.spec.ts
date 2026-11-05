@@ -117,6 +117,9 @@ for (const scheme of ["light", "dark"] as const) {
     test("painel", async ({ page }) => {
       await signIn(page, "admin@exemplo.com");
       for (const path of [
+        "/admin",
+        "/admin/pedidos",
+        "/admin/pedidos/01a18d66-0000-7000-8000-0000b1000001",
         "/admin/produtos",
         "/admin/produtos/0199f6a0-0000-7000-8000-000000000001",
         "/admin/produtos/novo",

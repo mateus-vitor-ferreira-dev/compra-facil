@@ -274,6 +274,8 @@ services:
       # (na produção ele nasce rascunho, para a equipe traduzir e revisar)
       CATALOG_SUPPLIER_CATEGORIES: "Headphones=fones-over-ear;Mouse=mouses;Keyboard=teclados;Lipstick=batons;Frying Pan=frigideiras"
       CATALOG_SUPPLIER_PUBLISH_NEW: "true"
+      # o seed cria campanhas que acabam: como na demonstração, sem nenhuma ativa a última é reaberta
+      CATALOG_DEMO_KEEP_CAMPAIGN_ACTIVE: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
@@ -389,10 +391,15 @@ services:
         APP_VERSION: ${VERSION:-dev}
     image: compra-facil/payments:${VERSION:-dev}
     environment:
-      # o provedor de pagamento é o simulado (backend/services/payment-sim), no contrato do Mercado Pago
-      Payments__MercadoPago__BaseUrl: http://payment-sim:8090/
-      Payments__MercadoPago__WebhookSecret: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
-      Payments__MercadoPago__NotificationUrl: http://payments:8004/v1/webhooks/payments
+      # o provedor de pagamento é o simulado (backend/services/payment-sim), no contrato da Efí (#379): as duas
+      # APIs dela no mesmo endereço, sem o mTLS da API Pix
+      Payments__Efi__ChargesBaseUrl: http://payment-sim:8090/
+      Payments__Efi__PixBaseUrl: http://payment-sim:8090/
+      Payments__Efi__ChargeNotificationUrl: http://payments:8004/v1/webhooks/efi/charges
+      Payments__Efi__PixWebhookUrl: http://payments:8004/v1/webhooks/efi/pix
+      Payments__Efi__PixWebhookSecret: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
+      # o PIX vencido é conferido a cada 15 s (em produção, 1 min)
+      Payments__PixExpiry__Interval: "00:00:15"
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -461,15 +468,15 @@ services:
       timeout: 3s
       retries: 3
 
-  # o provedor de pagamento simulado, no contrato do Mercado Pago (backend/services/payment-sim); não vai à produção
+  # o provedor de pagamento simulado, no contrato da Efí (backend/services/payment-sim); não vai à produção
   payment-sim:
     build:
       context: ../../backend/services/payment-sim
     image: compra-facil/payment-sim:${VERSION:-dev}
     environment:
-      SIM_WEBHOOK_URL: http://payments:8004/v1/webhooks/payments
-      SIM_WEBHOOK_SECRET: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
-      # o navegador abre a página do PIX (o ticket_url) por aqui
+      # o cartão aprovado liquida (paid) 3 s depois: só então se estorna
+      SIM_EFI_SETTLE_DELAY: 3s
+      # o navegador abre a página do PIX (o linkVisualizacao) por aqui
       SIM_PUBLIC_URL: http://localhost:${PAYMENT_SIM_PORT:-8092}
       # as rotas /sim de operação (listar, pagar pela API, resetar): o k6 paga o PIX por elas. Na demonstração
       # pública, sem a variável, ficam fechadas (#280)

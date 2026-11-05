@@ -158,6 +158,21 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .HasColumnType("character varying(8)")
                         .HasColumnName("method");
 
+                    b.Property<string>("PayerCpf")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)")
+                        .HasColumnName("payer_cpf");
+
+                    b.Property<string>("PayerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("payer_name");
+
+                    b.Property<string>("PayerPhone")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)")
+                        .HasColumnName("payer_phone");
+
                     b.Property<Guid?>("PaymentId")
                         .HasColumnType("uuid")
                         .HasColumnName("payment_id");
@@ -175,6 +190,50 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "PayerAddress", "CompraFacil.Payments.Domain.Charge.PayerAddress#BillingAddress", b1 =>
+                        {
+                            b1.Property<string>("City")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("payer_city");
+
+                            b1.Property<string>("Complement")
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("payer_complement");
+
+                            b1.Property<string>("District")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("payer_district");
+
+                            b1.Property<string>("Number")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("payer_number");
+
+                            b1.Property<string>("State")
+                                .IsRequired()
+                                .HasMaxLength(2)
+                                .HasColumnType("character varying(2)")
+                                .HasColumnName("payer_state");
+
+                            b1.Property<string>("Street")
+                                .IsRequired()
+                                .HasMaxLength(60)
+                                .HasColumnType("character varying(60)")
+                                .HasColumnName("payer_street");
+
+                            b1.Property<string>("ZipCode")
+                                .IsRequired()
+                                .HasMaxLength(8)
+                                .HasColumnType("character varying(8)")
+                                .HasColumnName("payer_zip_code");
+                        });
 
                     b.HasKey("OrderId")
                         .HasName("pk_charges");
@@ -223,6 +282,11 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uuid")
                         .HasColumnName("order_id");
+
+                    b.Property<string>("PendingReversal")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("pending_reversal");
 
                     b.Property<string>("Provider")
                         .IsRequired()
@@ -307,6 +371,10 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
 
                     b.HasIndex("OrderId")
                         .HasDatabaseName("ix_payments_order_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_payments_status")
+                        .HasFilter("status = 'Pending'");
 
                     b.HasIndex("Provider", "ProviderReference")
                         .IsUnique()

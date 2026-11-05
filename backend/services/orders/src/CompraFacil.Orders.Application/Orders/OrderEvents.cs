@@ -31,15 +31,24 @@ public sealed record OrderItemData(
 /// <summary>Como pagar, para o payments: o token do cartão (de uso único) só passa por aqui, não fica no pedido.</summary>
 public sealed record OrderPaymentData(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
 
+/// <summary>
+/// Quem paga, para o provedor de pagamento: é quem recebe (o mesmo da nota fiscal). A Efí (#379) pede o nome, o
+/// CPF e o telefone no cartão, e o endereço de cobrança entra na análise antifraude (vai o de entrega); no PIX, só
+/// o nome e o CPF. O payments guarda isso só até cobrar.
+/// </summary>
+public sealed record OrderPayerData(string Name, string Cpf, string? Phone = null, ShippingAddress? BillingAddress = null);
+
 /// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor e como cobrar).</summary>
 public sealed record OrderPlacedData(
-    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, OrderPaymentData Payment)
+    Guid OrderId, Guid CustomerId, string CustomerEmail, IReadOnlyList<OrderItemData> Items, Money Total, OrderPaymentData Payment,
+    OrderPayerData? Payer)
 {
     public static OrderPlacedData From(Order order, string? cardToken = null, string? cardBrand = null)
     {
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, [.. order.Items.Select(OrderItemData.From)], order.Total,
-            new OrderPaymentData(order.PaymentMethod, order.Installments, cardToken, cardBrand));
+            new OrderPaymentData(order.PaymentMethod, order.Installments, cardToken, cardBrand),
+            order.Recipient is { } r ? new OrderPayerData(r.Name, r.Cpf, r.Phone, order.ShippingAddress) : null);
     }
 }
 

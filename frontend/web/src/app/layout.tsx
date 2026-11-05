@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import type { ReactNode } from "react";
+import { InlineScript } from "@/components/inline-script";
 import { Toaster } from "@/components/ui/toast";
 import { WebVitals } from "@/components/web-vitals";
 import { brand } from "@/lib/brand";
 import { env } from "@/lib/env";
+import { themeScript } from "@/lib/theme";
 import "./globals.css";
 
 // uma família só: largura normal na interface, estreita e pesada nos preços (eixo wdth)
@@ -28,7 +30,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className={archivo.variable}>
+    // o script do tema põe .light ou .dark no <html> antes da hidratação: a diferença é esperada
+    <html lang="pt-BR" className={archivo.variable} suppressHydrationWarning>
+      <head>
+        {/* antes do primeiro desenho: a página já nasce no tema escolhido, sem piscar */}
+        <InlineScript html={themeScript} />
+      </head>
       <body>
         {/* primeiro foco da página: pula direto para o conteúdo */}
         <a

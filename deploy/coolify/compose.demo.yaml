@@ -138,6 +138,8 @@ services:
       # o feed do simulado nas categorias da loja, e o produto novo já à venda
       CATALOG_SUPPLIER_CATEGORIES: "Headphones=fones-over-ear;Mouse=mouses;Keyboard=teclados;Lipstick=batons;Frying Pan=frigideiras"
       CATALOG_SUPPLIER_PUBLISH_NEW: "true"
+      # as campanhas do seed acabam: sem nenhuma ativa, a que terminou por último é reaberta (a vitrine nunca fica sem promoção)
+      CATALOG_DEMO_KEEP_CAMPAIGN_ACTIVE: "true"
     depends_on:
       postgres-databases:
         condition: service_completed_successfully
@@ -192,9 +194,13 @@ services:
     environment:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${PG_PAYMENTS_PASSWORD}
-      Payments__MercadoPago__BaseUrl: http://payment-sim:8090/
-      Payments__MercadoPago__WebhookSecret: ${SIM_WEBHOOK_SECRET:?}
-      Payments__MercadoPago__NotificationUrl: http://payments:8004/v1/webhooks/payments
+      # a Efí simulada (#379): as duas APIs no payment-sim, sem o mTLS da API Pix
+      Payments__Efi__ChargesBaseUrl: http://payment-sim:8090/
+      Payments__Efi__PixBaseUrl: http://payment-sim:8090/
+      Payments__Efi__ClientSecret: ${SIM_WEBHOOK_SECRET:?}
+      Payments__Efi__ChargeNotificationUrl: http://payments:8004/v1/webhooks/efi/charges
+      Payments__Efi__PixWebhookUrl: http://payments:8004/v1/webhooks/efi/pix
+      Payments__Efi__PixWebhookSecret: ${SIM_WEBHOOK_SECRET:?}
 
   notifications:
     <<: *dotnet
@@ -243,8 +249,7 @@ services:
     restart: unless-stopped
     mem_limit: 64m
     environment:
-      SIM_WEBHOOK_URL: http://payments:8004/v1/webhooks/payments
-      SIM_WEBHOOK_SECRET: ${SIM_WEBHOOK_SECRET:?}
+      SIM_EFI_CLIENT_SECRET: ${SIM_WEBHOOK_SECRET:?}
       SIM_PUBLIC_URL: ${PAYMENT_PUBLIC_URL:?a URL pública do payment-sim}
 
   invoice-sim:

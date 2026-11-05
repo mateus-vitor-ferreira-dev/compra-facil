@@ -292,6 +292,11 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
         var envelope = EventEnvelope.TryParse(outbox.Payload)!;
         Assert.Equal("req-place-1", envelope.CorrelationId);
         Assert.Equal(id, envelope.Data.GetProperty("order_id").GetGuid());
+        // quem paga vai ao payments: a Efí pede nome, CPF e telefone no cartão, e o endereço entra no antifraude
+        var payer = envelope.Data.GetProperty("payer");
+        Assert.Equal(("Ana Souza", "52998224725"), (payer.GetProperty("name").GetString(), payer.GetProperty("cpf").GetString()));
+        Assert.Matches("^[0-9]{10,11}$", payer.GetProperty("phone").GetString());
+        Assert.Equal(8, payer.GetProperty("billing_address").GetProperty("zip_code").GetString()!.Length);
     }
 
     [Fact]

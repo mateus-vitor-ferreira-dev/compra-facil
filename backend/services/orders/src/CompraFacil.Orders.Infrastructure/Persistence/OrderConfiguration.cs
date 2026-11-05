@@ -108,5 +108,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         // Idempotency-Key é por cliente; a listagem é por cliente, mais recentes primeiro
         builder.HasIndex(o => new { o.CustomerId, o.IdempotencyKey }).IsUnique();
         builder.HasIndex(o => new { o.CustomerId, o.CreatedAt, o.Id }).IsDescending(false, true, true);
+        // a lista da equipe (todos os pedidos) e o resumo de vendas, pela data de criação
+        builder.HasIndex(o => new { o.CreatedAt, o.Id }).IsDescending(true, true);
     }
 }

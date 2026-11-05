@@ -11,21 +11,24 @@ info:
     - `StockReserved` → marca o estoque como garantido.
 
     Quando os dois chegaram, **em qualquer ordem** (são tópicos diferentes), cobra no provedor de pagamento
-    (ADR 0007, #220: o Mercado Pago; em dev e no CI, o `payment-sim`):
+    (ADR 0007, #379: a Efí; em dev e no CI, o `payment-sim`):
 
     - **PIX**: gera o QR e publica `PaymentPending`; o cliente paga, o provedor avisa (webhook) e sai
-      `PaymentApproved`; se o PIX expira sem pagamento, `PaymentFailed` (`pix_expired`), e a reserva é
-      liberada.
-    - **Cartão**: autoriza sem capturar e publica `PaymentApproved` (`captured: false`): o valor está
-      garantido e o pedido segue. A captura acontece quando o fornecedor aceita o pedido
-      (`SupplierOrderPlaced`). Recusado, `PaymentFailed`.
+      `PaymentApproved`; se o PIX vence sem pagamento (o payments confere, porque a Efí não avisa),
+      `PaymentFailed` (`pix_expired`), e a reserva é liberada.
+    - **Cartão**: cobrado no checkout, em dois passos (abrir a cobrança, gravar a referência, pagar), porque
+      a Efí não tem chave de idempotência. Aprovado pela operadora, publica `PaymentApproved`
+      (`captured: false`: o valor está garantido e o pedido segue); a liquidação chega depois pela
+      notificação. Recusado, `PaymentFailed`.
 
     `OrderCancelled` antes da cobrança descarta a pendência. Depois (o fornecedor não atendeu, a nota foi
-    rejeitada ou a equipe cancelou), o dinheiro volta: a autorização do cartão é cancelada (nada chega a ser cobrado) ou o
-    valor pago é estornado, e sai `PaymentRefunded`. O painel também estorna parte de um pagamento.
+    rejeitada ou a equipe cancelou), o dinheiro volta: o PIX não pago e o cartão em análise são cancelados
+    (nada chega a ser cobrado); o pago é estornado, e sai `PaymentRefunded`. O cartão aprovado e ainda não
+    liquidado não se estorna na Efí: a devolução espera a liquidação e sai nela. O painel também estorna
+    parte de um pagamento.
 
-    Cada pedido é cobrado no máximo uma vez, e cada estorno acontece uma vez: as chamadas ao provedor levam
-    chave de idempotência.
+    Cada pedido é cobrado no máximo uma vez, e cada estorno acontece uma vez: o PIX tem o txid do pedido, a
+    devolução do PIX o id saído da chave, e o cartão não se paga duas vezes.
 defaultContentType: application/json
 
 servers:
@@ -61,8 +64,6 @@ channels:
     $ref: "./orders.v1.yaml#/channels/orderEvents"
   reservationEvents:
     $ref: "./inventory.v1.yaml#/channels/reservationEvents"
-  supplierOrderEvents:
-    $ref: "./fulfillment.v1.yaml#/channels/supplierOrderEvents"
 
 operations:
   publishPaymentEvents:
@@ -82,7 +83,7 @@ operations:
       $ref: "#/channels/orderEvents"
     summary: |
       Grava a cobrança pendente (placed); no cancelled, a descarta se ainda não foi feita, ou devolve o
-      dinheiro (cancela a autorização ou estorna); no returned, estorna na hora o que foi pago (#223).
+      dinheiro (cancela o que não pagou ou estorna); no returned, estorna o que foi pago (#223).
     messages:
       - $ref: "#/channels/orderEvents/messages/OrderPlaced"
       - $ref: "#/channels/orderEvents/messages/OrderCancelled"
@@ -97,16 +98,6 @@ operations:
     summary: Marca o estoque como garantido; cobra se o `OrderPlaced` já chegou.
     messages:
       - $ref: "#/channels/reservationEvents/messages/StockReserved"
-    bindings:
-      $ref: "#/components/operationBindings/PaymentsGroup"
-
-  onSupplierOrderPlaced:
-    action: receive
-    channel:
-      $ref: "#/channels/supplierOrderEvents"
-    summary: O fornecedor aceitou o pedido; a autorização do cartão é capturada.
-    messages:
-      - $ref: "#/channels/supplierOrderEvents/messages/SupplierOrderPlaced"
     bindings:
       $ref: "#/components/operationBindings/PaymentsGroup"
 
@@ -162,8 +153,8 @@ components:
       name: PaymentApproved
       title: Pagamento aprovado
       summary: |
-        PIX pago, ou cartão autorizado (`captured: false`, o valor garantido; a captura vem quando o
-        fornecedor aceita). O orders confirma o pedido.
+        PIX pago, ou cartão aprovado pela operadora (`captured: false`, o valor garantido; a liquidação
+        chega depois, pela notificação da Efí). O orders confirma o pedido.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -209,7 +200,7 @@ components:
                     description: A taxa do provedor neste pagamento, para a margem real do pedido (#225).
                   captured:
                     type: boolean
-                    description: Falso no cartão só autorizado.
+                    description: Falso no cartão aprovado e ainda não liquidado.
 
     PaymentFailed:
       name: PaymentFailed
@@ -309,4 +300,5 @@ components:
   schemas:
     Provider:
       type: string
-      enum: [mercadopago]
+      description: O provedor (`mercadopago` só nos pagamentos de antes do #379).
+      enum: [efi, mercadopago]

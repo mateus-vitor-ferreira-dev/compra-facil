@@ -11,11 +11,14 @@ public static class PaymentsMetrics
     public static readonly Counter<long> Charges = s_meter.CreateCounter<long>(
         "compra_facil.payments.charges", unit: "{charge}", description: "Cobranças por meio, resultado e motivo.");
 
-    /// <summary>Dinheiro de volta: void (autorização cancelada), refund (estorno do cancelamento) e partial (do painel).</summary>
+    /// <summary>
+    /// Dinheiro de volta: refund (estorno do cancelamento ou do arrependimento), partial (do painel) e deferred (a
+    /// devolução do cartão aprovado que espera a liquidação).
+    /// </summary>
     public static readonly Counter<long> Refunds = s_meter.CreateCounter<long>(
-        "compra_facil.payments.refunds", unit: "{refund}", description: "Estornos e cancelamentos de autorização, por tipo.");
+        "compra_facil.payments.refunds", unit: "{refund}", description: "Estornos e devoluções à espera da liquidação, por tipo.");
 
-    /// <summary>Autorizações capturadas quando o fornecedor aceitou o pedido.</summary>
-    public static readonly Counter<long> Captures = s_meter.CreateCounter<long>(
-        "compra_facil.payments.captures", unit: "{capture}", description: "Autorizações de cartão capturadas.");
+    /// <summary>Pagamentos contestados pelo cliente (reclamação ou chargeback), que a equipe responde no provedor.</summary>
+    public static readonly Counter<long> Disputes = s_meter.CreateCounter<long>(
+        "compra_facil.payments.disputes", unit: "{dispute}", description: "Pagamentos contestados (reclamação ou chargeback).");
 }

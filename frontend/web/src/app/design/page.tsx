@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
 import type { Product } from "@/lib/catalog";
-import { ThemeToggle } from "./theme-toggle";
+import { ThemeMenu } from "@/components/theme/theme-menu";
 import { ToastDemo } from "./toast-demo";
 
 export const metadata: Metadata = { title: "Design system", robots: { index: false } };
@@ -136,7 +136,7 @@ export default function DesignSystem() {
     <main id="conteudo" className="mx-auto max-w-5xl space-y-12 px-4 py-10 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <Logo />
-        <ThemeToggle />
+        <ThemeMenu />
       </header>
 
       <div className="max-w-2xl space-y-3">

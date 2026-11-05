@@ -7,9 +7,9 @@ info:
     API do serviço **payments** (time de Processamento de compras, ASP.NET Core).
 
     A cobrança **não** é iniciada por HTTP: o payments consome `OrderPlaced` (com o meio de pagamento) e
-    `StockReserved` e cobra no provedor (ADR 0007, #220: o Mercado Pago; em dev e no CI, o `payment-sim`).
-    PIX gera o QR e espera o cliente pagar; cartão é autorizado e capturado quando o fornecedor aceita o
-    pedido. Ver `contracts/asyncapi/payments.v1.yaml`. Cada pedido é cobrado no máximo uma vez.
+    `StockReserved` e cobra no provedor (ADR 0007, #379: a Efí; em dev e no CI, o `payment-sim`).
+    PIX gera o QR e espera o cliente pagar; cartão é cobrado no checkout e liquidado depois. Ver
+    `contracts/asyncapi/payments.v1.yaml`. Cada pedido é cobrado no máximo uma vez.
 
     Esta API serve para consulta, para as notificações do provedor e para o estorno pelo painel.
 servers:
@@ -83,33 +83,25 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
-  /v1/webhooks/payments:
+  /v1/webhooks/efi/pix:
     post:
       tags: [webhooks]
-      operationId: receivePaymentNotification
-      summary: Notificação do provedor (uma cobrança mudou)
+      operationId: receivePixNotification
+      summary: Webhook do PIX da Efí (um PIX foi pago ou devolvido)
       description: |
-        No formato do Mercado Pago: `?data.id=<id>&type=payment` e os headers `x-request-id` e
-        `x-signature: ts=<ts>,v1=<hex>`, com `v1 = HMAC-SHA256(segredo, "id:<data.id>;request-id:<x-request-id>;ts:<ts>;")`.
-        O corpo não é usado: a cobrança é consultada no provedor. Cobrança desconhecida também responde
-        200, para o provedor não insistir.
+        A Efí manda `{"pix": [...]}` com o `txid` de cada PIX recebido (e as `devolucoes`, quando uma
+        devolução termina). O cadastro (`PUT /v2/webhook/:chave`, feito pelo payments ao subir) usa a URL
+        com `?hmac=<segredo>&ignorar=`: a Efí acrescenta `/pix` ao caminho, que cai dentro do parâmetro.
+        O segredo é conferido em cada aviso. O corpo não é a verdade: cada cobrança é consultada na Efí.
+        Cobrança desconhecida (e o aviso de teste do cadastro) também responde 200.
       parameters:
-        - name: data.id
+        - name: hmac
           in: query
           required: true
           schema:
             type: string
-        - name: type
+        - name: ignorar
           in: query
-          schema:
-            type: string
-        - name: x-signature
-          in: header
-          required: true
-          schema:
-            type: string
-        - name: x-request-id
-          in: header
           schema:
             type: string
       requestBody:
@@ -117,20 +109,47 @@ paths:
           application/json:
             schema:
               type: object
+              properties:
+                pix:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      txid:
+                        type: string
+                        description: A cobrança paga; os outros campos são da Efí e não são lidos.
       responses:
         "200":
-          description: Recebida.
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [result]
-                properties:
-                  result:
-                    type: string
-                    enum: [applied, ignored, unknown_payment]
+          $ref: "#/components/responses/NotificationAck"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/webhooks/efi/charges:
+    post:
+      tags: [webhooks]
+      operationId: receiveChargeNotification
+      summary: Notificação de cartão da Efí (uma cobrança mudou de status)
+      description: |
+        A Efí manda só o token (`notification=<token>`, em form), sem assinatura: o payments consulta
+        `GET /v1/notification/:token` na Efí, que diz quais cobranças mudaram, e consulta cada uma. Um token
+        falso não acha nada. Responde 200 sempre que a consulta deu certo: a Efí repete por até 3 dias
+        enquanto o token não é consultado.
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [notification]
+              properties:
+                notification:
+                  type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/NotificationAck"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
@@ -248,6 +267,18 @@ paths:
           $ref: "./common/v1/dead-letters.yaml#/components/responses/KafkaUnavailable"
 
 components:
+  responses:
+    NotificationAck:
+      description: Recebida.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [result]
+            properties:
+              result:
+                type: string
+                enum: [applied, ignored, unknown_payment]
   schemas:
     PaymentStatus:
       type: string
@@ -311,7 +342,8 @@ components:
           maximum: 12
         provider:
           type: string
-          enum: [mercadopago]
+          description: O provedor (`mercadopago` só nos pagamentos de antes do #379).
+          enum: [efi, mercadopago]
         provider_reference:
           type: [string, "null"]
           description: ID da cobrança no provedor.

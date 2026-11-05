@@ -26,6 +26,9 @@
   --photo: #eceef3; /* fundo das fotos e dos placeholders */
   --hero: #1b1f3b; /* o encarte da campanha: escuro nos dois temas */
   --on-hero: #f6f7f9;
+  /* séries dos gráficos do painel (#382), validadas no validate_palette da skill de dataviz contra o cartão */
+  --chart-1: #3a4fd0; /* anil, da família da tinta */
+  --chart-2: #c98500; /* âmbar, parente da etiqueta */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,6 +46,8 @@
     --focus: #ffd23f;
     --photo: #262a4c;
     --hero: #262b5e;
+    --chart-1: #6f7ff0;
+    --chart-2: #bd8300;
   }
 }
 
@@ -60,6 +65,8 @@
   --focus: #ffd23f;
   --photo: #262a4c;
   --hero: #262b5e;
+  --chart-1: #6f7ff0;
+  --chart-2: #bd8300;
 }
 
 @theme inline {
@@ -81,6 +88,8 @@
   --color-photo: var(--photo);
   --color-hero: var(--hero);
   --color-on-hero: var(--on-hero);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
 
   /* nomes do shadcn/ui, para os componentes que vierem dele */
   --color-background: var(--paper);
@@ -102,6 +111,23 @@
   --text-2xl: 1.953rem;
   --text-3xl: 2.441rem;
   --text-4xl: 3.052rem;
+
+  /* a etiqueta da 404: balança uma vez, como quem acabou de pendurar (reduzir movimento a deixa parada) */
+  --animate-tag-swing: tag-swing 1.8s cubic-bezier(0.3, 0.7, 0.4, 1) 1;
+  @keyframes tag-swing {
+    0% {
+      transform: rotate(9deg);
+    }
+    35% {
+      transform: rotate(-6deg);
+    }
+    65% {
+      transform: rotate(3deg);
+    }
+    100% {
+      transform: rotate(0deg); /* termina onde a etiqueta fica, sem salto no fim */
+    }
+  }
 }
 
 @layer base {
@@ -156,4 +182,31 @@
   /* os preços: Archivo estreita e pesada, como no encarte */
   font-variation-settings: "wdth" 72;
   font-feature-settings: "tnum" 1;
+}
+
+/*
+ * O menu de tema (popover nativo) abre embaixo do botão, alinhado à direita dele. Sem anchor positioning
+ * no navegador, fica no canto de cima, à direita, logo abaixo do cabeçalho.
+ */
+.theme-anchor {
+  anchor-name: --tema;
+}
+.theme-popover {
+  position-anchor: --tema;
+  inset: auto;
+  margin: 0;
+  top: calc(anchor(bottom) + 0.25rem);
+  right: anchor(right);
+  /* sem espaço (o botão no pé da coluna do painel), abre para cima e/ou para o outro lado */
+  position-try-fallbacks:
+    flip-block,
+    flip-inline,
+    flip-block flip-inline;
+}
+@supports not (anchor-name: --tema) {
+  .theme-popover {
+    position: fixed;
+    top: 4rem;
+    right: 1rem;
+  }
 }

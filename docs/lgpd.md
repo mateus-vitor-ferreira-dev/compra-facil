@@ -18,7 +18,7 @@ Na loja de verdade, a retenção da demonstração **fica desligada**: a nota fi
 |---|---|---|---|
 | E-mail e senha (hash) | identity | entrar na conta | execução de contrato |
 | E-mail do convidado | identity (`guest_email`), só como contato | o link da compra sem conta (ADR 0008) | execução de contrato |
-| Nome, CPF e telefone de quem recebe | orders, fulfillment (pedido ao fornecedor e nota) | a nota fiscal e a entrega | obrigação legal (NF-e) e execução de contrato |
+| Nome, CPF e telefone de quem recebe | orders, fulfillment (pedido ao fornecedor e nota); nome e CPF no payments só até a cobrança | a nota fiscal, a entrega e o pagamento (o PIX do Mercado Pago pede o CPF) | obrigação legal (NF-e) e execução de contrato |
 | Endereço de entrega | orders, fulfillment, fornecedor, transportadora | a entrega e a nota | execução de contrato e obrigação legal |
 | Cartão | **não fica na loja**: o navegador manda direto ao provedor, que devolve um token (#220) | cobrar | execução de contrato |
 | Corpo dos e-mails enviados | notifications | reenvio e suporte | legítimo interesse (a definir o prazo) |
@@ -26,7 +26,7 @@ Na loja de verdade, a retenção da demonstração **fica desligada**: a nota fi
 | Cookies | navegador: sessão, carrinho, CEP | funcionamento | execução de contrato (estritamente necessários) |
 | Logs e traces | Grafana Cloud (#162) | operação | legítimo interesse |
 
-Os eventos no Kafka levam o endereço e o CPF (`OrderConfirmed`) e expiram em 7 dias. O outbox apaga cada evento depois de publicado.
+Os eventos no Kafka levam o endereço e o CPF (`OrderConfirmed`), e o nome e o CPF de quem paga (`OrderPlaced`), e expiram em 7 dias. O outbox apaga cada evento depois de publicado.
 
 ## Operadores e transferência internacional
 
@@ -35,7 +35,7 @@ Os eventos no Kafka levam o endereço e o CPF (`OrderConfirmed`) e expiram em 7 
 | Hetzner (VPS, via Coolify) | todos os bancos | Alemanha |
 | Cloudflare (Workers, R2) | as páginas, os cookies e as fotos; a loja não guarda dados pessoais no R2 | global |
 | Grafana Cloud | logs e traces, que podem ter e-mail e IP | a confirmar na conta |
-| Gateway de pagamento (#228) | e-mail, valor e o cartão tokenizado | Brasil, a confirmar |
+| Gateway de pagamento (#228) | e-mail, nome, CPF, valor e o cartão tokenizado | Brasil, a confirmar |
 | Emissor de NF-e (#229) | nome, CPF e endereço | Brasil, a confirmar |
 | Fornecedor e transportadora (#227) | nome, telefone e endereço | Brasil (fornecedor nacional) |
 | Provedor de e-mail (Resend) | e-mail e o conteúdo das mensagens | a confirmar |
