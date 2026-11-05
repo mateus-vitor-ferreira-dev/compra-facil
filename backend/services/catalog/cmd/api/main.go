@@ -227,6 +227,13 @@ func run() error {
 	} else {
 		log.Warn("consumo do feed do fornecedor desligado")
 	}
+	// loja de demonstração: sempre uma campanha no ar (as do seed acabam)
+	if cfg.Demo.KeepCampaignActive {
+		demoCtx, cancelDemo := context.WithCancel(context.Background())
+		defer cancelDemo()
+		go keepCampaignActive(demoCtx, campaignSvc, invalidate, cfg.Demo.CampaignCheckInterval, log)
+	}
+
 	supplierAPI := handler.NewSupplierAdminHandler(pricing, deadLetters, invalidate, requireAdmin, log)
 
 	srv := &http.Server{
@@ -305,4 +312,26 @@ func supplierOptions(c config.SupplierConfig) (service.SupplierOptions, error) {
 		DefaultRule: domain.PricingRule{MarginPercent: c.DefaultMarginPercent, MinPriceCents: c.DefaultMinPriceCents},
 		PublishNew:  c.PublishNew,
 	}, nil
+}
+
+// keepCampaignActive confere na subida e a cada intervalo se há campanha ativa; sem nenhuma, reabre a que acabou
+// por último (service.KeepOneActive) e limpa o cache, para a vitrine mostrar os preços dela na hora.
+func keepCampaignActive(ctx context.Context, campaigns *service.CampaignService, invalidate func(context.Context), every time.Duration, log *slog.Logger) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		renewed, err := campaigns.KeepOneActive(ctx)
+		switch {
+		case err != nil:
+			log.Error("demonstração: conferir a campanha ativa falhou", "error", err.Error())
+		case renewed != nil:
+			invalidate(ctx)
+			log.Info("demonstração: campanha reaberta", "slug", renewed.Slug, "starts_at", renewed.StartsAt, "ends_at", renewed.EndsAt)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }

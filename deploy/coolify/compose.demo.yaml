@@ -138,6 +138,8 @@ services:
       # o feed do simulado nas categorias da loja, e o produto novo já à venda
       CATALOG_SUPPLIER_CATEGORIES: "Headphones=fones-over-ear;Mouse=mouses;Keyboard=teclados;Lipstick=batons;Frying Pan=frigideiras"
       CATALOG_SUPPLIER_PUBLISH_NEW: "true"
+      # as campanhas do seed acabam: sem nenhuma ativa, a que terminou por último é reaberta (a vitrine nunca fica sem promoção)
+      CATALOG_DEMO_KEEP_CAMPAIGN_ACTIVE: "true"
     depends_on:
       postgres-databases:
         condition: service_completed_successfully

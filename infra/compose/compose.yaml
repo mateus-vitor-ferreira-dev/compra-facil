@@ -274,6 +274,8 @@ services:
       # (na produção ele nasce rascunho, para a equipe traduzir e revisar)
       CATALOG_SUPPLIER_CATEGORIES: "Headphones=fones-over-ear;Mouse=mouses;Keyboard=teclados;Lipstick=batons;Frying Pan=frigideiras"
       CATALOG_SUPPLIER_PUBLISH_NEW: "true"
+      # o seed cria campanhas que acabam: como na demonstração, sem nenhuma ativa a última é reaberta
+      CATALOG_DEMO_KEEP_CAMPAIGN_ACTIVE: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
