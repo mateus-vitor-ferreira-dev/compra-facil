@@ -1,5 +1,5 @@
-// Package handler expõe a API no formato do Mercado Pago (o subconjunto que a loja usa) e as rotas /sim
-// de demonstração.
+// Package handler expõe as APIs simuladas: a da Efí (efi.go, #379), a do Mercado Pago (o subconjunto que a loja
+// usava, até o payments trocar de provedor) e as rotas /sim de demonstração.
 package handler
 
 import (
@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/payment"
 )
 
@@ -29,13 +30,14 @@ type Credentials struct {
 
 type API struct {
 	provider *payment.Provider
+	efi      *efi.Provider
 	creds    Credentials
 	log      *slog.Logger
 }
 
-func NewRouter(provider *payment.Provider, creds Credentials, log *slog.Logger) *gin.Engine {
+func NewRouter(provider *payment.Provider, efiProvider *efi.Provider, creds Credentials, log *slog.Logger) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
-	a := &API{provider: provider, creds: creds, log: log}
+	a := &API{provider: provider, efi: efiProvider, creds: creds, log: log}
 	r := gin.New()
 	r.Use(gin.Recovery(), a.accessLog)
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
@@ -60,7 +62,8 @@ func NewRouter(provider *payment.Provider, creds Credentials, log *slog.Logger) 
 	sim := r.Group("/sim", a.requireAdminToken)
 	sim.GET("/payments", func(c *gin.Context) { c.JSON(http.StatusOK, a.provider.List()) })
 	sim.POST("/payments/:id/pay", a.payPIX)
-	sim.POST("/reset", func(c *gin.Context) { a.provider.Reset(); c.Status(http.StatusNoContent) })
+	sim.POST("/reset", func(c *gin.Context) { a.provider.Reset(); a.efi.Reset(); c.Status(http.StatusNoContent) })
+	a.registerEfi(r)
 	return r
 }
 

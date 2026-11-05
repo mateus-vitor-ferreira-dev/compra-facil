@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/payment"
 )
 
@@ -25,7 +26,9 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	p := payment.NewProvider(payment.Options{}, nil)
 	t.Cleanup(p.Close)
-	return &env{t: t, router: NewRouter(p, Credentials{AccessToken: "tok", PublicKey: "pub", AdminToken: "adm"}, slog.New(slog.DiscardHandler))}
+	ep := efi.NewProvider(efi.Options{}, nil)
+	t.Cleanup(ep.Close)
+	return &env{t: t, router: NewRouter(p, ep, Credentials{AccessToken: "tok", PublicKey: "pub", AdminToken: "adm"}, slog.New(slog.DiscardHandler))}
 }
 
 func (e *env) do(method, path string, body any, headers map[string]string) (int, map[string]any) {
@@ -140,7 +143,7 @@ func TestOperationRoutes_NeedTheAdminToken(t *testing.T) {
 	// sem token configurado, as rotas de operação ficam fechadas para todos
 	p := payment.NewProvider(payment.Options{}, nil)
 	t.Cleanup(p.Close)
-	closed := &env{t: t, router: NewRouter(p, Credentials{AccessToken: "tok", PublicKey: "pub"}, slog.New(slog.DiscardHandler))}
+	closed := &env{t: t, router: NewRouter(p, efi.NewProvider(efi.Options{}, nil), Credentials{AccessToken: "tok", PublicKey: "pub"}, slog.New(slog.DiscardHandler))}
 	status, _ := closed.do(http.MethodGet, "/sim/payments", nil, map[string]string{"X-Sim-Admin-Token": ""})
 	assert.Equal(t, http.StatusUnauthorized, status)
 }

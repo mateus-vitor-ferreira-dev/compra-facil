@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/handler"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/payment"
 	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/webhook"
@@ -75,9 +76,16 @@ func run() error {
 		TicketURL: func(token string) string { return cfg.PublicURL + "/sim/pix/" + token },
 	}, hooks)
 
+	efiHooks := efi.NewDispatcher(efi.DispatcherOptions{RetryBase: cfg.WebhookRetryBase}, log)
+	efiProvider := efi.NewProvider(efi.Options{
+		ClientID: cfg.EfiClientID, ClientSecret: cfg.EfiClientSecret, PayeeCode: cfg.EfiPayeeCode, PixKey: cfg.EfiPixKey,
+		SettleDelay: cfg.EfiSettleDelay, RefundDelay: cfg.EfiRefundDelay,
+		PayPageURL: func(token string) string { return cfg.PublicURL + "/sim/cob/pagar/" + token },
+	}, efiHooks)
+
 	srv := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.Port),
-		Handler: handler.NewRouter(provider, handler.Credentials{
+		Handler: handler.NewRouter(provider, efiProvider, handler.Credentials{
 			AccessToken: cfg.AccessToken, PublicKey: cfg.PublicKey, AdminToken: adminToken(cfg.AdminToken, log),
 		}, log),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -103,7 +111,9 @@ func run() error {
 		return fmt.Errorf("shutdown: %w", err)
 	}
 	provider.Close()
+	efiProvider.Close()
 	hooks.Close()
+	efiHooks.Close()
 	return nil
 }
 
