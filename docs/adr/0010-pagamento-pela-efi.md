@@ -37,8 +37,9 @@ O adaptador da Efí (`EfiProvider`) substitui o do Mercado Pago, e o payments se
 
 ## Consequências
 
-- A tarifa do estorno do cartão não é documentada pela Efí: a margem conta a taxa da venda e não desconta nada no estorno até o contrato da conta dizer.
+- A tarifa sai do valor recebido e não volta no estorno. No PIX, o Vintém mediu isso com dinheiro real numa conta Efí (vintemhq/vintem, `docs/EFI.md`, 2026-10): 1,19% no recebimento (R$ 0,12 num PIX de R$ 10,00) e nenhuma tarifa na devolução. A margem já trata assim: guarda a taxa do pagamento aprovado e não a desfaz no estorno. A tarifa do estorno do cartão continua sem fonte; confirmar no contrato da conta.
+- Como a tarifa já saiu, a devolução integral do PIX precisa de saldo na conta. Sem saldo, a Efí aceita o pedido e depois termina `NAO_REALIZADO`, sem motivo (também medido pelo Vintém).
 - O estorno do cartão também não tem id nem idempotência na Efí. Se o payments cair entre pedir o estorno e gravá-lo, a nova tentativa pode ser recusada ("já existe um estorno em processamento"), e a equipe confere no painel da Efí. A janela é de milissegundos, e o erro aparece no log.
-- A devolução do PIX recusada pela Efí (`NAO_REALIZADO`, por exemplo sem saldo na conta) já foi contada como estornada: o webhook registra o erro para a equipe devolver pelo painel.
+- A devolução do PIX recusada depois de aceita (`NAO_REALIZADO`) já foi contada como estornada: hoje o webhook só registra o erro para a equipe devolver pelo painel. Precisa virar um estado visível no pedido e no painel antes da primeira venda (#396).
 - O estorno parcial do cartão vale um por dia por cobrança, e só depois da liquidação; o painel mostra o motivo quando a Efí recusa.
 - Produção depende de três coisas do dono: as credenciais da aplicação, o certificado `.p12` da API Pix e o identificador de conta no Worker (`deploy/README.md`).
