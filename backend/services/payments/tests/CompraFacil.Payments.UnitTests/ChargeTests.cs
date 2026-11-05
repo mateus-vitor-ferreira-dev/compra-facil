@@ -46,7 +46,7 @@ public sealed class ChargeTests
         Assert.Throws<DomainException>(() => Charge.For(Guid.NewGuid(), s_now).RecordOrder(Guid.NewGuid(), null, new Money(0, "BRL"), PaymentInstruction.Pix, s_now));
 
     [Fact]
-    public void Card_NeedsTokenAndBrand_AndTheTokenIsDroppedOnCharge()
+    public void Card_NeedsTokenAndBrand_AndTheTokenIsKeptUntilCharged()
     {
         var charge = Charge.For(Guid.NewGuid(), s_now);
         Assert.Throws<DomainException>(() => charge.RecordOrder(Guid.NewGuid(), null, s_amount, new PaymentInstruction(PaymentMethod.Card, 1, null, "visa"), s_now));
@@ -54,11 +54,13 @@ public sealed class ChargeTests
         Assert.Equal(12, charge.Installments); // até 12x
         charge.RecordStockReserved(s_now);
         charge.AttachPayment(Guid.NewGuid(), s_now);
+        Assert.Equal("tok", charge.CardToken); // entre os dois passos da cobrança: a nova tentativa paga com ele
+        charge.Charged(s_now);
         Assert.Null(charge.CardToken);
     }
 
     private static Payment Start(PaymentMethod method = PaymentMethod.Card, int installments = 1) =>
-        Payment.Start(Guid.NewGuid(), Guid.NewGuid(), s_amount, method, installments, "mercadopago", s_now);
+        Payment.Start(Guid.NewGuid(), Guid.NewGuid(), s_amount, method, installments, "efi", s_now);
 
     private static readonly PixCharge s_pix = new("000201", "png", null, s_now.AddMinutes(30));
 
@@ -80,20 +82,34 @@ public sealed class ChargeTests
     }
 
     [Fact]
-    public void Card_AuthorizedThenCapturedOrVoided()
+    public void Card_ApprovedThenSettled_OrVoidedInReview()
     {
-        var captured = Start();
-        captured.Authorize("c1", "5682", 995, s_now);
-        Assert.True(captured.IsPaid);
-        Assert.Throws<DomainException>(() => captured.Refund(100, "k", "r", s_now)); // autorizado se cancela, não se estorna
-        captured.Capture(s_now);
-        Assert.Equal(PaymentStatus.Approved, captured.Status);
+        var settled = Start();
+        settled.Authorize("c1", "5682", 995, s_now);
+        Assert.True(settled.IsPaid);
+        Assert.Throws<DomainException>(() => settled.Refund(100, "k", "r", s_now)); // aprovado e não liquidado não se estorna
+        settled.Capture(s_now);
+        Assert.Equal(PaymentStatus.Approved, settled.Status);
 
-        var voided = Start();
-        voided.Authorize("c2", "5682", 995, s_now);
-        voided.Void(s_now);
-        Assert.Equal(PaymentStatus.Voided, voided.Status);
-        Assert.Throws<DomainException>(() => voided.Capture(s_now));
+        var inReview = Start();
+        inReview.Track("c2", s_now);
+        inReview.Void(s_now);
+        Assert.Equal(PaymentStatus.Voided, inReview.Status);
+        Assert.Throws<DomainException>(() => inReview.Capture(s_now));
+    }
+
+    [Fact]
+    public void Reversal_WaitsForTheSettlement()
+    {
+        var p = Start();
+        p.Authorize("c", "5682", 995, s_now);
+        Assert.True(p.DeferReversal("cancel", s_now));
+        Assert.False(p.DeferReversal("return", s_now)); // o primeiro motivo vale
+        Assert.Equal("cancel", p.PendingReversal);
+        p.Capture(s_now);
+        p.ClearPendingReversal(s_now);
+        Assert.Null(p.PendingReversal);
+        Assert.Throws<DomainException>(() => p.DeferReversal("cancel", s_now)); // liquidado se estorna na hora
     }
 
     [Fact]
@@ -112,7 +128,8 @@ public sealed class ChargeTests
     [Fact]
     public void Payer_IsKeptOnlyUntilCharged()
     {
-        var payer = new Payer("Ana Souza", "52998224725");
+        var payer = new Payer("Ana Souza", "52998224725", "35999990000",
+            new BillingAddress("37200000", "Rua A", "10", null, "Centro", "Lavras", "MG"));
         var cancelled = Charge.For(Guid.NewGuid(), s_now);
         cancelled.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now, payer);
         Assert.Equal(payer, cancelled.Payer);
@@ -123,8 +140,10 @@ public sealed class ChargeTests
         charged.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now, payer);
         charged.RecordStockReserved(s_now);
         charged.AttachPayment(Guid.NewGuid(), s_now);
-        charged.ForgetPayer();
+        charged.Charged(s_now);
         Assert.Null(charged.Payer);
         Assert.Null(charged.PayerCpf);
+        Assert.Null(charged.PayerPhone);
+        Assert.Null(charged.PayerAddress);
     }
 }

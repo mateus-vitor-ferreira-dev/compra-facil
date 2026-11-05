@@ -14,15 +14,18 @@ public enum PaymentStatus
     /// <summary>PIX gerado, esperando o cliente pagar até <see cref="PixCharge.ExpiresAt"/>.</summary>
     Pending,
 
-    /// <summary>Cartão autorizado: o valor está garantido, a captura vem quando o fornecedor aceita.</summary>
+    /// <summary>
+    /// Cartão aprovado pela operadora e ainda não liquidado (na Efí, approved): o valor está garantido e o pedido
+    /// segue, mas o dinheiro só se devolve depois da liquidação (paid), quando ele vira <see cref="Approved"/>.
+    /// </summary>
     Authorized,
 
-    /// <summary>Pago (PIX) ou capturado (cartão); pode ter estorno parcial (<see cref="Payment.RefundedCents"/>).</summary>
+    /// <summary>Pago (PIX) ou cartão liquidado; pode ter estorno parcial (<see cref="Payment.RefundedCents"/>).</summary>
     Approved,
 
     Failed,
 
-    /// <summary>Autorização (ou PIX não pago) cancelada: nada foi cobrado.</summary>
+    /// <summary>Cobrança cancelada antes do dinheiro sair (o PIX não pago, o cartão ainda em análise): nada foi cobrado.</summary>
     Voided,
 
     /// <summary>Todo o valor voltou ao cliente.</summary>
@@ -48,9 +51,10 @@ public sealed record RefundEntry(string Key, string Reference, long AmountCents,
 public sealed record PixCharge(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
 
 /// <summary>
-/// Uma cobrança no provedor (#220). PIX: nasce processing, fica pending com o QR e termina approved (pago)
-/// ou failed (expirou). Cartão: authorized (o valor garantido) e approved na captura, ou voided se o pedido
-/// cair antes; recusado é failed. O aprovado pode ser estornado em partes até o total.
+/// Uma cobrança no provedor (#220, #379). PIX: nasce processing, fica pending com o QR e termina approved (pago)
+/// ou failed (expirou). Cartão: processing até o provedor decidir, authorized (aprovado pela operadora) e approved
+/// na liquidação; recusado é failed. O aprovado pode ser estornado em partes até o total. A devolução pedida
+/// antes da liquidação fica em <see cref="PendingReversal"/> e sai quando ela chega.
 /// </summary>
 public sealed class Payment
 {
@@ -71,7 +75,7 @@ public sealed class Payment
     public PaymentStatus Status { get; private set; }
     public FailureReason? FailureReason { get; private set; }
 
-    /// <summary>Provedor usado (mercadopago).</summary>
+    /// <summary>Provedor usado (efi).</summary>
     public string Provider { get; private set; } = "";
 
     /// <summary>ID da cobrança no provedor.</summary>
@@ -89,6 +93,12 @@ public sealed class Payment
     public string? RefundReference { get; private set; }
 
     public DateTimeOffset? RefundedAt { get; private set; }
+
+    /// <summary>
+    /// O motivo da devolução pedida quando o dinheiro ainda não podia voltar (o cartão aprovado e não liquidado:
+    /// a Efí não cancela nem estorna nessa janela). Sai na liquidação; nulo, nada esperando.
+    /// </summary>
+    public string? PendingReversal { get; private set; }
     public DateTimeOffset? CapturedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -190,15 +200,47 @@ public sealed class Payment
         UpdatedAt = now;
     }
 
-    /// <summary>Cancela a autorização (ou o PIX não pago): o cliente não é cobrado.</summary>
+    /// <summary>Cancela a cobrança antes do dinheiro sair (o PIX não pago, o cartão em análise): o cliente não é cobrado.</summary>
     public void Void(DateTimeOffset now)
     {
-        if (Status is not (PaymentStatus.Authorized or PaymentStatus.Pending))
+        if (Status is not (PaymentStatus.Processing or PaymentStatus.Authorized or PaymentStatus.Pending))
         {
-            throw new DomainException($"pagamento {Id} está {Status}: só a autorização ou o PIX pendente se cancelam");
+            throw new DomainException($"pagamento {Id} está {Status}: só a cobrança que ainda não pagou se cancela");
         }
+        PendingReversal = null;
         Status = PaymentStatus.Voided;
         RefundedAt = now;
+        UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// A devolução tem de esperar a liquidação: guarda o motivo (o primeiro vale; repetido não muda). False se já
+    /// havia uma esperando.
+    /// </summary>
+    public bool DeferReversal(string reason, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        if (Status is not (PaymentStatus.Processing or PaymentStatus.Authorized))
+        {
+            throw new DomainException($"pagamento {Id} está {Status}: só o que ainda não liquidou espera para devolver");
+        }
+        if (PendingReversal is not null)
+        {
+            return false;
+        }
+        PendingReversal = reason;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>A devolução que esperava saiu (ou não há mais o que devolver: o cartão foi recusado).</summary>
+    public void ClearPendingReversal(DateTimeOffset now)
+    {
+        if (PendingReversal is null)
+        {
+            return;
+        }
+        PendingReversal = null;
         UpdatedAt = now;
     }
 

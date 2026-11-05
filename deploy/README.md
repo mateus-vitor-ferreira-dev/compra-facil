@@ -97,6 +97,29 @@ pedido pago vai direto ao fornecedor, com o endereço e sem chave nem XML, e nad
 A nota pedida pelo cliente sai à mão, pelo meio que o contador indicar. Quando o A1 e a Nuvem Fiscal
 estiverem prontos (#229), basta tirar a variável: os pedidos novos passam a sair com nota.
 
+### Receber pela Efí (#379)
+
+O payments cobra pela Efí: o cartão na API Cobranças, o PIX na API Pix. No painel da Efí (**API → Aplicações**),
+crie uma aplicação com os escopos de Cobranças e de Pix e gere o certificado `.p12` de produção (não é o A1 da
+nota). No Coolify:
+
+| Variável | Valor |
+|---|---|
+| `EFI_CLIENT_ID`, `EFI_CLIENT_SECRET` | as credenciais da aplicação |
+| `EFI_PIX_CERTIFICATE_BASE64` | o `.p12` em base64 (`base64 -w0 certificado.p12`), exigido em toda chamada da API Pix |
+| `EFI_PIX_KEY` | a chave PIX da conta que recebe |
+| `EFI_PIX_WEBHOOK_SECRET` | um segredo aleatório (`openssl rand -hex 24`): vai na URL do webhook do PIX e é conferido em cada aviso |
+| `Payments__Efi__ChargeNotificationUrl` | `https://<API>/payments/v1/webhooks/efi/charges` |
+| `Payments__Efi__PixWebhookUrl` | `https://<API>/payments/v1/webhooks/efi/pix` |
+
+Para testar antes na homologação: `EFI_CHARGES_URL=https://cobrancas-h.api.efipay.com.br/`,
+`EFI_PIX_URL=https://pix-h.api.efipay.com.br/` e as credenciais e o certificado de homologação. Lá, o último
+dígito do cartão decide (1, 2 e 3 recusam) e o PIX de até R$ 10,00 é pago sozinho.
+
+O payments cadastra o webhook do PIX ao subir, sem a validação de mTLS da Efí (`x-skip-mtls-checking`): a proteção
+é o segredo na URL e a consulta à Efí, que é a verdade de cada aviso. O navegador tokeniza o cartão com a
+biblioteca da Efí e o identificador de conta (vai no Worker da loja).
+
 ## 2. O recurso no Coolify
 
 **Projects → (projeto) → + New → Docker Compose** a partir deste repositório (GitHub App do Coolify).

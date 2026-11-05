@@ -13,7 +13,6 @@ public static class PaymentEvents
 
     public const string OrdersTopic = "orders.order.v1";
     public const string ReservationsTopic = "inventory.reservation.v1";
-    public const string FulfillmentTopic = "fulfillment.supplier-order.v1";
 }
 
 // ---- consumidos (só os campos usados) ----
@@ -21,8 +20,19 @@ public static class PaymentEvents
 /// <summary>O payment do OrderPlaced; ausente, o pedido é pago por PIX.</summary>
 public sealed record OrderPaymentData(PaymentMethod Method, int? Installments, string? CardToken, string? CardBrand);
 
-/// <summary>Quem paga (nome e CPF), para o provedor; nulo nos pedidos de antes do #221.</summary>
-public sealed record OrderPayerData(string Name, string Cpf);
+/// <summary>
+/// Quem paga, para o provedor: nome e CPF (nulo nos pedidos de antes do #221); o telefone e o endereço de cobrança
+/// (nulos nos de antes do #379), que a Efí pede no cartão.
+/// </summary>
+public sealed record OrderPayerData(string Name, string Cpf, string? Phone = null, OrderAddressData? BillingAddress = null)
+{
+    public Payer ToPayer() => new(Name, Cpf, Phone, BillingAddress is { } a
+        ? new BillingAddress(a.ZipCode, a.Street, a.Number, a.Complement, a.District, a.City, a.State)
+        : null);
+}
+
+/// <summary>O endereço de cobrança do OrderPlaced (o ShippingAddress do contrato).</summary>
+public sealed record OrderAddressData(string ZipCode, string Street, string Number, string? Complement, string District, string City, string State);
 
 public sealed record OrderPlacedData(
     Guid OrderId, Guid CustomerId, string? CustomerEmail, Money Total, OrderPaymentData? Payment, OrderPayerData? Payer = null);
@@ -33,8 +43,6 @@ public sealed record OrderCancelledData(Guid OrderId);
 
 /// <summary>data do OrderReturned (só o usado): o pedido devolvido no prazo de arrependimento.</summary>
 public sealed record OrderReturnedData(Guid OrderId);
-
-public sealed record SupplierOrderPlacedData(Guid OrderId);
 
 // ---- publicados ----
 

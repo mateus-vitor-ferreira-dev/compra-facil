@@ -37,7 +37,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/webhooks/payments": {
+    "/v1/webhooks/efi/pix": {
         parameters: {
             query?: never;
             header?: never;
@@ -47,13 +47,37 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Notificação do provedor (uma cobrança mudou)
-         * @description No formato do Mercado Pago: `?data.id=<id>&type=payment` e os headers `x-request-id` e
-         *     `x-signature: ts=<ts>,v1=<hex>`, com `v1 = HMAC-SHA256(segredo, "id:<data.id>;request-id:<x-request-id>;ts:<ts>;")`.
-         *     O corpo não é usado: a cobrança é consultada no provedor. Cobrança desconhecida também responde
-         *     200, para o provedor não insistir.
+         * Webhook do PIX da Efí (um PIX foi pago ou devolvido)
+         * @description A Efí manda `{"pix": [...]}` com o `txid` de cada PIX recebido (e as `devolucoes`, quando uma
+         *     devolução termina). O cadastro (`PUT /v2/webhook/:chave`, feito pelo payments ao subir) usa a URL
+         *     com `?hmac=<segredo>&ignorar=`: a Efí acrescenta `/pix` ao caminho, que cai dentro do parâmetro.
+         *     O segredo é conferido em cada aviso. O corpo não é a verdade: cada cobrança é consultada na Efí.
+         *     Cobrança desconhecida (e o aviso de teste do cadastro) também responde 200.
          */
-        post: operations["receivePaymentNotification"];
+        post: operations["receivePixNotification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/efi/charges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Notificação de cartão da Efí (uma cobrança mudou de status)
+         * @description A Efí manda só o token (`notification=<token>`, em form), sem assinatura: o payments consulta
+         *     `GET /v1/notification/:token` na Efí, que diz quais cobranças mudaram, e consulta cada uma. Um token
+         *     falso não acha nada. Responde 200 sempre que a consulta deu certo: a Efí repete por até 3 dias
+         *     enquanto o token não é consultado.
+         */
+        post: operations["receiveChargeNotification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -167,8 +191,11 @@ export interface components {
             failure_reason?: components["schemas"]["FailureReason"] | null;
             method: components["schemas"]["PaymentMethod"];
             installments: number;
-            /** @enum {string} */
-            provider: "mercadopago";
+            /**
+             * @description O provedor (`mercadopago` só nos pagamentos de antes do
+             * @enum {string}
+             */
+            provider: "efi" | "mercadopago";
             /** @description ID da cobrança no provedor. */
             provider_reference?: string | null;
             card_last_four?: string | null;
@@ -274,6 +301,18 @@ export interface components {
         };
     };
     responses: {
+        /** @description Recebida. */
+        NotificationAck: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    result: "applied" | "ignored" | "unknown_payment";
+                };
+            };
+        };
         /** @description Requisição malformada (JSON inválido, parâmetro com tipo errado). */
         BadRequest: {
             headers: {
@@ -413,38 +452,49 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
-    receivePaymentNotification: {
+    receivePixNotification: {
         parameters: {
             query: {
-                "data.id": string;
-                type?: string;
+                hmac: string;
+                ignorar?: string;
             };
-            header: {
-                "x-signature": string;
-                "x-request-id"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": {
+                    pix?: {
+                        /** @description A cobrança paga; os outros campos são da Efí e não são lidos. */
+                        txid?: string;
+                    }[];
+                };
             };
         };
         responses: {
-            /** @description Recebida. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        result: "applied" | "ignored" | "unknown_payment";
-                    };
+            200: components["responses"]["NotificationAck"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    receiveChargeNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/x-www-form-urlencoded": {
+                    notification: string;
                 };
             };
-            401: components["responses"]["Unauthorized"];
+        };
+        responses: {
+            200: components["responses"]["NotificationAck"];
+            422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalError"];
         };
     };

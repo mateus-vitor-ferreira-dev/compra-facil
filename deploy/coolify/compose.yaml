@@ -225,6 +225,16 @@ services:
     environment:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${PG_PAYMENTS_PASSWORD}
+      # a Efí (#379). Sem as credenciais, o payments responde "provedor fora do ar" e nada é cobrado
+      Payments__Efi__ChargesBaseUrl: ${EFI_CHARGES_URL:-https://cobrancas.api.efipay.com.br/}
+      Payments__Efi__PixBaseUrl: ${EFI_PIX_URL:-https://pix.api.efipay.com.br/}
+      Payments__Efi__ClientId: ${EFI_CLIENT_ID:-}
+      Payments__Efi__ClientSecret: ${EFI_CLIENT_SECRET:-}
+      Payments__Efi__PixCertificateBase64: ${EFI_PIX_CERTIFICATE_BASE64:-}
+      Payments__Efi__PixKey: ${EFI_PIX_KEY:-}
+      Payments__Efi__PixWebhookSecret: ${EFI_PIX_WEBHOOK_SECRET:-}
+      # e, ao ligar a venda: Payments__Efi__ChargeNotificationUrl e Payments__Efi__PixWebhookUrl com o domínio da
+      # API (…/payments/v1/webhooks/efi/charges e …/pix), no Coolify (deploy/README.md)
 
   notifications:
     <<: *dotnet

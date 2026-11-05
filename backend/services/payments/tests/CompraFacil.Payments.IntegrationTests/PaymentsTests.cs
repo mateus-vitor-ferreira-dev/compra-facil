@@ -18,22 +18,29 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace CompraFacil.Payments.IntegrationTests;
 
 /// <summary>
-/// O provedor dos testes: guarda as cobranças em memória, idempotente pela chave como o de verdade. O
-/// cartão responde pelo token ("APRO", "FUND", "FRAU", "CONT", "USADO"); o PIX fica pendente até o teste
-/// mudar o status (o cliente pagando, ou a validade passando).
+/// O provedor dos testes, com as regras da Efí: o cartão em dois passos (abrir e pagar; pagar de novo não cobra),
+/// aprovado que só se estorna depois de liquidado, e o PIX pendente até o teste mudar o status. O cartão responde
+/// pelo token ("APRO", "FUND", "FRAU", "CONT", "USADO", "SEMDADOS").
 /// </summary>
 public sealed class FakeProvider : IPaymentProvider
 {
-    private readonly ConcurrentDictionary<string, ProviderPayment> _byKey = new();
+    private readonly ConcurrentDictionary<string, ProviderPayment> _pixByKey = new();
     private readonly ConcurrentDictionary<string, ProviderPayment> _byRef = new();
     private readonly ConcurrentDictionary<string, ProviderRefund> _refunds = new();
     private long _seq = 1000;
 
-    public string Name => "mercadopago";
-    public int Created => _byKey.Count;
+    public string Name => "efi";
+    private int _opened;
+
+    public int Created => _pixByKey.Count + _opened;
     public int RefundsMade => _refunds.Count;
-    public List<string> Captured { get; } = [];
     public List<string> Cancelled { get; } = [];
+
+    /// <summary>Cobranças de cartão de fato pagas (o dinheiro saiu), por referência.</summary>
+    public ConcurrentDictionary<string, int> Charged { get; } = new();
+
+    /// <summary>Token de notificação → as cobranças que ele diz terem mudado.</summary>
+    public ConcurrentDictionary<string, string[]> Notifications { get; } = new();
 
     /// <summary>Quem pagou cada pedido, como chegou ao provedor.</summary>
     public ConcurrentDictionary<Guid, Payer?> Payers { get; } = new();
@@ -41,59 +48,102 @@ public sealed class FakeProvider : IPaymentProvider
     /// <summary>O provedor fora do ar.</summary>
     public bool Down { get; set; }
 
+    /// <summary>A próxima chamada de pagar cobra e cai antes de responder (o payments não sabe se cobrou).</summary>
+    public bool FailAfterPayingOnce { get; set; }
+
+    /// <summary>PIX deste valor já nasce vencido (para a conferência do PIX vencido).</summary>
+    public const long ExpiredPixCents = 777;
+
     public Task<ProviderPayment> CreatePixAsync(PixRequest request, CancellationToken ct)
     {
+        ThrowIfDown();
         Payers[request.OrderId] = request.Payer;
-        return Create(request.IdempotencyKey, r => new(r, ProviderStatus.Pending,
-            Pix: new PixCharge("00020126...SIM" + r, "iVBORw0KGgo=", "http://sim/pix/" + r, request.ExpiresAt)));
+        var expires = request.Amount.AmountCents == ExpiredPixCents ? DateTimeOffset.UtcNow.AddMinutes(-5) : request.ExpiresAt;
+        var payment = _pixByKey.GetOrAdd(request.IdempotencyKey, _ =>
+        {
+            var r = "cf" + Interlocked.Increment(ref _seq).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return new(r, ProviderStatus.Pending, Pix: new PixCharge("00020126...SIM" + r, "iVBORw0KGgo=", "http://sim/pix/" + r, expires));
+        });
+        _byRef.TryAdd(payment.Reference, payment);
+        return Task.FromResult(payment);
     }
 
-    public Task<ProviderPayment> AuthorizeCardAsync(CardRequest request, CancellationToken ct)
+    public Task<string> OpenCardChargeAsync(CardRequest request, CancellationToken ct)
     {
+        ThrowIfDown();
+        Payers[request.OrderId] = request.Payer;
+        if (request.CardToken == "SEMDADOS")
+        {
+            throw new PaymentProviderRejectedException("o cartão exige o telefone");
+        }
+        Interlocked.Increment(ref _opened);
+        var reference = Interlocked.Increment(ref _seq).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _byRef[reference] = new ProviderPayment(reference, ProviderStatus.InProcess);
+        return Task.FromResult(reference);
+    }
+
+    public Task<ProviderPayment> PayCardAsync(string reference, CardRequest request, CancellationToken ct)
+    {
+        ThrowIfDown();
         if (request.CardToken == "USADO")
         {
             throw new PaymentProviderRejectedException("token já usado");
         }
-        return Create(request.IdempotencyKey, r => request.CardToken switch
+        if (!Charged.ContainsKey(reference))
         {
-            "FUND" => new(r, ProviderStatus.Rejected, FailureReason.InsufficientFunds),
-            "FRAU" => new(r, ProviderStatus.Rejected, FailureReason.FraudSuspected),
-            "CONT" => new(r, ProviderStatus.InProcess),
-            _ => new(r, ProviderStatus.Authorized, CardLastFour: "5682"),
-        });
+            // a primeira vez decide; pagar de novo a mesma cobrança só a lê (o 3500030 da Efí)
+            Charged[reference] = 1;
+            _byRef[reference] = request.CardToken switch
+            {
+                "FUND" => new(reference, ProviderStatus.Rejected, FailureReason.InsufficientFunds),
+                "FRAU" => new(reference, ProviderStatus.Rejected, FailureReason.FraudSuspected),
+                "CONT" => new(reference, ProviderStatus.InProcess),
+                _ => new(reference, ProviderStatus.Authorized, CardLastFour: "5682"),
+            };
+        }
+        if (FailAfterPayingOnce)
+        {
+            FailAfterPayingOnce = false;
+            throw new PaymentProviderUnavailableException("caiu depois de cobrar");
+        }
+        return Task.FromResult(_byRef[reference]);
     }
 
     public Task<ProviderPayment> GetAsync(string reference, CancellationToken ct) => Task.FromResult(_byRef[reference]);
 
-    public Task<ProviderPayment> CaptureAsync(string reference, CancellationToken ct)
-    {
-        Captured.Add(reference);
-        return Task.FromResult(_byRef[reference] = _byRef[reference] with { Status = ProviderStatus.Approved });
-    }
-
     public Task<ProviderPayment> CancelAsync(string reference, CancellationToken ct)
     {
+        if (_byRef[reference].Status is not (ProviderStatus.Pending or ProviderStatus.InProcess or ProviderStatus.Expired))
+        {
+            throw new PaymentProviderRejectedException("só a cobrança que não pagou se cancela");
+        }
         Cancelled.Add(reference);
         return Task.FromResult(_byRef[reference] = _byRef[reference] with { Status = ProviderStatus.Cancelled });
     }
 
-    public Task<ProviderRefund> RefundAsync(string reference, long? amountCents, string idempotencyKey, CancellationToken ct) =>
-        Task.FromResult(_refunds.GetOrAdd(idempotencyKey, _ => new ProviderRefund("re-" + Interlocked.Increment(ref _seq), amountCents ?? 0)));
+    public Task<ProviderRefund> RefundAsync(string reference, long? amountCents, string idempotencyKey, CancellationToken ct)
+    {
+        if (_byRef[reference].Status != ProviderStatus.Approved)
+        {
+            throw new PaymentProviderRejectedException("só o pago (liquidado) se estorna");
+        }
+        return Task.FromResult(_refunds.GetOrAdd(idempotencyKey, _ => new ProviderRefund("re-" + Interlocked.Increment(ref _seq), amountCents ?? 0)));
+    }
 
-    public bool VerifyNotification(string dataId, string? requestId, string? signature) => signature == "assinado";
+    public Task<IReadOnlyList<string>> ChangedByNotificationAsync(string token, CancellationToken ct) =>
+        Notifications.TryGetValue(token, out var refs)
+            ? Task.FromResult<IReadOnlyList<string>>(refs)
+            : throw new PaymentProviderRejectedException("token desconhecido");
 
-    /// <summary>O que acontece no provedor sem a loja pedir (o cliente paga o PIX, a validade passa).</summary>
+    /// <summary>O que acontece no provedor sem a loja pedir (o cliente paga o PIX, a liquidação, a validade).</summary>
     public void Set(string reference, ProviderStatus status) => _byRef[reference] = _byRef[reference] with { Status = status };
 
-    private Task<ProviderPayment> Create(string key, Func<string, ProviderPayment> make)
+    private void ThrowIfDown()
     {
         if (Down)
         {
             throw new PaymentProviderUnavailableException("fora do ar");
         }
-        var payment = _byKey.GetOrAdd(key, _ => make(Interlocked.Increment(ref _seq).ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        _byRef.TryAdd(payment.Reference, payment);
-        return Task.FromResult(payment);
     }
 }
 
@@ -111,6 +161,8 @@ public sealed class PaymentsFixture : IAsyncLifetime
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Kafka:Enabled", "false")
             .UseSetting("Auth:Jwks", Identity.Jwks)
+            .UseSetting("Payments:Efi:PixWebhookSecret", "segredo")
+            .UseSetting("Payments:PixExpiry:Interval", "01:00:00") // os testes chamam a conferência na mão
             .ConfigureTestServices(s =>
             {
                 s.RemoveAll<IPaymentProvider>();
@@ -127,7 +179,7 @@ public sealed class PaymentsFixture : IAsyncLifetime
     }
 }
 
-/// <summary>A cobrança na SAGA (#220): PIX e cartão, captura quando o fornecedor aceita, e o dinheiro de volta.</summary>
+/// <summary>A cobrança na SAGA (#220, #379): PIX e cartão, a liquidação pela notificação, e o dinheiro de volta.</summary>
 public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFixture>
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -208,26 +260,70 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
 
         var payment = await PaymentOfAsync(order);
         Assert.Equal((PaymentStatus.Authorized, PaymentMethod.Card, 3, "5682"), (payment.Status, payment.Method, payment.Installments, payment.CardLastFour));
-        Assert.Equal(1980, payment.FeeCents); // 9,9% em 3x, arredondado para cima
+        Assert.Equal(798, payment.FeeCents); // 3,99% em 3x na Efí, arredondado para cima
         Assert.Null((await ChargeOfAsync(order)).CardToken); // o token de uso único não fica guardado
         var approved = await LastAsync<PaymentApprovedData>(order, PaymentEvents.PaymentApproved);
         Assert.False(approved.Captured);
     }
 
+    private async Task SettleAsync(Guid order)
+    {
+        var reference = (await PaymentOfAsync(order)).ProviderReference!;
+        fx.Provider.Set(reference, ProviderStatus.Approved); // a Efí liquidou (paid)
+        await NotifyAsync(reference);
+    }
+
     [Fact]
-    public async Task Card_IsCaptured_WhenTheSupplierAccepts()
+    public async Task Card_IsSettled_ByTheNotification()
     {
         var order = Guid.NewGuid();
         await PlacedAndReservedAsync(order, 5000, Card("APRO"));
 
-        await HandleAsync<SupplierOrderPlacedData, OnSupplierOrderPlaced>(new SupplierOrderPlacedData(order));
-        await HandleAsync<SupplierOrderPlacedData, OnSupplierOrderPlaced>(new SupplierOrderPlacedData(order)); // repetido
+        await SettleAsync(order);
+        await SettleAsync(order); // repetida
 
         var payment = await PaymentOfAsync(order);
         Assert.Equal(PaymentStatus.Approved, payment.Status);
         Assert.NotNull(payment.CapturedAt);
-        Assert.Single(fx.Provider.Captured, payment.ProviderReference);
-        Assert.Equal([PaymentEvents.PaymentApproved], await TypesOfAsync(order)); // a captura não confirma de novo
+        Assert.Equal([PaymentEvents.PaymentApproved], await TypesOfAsync(order)); // a liquidação não confirma de novo
+    }
+
+    [Fact]
+    public async Task CrashAfterPaying_ResumesWithoutChargingTwice()
+    {
+        var order = Guid.NewGuid();
+        await OrderPlacedAsync(order, 3000, Card("APRO"));
+        fx.Provider.FailAfterPayingOnce = true;
+        await Assert.ThrowsAsync<PaymentProviderUnavailableException>(() => StockReservedAsync(order));
+
+        // a referência ficou gravada antes de pagar, com o token: a mensagem volta e paga a mesma cobrança
+        var payment = await PaymentOfAsync(order);
+        Assert.Equal(PaymentStatus.Processing, payment.Status);
+        Assert.NotNull(payment.ProviderReference);
+        Assert.NotNull((await ChargeOfAsync(order)).CardToken);
+
+        await StockReservedAsync(order);
+
+        payment = await PaymentOfAsync(order);
+        Assert.Equal(PaymentStatus.Authorized, payment.Status);
+        Assert.Equal(1, fx.Provider.Charged[payment.ProviderReference!]);
+        Assert.Null((await ChargeOfAsync(order)).CardToken);
+        Assert.Equal([PaymentEvents.PaymentApproved], await TypesOfAsync(order));
+    }
+
+    [Fact]
+    public async Task Card_TakesPhoneAndAddressToTheProvider_WithoutKeepingThem()
+    {
+        var order = Guid.NewGuid();
+        var address = new OrderAddressData("37200000", "Rua A", "10", null, "Centro", "Lavras", "MG");
+        await OrderPlacedAsync(order, 4000, Card("APRO"), new OrderPayerData("Ana Souza", "52998224725", "35999990000", address));
+        await StockReservedAsync(order);
+
+        var payer = fx.Provider.Payers[order]!;
+        Assert.Equal(("35999990000", "Lavras"), (payer.Phone, payer.Address!.City));
+        var charge = await ChargeOfAsync(order);
+        Assert.Null(charge.PayerPhone);
+        Assert.Null(charge.PayerAddress);
     }
 
     public static TheoryData<string, FailureReason> Declines => new()
@@ -235,6 +331,7 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         { "FUND", FailureReason.InsufficientFunds },
         { "FRAU", FailureReason.FraudSuspected },
         { "USADO", FailureReason.CardDeclined }, // o provedor recusa o token (4xx)
+        { "SEMDADOS", FailureReason.CardDeclined }, // o pedido sem o telefone: a cobrança nem abre
     };
 
     [Theory]
@@ -293,7 +390,7 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         fx.Provider.Set(payment.ProviderReference!, ProviderStatus.Approved); // o cliente pagou no banco
         await NotifyAsync(payment.ProviderReference!);
         payment = await PaymentOfAsync(paid);
-        Assert.Equal((PaymentStatus.Approved, 120L), (payment.Status, payment.FeeCents)); // 0,99%
+        Assert.Equal((PaymentStatus.Approved, 144L), (payment.Status, payment.FeeCents)); // 1,19% na Efí
         Assert.True((await LastAsync<PaymentApprovedData>(paid, PaymentEvents.PaymentApproved)).Captured);
 
         var expired = Guid.NewGuid();
@@ -305,18 +402,63 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         Assert.Equal(NotificationResult.UnknownPayment, await NotifyAsync("nao-existe"));
     }
 
-    [Fact]
-    public async Task CancelledAfterPayment_VoidsTheCard_OrRefundsThePix()
+    private async Task<int> ExpirePixAsync()
     {
-        // cartão autorizado e o fornecedor recusou: a autorização é cancelada, nada é cobrado
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<PixExpiry>().ExpireDueAsync(100, Ct);
+    }
+
+    [Fact]
+    public async Task ExpiredPix_IsRemovedInTheProvider_UnlessPaidAtTheLastSecond()
+    {
+        // a Efí não avisa a validade que passa: o payments confere, remove a cobrança e publica pix_expired
+        var unpaid = Guid.NewGuid();
+        await PlacedAndReservedAsync(unpaid, FakeProvider.ExpiredPixCents, payment: null);
+        var lastSecond = Guid.NewGuid();
+        await PlacedAndReservedAsync(lastSecond, FakeProvider.ExpiredPixCents, payment: null);
+        fx.Provider.Set((await PaymentOfAsync(lastSecond)).ProviderReference!, ProviderStatus.Approved); // o webhook não chegou
+
+        await ExpirePixAsync();
+
+        var expired = await PaymentOfAsync(unpaid);
+        Assert.Equal((PaymentStatus.Failed, FailureReason.PixExpired), (expired.Status, expired.FailureReason));
+        Assert.Contains(expired.ProviderReference!, fx.Provider.Cancelled);
+        Assert.Equal(FailureReason.PixExpired, (await LastAsync<PaymentFailedData>(unpaid, PaymentEvents.PaymentFailed)).FailureReason);
+        Assert.Equal(PaymentStatus.Approved, (await PaymentOfAsync(lastSecond)).Status);
+
+        // dentro da validade, nada muda
+        var valid = Guid.NewGuid();
+        await PlacedAndReservedAsync(valid, 5000, payment: null);
+        await ExpirePixAsync();
+        Assert.Equal(PaymentStatus.Pending, (await PaymentOfAsync(valid)).Status);
+    }
+
+    [Fact]
+    public async Task CancelledAfterPayment_RefundsTheCardOnSettlement_OrThePixAtOnce()
+    {
+        // cartão aprovado e o fornecedor recusou: a Efí não estorna antes de liquidar, então a devolução espera
         var card = Guid.NewGuid();
         await PlacedAndReservedAsync(card, 7990, Card("APRO"));
         await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(card));
         await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(card)); // repetido
-        Assert.Equal(PaymentStatus.Voided, (await PaymentOfAsync(card)).Status);
-        var voided = await LastAsync<PaymentRefundedData>(card, PaymentEvents.PaymentRefunded);
-        Assert.Equal((RefundKind.Void, true, 7990L), (voided.Kind, voided.Full, voided.Amount.AmountCents));
+        var waiting = await PaymentOfAsync(card);
+        Assert.Equal((PaymentStatus.Authorized, "cancel"), (waiting.Status, waiting.PendingReversal));
+        Assert.DoesNotContain(await EventsOfAsync(card), e => e.EventType == PaymentEvents.PaymentRefunded);
+
+        await SettleAsync(card); // liquidou: o estorno sai agora
+        await SettleAsync(card); // repetida
+        var refundedCard = await PaymentOfAsync(card);
+        Assert.Equal((PaymentStatus.Refunded, 7990L, (string?)null), (refundedCard.Status, refundedCard.RefundedCents, refundedCard.PendingReversal));
+        var refund = await LastAsync<PaymentRefundedData>(card, PaymentEvents.PaymentRefunded);
+        Assert.Equal((RefundKind.Refund, true, 7990L, "cancel"), (refund.Kind, refund.Full, refund.Amount.AmountCents, refund.Reason));
         Assert.Single(await EventsOfAsync(card), e => e.EventType == PaymentEvents.PaymentRefunded);
+
+        // cartão ainda em análise: cancela no provedor, nada é cobrado
+        var review = Guid.NewGuid();
+        await PlacedAndReservedAsync(review, 2000, Card("CONT"));
+        await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(review));
+        Assert.Equal(PaymentStatus.Voided, (await PaymentOfAsync(review)).Status);
+        Assert.Empty(await EventsOfAsync(review));
 
         // PIX pago: estorno do valor todo
         var pix = Guid.NewGuid();
@@ -403,8 +545,10 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
     {
         var order = Guid.NewGuid();
         await PlacedAndReservedAsync(order, 10000, Card("APRO"));
-        await HandleAsync<SupplierOrderPlacedData, OnSupplierOrderPlaced>(new SupplierOrderPlacedData(order));
         var id = (await PaymentOfAsync(order)).Id;
+        using var notSettled = await RefundAsync(id, "antes", 1000);
+        Assert.Equal(HttpStatusCode.Conflict, notSettled.StatusCode); // aprovado e não liquidado: depois
+        await SettleAsync(order);
         var before = fx.Provider.RefundsMade;
 
         using var first = await RefundAsync(id, "devolucao-1", 3000);
@@ -423,30 +567,50 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
     }
 
     [Fact]
-    public async Task Webhook_ChecksTheSignature_AndAppliesThePayment()
+    public async Task PixWebhook_ChecksTheSecret_AndAppliesThePayment()
     {
         var order = Guid.NewGuid();
         await PlacedAndReservedAsync(order, 5000, payment: null);
         var reference = (await PaymentOfAsync(order)).ProviderReference!;
         fx.Provider.Set(reference, ProviderStatus.Approved);
         using var http = fx.Factory.CreateClient();
-        async Task<HttpResponseMessage> PostAsync(string signature)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"/v1/webhooks/payments?data.id={reference}&type=payment")
-            {
-                Content = JsonContent.Create(new { type = "payment", action = "payment.updated", data = new { id = reference } }),
-            };
-            request.Headers.Add("x-signature", signature);
-            request.Headers.Add("x-request-id", Guid.NewGuid().ToString());
-            return await http.SendAsync(request, Ct);
-        }
+        // a Efí acrescenta "/pix" à URL cadastrada, que termina em "ignorar="
+        Task<HttpResponseMessage> PostAsync(string secret, object body) =>
+            http.PostAsync(new Uri($"/v1/webhooks/efi/pix?hmac={secret}&ignorar=/pix", UriKind.Relative), JsonContent.Create(body), Ct);
+        var pix = new { pix = new[] { new { endToEndId = "E1234567890123456789012345678901", txid = reference, valor = "50.00" } } };
 
-        using var forged = await PostAsync("falso");
-        using var signed = await PostAsync("assinado");
+        using var forged = await PostAsync("falso", pix);
+        using var test = await PostAsync("segredo", new { evento = "teste" }); // o aviso de teste do cadastro
+        using var signed = await PostAsync("segredo", pix);
 
         Assert.Equal(HttpStatusCode.Unauthorized, forged.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, test.StatusCode);
         Assert.Equal(HttpStatusCode.OK, signed.StatusCode);
-        Assert.Equal("applied", JsonDocument.Parse(await signed.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("result").GetString());
+        var json = await signed.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("payments.v1.yaml", "/components/responses/NotificationAck/content/application~1json/schema", json);
+        Assert.Equal("applied", JsonDocument.Parse(json).RootElement.GetProperty("result").GetString());
+        Assert.Equal(PaymentStatus.Approved, (await PaymentOfAsync(order)).Status);
+    }
+
+    [Fact]
+    public async Task ChargeNotification_AsksTheProviderWhatChanged()
+    {
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 5000, Card("APRO"));
+        var reference = (await PaymentOfAsync(order)).ProviderReference!;
+        fx.Provider.Set(reference, ProviderStatus.Approved);
+        fx.Provider.Notifications["tok-1"] = [reference];
+        using var http = fx.Factory.CreateClient();
+        Task<HttpResponseMessage> PostAsync(string token) => http.PostAsync(new Uri("/v1/webhooks/efi/charges", UriKind.Relative),
+            new FormUrlEncodedContent(new Dictionary<string, string> { ["notification"] = token }), Ct);
+
+        using var known = await PostAsync("tok-1");
+        using var unknown = await PostAsync("tok-falso");
+        using var empty = await PostAsync("");
+
+        Assert.Equal("applied", JsonDocument.Parse(await known.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("result").GetString());
+        Assert.Equal("unknown_payment", JsonDocument.Parse(await unknown.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("result").GetString());
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, empty.StatusCode);
         Assert.Equal(PaymentStatus.Approved, (await PaymentOfAsync(order)).Status);
     }
 

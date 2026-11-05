@@ -28,20 +28,27 @@ public sealed class Charge
 
     public int Installments { get; private set; } = 1;
 
-    /// <summary>O token do cartão (de uso único), até a cobrança; depois é apagado.</summary>
+    /// <summary>
+    /// O token do cartão (de uso único), até o cartão ser pago no provedor; depois é apagado. Fica guardado entre os
+    /// dois passos da cobrança (abrir e pagar): se o payments cair no meio, a nova tentativa paga a mesma cobrança.
+    /// </summary>
     public string? CardToken { get; private set; }
 
     public string? CardBrand { get; private set; }
 
     /// <summary>
-    /// Nome e CPF de quem paga, que o provedor pede (o Mercado Pago, no PIX). Como o token do cartão, só até a
-    /// cobrança: depois ficam no provedor e no pedido, não aqui.
+    /// Quem paga, como o provedor pede (a Efí: nome e CPF no PIX; nome, CPF, telefone e o endereço de cobrança no
+    /// cartão). Como o token do cartão, só até a cobrança: depois ficam no provedor e no pedido, não aqui.
     /// </summary>
     public string? PayerName { get; private set; }
 
     public string? PayerCpf { get; private set; }
 
-    public Payer? Payer => PayerName is not null && PayerCpf is not null ? new Payer(PayerName, PayerCpf) : null;
+    public string? PayerPhone { get; private set; }
+
+    public BillingAddress? PayerAddress { get; private set; }
+
+    public Payer? Payer => PayerName is not null && PayerCpf is not null ? new Payer(PayerName, PayerCpf, PayerPhone, PayerAddress) : null;
 
     public bool StockReserved { get; private set; }
     public bool Cancelled { get; private set; }
@@ -77,6 +84,8 @@ public sealed class Charge
         CardBrand = payment.CardBrand;
         PayerName = payer?.Name;
         PayerCpf = payer?.Cpf;
+        PayerPhone = payer?.Phone;
+        PayerAddress = payer?.Address;
         CustomerId = customerId;
         AmountCents = amount.AmountCents;
         Currency = amount.Currency;
@@ -108,20 +117,38 @@ public sealed class Charge
             throw new DomainException($"pedido {OrderId} não está pronto para cobrança");
         }
         PaymentId = paymentId;
-        CardToken = null; // de uso único: não fica guardado
         UpdatedAt = now;
     }
 
-    /// <summary>Depois de chamar o provedor (ou de desistir de cobrar), o nome e o CPF não ficam aqui.</summary>
+    /// <summary>
+    /// O provedor já tem a cobrança (o PIX gerado, o cartão pago ou recusado): o token de uso único e os dados de
+    /// quem paga não ficam aqui.
+    /// </summary>
+    public void Charged(DateTimeOffset now)
+    {
+        CardToken = null;
+        ForgetPayer();
+        UpdatedAt = now;
+    }
+
+    /// <summary>Depois de chamar o provedor (ou de desistir de cobrar), os dados de quem paga não ficam aqui.</summary>
     public void ForgetPayer()
     {
         PayerName = null;
         PayerCpf = null;
+        PayerPhone = null;
+        PayerAddress = null;
     }
 }
 
-/// <summary>Quem paga, como o provedor pede: o nome e o CPF (só os dígitos).</summary>
-public sealed record Payer(string Name, string Cpf);
+/// <summary>
+/// Quem paga, como o provedor pede: o nome e o CPF (só os dígitos); no cartão, também o telefone (DDD e número) e
+/// o endereço de cobrança, que entra na análise antifraude.
+/// </summary>
+public sealed record Payer(string Name, string Cpf, string? Phone = null, BillingAddress? Address = null);
+
+/// <summary>O endereço de cobrança (o de entrega do pedido). CEP com os 8 dígitos; UF com 2 letras.</summary>
+public sealed record BillingAddress(string ZipCode, string Street, string Number, string? Complement, string District, string City, string State);
 
 /// <summary>Como pagar, como o cliente escolheu no checkout (o payment do OrderPlaced).</summary>
 public sealed record PaymentInstruction(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand)

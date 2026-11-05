@@ -24,9 +24,9 @@ internal sealed class PaymentRepository(PaymentsDbContext db) : IPaymentReposito
     public Task<Payment?> GetByReferenceForUpdateAsync(string provider, string reference, CancellationToken ct) =>
         db.Payments.SingleOrDefaultAsync(p => p.Provider == provider && p.ProviderReference == reference, ct);
 
-    public Task<Payment?> GetPaidForUpdateAsync(Guid orderId, CancellationToken ct) =>
-        db.Payments.Where(p => p.OrderId == orderId && (p.Status == PaymentStatus.Authorized || p.Status == PaymentStatus.Approved))
-            .OrderByDescending(p => p.CreatedAt).FirstOrDefaultAsync(ct);
+    public Task<List<Guid>> ListPendingPixDueAsync(DateTimeOffset before, int limit, CancellationToken ct) =>
+        db.Payments.AsNoTracking().Where(p => p.Status == PaymentStatus.Pending && p.Pix!.ExpiresAt < before)
+            .OrderBy(p => p.Pix!.ExpiresAt).Select(p => p.Id).Take(limit).ToListAsync(ct);
 
     public Task<List<Payment>> ListByOrderAsync(Guid orderId, CancellationToken ct) =>
         db.Payments.AsNoTracking().Where(p => p.OrderId == orderId).OrderBy(p => p.CreatedAt).ToListAsync(ct);
