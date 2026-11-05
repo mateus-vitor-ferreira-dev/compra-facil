@@ -33,7 +33,7 @@ test("a lista mostra o contato, filtra pela URL e abre o pedido ao lado em tela 
   await expect(page).toHaveURL(/q=caio/);
   await expect(list(page).getByRole("link")).toHaveCount(1);
   await page.getByRole("link", { name: "Limpar" }).click();
-  await expect(list(page).getByRole("link")).toHaveCount(3);
+  await expect(list(page).getByRole("link")).toHaveCount(4);
 
   await list(page)
     .getByRole("link", { name: /B1000001/ })
@@ -69,6 +69,21 @@ test("celular: o pedido ocupa a tela e volta à lista com o mesmo filtro", async
   await expect(page).toHaveURL(/\/admin\/pedidos\?situacao=shipped$/);
 });
 
+test("estorno que a Efí não realizou: o painel avisa e estorna de novo (#396)", async ({ page }) => {
+  await signIn(page, "/admin/pedidos/01a18d66-0000-7000-8000-0000b4000004");
+  const notice = page.getByRole("region", { name: "O estorno não foi realizado" });
+  await expect(notice).toContainText("Ponha saldo na conta e estorne de novo");
+  await notice.getByRole("button", { name: "Estornar de novo" }).click();
+  await expect(page).toHaveURL(/estorno=pedido/);
+  await expect(page.getByRole("status")).toHaveText(
+    "Estorno pedido. O pedido muda quando o provedor confirmar.",
+  );
+
+  // o pedido estornado não mostra o aviso
+  await page.goto("/admin/pedidos/01a18d66-0000-7000-8000-0000b2000002");
+  await expect(page.getByRole("region", { name: "O estorno não foi realizado" })).toHaveCount(0);
+});
+
 test("pedido que não existe dá 404, e o pedido sem nome nem destino ainda se explica", async ({ page }) => {
   await signIn(page, "/admin/pedidos/01a18d66-0000-7000-8000-0000b3000003");
   await expect(page.getByText("Sem nome no pedido")).toBeVisible();
@@ -81,7 +96,11 @@ for (const scheme of ["light", "dark"] as const) {
   }) => {
     await page.emulateMedia({ colorScheme: scheme });
     await signIn(page, "/admin/pedidos");
-    for (const path of ["/admin/pedidos", "/admin/pedidos/01a18d66-0000-7000-8000-0000b1000001"]) {
+    for (const path of [
+      "/admin/pedidos",
+      "/admin/pedidos/01a18d66-0000-7000-8000-0000b1000001",
+      "/admin/pedidos/01a18d66-0000-7000-8000-0000b4000004",
+    ]) {
       await page.goto(path);
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
