@@ -24,6 +24,34 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
     {
         ArgumentNullException.ThrowIfNull(payment);
         ArgumentNullException.ThrowIfNull(result);
+        var refundsFailed = ApplyFailedRefunds(payment, result);
+        return ApplyStatus(payment, result) || refundsFailed;
+    }
+
+    /// <summary>
+    /// Os estornos que o provedor aceitou e não realizou (#396): saem do estornado, e sai PaymentRefundFailed (o
+    /// orders volta o pedido a "estorno pendente"; o painel pode estornar de novo).
+    /// </summary>
+    private bool ApplyFailedRefunds(Payment payment, ProviderPayment result)
+    {
+        var changed = false;
+        foreach (var reference in result.FailedRefunds ?? [])
+        {
+            if (payment.RefundFailed(reference, clock.GetUtcNow()) is not { } failed)
+            {
+                continue; // não é deste pagamento, ou já foi marcado
+            }
+            outbox.Add(PaymentEvents.Topic, Key(payment), PaymentEvents.PaymentRefundFailed,
+                new PaymentRefundFailedData(payment.OrderId, payment.Id, new Money(failed.AmountCents, payment.Amount.Currency),
+                    payment.RefundedCents, payment.Provider, failed.Reference, failed.FailedAt!.Value));
+            PaymentsMetrics.RefundsFailed.Add(1);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private bool ApplyStatus(Payment payment, ProviderPayment result)
+    {
         var now = clock.GetUtcNow();
         var fee = fees.Value.FeeCents(payment.Method, payment.Installments, payment.Amount.AmountCents);
         switch (result.Status)

@@ -135,6 +135,10 @@ public sealed class FakeProvider : IPaymentProvider
             ? Task.FromResult<IReadOnlyList<string>>(refs)
             : throw new PaymentProviderRejectedException("token desconhecido");
 
+    /// <summary>O provedor aceitou o estorno e depois não o realizou (a devolução do PIX sem saldo, #396).</summary>
+    public void FailRefund(string reference, string refundReference) =>
+        _byRef[reference] = _byRef[reference] with { FailedRefunds = [refundReference] };
+
     /// <summary>O que acontece no provedor sem a loja pedir (o cliente paga o PIX, a liquidação, a validade).</summary>
     public void Set(string reference, ProviderStatus status) => _byRef[reference] = _byRef[reference] with { Status = status };
 
@@ -477,6 +481,36 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(early));
         await StockReservedAsync(early);
         Assert.Empty(await EventsOfAsync(early));
+    }
+
+    [Fact]
+    public async Task RefundNotRealized_GoesBackToBeRefundable_AndIsAnnouncedOnce()
+    {
+        // a Efí aceitou a devolução do PIX e depois não a realizou (sem saldo na conta, #396)
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 5000, payment: null);
+        var payment = await PaymentOfAsync(order);
+        fx.Provider.Set(payment.ProviderReference!, ProviderStatus.Approved);
+        await NotifyAsync(payment.ProviderReference!);
+        await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(order));
+        var refunded = await PaymentOfAsync(order);
+        Assert.Equal(PaymentStatus.Refunded, refunded.Status);
+
+        fx.Provider.FailRefund(payment.ProviderReference!, refunded.Refunds[0].Reference);
+        Assert.Equal(NotificationResult.Applied, await NotifyAsync(payment.ProviderReference!));
+        Assert.Equal(NotificationResult.Ignored, await NotifyAsync(payment.ProviderReference!)); // repetida
+
+        var back = await PaymentOfAsync(order);
+        Assert.Equal((PaymentStatus.Approved, 0L), (back.Status, back.RefundedCents));
+        Assert.NotNull(back.Refunds[0].FailedAt);
+        var failed = await LastAsync<PaymentRefundFailedData>(order, PaymentEvents.PaymentRefundFailed);
+        Assert.Equal((5000L, 0L, refunded.Refunds[0].Reference), (failed.Amount.AmountCents, failed.TotalRefundedCents, failed.RefundReference));
+        Assert.Single(await EventsOfAsync(order), e => e.EventType == PaymentEvents.PaymentRefundFailed);
+
+        // a equipe estorna de novo pelo painel, quando houver saldo
+        using var again = await RefundAsync(back.Id, "de-novo", null);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        Assert.Equal(PaymentStatus.Refunded, (await PaymentOfAsync(order)).Status);
     }
 
     [Fact]
