@@ -32,10 +32,11 @@ public sealed record OrderItemData(
 public sealed record OrderPaymentData(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
 
 /// <summary>
-/// Quem paga, para o provedor de pagamento: o Mercado Pago pede o CPF no PIX e usa o nome na análise do
-/// cartão. É quem recebe (o mesmo da nota fiscal); só o nome e o CPF, sem o telefone.
+/// Quem paga, para o provedor de pagamento: é quem recebe (o mesmo da nota fiscal). A Efí (#379) pede o nome, o
+/// CPF e o telefone no cartão, e o endereço de cobrança entra na análise antifraude (vai o de entrega); no PIX, só
+/// o nome e o CPF. O payments guarda isso só até cobrar.
 /// </summary>
-public sealed record OrderPayerData(string Name, string Cpf);
+public sealed record OrderPayerData(string Name, string Cpf, string? Phone = null, ShippingAddress? BillingAddress = null);
 
 /// <summary>data do OrderPlaced: início da SAGA (inventory reserva, payments guarda o valor e como cobrar).</summary>
 public sealed record OrderPlacedData(
@@ -47,7 +48,7 @@ public sealed record OrderPlacedData(
         ArgumentNullException.ThrowIfNull(order);
         return new(order.Id, order.CustomerId, order.CustomerEmail, [.. order.Items.Select(OrderItemData.From)], order.Total,
             new OrderPaymentData(order.PaymentMethod, order.Installments, cardToken, cardBrand),
-            order.Recipient is { } r ? new OrderPayerData(r.Name, r.Cpf) : null);
+            order.Recipient is { } r ? new OrderPayerData(r.Name, r.Cpf, r.Phone, order.ShippingAddress) : null);
     }
 }
 
