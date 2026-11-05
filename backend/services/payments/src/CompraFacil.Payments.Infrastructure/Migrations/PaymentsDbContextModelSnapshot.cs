@@ -397,6 +397,8 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
 
                             b1.Property<DateTimeOffset>("At");
 
+                            b1.Property<DateTimeOffset?>("FailedAt");
+
                             b1.Property<string>("Key")
                                 .IsRequired();
 

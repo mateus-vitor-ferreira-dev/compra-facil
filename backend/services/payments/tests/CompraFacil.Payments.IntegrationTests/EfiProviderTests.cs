@@ -138,6 +138,11 @@ public sealed class EfiProviderTests
         var refund = await provider.RefundAsync("cfabc0000000000000000000000000000", null, "pagamento:cancel", Ct);
 
         Assert.Equal(("D99", 12000L), (refund.Reference, refund.AmountCents));
+
+        // a devolução que a Efí não realizou aparece na consulta da cobrança
+        server.Routes["GET /v2/cob/cfabc0000000000000000000000000000"] = new([(HttpStatusCode.OK, Cob("CONCLUIDA", "1800")
+            .Replace("\"status\":\"DEVOLVIDO\"", "\"status\":\"NAO_REALIZADO\"", StringComparison.Ordinal))]);
+        Assert.Equal(["D1"], (await provider.GetAsync("cfabc0000000000000000000000000000", Ct)).FailedRefunds);
         Assert.Equal(32, id.Length);
         Assert.Contains("\"valor\":\"120.00\"", server.Calls.Single(c => c.Method == HttpMethod.Put).Body, StringComparison.Ordinal); // o pago menos o já devolvido
     }

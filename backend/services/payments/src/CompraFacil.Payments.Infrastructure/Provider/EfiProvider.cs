@@ -224,7 +224,10 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
             _ => throw new PaymentProviderUnavailableException($"status desconhecido da Efí no PIX: {cob.Status}"),
         };
         var pix = cob.PixCopiaECola is { Length: > 0 } code ? new PixCharge(code, QrPng(code), ticket, expires) : null;
-        return new ProviderPayment(cob.Txid, status, Pix: pix);
+        // a devolução aceita e não realizada (sem saldo na conta, #396): a referência é a mesma que o estorno guardou
+        var failed = (cob.Pix ?? []).SelectMany(p => p.Devolucoes ?? []).Where(d => d.Status == "NAO_REALIZADO")
+            .Select(d => d.RtrId ?? d.Id).ToList();
+        return new ProviderPayment(cob.Txid, status, Pix: pix, FailedRefunds: failed.Count > 0 ? failed : null);
     }
 
     /// <summary>O cartão: approved é aprovado pela operadora e não liquidado (Authorized); paid, liquidado.</summary>

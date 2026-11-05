@@ -51,6 +51,8 @@ channels:
         $ref: "#/components/messages/PaymentFailed"
       PaymentRefunded:
         $ref: "#/components/messages/PaymentRefunded"
+      PaymentRefundFailed:
+        $ref: "#/components/messages/PaymentRefundFailed"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -76,6 +78,7 @@ operations:
       - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
       - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
+      - $ref: "#/channels/paymentEvents/messages/PaymentRefundFailed"
 
   onOrderEvents:
     action: receive
@@ -296,6 +299,56 @@ components:
                     description: |
                       Por que o dinheiro voltou; nulo no estorno pelo painel. `return`: o cliente desistiu da compra
                       (#223), e o fulfillment emite a nota de devolução em vez de cancelar a de venda.
+
+    PaymentRefundFailed:
+      name: PaymentRefundFailed
+      title: Estorno não realizado
+      summary: |
+        O provedor aceitou o estorno e depois não o realizou (#396). Na Efí, a devolução do PIX termina
+        `NAO_REALIZADO`, por exemplo quando a conta não tem saldo: a tarifa já saiu do valor recebido. O
+        estorno sai das contas do pagamento (`total_refunded_cents` volta a ser o que de fato foi
+        devolvido), o painel pode estornar de novo, e o orders volta o pedido a "estorno pendente".
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PaymentRefundFailed
+              event_version:
+                const: 1
+              producer:
+                const: payments
+              data:
+                type: object
+                required: [order_id, payment_id, amount, total_refunded_cents, provider, refund_reference, failed_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  payment_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    description: O que não voltou ao cliente.
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  total_refunded_cents:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    description: O de fato estornado, sem o que falhou.
+                  provider:
+                    $ref: "#/components/schemas/Provider"
+                  refund_reference:
+                    type: string
+                    description: ID do estorno no provedor.
+                  failed_at:
+                    type: string
+                    format: date-time
 
   schemas:
     Provider:

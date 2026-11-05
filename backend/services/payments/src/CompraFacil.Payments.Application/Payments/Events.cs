@@ -10,6 +10,7 @@ public static class PaymentEvents
     public const string PaymentApproved = nameof(PaymentApproved);
     public const string PaymentFailed = nameof(PaymentFailed);
     public const string PaymentRefunded = nameof(PaymentRefunded);
+    public const string PaymentRefundFailed = nameof(PaymentRefundFailed);
 
     public const string OrdersTopic = "orders.order.v1";
     public const string ReservationsTopic = "inventory.reservation.v1";
@@ -68,6 +69,10 @@ public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, Money Amoun
 public sealed record PaymentRefundedData(
     Guid OrderId, Guid PaymentId, Money Amount, long TotalRefundedCents, string Provider, string? RefundReference,
     DateTimeOffset RefundedAt, RefundKind Kind, bool Full, string? Reason = null);
+
+/// <summary>O provedor aceitou o estorno e depois não o realizou (#396).</summary>
+public sealed record PaymentRefundFailedData(
+    Guid OrderId, Guid PaymentId, Money Amount, long TotalRefundedCents, string Provider, string RefundReference, DateTimeOffset FailedAt);
 
 public enum RefundKind
 {
