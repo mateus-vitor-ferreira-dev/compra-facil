@@ -33,7 +33,7 @@ public sealed record AdminOrderDetailResponse(
     IReadOnlyList<OrderItemData> Items, Money ItemsTotal, OrderShippingResponse? Shipping, Tracking? Tracking,
     string? PaymentFailureReason, int? InvoiceNumber, DateTimeOffset? StockReservedAt, DateTimeOffset? SentToSupplierAt,
     DateTimeOffset? ShippedAt, DateTimeOffset? DeliveredAt, DateTimeOffset? ReturnRequestedAt, DateTimeOffset? RefundedAt,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset? RefundFailedAt, DateTimeOffset UpdatedAt)
 {
     public static AdminOrderDetailResponse From(Order o)
     {
@@ -41,7 +41,7 @@ public sealed record AdminOrderDetailResponse(
         return new(s.Id, s.Status, s.CancellationReason, s.CreatedAt, s.Total, s.ItemsCount, s.Payment, s.Customer, s.Destination,
             [.. o.Items.Select(OrderItemData.From)], o.Items.Aggregate(Money.Zero(o.Total.Currency), (sum, i) => sum.Plus(i.LineTotal)),
             OrderShippingResponse.From(o.Shipping), o.Tracking, o.PaymentFailureReason, o.Invoice?.Number, o.StockReservedAt,
-            o.SentToSupplierAt, o.ShippedAt, o.DeliveredAt, o.ReturnRequestedAt, o.RefundedAt, o.UpdatedAt);
+            o.SentToSupplierAt, o.ShippedAt, o.DeliveredAt, o.ReturnRequestedAt, o.RefundedAt, o.RefundFailedAt, o.UpdatedAt);
     }
 }
 

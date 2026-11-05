@@ -247,6 +247,20 @@ public sealed class OnPaymentPending(OrderProgress progress) : IHandleEvent<Paym
     }
 }
 
+/// <summary>
+/// PaymentRefundFailed → o provedor não realizou o estorno (a devolução do PIX sem saldo, #396): o pedido volta a
+/// esperar o estorno, o cliente vê "em andamento" e o painel mostra a falha. Não publica: o próximo estorno, pelo
+/// painel, traz o PaymentRefunded de novo.
+/// </summary>
+public sealed class OnPaymentRefundFailed(OrderProgress progress) : IHandleEvent<PaymentRefundFailedData>
+{
+    public Task HandleAsync(PaymentRefundFailedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        return progress.ApplyAsync(data.OrderId, "PaymentRefundFailed", (order, now) => order.MarkRefundFailed(now), _ => null, ct);
+    }
+}
+
 /// <summary>PaymentRefunded → o estorno do pedido cancelado depois de pago voltou ao cliente.</summary>
 public sealed class OnPaymentRefunded(OrderProgress progress) : IHandleEvent<PaymentRefundedData>
 {

@@ -149,6 +149,9 @@ public sealed record PaymentFailedData(Guid OrderId, Guid PaymentId, string Fail
 
 public sealed record PaymentRefundedData(Guid OrderId, Guid PaymentId, bool? Full);
 
+/// <summary>O provedor aceitou o estorno e não o realizou (#396).</summary>
+public sealed record PaymentRefundFailedData(Guid OrderId, Guid PaymentId);
+
 public sealed record PixData(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
 
 public sealed record PaymentPendingData(Guid OrderId, Guid PaymentId, PixData Pix);
