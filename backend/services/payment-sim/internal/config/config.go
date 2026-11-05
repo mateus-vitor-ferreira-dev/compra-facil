@@ -27,6 +27,15 @@ type Config struct {
 	WebhookURL       string
 	WebhookSecret    string
 	WebhookRetryBase time.Duration
+
+	// a Efí (#379): as credenciais da aplicação, o identificador de conta (vai no navegador) e a chave PIX
+	EfiClientID     string
+	EfiClientSecret string
+	EfiPayeeCode    string
+	EfiPixKey       string
+	// EfiSettleDelay: quanto o cartão aprovado leva para ficar pago (só então pode ser estornado)
+	EfiSettleDelay time.Duration
+	EfiRefundDelay time.Duration
 }
 
 // Load lê o ambiente aplicando os padrões; valor inválido é erro, não padrão silencioso.
@@ -41,6 +50,11 @@ func load(getenv func(string) string) (Config, error) {
 		PublicURL:     strings.TrimRight(str(getenv, "SIM_PUBLIC_URL", "http://localhost:8092"), "/"),
 		WebhookURL:    strings.TrimSpace(getenv("SIM_WEBHOOK_URL")),
 		WebhookSecret: str(getenv, "SIM_WEBHOOK_SECRET", "sim-secret"),
+
+		EfiClientID:     str(getenv, "SIM_EFI_CLIENT_ID", "Client_Id_sim"),
+		EfiClientSecret: str(getenv, "SIM_EFI_CLIENT_SECRET", "Client_Secret_sim"),
+		EfiPayeeCode:    str(getenv, "SIM_EFI_PAYEE_CODE", "0123456789abcdef0123456789abcdef"),
+		EfiPixKey:       str(getenv, "SIM_EFI_PIX_KEY", "7d9f0335-8dcc-4054-9bf9-0dbd61d36906"),
 	}
 	var err error
 	if c.Port, err = intVal(getenv, "PORT", 8090); err != nil {
@@ -54,6 +68,8 @@ func load(getenv func(string) string) (Config, error) {
 		{&c.PIXExpiration, "SIM_PIX_EXPIRATION", 30 * time.Minute},
 		{&c.ReviewDelay, "SIM_REVIEW_DELAY", 5 * time.Second},
 		{&c.WebhookRetryBase, "SIM_WEBHOOK_RETRY_BASE", time.Second},
+		{&c.EfiSettleDelay, "SIM_EFI_SETTLE_DELAY", 5 * time.Second},
+		{&c.EfiRefundDelay, "SIM_EFI_REFUND_DELAY", time.Second},
 	} {
 		if *d.dst, err = duration(getenv, d.name, d.def); err != nil {
 			return c, err
