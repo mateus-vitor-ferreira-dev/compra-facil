@@ -24,7 +24,7 @@ permissions:
 jobs:
   test:
     name: formatação e testes
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 20
     # o dotnet acha o backend/global.json (SDK e o runner de testes, Microsoft.Testing.Platform)
     # procurando a partir do diretório atual: os comandos rodam de dentro do backend/
@@ -54,7 +54,7 @@ jobs:
     name: imagem no GHCR
     needs: test
     if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -98,7 +98,7 @@ jobs:
     name: imagem roda em ARM
     needs: image
     # runner ARM nativo: a imagem publicada roda como no VPS da produção, sem emulação
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}-arm
     timeout-minutes: 10
     permissions:
       contents: read

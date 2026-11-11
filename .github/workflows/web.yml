@@ -27,7 +27,7 @@ jobs:
   # o paths do pull_request não serve: sem o workflow rodar, o check obrigatório nunca chegaria e o PR ficaria travado
   mudou:
     name: o front mudou?
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -55,7 +55,7 @@ jobs:
     name: lint, tipos, testes, build, e2e e Lighthouse
     needs: mudou
     if: needs.mudou.outputs.web == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: "1"
@@ -79,7 +79,7 @@ jobs:
       - name: Testes de navegador (Playwright, com a API falsa)
         if: github.ref != 'refs/heads/main'
         run: |
-          npx playwright install --with-deps chromium
+          npx playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
           npm run e2e
       - uses: actions/upload-artifact@v7.0.2
         if: failure()
@@ -115,7 +115,7 @@ jobs:
     name: loja no Cloudflare Workers
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_ACCOUNT_ID != ''
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 45 # até 30 esperando a API
     permissions:
       contents: read
@@ -171,7 +171,7 @@ jobs:
     name: web ok
     needs: [mudou, check]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 5
     defaults:
       run:

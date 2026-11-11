@@ -27,7 +27,7 @@ permissions:
 jobs:
   proto:
     name: gRPC (buf lint, breaking, código gerado)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 10
     defaults:
       run:
@@ -70,7 +70,7 @@ jobs:
 
   openapi-asyncapi:
     name: REST e eventos (Spectral, AsyncAPI)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
