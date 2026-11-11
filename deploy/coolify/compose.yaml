@@ -37,7 +37,8 @@ services:
     command: ["--configFile=/etc/traefik/traefik.yml"]
     environment:
       # a loja (o domínio do front); separe por vírgula se houver mais de um
-      CORS_ALLOWED_ORIGINS: ${FRONT_URL:?a URL da loja}
+      # mais de um endereço da loja (o principal e os antigos): CORS_ALLOWED_ORIGINS com a lista separada por vírgula
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-${FRONT_URL:?a URL da loja}}
       # o mesmo valor no BFF do front (Cloudflare): o rate limit passa a ser por comprador (#176)
       BFF_GATEWAY_KEY: ${BFF_GATEWAY_KEY:?o segredo do BFF}
       # atrás do proxy do Coolify: o IP do cliente é o último do X-Forwarded-For
