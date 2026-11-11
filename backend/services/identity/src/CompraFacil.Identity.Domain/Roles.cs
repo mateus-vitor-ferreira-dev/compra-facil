@@ -14,6 +14,13 @@ public static class Roles
     /// <summary>Operador: rotas /v1/admin/* dos serviços e o painel administrativo.</summary>
     public const string Admin = "admin";
 
+    /// <summary>
+    /// Leitura da operação, sem poder de mudar nada (#403): o vigia do agentes-hub lê pedidos atrasados, falhas
+    /// e devoluções pelas rotas GET de /v1/admin; cancelar, reenviar e estornar continuam só com <see cref="Admin"/>.
+    /// </summary>
+    public const string Auditor = "auditor";
+
     public static readonly Guid CustomerId = Guid.Parse("0199f6a0-0000-7000-8000-00000000c057");
     public static readonly Guid AdminId = Guid.Parse("0199f6a0-0000-7000-8000-00000000ad31");
+    public static readonly Guid AuditorId = Guid.Parse("0199f6a0-0000-7000-8000-00000000a0d1");
 }

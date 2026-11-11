@@ -75,7 +75,7 @@ public sealed record SalesSummaryResponse(
 /// <summary>A operação dos pedidos (papel <c>admin</c>): a lista de todos, o detalhe e o resumo de vendas.</summary>
 [ApiController]
 [Produces("application/json")]
-[Authorize(Policy = JwtAuth.AdminPolicy)]
+[Authorize(Policy = JwtAuth.AdminReadPolicy)] // só leitura: lista, detalhe e resumo (#403)
 public sealed class AdminOrdersController(AdminOrders admin) : ControllerBase
 {
     /// <summary>listAdminOrders: do mais recente para o mais antigo, com filtro, busca e período.</summary>

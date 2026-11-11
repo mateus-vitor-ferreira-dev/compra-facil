@@ -252,6 +252,13 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                             ConcurrencyStamp = "admin",
                             Name = "admin",
                             NormalizedName = "ADMIN"
+                        },
+                        new
+                        {
+                            Id = new Guid("0199f6a0-0000-7000-8000-00000000a0d1"),
+                            ConcurrencyStamp = "auditor",
+                            Name = "auditor",
+                            NormalizedName = "AUDITOR"
                         });
                 });
 
