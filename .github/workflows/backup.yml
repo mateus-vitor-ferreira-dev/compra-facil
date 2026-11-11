@@ -19,7 +19,7 @@ permissions:
 jobs:
   lint:
     name: shellcheck
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7.0.1
@@ -30,7 +30,7 @@ jobs:
     name: imagem no GHCR
     needs: lint
     if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 15
     permissions:
       contents: read

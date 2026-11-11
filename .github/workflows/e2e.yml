@@ -31,7 +31,7 @@ permissions:
 jobs:
   e2e:
     name: compra ponta a ponta
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     env:
       # o gateway com a rota do BFF (#176), para o teste do rate limit por comprador
