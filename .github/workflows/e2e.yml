@@ -31,7 +31,7 @@ permissions:
 jobs:
   e2e:
     name: compra ponta a ponta
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     env:
       # o gateway com a rota do BFF (#176), para o teste do rate limit por comprador
@@ -42,6 +42,8 @@ jobs:
       # SDKs que o job não usa leva ~4 min, então roda em segundo plano, junto com o build. (O
       # "docker builder prune" travou no runner, por isso não é usado.)
       - name: Libera espaço em segundo plano
+        # só nas máquinas do GitHub: no runner próprio, apagaria o que a máquina usa
+        if: runner.environment == 'github-hosted'
         run: |
           sudo nohup rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL \
             > /dev/null 2>&1 &

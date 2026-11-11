@@ -30,7 +30,7 @@ permissions:
 jobs:
   image:
     name: ${{ matrix.name }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}-arm
     timeout-minutes: 15
     strategy:
       fail-fast: false
