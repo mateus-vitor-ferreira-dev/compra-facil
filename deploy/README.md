@@ -138,6 +138,7 @@ biblioteca da Efí e o identificador de conta (vai no Worker da loja).
 |---|---|
 | `IMAGE_TAG` | `main`. O CI troca pela tag fixa de cada deploy |
 | `FRONT_URL` | `https://<domínio>`, a loja, sem barra no fim (CORS e o link de confirmação de e-mail) |
+| `CORS_ALLOWED_ORIGINS` | opcional: todos os endereços da loja, separados por vírgula, quando há mais de um (ex.: `https://embrulhado.com.br,https://www.embrulhado.com.br,https://compra-facil.digitalcodexa.com,https://comprafacil.digitalcodexa.com`); vazio, vale só o `FRONT_URL` |
 | `BFF_GATEWAY_KEY` | o segredo do BFF |
 | `POSTGRES_PASSWORD` | a do superusuário |
 | `PG_CATALOG_PASSWORD`, `PG_ORDERS_PASSWORD`, `PG_INVENTORY_PASSWORD`, `PG_PAYMENTS_PASSWORD`, `PG_NOTIFICATIONS_PASSWORD`, `PG_IDENTITY_PASSWORD` | uma por serviço |
