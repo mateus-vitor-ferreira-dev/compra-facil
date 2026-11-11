@@ -200,6 +200,9 @@ services:
       # o operador inicial; conta que já existe mantém a senha trocada depois
       Identity__Admin__Email: ${ADMIN_EMAIL:?o e-mail do operador}
       Identity__Admin__Password: ${ADMIN_PASSWORD:?a senha inicial do operador}
+      # a conta só de leitura do vigia do agentes-hub (#403); vazia, não é criada
+      Identity__Auditor__Email: ${AUDITOR_EMAIL:-}
+      Identity__Auditor__Password: ${AUDITOR_PASSWORD:-}
       Identity__Google__ClientIds__0: ${GOOGLE_CLIENT_ID:-}
 
   orders:

@@ -29,6 +29,9 @@ public sealed class TestIdentity : IDisposable
 
     public string AdminToken() => Token(["admin"]);
 
+    /// <summary>O papel só de leitura da operação (#403).</summary>
+    public string AuditorToken() => Token(["auditor"]);
+
     public string CustomerToken(Guid? customerId = null, string email = "ana@exemplo.com") =>
         Token(["customer"], subject: (customerId ?? Guid.NewGuid()).ToString(), email: email);
 

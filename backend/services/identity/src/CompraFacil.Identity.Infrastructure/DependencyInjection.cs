@@ -73,6 +73,7 @@ public static class DependencyInjection
         builder.Services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 
         builder.Services.Configure<AdminSeedOptions>(builder.Configuration.GetSection(AdminSeedOptions.Section));
+        builder.Services.Configure<AuditorSeedOptions>(builder.Configuration.GetSection(AuditorSeedOptions.Section));
         builder.Services.AddScoped<AdminSeeder>();
         return builder;
     }

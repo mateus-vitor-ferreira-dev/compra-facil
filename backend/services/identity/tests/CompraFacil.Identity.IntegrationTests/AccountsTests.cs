@@ -108,4 +108,16 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         var roles = (await IdentityClient.JsonOf(me)).GetProperty("roles").EnumerateArray().Select(r => r.GetString());
         Assert.Equal(["admin"], roles);
     }
+
+    [Fact]
+    public async Task Auditor_FromConfiguration_HasOnlyTheReadOnlyRole()
+    {
+        using var login = await _api.LoginAsync(IdentityFixture.AuditorEmail, IdentityFixture.AuditorPassword);
+        var (access, _) = IdentityClient.Tokens(await IdentityClient.JsonOf(login));
+
+        using var me = await _api.MeAsync(access);
+
+        var roles = (await IdentityClient.JsonOf(me)).GetProperty("roles").EnumerateArray().Select(r => r.GetString());
+        Assert.Equal(["auditor"], roles);
+    }
 }
