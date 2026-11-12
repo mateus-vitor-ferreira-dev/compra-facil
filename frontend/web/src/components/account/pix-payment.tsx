@@ -156,8 +156,7 @@ export function PixPayment({ pix, amount, startedAt }: { pix: Pix; amount: strin
             <p>No app do banco, escolha PIX copia e cola e cole este código:</p>
             {/* contra o PIX falso (#343): o código só existe aqui, e os e-mails da loja não o levam */}
             <p className="text-ink-soft text-sm">
-              Só pague o código desta página. A CompraFácil nunca envia código PIX por WhatsApp, SMS ou
-              e-mail.
+              Só pague o código desta página. O Embrulhado nunca envia código PIX por WhatsApp, SMS ou e-mail.
             </p>
             <label htmlFor="pix-codigo" className="sr-only">
               Código PIX copia e cola

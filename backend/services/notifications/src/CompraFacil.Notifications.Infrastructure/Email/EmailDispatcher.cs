@@ -18,7 +18,7 @@ public sealed class SmtpOptions
     public string Host { get; set; } = "localhost";
     public int Port { get; set; } = 1025;
     public string FromAddress { get; set; } = "nao-responda@comprafacil.dev";
-    public string FromName { get; set; } = "CompraFácil";
+    public string FromName { get; set; } = "Embrulhado";
     public bool UseTls { get; set; }
     public string? User { get; set; }
     public string? Password { get; set; }

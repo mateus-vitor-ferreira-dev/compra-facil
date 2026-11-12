@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { NotFoundContent } from "@/components/store/not-found-content";
 import { StoreChrome } from "@/components/store/store-chrome";
 
-// o modelo do layout raiz acrescenta "| CompraFácil"
+// o modelo do layout raiz acrescenta "| Embrulhado"
 export const metadata: Metadata = { title: "Página não encontrada" };
 
 /**
