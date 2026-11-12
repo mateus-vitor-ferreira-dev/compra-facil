@@ -27,7 +27,7 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
         var txid = TxidOf(request.OrderId);
         var seconds = (int)Math.Max(60, Math.Ceiling((request.ExpiresAt - clock.GetUtcNow()).TotalSeconds));
         var body = new CobRequest(new CobCalendar(seconds), DebtorOf(request.Payer), new CobValue(Reais(request.Amount.AmountCents)),
-            options.Value.PixKey, $"CompraFácil, pedido {OrderNumber(request.OrderId)}");
+            options.Value.PixKey, $"Embrulhado, pedido {OrderNumber(request.OrderId)}");
         Cob cob;
         try
         {
@@ -52,7 +52,7 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
     {
         ArgumentNullException.ThrowIfNull(request);
         var body = new ChargeRequest(
-            [new ChargeItem($"CompraFácil, pedido {OrderNumber(request.OrderId)}", request.Amount.AmountCents, 1)],
+            [new ChargeItem($"Embrulhado, pedido {OrderNumber(request.OrderId)}", request.Amount.AmountCents, 1)],
             new ChargeMetadata(request.OrderId.ToString(), options.Value.ChargeNotificationUrl?.AbsoluteUri));
         try
         {

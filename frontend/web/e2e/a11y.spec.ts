@@ -9,7 +9,7 @@ const TV = "/produto/0199f6a0-0000-7000-8000-000000000000";
 
 async function audit(page: Page, name: string) {
   // na navegação pelo cliente, o título troca logo depois da URL
-  await expect(page).toHaveTitle(/CompraFácil/);
+  await expect(page).toHaveTitle(/Embrulhado/);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();

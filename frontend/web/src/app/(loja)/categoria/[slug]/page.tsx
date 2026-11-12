@@ -62,7 +62,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!found.ok || !found.category) return { title: "Categoria" };
   return {
     title: found.category.name,
-    description: `${found.category.name} na ${brand.name}, com os preços de campanha já na etiqueta.`,
+    description: `${found.category.name} no ${brand.name}, com os preços de campanha já na etiqueta.`,
     alternates: { canonical: `/categoria/${slug}` },
   };
 }
