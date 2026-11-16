@@ -8,7 +8,9 @@ const FRONT_ENV = {
   GOOGLE_CLIENT_SECRET: "segredo-de-teste",
   GOOGLE_AUTH_URL: `${STUB}/google/authorize`,
   GOOGLE_TOKEN_URL: `${STUB}/google/token`,
-  // o cartão é tokenizado pelo navegador direto no provedor: aqui, o stub
+  // o cartão é tokenizado pelo navegador direto no provedor: aqui, o stub. O provedor vai explícito porque o
+  // wrangler.jsonc da loja traz o de produção, e o Worker do teste herdaria a biblioteca da Efí
+  PAYMENT_PROVIDER: "simulator",
   PAYMENT_PROVIDER_URL: STUB,
   CEP_LOOKUP_URL: `${STUB}/cep`,
   // a rota de teste que liga a marca do deploy (#370)
