@@ -32,7 +32,7 @@ export async function StoreChrome({ children }: { children: ReactNode }) {
       <MaintenanceBanner maintenance={maintenance} />
       <SiteHeader categories={tree} cartCount={itemCount(cart)} signedIn={signedIn} />
       {children}
-      <SiteFooter categories={tree} />
+      <SiteFooter categories={tree} demo={env.DEMO_MODE} />
     </>
   );
 }

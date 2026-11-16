@@ -9,16 +9,20 @@ import { POLICIES } from "./policy-page";
 
 type Tree = ReturnType<typeof categoryTree>;
 
-/** O rodapé: as categorias, a conta e o aviso honesto de que esta é uma loja de demonstração. */
-export function SiteFooter({ categories }: { categories: Tree }) {
+/**
+ * O rodapé: as categorias, a conta e a descrição da loja. Na loja de demonstração (DEMO_MODE), o aviso honesto de
+ * que nada é cobrado nem entregue no lugar da descrição.
+ */
+export function SiteFooter({ categories, demo }: { categories: Tree; demo: boolean }) {
   return (
     <footer className="border-line mt-16 border-t">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 sm:px-6 md:grid-cols-[2fr_1fr_1fr_1fr]">
         <div className="max-w-sm space-y-3">
           <Logo />
           <p className="text-ink-soft">
-            Loja de demonstração: os produtos, os pedidos e os pagamentos são simulados. Nada é cobrado nem
-            entregue.
+            {demo
+              ? "Loja de demonstração: os produtos, os pedidos e os pagamentos são simulados. Nada é cobrado nem entregue."
+              : brand.description}
           </p>
           <CompanyData {...company} />
           <div className="pt-3">
