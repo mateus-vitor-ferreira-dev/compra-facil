@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { STUB } from "./ports";
 
 test("a home destaca a campanha vigente e lista o que está em promoção", async ({ page }) => {
   await page.goto("/");
@@ -211,9 +212,9 @@ test("com a API fora, a página do produto mostra a última cópia boa em vez do
   await page.goto(path);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fone de ouvido modelo 43");
 
-  expect(
-    (await request.post("http://localhost:4010/__teste/fora/0199f6a0-0000-7000-8000-000000000045")).status(),
-  ).toBe(204);
+  expect((await request.post(`${STUB}/__teste/fora/0199f6a0-0000-7000-8000-000000000045`)).status()).toBe(
+    204,
+  );
   await page.goto(path);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Fone de ouvido modelo 43");
   await expect(page.getByText("Os produtos não carregaram")).toHaveCount(0);

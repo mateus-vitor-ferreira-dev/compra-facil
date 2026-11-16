@@ -1,6 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-
-const STUB = "http://localhost:4010";
+import { FRONT, FRONT_PORT, STUB, STUB_PORT } from "./e2e/ports";
 
 // o servidor do front, contra a API falsa: o Google e o provedor de pagamento também são o stub
 const FRONT_ENV = {
@@ -14,6 +13,8 @@ const FRONT_ENV = {
   CEP_LOOKUP_URL: `${STUB}/cep`,
   // a rota de teste que liga a marca do deploy (#370)
   MAINTENANCE_TEST_HOOKS: "true",
+  // o endereço do próprio front: o retorno do login com o Google sai dele
+  SITE_URL: FRONT,
 };
 
 // E2E_WORKER=1: os mesmos testes contra o Worker da produção (o build do OpenNext no workerd, depois de
@@ -22,21 +23,22 @@ const FRONT_ENV = {
 // na própria origem, iria para a loja publicada, levando os cabeçalhos do teste
 const front = process.env.E2E_WORKER
   ? {
-      command: `npx wrangler dev --port 3000 --local-upstream localhost:3000 ${Object.entries({
-        ...FRONT_ENV,
-        SITE_URL: "http://localhost:3000",
-      })
+      command: `npx wrangler dev --port ${FRONT_PORT} --local-upstream localhost:${FRONT_PORT} ${Object.entries(
+        {
+          ...FRONT_ENV,
+        },
+      )
         .map(([k, v]) => `--var ${k}:${v}`)
         .join(" ")}`,
-      url: "http://localhost:3000/robots.txt",
+      url: `${FRONT}/robots.txt`,
       reuseExistingServer: !process.env.CI,
     }
   : {
       // o cache de dados do Next fica em disco: sem limpar, o preço de uma execução vaza para a próxima
       command:
         "node -e \"require('fs').rmSync('.next/cache/fetch-cache',{recursive:true,force:true})\" && npm run start",
-      url: "http://localhost:3000/robots.txt",
-      env: FRONT_ENV,
+      url: `${FRONT}/robots.txt`,
+      env: { ...FRONT_ENV, PORT: String(FRONT_PORT) },
       reuseExistingServer: !process.env.CI,
     };
 
@@ -51,10 +53,15 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
-  use: { baseURL: "http://localhost:3000", trace: "retain-on-failure" },
+  use: { baseURL: FRONT, trace: "retain-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
-    { command: "node e2e/stub-api.mjs", url: `${STUB}/__stats`, reuseExistingServer: !process.env.CI },
+    {
+      command: "node e2e/stub-api.mjs",
+      url: `${STUB}/__stats`,
+      env: { STUB_PORT: String(STUB_PORT) },
+      reuseExistingServer: !process.env.CI,
+    },
     front,
   ],
 });

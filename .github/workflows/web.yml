@@ -76,6 +76,18 @@ jobs:
       - name: Testes de unidade (Vitest + Testing Library)
         run: npm test
       - run: npm run build
+      # no runner próprio, a máquina é dividida com outros projetos e com o outro runner: portas fixas (3000 e 4010)
+      # já em uso derrubavam o e2e (#415). Duas portas livres, sorteadas pelo sistema, valem para o e2e e o Lighthouse
+      - name: Portas livres para o e2e e o Lighthouse
+        if: runner.environment != 'github-hosted'
+        run: |
+          read -r front stub < <(python3 -c 'import socket
+          a, b = socket.socket(), socket.socket()
+          a.bind(("127.0.0.1", 0)); b.bind(("127.0.0.1", 0))
+          print(a.getsockname()[1], b.getsockname()[1])')
+          echo "E2E_FRONT_PORT=$front" >> "$GITHUB_ENV"
+          echo "E2E_STUB_PORT=$stub" >> "$GITHUB_ENV"
+          echo "front em $front, API falsa em $stub"
       # o push na main não repete os testes de navegador nem o Lighthouse: o PR de release, obrigatório, já os rodou
       - name: Testes de navegador (Playwright, com a API falsa)
         if: github.ref != 'refs/heads/main'
