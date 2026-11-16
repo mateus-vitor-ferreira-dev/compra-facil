@@ -356,11 +356,14 @@ export function CheckoutForm({
               register={(field, el) => {
                 fields.current[field] = el;
               }}
+              testMode={provider.environment !== "production"}
             />
           )}
-          <p className="text-ink-soft max-w-prose text-sm">
-            Esta loja é uma demonstração: o pagamento é simulado e nenhum dinheiro sai da sua conta.
-          </p>
+          {demo && (
+            <p className="text-ink-soft max-w-prose text-sm">
+              Esta loja é uma demonstração: o pagamento é simulado e nenhum dinheiro sai da sua conta.
+            </p>
+          )}
         </section>
       </div>
 

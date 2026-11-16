@@ -148,10 +148,22 @@ nota). No Coolify:
 | `EFI_PIX_CERTIFICATE_BASE64` | o `.p12` em base64 (`base64 -w0 certificado.p12`), exigido em toda chamada da API Pix |
 | `EFI_PIX_KEY` | a chave PIX da conta que recebe |
 | `EFI_PIX_WEBHOOK_SECRET` | um segredo aleatório (`openssl rand -hex 24`): vai na URL do webhook do PIX e é conferido em cada aviso |
-| `Payments__Efi__ChargeNotificationUrl` | `https://<API>/payments/v1/webhooks/efi/charges` |
-| `Payments__Efi__PixWebhookUrl` | `https://<API>/payments/v1/webhooks/efi/pix` |
+| `EFI_CHARGE_NOTIFICATION_URL` | `https://<API>/payments/v1/webhooks/efi/charges` |
+| `EFI_PIX_WEBHOOK_URL` | `https://<API>/payments/v1/webhooks/efi/pix` |
 
-Para testar antes na homologação: `EFI_CHARGES_URL=https://cobrancas-h.api.efipay.com.br/`,
+O identificador de conta (32 caracteres) vai no Worker da loja, em `PAYMENT_PAYEE_CODE`, com
+`PAYMENT_PROVIDER=production`.
+
+**Homologação na máquina local**, antes de ligar a venda: as credenciais e o `.p12` de homologação num
+`~/.efi/homologacao.env` (fora do repositório, chmod 600, com os nomes da tabela acima, mais `EFI_P12` com o caminho
+do certificado e `PAYMENT_PAYEE_CODE`). O `task efi:homologacao` sobe o ambiente com a Efí no lugar do payment-sim
+(`infra/compose/compose.efi.yaml`) e um túnel do Cloudflare para os avisos dela chegarem, e mostra o comando do front
+com `PAYMENT_PROVIDER=sandbox`. Só a homologação: com a produção, o payments local cadastraria o webhook do PIX da
+conta de verdade apontando para esta máquina. O `scripts/efi-conferir.sh homologacao|producao` pede o token nas duas
+APIs e mostra só o status e os escopos, e o `scripts/efi-cofre.sh guardar|restaurar` leva o `~/.efi` para o
+Bitwarden (uma nota segura por ambiente, com o `.p12` em base64) e de volta, em outro computador.
+
+Para testar a homologação no servidor: `EFI_CHARGES_URL=https://cobrancas-h.api.efipay.com.br/`,
 `EFI_PIX_URL=https://pix-h.api.efipay.com.br/` e as credenciais e o certificado de homologação. Lá, o último
 dígito do cartão decide (1, 2 e 3 recusam) e o PIX de até R$ 10,00 é pago sozinho.
 

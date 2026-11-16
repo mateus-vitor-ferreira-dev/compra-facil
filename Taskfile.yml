@@ -25,6 +25,11 @@ tasks:
     cmds:
       - docker compose up -d --build --wait
 
+  efi:homologacao:
+    desc: Como o up, mas com a homologação da Efí no payments (no lugar do payment-sim) e um túnel para os avisos dela (~/.efi/homologacao.env)
+    cmds:
+      - scripts/efi-local.sh
+
   up:debug:
     desc: Como o up, mas publicando as portas dos serviços no host (8001-8007, gRPC 9001) para depuração
     cmds:
