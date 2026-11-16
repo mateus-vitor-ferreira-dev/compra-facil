@@ -21,8 +21,11 @@ export type Method = "pix" | "card";
 
 const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL" });
 
-/** O cartão de teste do provedor: o nome do titular decide o resultado (APRO aprova; FUND, sem saldo). */
-const TEST_CARD: CardInput = { number: "4509 9535 6623 3704", name: "APRO", expiry: "11/30", cvv: "123" };
+/**
+ * O cartão de teste, fora da produção: na homologação da Efí (e no simulador, que a imita), o último dígito do
+ * número decide (1, 2 e 3 recusam). O nome tem duas palavras, como a biblioteca da Efí exige.
+ */
+const TEST_CARD: CardInput = { number: "4509 9535 6623 3704", name: "Cliente Teste", expiry: "11/30", cvv: "123" };
 
 /**
  * Como pagar. Cada opção diz o que acontece depois, que é o que muda para o cliente: o PIX é pago na
@@ -88,6 +91,8 @@ type CardFieldsProps = {
   onChange: (field: CardField, value: string) => void;
   onFill: (card: CardInput) => void;
   register: (field: CardField, el: HTMLInputElement | null) => void;
+  /** fora da produção (simulador e homologação): mostra o cartão de teste */
+  testMode: boolean;
 };
 
 /**
@@ -103,6 +108,7 @@ export function CardFields({
   onChange,
   onFill,
   register,
+  testMode,
 }: CardFieldsProps) {
   const brand = brandOf(digitsOf(card.number));
   const caret = useRef<{ el: HTMLInputElement; at: number } | null>(null);
@@ -211,17 +217,19 @@ export function CardFields({
           ))}
         </select>
       </div>
-      <div className="text-ink-soft flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <p>No cartão de teste, o nome APRO aprova e FUND recusa por falta de saldo.</p>
-        <button
-          type="button"
-          onClick={() => onFill(TEST_CARD)}
-          disabled={disabled}
-          className="text-ink inline-flex min-h-11 cursor-pointer items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
-        >
-          Usar o cartão de teste
-        </button>
-      </div>
+      {testMode && (
+        <div className="text-ink-soft flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <p>No cartão de teste, o final do número decide: 1, 2 ou 3 recusa, e os outros aprovam.</p>
+          <button
+            type="button"
+            onClick={() => onFill(TEST_CARD)}
+            disabled={disabled}
+            className="text-ink inline-flex min-h-11 cursor-pointer items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
+          >
+            Usar o cartão de teste
+          </button>
+        </div>
+      )}
     </div>
   );
 }
