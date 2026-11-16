@@ -633,6 +633,102 @@ paths:
             application/problem+json:
               schema:
                 $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+  /v1/admin/supplier-catalog/sheet:
+    get:
+      tags: [admin]
+      operationId: getSupplierSheet
+      summary: A planilha do fornecedor manual
+      description: Se o modo manual (`Supplier:Mode=manual`, #412) está ligado, quantos produtos a última planilha tem e quando foi subida. Também para o papel `auditor`.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: O resumo da planilha.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualSheetSummary"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+    post:
+      tags: [admin]
+      operationId: importSupplierSheet
+      summary: Sobe a planilha do fornecedor manual
+      description: |
+        O CSV do fornecedor (separado por `;` ou `,`, UTF-8 ou Latin-1), no corpo (`text/csv`) ou como o arquivo
+        `file` de um formulário. Colunas: `sku`, `nome`, `categoria` (o slug da categoria da loja), `custo` (em
+        reais, "12,90"), `estoque`, e as opcionais `peso_g` e `foto` (https). Tudo é conferido antes: uma linha
+        com erro e nada muda (422, com os erros por linha). Sem erro, a planilha substitui a anterior e passa pela
+        mesma sincronização do feed: o que é novo, mudou ou saiu chega à loja pelos eventos de sempre. Até 5 MB e
+        5000 produtos. Só com o papel `admin`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: A planilha entrou, e o que a sincronização fez na loja.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManualImportResult"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "409":
+          description: O fornecedor não está no modo manual, ou outra sincronização está rodando.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "413":
+          description: O arquivo passa do limite.
+        "422":
+          description: Linhas com erro; nada mudou.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/SheetProblem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-catalog/sheet/template:
+    get:
+      tags: [admin]
+      operationId: getSupplierSheetTemplate
+      summary: O modelo da planilha
+      description: O CSV com o cabeçalho e uma linha de exemplo, para a equipe preencher.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: O modelo.
+          content:
+            text/csv:
+              schema:
+                type: string
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
   /v1/admin/dead-letters:
     get:
       tags: [admin]
@@ -782,6 +878,56 @@ components:
           type: integer
           minimum: 0
 
+    ManualSheetSummary:
+      type: object
+      required: [enabled, products]
+      properties:
+        enabled:
+          type: boolean
+          description: Se o fornecedor está no modo manual.
+        products:
+          type: integer
+          minimum: 0
+          description: Produtos na última planilha.
+        imported_at:
+          type: [string, "null"]
+          format: date-time
+          description: Quando a última planilha foi subida.
+
+    SheetError:
+      type: object
+      required: [line, message]
+      properties:
+        line:
+          type: integer
+          minimum: 1
+          description: A linha da planilha (o cabeçalho é a 1).
+        message:
+          type: string
+
+    ManualImportResult:
+      type: object
+      required: [products, sync]
+      properties:
+        products:
+          type: integer
+          minimum: 1
+          description: Produtos na planilha que entrou.
+        sync:
+          $ref: "#/components/schemas/CatalogSyncResult"
+
+    SheetProblem:
+      description: A planilha teve erro (HTTP 422), com um item por linha; nada mudou.
+      allOf:
+        - $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        - type: object
+          required: [sheet_errors]
+          properties:
+            sheet_errors:
+              type: array
+              items:
+                $ref: "#/components/schemas/SheetError"
+
     OverdueSupplierOrder:
       type: object
       required: [order_id, status, stage, due_at, supplier, customer_email, attempts, created_at]
@@ -794,8 +940,9 @@ components:
           type: string
           description: |
             `pending`: na fila para o fornecedor (ou esperando nova tentativa) · `placing`: sendo enviado ·
+            `awaiting_staff`: fornecedor manual, na fila "Pedidos a fazer" da equipe (#412) ·
             `placed`: aceito e não despachado · `shipped`: despachado e não entregue.
-          enum: [pending, placing, placed, shipped]
+          enum: [pending, placing, awaiting_staff, placed, shipped]
         stage:
           type: string
           description: "`shipping`: o fornecedor não despachou no prazo · `delivery`: o envio não chegou no prazo."

@@ -51,7 +51,8 @@ public sealed class SupplierOrderActions(ISupplierOrderRepository orders, ISuppl
             {
                 case SupplierOrderStatus.Failed:
                     return SupplierOrderActionResult.Done; // repetido, ou o webhook do cancelamento chegou antes
-                case SupplierOrderStatus.Pending or SupplierOrderStatus.Placed:
+                // na fila da equipe (fornecedor manual), ainda não há pedido no fornecedor: só falha e estorna
+                case SupplierOrderStatus.Pending or SupplierOrderStatus.AwaitingStaff or SupplierOrderStatus.Placed:
                     break;
                 default:
                     return SupplierOrderActionResult.NotAllowed;

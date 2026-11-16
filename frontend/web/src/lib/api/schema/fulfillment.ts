@@ -326,6 +326,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-catalog/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A planilha do fornecedor manual
+         * @description Se o modo manual (`Supplier:Mode=manual`,
+         */
+        get: operations["getSupplierSheet"];
+        put?: never;
+        /**
+         * Sobe a planilha do fornecedor manual
+         * @description O CSV do fornecedor (separado por `;` ou `,`, UTF-8 ou Latin-1), no corpo (`text/csv`) ou como o arquivo
+         *     `file` de um formulário. Colunas: `sku`, `nome`, `categoria` (o slug da categoria da loja), `custo` (em
+         *     reais, "12,90"), `estoque`, e as opcionais `peso_g` e `foto` (https). Tudo é conferido antes: uma linha
+         *     com erro e nada muda (422, com os erros por linha). Sem erro, a planilha substitui a anterior e passa pela
+         *     mesma sincronização do feed: o que é novo, mudou ou saiu chega à loja pelos eventos de sempre. Até 5 MB e
+         *     5000 produtos. Só com o papel `admin`.
+         */
+        post: operations["importSupplierSheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-catalog/sheet/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * O modelo da planilha
+         * @description O CSV com o cabeçalho e uma linha de exemplo, para a equipe preencher.
+         */
+        get: operations["getSupplierSheetTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/dead-letters": {
         parameters: {
             query?: never;
@@ -423,6 +472,31 @@ export interface components {
             removed: number;
             unchanged: number;
         };
+        ManualSheetSummary: {
+            /** @description Se o fornecedor está no modo manual. */
+            enabled: boolean;
+            /** @description Produtos na última planilha. */
+            products: number;
+            /**
+             * Format: date-time
+             * @description Quando a última planilha foi subida.
+             */
+            imported_at?: string | null;
+        };
+        SheetError: {
+            /** @description A linha da planilha (o cabeçalho é a 1). */
+            line: number;
+            message: string;
+        };
+        ManualImportResult: {
+            /** @description Produtos na planilha que entrou. */
+            products: number;
+            sync: components["schemas"]["CatalogSyncResult"];
+        };
+        /** @description A planilha teve erro (HTTP 422), com um item por linha; nada mudou. */
+        SheetProblem: components["schemas"]["Problem"] & {
+            sheet_errors: components["schemas"]["SheetError"][];
+        };
         OverdueSupplierOrder: {
             /**
              * Format: uuid
@@ -431,10 +505,11 @@ export interface components {
             order_id: string;
             /**
              * @description `pending`: na fila para o fornecedor (ou esperando nova tentativa) · `placing`: sendo enviado ·
+             *     `awaiting_staff`: fornecedor manual, na fila "Pedidos a fazer" da equipe (#412) ·
              *     `placed`: aceito e não despachado · `shipped`: despachado e não entregue.
              * @enum {string}
              */
-            status: "pending" | "placing" | "placed" | "shipped";
+            status: "pending" | "placing" | "awaiting_staff" | "placed" | "shipped";
             /**
              * @description `shipping`: o fornecedor não despachou no prazo · `delivery`: o envio não chegou no prazo.
              * @enum {string}
@@ -1311,6 +1386,108 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    getSupplierSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O resumo da planilha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualSheetSummary"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    importSupplierSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": string;
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description A planilha entrou, e o que a sincronização fez na loja. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualImportResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description O fornecedor não está no modo manual, ou outra sincronização está rodando. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description O arquivo passa do limite. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Linhas com erro; nada mudou. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SheetProblem"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getSupplierSheetTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O modelo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     listDeadLetters: {

@@ -160,7 +160,7 @@ internal sealed class CjSupplierGateway(HttpClient http, CjTokenCache tokens, IO
         return !string.IsNullOrWhiteSpace(o.LogisticName) && o.LogisticPrice is > 0
             && int.TryParse(days[0], NumberStyles.None, CultureInfo.InvariantCulture, out var min)
             && int.TryParse(days.Length > 1 ? days[1] : days[0], NumberStyles.None, CultureInfo.InvariantCulture, out var max)
-            ? new SupplierFreightOption(o.LogisticName, (long)Math.Round(o.LogisticPrice.Value * 100, MidpointRounding.AwayFromZero), min, Math.Max(min, max))
+            ? new SupplierFreightOption(o.LogisticName, (long)Math.Round(o.LogisticPrice.Value * 100, MidpointRounding.AwayFromZero), "USD", min, Math.Max(min, max))
             : null;
     }
 

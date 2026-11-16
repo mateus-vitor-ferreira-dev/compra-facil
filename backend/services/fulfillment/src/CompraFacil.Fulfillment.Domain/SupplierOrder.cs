@@ -8,6 +8,12 @@ public enum SupplierOrderStatus
     /// <summary>Reservado por um despachante, que está chamando o fornecedor (ou caiu no meio).</summary>
     Placing,
 
+    /// <summary>
+    /// Fornecedor manual (#412): pago e na fila "Pedidos a fazer", esperando a equipe fazer o pedido no
+    /// fornecedor. O despachante não pega mais: quem anda com ele é o painel.
+    /// </summary>
+    AwaitingStaff,
+
     /// <summary>O fornecedor aceitou o pedido.</summary>
     Placed,
 
@@ -91,6 +97,8 @@ public sealed class SupplierOrder
     public DateTimeOffset? NextAttemptAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ClaimedAt { get; private set; }
+    /// <summary>Quando entrou na fila "Pedidos a fazer" (fornecedor manual, #412).</summary>
+    public DateTimeOffset? AwaitingStaffSince { get; private set; }
     public DateTimeOffset? PlacedAt { get; private set; }
     public DateTimeOffset? ShippedAt { get; private set; }
     public DateTimeOffset? DeliveredAt { get; private set; }
@@ -151,7 +159,7 @@ public sealed class SupplierOrder
     public SupplierOrderChange MarkPlaced(string supplierOrderId, DateTimeOffset now)
     {
         SupplierOrderId ??= supplierOrderId;
-        if (Status is not (SupplierOrderStatus.Pending or SupplierOrderStatus.Placing))
+        if (Status is not (SupplierOrderStatus.Pending or SupplierOrderStatus.Placing or SupplierOrderStatus.AwaitingStaff))
         {
             return SupplierOrderChange.None;
         }
@@ -159,6 +167,22 @@ public sealed class SupplierOrder
         PlacedAt = now;
         LastError = null;
         return SupplierOrderChange.Placed;
+    }
+
+    /// <summary>
+    /// Fornecedor manual: o despachante deixou o pedido (com a nota, se houver) na fila da equipe. Sem evento: para o
+    /// cliente, o pedido continua pago até a equipe fazê-lo no fornecedor.
+    /// </summary>
+    public bool MarkAwaitingStaff(DateTimeOffset now)
+    {
+        if (Status is not (SupplierOrderStatus.Pending or SupplierOrderStatus.Placing))
+        {
+            return false;
+        }
+        Status = SupplierOrderStatus.AwaitingStaff;
+        AwaitingStaffSince = now;
+        LastError = null;
+        return true;
     }
 
     /// <summary>Recusa de negócio (sem estoque, pedido recusado, cancelado pelo fornecedor): não tenta de novo.</summary>

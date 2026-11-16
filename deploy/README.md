@@ -109,6 +109,24 @@ escopos `nfe cep`), o emitente (`Invoice__Issuer__*`) e os códigos fiscais que 
 | `Invoice__ProductOrigin` | `0` | Origem da mercadoria; `2` para importado comprado no Brasil |
 | `Invoice__Environment` | `homologacao` | Na homologação, o destinatário sai com o nome que a SEFAZ exige; `producao` para valer |
 
+### Fornecedor manual (#412)
+
+Enquanto não houver fornecedor com API, o fulfillment roda com `Supplier__Mode=manual`: a equipe sobe a planilha do
+fornecedor no painel e faz cada pedido no site dele. Nada muda para o cliente: o checkout, o frete, o pagamento e o
+estorno são os mesmos.
+
+- **Planilha** (`POST /fulfillment/v1/admin/supplier-catalog/sheet`, e o modelo em `.../sheet/template`): CSV com
+  `sku;nome;categoria;custo;estoque`, e as opcionais `peso_g` e `foto` (https). A `categoria` é o slug da categoria da
+  loja, e o `custo` é em reais ("12,90"). Uma linha com erro e nada muda; sem erro, a planilha nova substitui a anterior,
+  e o que entrou, mudou ou saiu chega à loja pela sincronização de sempre. O preço sai das margens de `/admin/fornecedor`.
+- **Estoque:** o da planilha, menos `Supplier__Manual__SafetyStock` (padrão 1), porque ela envelhece entre uma subida e outra.
+- **Frete:** a tabela da loja em reais, até haver a do fornecedor escolhido: `Supplier__Manual__Freight__0__Service`
+  (`manual-economico` ou `manual-expresso`), `__BaseCents` (até 1 kg), `__PerExtraKgCents` (cada quilo começado depois),
+  `__MinDays` e `__MaxDays`; o acréscimo por região do CEP (`Supplier__Manual__RegionPercent__<1º dígito>`) e os dias a
+  mais (`RegionExtraDays`); `Supplier__Manual__HandlingDays` (padrão 2) é o prazo do fornecedor para despachar.
+- **Pedido pago:** fica `awaiting_staff`, na fila "Pedidos a fazer". O cancelamento pelo painel antes de a equipe fazer o
+  pedido no fornecedor estorna o cliente, como hoje.
+
 ### Receber pela Efí (#379)
 
 O payments cobra pela Efí: o cartão na API Cobranças, o PIX na API Pix. No painel da Efí (**API → Aplicações**),

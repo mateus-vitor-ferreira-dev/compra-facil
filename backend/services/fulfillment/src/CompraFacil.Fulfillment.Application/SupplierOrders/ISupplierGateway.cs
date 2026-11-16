@@ -17,6 +17,9 @@ public abstract record SupplierPlacement
 
     /// <summary>Recusa de negócio; Reason é out_of_stock ou rejected (SupplierFailureReasons).</summary>
     public sealed record Rejected(string Reason, string Detail) : SupplierPlacement;
+
+    /// <summary>Fornecedor manual (#412): não há API; o pedido vai para a fila da equipe, que o faz no fornecedor.</summary>
+    public sealed record AwaitingStaff : SupplierPlacement;
 }
 
 /// <summary>Resposta da abertura da devolução: aberta (com a disputa, o código e o endereço) ou recusada.</summary>
@@ -58,7 +61,7 @@ public interface ISupplierGateway
     Task<IReadOnlyList<SupplierFeedItem>> ListProductsAsync(CancellationToken ct);
 
     /// <summary>
-    /// As opções de envio do fornecedor ao CEP, com o preço em centavos de dólar e o prazo em dias úteis.
+    /// As opções de envio do fornecedor ao CEP, com o preço em centavos na moeda dele e o prazo em dias úteis.
     /// Falha sai como <see cref="SupplierUnavailableException"/>.
     /// </summary>
     Task<IReadOnlyList<SupplierFreightOption>> QuoteFreightAsync(string zipCode, IReadOnlyList<SupplierOrderItem> items, CancellationToken ct);
@@ -67,8 +70,11 @@ public interface ISupplierGateway
     Task<IReadOnlyDictionary<string, int>> GetStockAsync(IReadOnlyCollection<string> vids, CancellationToken ct);
 }
 
-/// <summary>Uma opção de envio do fornecedor: o serviço dele, o preço em centavos de dólar e o prazo em dias úteis.</summary>
-public sealed record SupplierFreightOption(string Service, long PriceUsdCents, int MinDays, int MaxDays);
+/// <summary>
+/// Uma opção de envio do fornecedor: o serviço dele, o preço em centavos na moeda dele (USD no CJ, BRL no fornecedor
+/// manual) e o prazo em dias úteis.
+/// </summary>
+public sealed record SupplierFreightOption(string Service, long PriceCents, string Currency, int MinDays, int MaxDays);
 
 public sealed class SupplierUnavailableException(string message, Exception? inner = null) : Exception(message, inner);
 

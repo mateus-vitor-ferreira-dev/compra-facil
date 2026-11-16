@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<PendingSupplierReturns>();
         services.AddScoped<SupplierReturnActions>();
         services.AddScoped<CatalogSync>();
+        services.AddScoped<ManualSupplier.ManualCatalogImport>();
         services.AddScoped<SupplierStock>();
         services.AddScoped<Shipping.ShippingQuotes>();
         return services;
