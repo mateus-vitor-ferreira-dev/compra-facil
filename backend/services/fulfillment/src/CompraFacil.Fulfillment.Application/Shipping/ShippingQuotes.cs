@@ -31,6 +31,10 @@ public sealed class ShippingSettings
     /// <summary>Reais por dólar, o mesmo câmbio do catálogo (CATALOG_SUPPLIER_USD_BRL).</summary>
     public decimal UsdToBrl { get; set; } = 5.40m;
 
+    /// <summary>Reais por unidade da moeda: o dólar pelo <see cref="UsdToBrl"/>; o real, 1.</summary>
+    public decimal RateToBrl(string currency) =>
+        string.Equals(currency, "USD", StringComparison.OrdinalIgnoreCase) ? UsdToBrl : 1m;
+
     /// <summary>Dias úteis da loja antes de o pedido sair (a nota e o pedido ao fornecedor).</summary>
     public int ProcessingDays { get; set; } = 1;
 
@@ -39,6 +43,9 @@ public sealed class ShippingSettings
     {
         ["CJPacket Ordinary"] = new() { Id = "economico", Name = "Econômico" },
         ["CJ Express"] = new() { Id = "expresso", Name = "Expresso" },
+        // o fornecedor manual (#412): a tabela da loja (Supplier:Manual:Freight)
+        ["manual-economico"] = new() { Id = "economico", Name = "Econômico" },
+        ["manual-expresso"] = new() { Id = "expresso", Name = "Expresso" },
     };
 
     /// <summary>Liga o frete grátis pela margem (#323).</summary>
@@ -124,7 +131,7 @@ public sealed class ShippingQuotes(ISupplierGateway supplier, ISupplierProductRe
             .Select(q =>
             {
                 var service = settings.Services[q.Service];
-                var cents = (long)Math.Ceiling(q.PriceUsdCents * settings.UsdToBrl);
+                var cents = (long)Math.Ceiling(q.PriceCents * settings.RateToBrl(q.Currency));
                 return new ShippingOption(service.Id, service.Name, cents, q.MinDays + settings.ProcessingDays, q.MaxDays + settings.ProcessingDays, cents);
             })];
     }
@@ -143,7 +150,7 @@ public sealed class ShippingQuotes(ISupplierGateway supplier, ISupplierProductRe
             {
                 return null;
             }
-            var rate = string.Equals(product.Currency, "USD", StringComparison.OrdinalIgnoreCase) ? settings.UsdToBrl : 1m;
+            var rate = settings.RateToBrl(product.Currency);
             revenue += price.UnitPriceCents * item.Quantity;
             cost += (long)Math.Ceiling(product.CostCents * rate) * item.Quantity;
         }

@@ -157,7 +157,19 @@ func TestSupplierFeed_EndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, left, "o reprocessado não volta a aparecer como pendente")
 
-	// 6. mensagem envenenada: direto para a DLT, sem travar a partição
+	// 6. fornecedor manual (#412): a planilha já traz o slug da categoria da loja e o custo em reais, sem mapeamento
+	manual := map[string]any{"supplier": "manual", "vid": "FON-BT-01", "sku": "FON-BT-01", "name": "Fone Bluetooth",
+		"category": "fones-over-ear", "cost": map[string]any{"amount_cents": 5000, "currency": "BRL"},
+		"image_url": nil, "weight_grams": 250, "updated_at": t0}
+	publish(uuid.New(), supplierfeed.ProductUpdated, "FON-BT-01", manual)
+	fone := eventually(t, func() (domain.Product, bool) {
+		p, err := products.FindBySupplier(ctx, "manual", "FON-BT-01", time.Now())
+		return p, err == nil
+	})
+	assert.Equal(t, fones.ID, fone.CategoryID)
+	assert.Equal(t, int64(9090), fone.PriceCents) // R$ 50,00 + 80% = R$ 90,00 → R$ 90,90
+
+	// 7. mensagem envenenada: direto para a DLT, sem travar a partição
 	require.NoError(t, producer.ProduceSync(ctx, &kgo.Record{Topic: supplierfeed.Topic, Key: []byte("x"), Value: []byte("não é json")}).FirstErr())
 	poison := eventually(t, func() ([]messaging.DeadLetter, bool) {
 		l, err := dlt.Pending(ctx, 10)

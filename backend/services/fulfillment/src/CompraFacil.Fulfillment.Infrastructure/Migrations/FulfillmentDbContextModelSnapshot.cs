@@ -256,6 +256,52 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.ToTable("invoices", (string)null);
                 });
 
+            modelBuilder.Entity("CompraFacil.Fulfillment.Domain.ManualCatalogItem", b =>
+                {
+                    b.Property<string>("Sku")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sku");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("category");
+
+                    b.Property<long>("CostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cost_cents");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<DateTimeOffset>("ImportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("imported_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Stock")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock");
+
+                    b.Property<int?>("WeightGrams")
+                        .HasColumnType("integer")
+                        .HasColumnName("weight_grams");
+
+                    b.HasKey("Sku")
+                        .HasName("pk_manual_catalog_items");
+
+                    b.ToTable("manual_catalog_items", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Fulfillment.Domain.OrderPaymentFee", b =>
                 {
                     b.Property<Guid>("OrderId")
@@ -281,6 +327,10 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.Property<int>("Attempts")
                         .HasColumnType("integer")
                         .HasColumnName("attempts");
+
+                    b.Property<DateTimeOffset?>("AwaitingStaffSince")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("awaiting_staff_since");
 
                     b.Property<DateTimeOffset?>("ClaimedAt")
                         .HasColumnType("timestamp with time zone")

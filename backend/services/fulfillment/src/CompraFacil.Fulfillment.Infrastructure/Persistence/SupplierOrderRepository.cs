@@ -28,7 +28,8 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
         DateTimeOffset createdBefore, DateTimeOffset shippedBefore, DateOnly today, int limit, CancellationToken ct)
     {
         var notShipped = await db.SupplierOrders.AsNoTracking()
-            .Where(o => (o.Status == SupplierOrderStatus.Pending || o.Status == SupplierOrderStatus.Placing || o.Status == SupplierOrderStatus.Placed)
+            .Where(o => (o.Status == SupplierOrderStatus.Pending || o.Status == SupplierOrderStatus.Placing
+                    || o.Status == SupplierOrderStatus.AwaitingStaff || o.Status == SupplierOrderStatus.Placed)
                 && o.CreatedAt < createdBefore)
             .OrderBy(o => o.CreatedAt).Take(limit).ToListAsync(ct);
         var notDelivered = await db.SupplierOrders.AsNoTracking()

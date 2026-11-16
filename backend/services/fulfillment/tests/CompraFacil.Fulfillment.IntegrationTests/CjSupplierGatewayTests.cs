@@ -184,7 +184,7 @@ public sealed class CjSupplierGatewayTests
 
         var options = await gateway.QuoteFreightAsync("01310100", [new SupplierOrderItem("SIM-V-001", "Mouse", 2)], Ct);
 
-        Assert.Equal([new SupplierFreightOption("CJPacket Ordinary", 471, 12, 20), new SupplierFreightOption("CJ Express", 950, 7, 7)], options);
+        Assert.Equal([new SupplierFreightOption("CJPacket Ordinary", 471, "USD", 12, 20), new SupplierFreightOption("CJ Express", 950, "USD", 7, 7)], options);
         using var body = JsonDocument.Parse(stub.Requests.Single(r => r.Path.EndsWith("freightCalculate", StringComparison.Ordinal)).Body);
         Assert.Equal(("CN", "BR", "01310100"), (body.RootElement.GetProperty("startCountryCode").GetString(),
             body.RootElement.GetProperty("endCountryCode").GetString(), body.RootElement.GetProperty("zip").GetString()));

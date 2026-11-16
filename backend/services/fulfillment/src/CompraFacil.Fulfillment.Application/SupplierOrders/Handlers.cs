@@ -59,7 +59,7 @@ public sealed partial class OnOrderConfirmed(
             {
                 return null;
             }
-            var rate = string.Equals(product.Currency, "USD", StringComparison.OrdinalIgnoreCase) ? shipping.UsdToBrl : 1m;
+            var rate = shipping.RateToBrl(product.Currency);
             total += (long)Math.Ceiling(product.CostCents * rate) * item.Quantity;
         }
         return total;
@@ -95,7 +95,7 @@ public sealed partial class SupplierOrderPlacer(
             {
                 var result = await supplier.PlaceOrderAsync(new SupplierOrderRequest(
                     order.Id, order.CustomerEmail, order.Items, order.ShipTo, document?.AccessKey, document?.Xml), ct);
-                if (result is SupplierPlacement.Accepted)
+                if (result is SupplierPlacement.Accepted or SupplierPlacement.AwaitingStaff)
                 {
                     await RecordFreightCostAsync(order, ct);
                 }
@@ -103,6 +103,8 @@ public sealed partial class SupplierOrderPlacer(
                 {
                     SupplierPlacement.Accepted a => order.MarkPlaced(a.SupplierOrderId, clock.GetUtcNow()),
                     SupplierPlacement.Rejected r => order.Fail(r.Reason, r.Detail, clock.GetUtcNow()),
+                    // fornecedor manual: sem evento, a equipe faz o pedido pelo painel
+                    SupplierPlacement.AwaitingStaff => QueueForStaff(order, clock.GetUtcNow()),
                     _ => throw new InvalidOperationException($"resposta desconhecida do fornecedor: {result}"),
                 };
             }
@@ -154,6 +156,13 @@ public sealed partial class SupplierOrderPlacer(
     }
 
     private sealed record InvoiceDocument(string AccessKey, string Xml);
+
+    /// <summary>Fornecedor manual: o pedido fica na fila da equipe, sem evento (para o cliente, segue pago).</summary>
+    private static SupplierOrderChange QueueForStaff(SupplierOrder order, DateTimeOffset now)
+    {
+        order.MarkAwaitingStaff(now);
+        return SupplierOrderChange.None;
+    }
 
     /// <summary>
     /// O custo do frete para a loja, cotado quando o fornecedor aceita (#323): no frete grátis, a margem precisa dele.

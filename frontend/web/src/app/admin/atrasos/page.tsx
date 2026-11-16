@@ -83,6 +83,8 @@ function situation(o: OverdueOrder): string {
         : "Na fila para o fornecedor";
     case "placing":
       return "Sendo enviado ao fornecedor";
+    case "awaiting_staff":
+      return "Na fila de pedidos a fazer da equipe";
     case "placed":
       return "Aceito pelo fornecedor, sem envio";
     case "shipped":

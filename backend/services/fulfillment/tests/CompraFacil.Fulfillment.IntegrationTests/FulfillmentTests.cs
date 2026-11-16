@@ -63,7 +63,7 @@ public sealed class FakeSupplier : ISupplierGateway
 
     /// <summary>As opções de frete que o fornecedor cota; nulo = fora do ar.</summary>
     public List<SupplierFreightOption>? Freight { get; set; } =
-        [new("CJ Express", 1200, 6, 10), new("CJPacket Ordinary", 450, 12, 20), new("Serviço desconhecido", 100, 30, 40)];
+        [new("CJ Express", 1200, "USD", 6, 10), new("CJPacket Ordinary", 450, "USD", 12, 20), new("Serviço desconhecido", 100, "USD", 30, 40)];
 
     public List<(string Zip, IReadOnlyList<SupplierOrderItem> Items)> FreightCalls { get; } = [];
 
