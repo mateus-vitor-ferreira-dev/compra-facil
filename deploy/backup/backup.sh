@@ -12,7 +12,13 @@
 #   OTLP_ENDPOINT     o Collector, http://otel-collector:4318   (vazio: não manda a métrica)
 set -eu
 
-: "${BACKUP_DATABASES:?}" "${S3_BUCKET:?}" "${S3_ENDPOINT:?}" "${PGHOST:?}" "${PGPASSWORD:?}"
+: "${BACKUP_DATABASES:?}" "${S3_BUCKET:?}" "${PGHOST:?}" "${PGPASSWORD:?}"
+log() { echo "{\"time\":\"$(date -u +%FT%TZ)\",\"level\":\"$1\",\"msg\":\"$2\"}"; }
+# sem destino, fica parado em vez de sair: sair poria o contêiner num laço de reinício
+if [ -z "${S3_ENDPOINT:-}" ]; then
+  log warn "S3_ENDPOINT vazio: nenhum backup é feito até o bucket ser configurado"
+  while :; do sleep 3600; done
+fi
 BACKUP_TIME=${BACKUP_TIME:-06:00}
 RETENTION=${BACKUP_RETENTION_DAYS:-14}
 # o R2 e outros S3 compatíveis recusam os checksums novos do aws-cli; só quando exigido
@@ -20,7 +26,6 @@ export AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALI
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
 
 s3() { aws --endpoint-url "$S3_ENDPOINT" s3 "$@"; }
-log() { echo "{\"time\":\"$(date -u +%FT%TZ)\",\"level\":\"$1\",\"msg\":\"$2\"}"; }
 
 metric() { # metric <0|1>: o resultado da rodada
   [ -n "${OTLP_ENDPOINT:-}" ] || return 0

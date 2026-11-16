@@ -68,6 +68,25 @@ O log da execução mostra a porcentagem. Para testar o e-mail, troque `85` por 
 A tarefa roda dentro desta stack: se ela cair, o aviso que chega é o **Server unreachable** ou o **Restart limit
 reached**.
 
+## Os dois ambientes
+
+Desde 16/11, a loja de demonstração da entrega da disciplina e a loja de verdade são ambientes separados no mesmo VPS:
+
+| | Demonstração (disciplina) | Embrulhado (loja de verdade) |
+|---|---|---|
+| Código | branch e tag `entrega-disciplina` (= v1.6.0), protegidas contra push | `main` |
+| API | recurso `compra-facil-api` do Coolify, `compose.demo.yaml`, imagem fixa do último deploy | recurso `embrulhado`, `compose.yaml`, em `api.embrulhado.com.br` |
+| Loja | Worker `compra-facil-web` (`compra-facil.digitalcodexa.com`), ambiente `demo` do `wrangler.jsonc` | Worker `embrulhado-web` (`embrulhado.com.br`), a configuração principal |
+| Manutenção | KV `compra-facil-manutencao` | KV `embrulhado-manutencao` |
+| Deploy pelo CI | desligado: as variáveis ficaram como `COOLIFY_APP_UUID_DEMO` e `CLOUDFLARE_ACCOUNT_ID_DEMO` | `COOLIFY_APP_UUID`, `CLOUDFLARE_ACCOUNT_ID`, `URL_API`, `URL_LOJA` e `CLOUDFLARE_KV_MAINTENANCE_ID` da loja |
+
+A demonstração não recebe mais deploy. Para republicá-la à mão, se um dia for preciso: no Coolify, o recurso já lê a
+branch `entrega-disciplina`; a loja dela, com `npx opennextjs-cloudflare deploy -- --env demo` a partir dessa branch.
+
+Os segredos do Worker da loja (`wrangler secret put`, uma vez): `BFF_GATEWAY_KEY` (o mesmo do gateway no Coolify),
+`GOOGLE_CLIENT_SECRET` e `PAYMENT_PAYEE_CODE` (o identificador de conta da Efí). No Google Cloud, o cliente OAuth
+precisa de `https://embrulhado.com.br/api/auth/google/callback` entre os redirecionamentos autorizados.
+
 ## Loja de demonstração
 
 Antes das contas de verdade, [`coolify/compose.demo.yaml`](coolify/compose.demo.yaml) sobe a stack com o fornecedor, o
