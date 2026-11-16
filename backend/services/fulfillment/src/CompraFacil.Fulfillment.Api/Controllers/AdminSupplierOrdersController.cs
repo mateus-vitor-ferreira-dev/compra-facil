@@ -16,6 +16,9 @@ public sealed class AdminSupplierOrdersController(
     OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions, SupplierReturnActions returnActions,
     OrderMargins margins) : ControllerBase
 {
+    // o auditor (#403) vê a operação sem o contato do cliente, como na fila "Pedidos a fazer"
+    private bool IsOperator => User.IsInRole("admin");
+
     /// <summary>listOrderMargins: a margem real dos pedidos mais recentes (#225), do período e com a soma dele (#282).</summary>
     [HttpGet("v1/admin/order-margins")]
     public async Task<OrderMarginList> ListMargins(
@@ -31,7 +34,7 @@ public sealed class AdminSupplierOrdersController(
             throw new ValidationException([new ValidationFailure("To", "deve ser depois do início do período")]);
         }
         var report = await margins.ReportAsync(new OrderPeriod(from, to), n, ct);
-        return new OrderMarginList([.. report.Orders.Select(OrderMarginItem.From)], report.Totals);
+        return new OrderMarginList([.. report.Orders.Select(x => OrderMarginItem.From(x, IsOperator))], report.Totals);
     }
 
     private const int MaxFailed = 200;
@@ -45,7 +48,7 @@ public sealed class AdminSupplierOrdersController(
         {
             throw new ValidationException([new ValidationFailure("Limit", $"deve estar entre 1 e {MaxFailed}")]);
         }
-        return new FailedSupplierOrderList([.. (await actions.ListFailedAsync(n, ct)).Select(FailedSupplierOrder.From)]);
+        return new FailedSupplierOrderList([.. (await actions.ListFailedAsync(n, ct)).Select(x => FailedSupplierOrder.From(x, IsOperator))]);
     }
 
     /// <summary>retrySupplierOrder: tenta agora o pedido que espera a próxima tentativa.</summary>
@@ -94,7 +97,7 @@ public sealed class AdminSupplierOrdersController(
         {
             throw new ValidationException([new ValidationFailure("Limit", $"deve estar entre 1 e {PendingSupplierReturns.MaxLimit}")]);
         }
-        return new SupplierReturnList([.. (await returns.ListAsync(n, ct)).Select(SupplierReturnItem.From)]);
+        return new SupplierReturnList([.. (await returns.ListAsync(n, ct)).Select(x => SupplierReturnItem.From(x, IsOperator))]);
     }
 
     /// <summary>
@@ -129,7 +132,7 @@ public sealed class AdminSupplierOrdersController(
         {
             throw new ValidationException([new ValidationFailure("Limit", $"deve estar entre 1 e {OverdueOrders.MaxLimit}")]);
         }
-        return new OverdueSupplierOrderList([.. (await overdue.ListAsync(n, ct)).Select(OverdueSupplierOrder.From)]);
+        return new OverdueSupplierOrderList([.. (await overdue.ListAsync(n, ct)).Select(x => OverdueSupplierOrder.From(x, IsOperator))]);
     }
 }
 
@@ -140,7 +143,7 @@ public sealed record OverdueSupplierOrder(
     DateTimeOffset DueAt,
     string Supplier,
     string? SupplierOrderId,
-    string CustomerEmail,
+    string? CustomerEmail,
     int Attempts,
     string? LastError,
     Tracking? Tracking,
@@ -148,11 +151,13 @@ public sealed record OverdueSupplierOrder(
     DateTimeOffset? PlacedAt,
     DateTimeOffset? ShippedAt)
 {
-    public static OverdueSupplierOrder From(OverdueOrder overdue)
+    /// <param name="overdue">O pedido atrasado.</param>
+    /// <param name="operatorView">O operador vê o e-mail do cliente; o auditor (#403), não.</param>
+    public static OverdueSupplierOrder From(OverdueOrder overdue, bool operatorView)
     {
         ArgumentNullException.ThrowIfNull(overdue);
         var o = overdue.Order;
-        return new(o.Id, o.Status, overdue.Stage, overdue.DueAt, o.Supplier, o.SupplierOrderId, o.CustomerEmail, o.Attempts,
+        return new(o.Id, o.Status, overdue.Stage, overdue.DueAt, o.Supplier, o.SupplierOrderId, operatorView ? o.CustomerEmail : null, o.Attempts,
             o.LastError, o.Tracking, o.CreatedAt, o.PlacedAt, o.ShippedAt);
     }
 }
@@ -165,14 +170,16 @@ public sealed record OrderMarginItem(
     long? FreightCents,
     long? FeeCents,
     long? MarginCents,
-    string CustomerEmail,
+    string? CustomerEmail,
     DateTimeOffset CreatedAt,
     long? FreightChargedCents)
 {
-    public static OrderMarginItem From(OrderMargin m)
+    /// <param name="m">A margem do pedido.</param>
+    /// <param name="operatorView">O operador vê o e-mail do cliente; o auditor (#403), não.</param>
+    public static OrderMarginItem From(OrderMargin m, bool operatorView)
     {
         ArgumentNullException.ThrowIfNull(m);
-        return new(m.Order.Id, m.Outcome, m.RevenueCents, m.ProductCostCents, m.FreightCents, m.FeeCents, m.MarginCents, m.Order.CustomerEmail, m.Order.CreatedAt,
+        return new(m.Order.Id, m.Outcome, m.RevenueCents, m.ProductCostCents, m.FreightCents, m.FeeCents, m.MarginCents, operatorView ? m.Order.CustomerEmail : null, m.Order.CreatedAt,
             m.FreightChargedCents);
     }
 }
@@ -185,15 +192,17 @@ public sealed record FailedSupplierOrder(
     string? Detail,
     string Supplier,
     string? SupplierOrderId,
-    string CustomerEmail,
+    string? CustomerEmail,
     int Attempts,
     DateTimeOffset CreatedAt,
     DateTimeOffset FailedAt)
 {
-    public static FailedSupplierOrder From(SupplierOrder o)
+    /// <param name="o">O pedido que falhou.</param>
+    /// <param name="operatorView">O operador vê o e-mail do cliente; o auditor (#403), não.</param>
+    public static FailedSupplierOrder From(SupplierOrder o, bool operatorView)
     {
         ArgumentNullException.ThrowIfNull(o);
-        return new(o.Id, o.FailureReason ?? "", o.FailureDetail, o.Supplier, o.SupplierOrderId, o.CustomerEmail, o.Attempts, o.CreatedAt, o.FailedAt!.Value);
+        return new(o.Id, o.FailureReason ?? "", o.FailureDetail, o.Supplier, o.SupplierOrderId, operatorView ? o.CustomerEmail : null, o.Attempts, o.CreatedAt, o.FailedAt!.Value);
     }
 }
 
@@ -241,7 +250,7 @@ public sealed record SupplierReturnItem(
     string? DisputeId,
     string? ReturnCode,
     string? ReturnAddress,
-    string CustomerEmail,
+    string? CustomerEmail,
     IReadOnlyList<SupplierOrderItem> Items,
     int Attempts,
     string? LastError,
@@ -254,12 +263,14 @@ public sealed record SupplierReturnItem(
     CustomerReturnInstruction? CustomerInstruction,
     DateTimeOffset? InstructedAt)
 {
-    public static SupplierReturnItem From(PendingSupplierReturn pending)
+    /// <param name="pending">A devolução pendente.</param>
+    /// <param name="operatorView">O operador vê o e-mail do cliente; o auditor (#403), não.</param>
+    public static SupplierReturnItem From(PendingSupplierReturn pending, bool operatorView)
     {
         ArgumentNullException.ThrowIfNull(pending);
         var r = pending.Return;
         return new(r.Id, r.Status, pending.Overdue, pending.DueAt, r.Supplier, r.SupplierOrderId, r.DisputeId, r.ReturnCode, r.ReturnAddress,
-            r.CustomerEmail, r.Items, r.Attempts, r.LastError, r.ResolutionReason, pending.InvoiceError, r.RequestedAt, r.OpenedAt, r.ResolvedAt,
+            operatorView ? r.CustomerEmail : null, r.Items, r.Attempts, r.LastError, r.ResolutionReason, pending.InvoiceError, r.RequestedAt, r.OpenedAt, r.ResolvedAt,
             r.AwaitingCustomerInstruction, r.CustomerInstruction, r.InstructedAt);
     }
 }

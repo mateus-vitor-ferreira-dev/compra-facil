@@ -109,6 +109,34 @@ public sealed class AdminOrdersTests(OrdersFixture fx) : IClassFixture<OrdersFix
     }
 
     [Fact]
+    public async Task O_auditor_ve_o_pedido_sem_o_contato_do_cliente_e_nao_busca()
+    {
+        var order = Make(new DateTimeOffset(2031, 4, 2, 15, 0, 0, TimeSpan.Zero), "delivered", $"auditor-{Guid.NewGuid():N}@exemplo.com");
+        await SaveAsync(order);
+        using var http = fx.Factory.CreateClient();
+        http.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.AuditorToken());
+
+        var detail = await JsonAsync(await http.GetAsync($"/v1/admin/orders/{order.Id}", Ct));
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/AdminOrderDetail", detail.GetRawText());
+        var customer = detail.GetProperty("customer");
+        foreach (var field in new[] { "email", "name", "phone" })
+        {
+            Assert.Equal(JsonValueKind.Null, customer.GetProperty(field).ValueKind);
+        }
+        var page = await JsonAsync(await http.GetAsync("/v1/admin/orders?from=2031-04-02T00:00:00Z&to=2031-04-03T00:00:00Z", Ct));
+        var listed = page.GetProperty("data").EnumerateArray().Single(o => o.GetProperty("id").GetGuid() == order.Id);
+        Assert.Equal(JsonValueKind.Null, listed.GetProperty("customer").GetProperty("email").ValueKind);
+
+        // a busca é por e-mail ou nome: diria ao auditor quem comprou
+        using var search = await http.GetAsync($"/v1/admin/orders?q={order.CustomerEmail}", Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, search.StatusCode);
+
+        using var admin = Admin();
+        var full = await JsonAsync(await admin.GetAsync($"/v1/admin/orders/{order.Id}", Ct));
+        Assert.Equal(order.CustomerEmail, full.GetProperty("customer").GetProperty("email").GetString());
+    }
+
+    [Fact]
     public async Task Lista_traz_o_contato_sem_CPF_nem_endereco_e_filtra()
     {
         var day = new DateTimeOffset(2031, 3, 10, 15, 0, 0, TimeSpan.Zero);

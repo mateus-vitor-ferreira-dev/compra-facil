@@ -119,8 +119,18 @@ public sealed class OverdueOrdersTests(OverdueFixture fx) : IClassFixture<Overdu
     [Fact]
     public async Task Auditor_ReadsTheLists_ButCannotRetryCancelOrInstruct()
     {
+        var late = Paid(TimeSpan.FromDays(10));
+        await SaveAsync(late);
         using var overdue = await GetAsync(fx.Identity.AuditorToken());
         Assert.Equal(HttpStatusCode.OK, overdue.StatusCode);
+        // o auditor (o Balcão do agentes-hub) vê o atraso, mas não o contato do cliente; o operador vê
+        var seen = (await overdue.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("data").EnumerateArray()
+            .Single(o => o.GetProperty("order_id").GetGuid() == late.Id);
+        Assert.Equal(JsonValueKind.Null, seen.GetProperty("customer_email").ValueKind);
+        using var asOperator = await GetAsync(fx.Identity.AdminToken());
+        var full = (await asOperator.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("data").EnumerateArray()
+            .Single(o => o.GetProperty("order_id").GetGuid() == late.Id);
+        Assert.Equal("ana@exemplo.com", full.GetProperty("customer_email").GetString());
 
         using var http = fx.Factory.CreateClient();
         http.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.AuditorToken());

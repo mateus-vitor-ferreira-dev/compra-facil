@@ -238,10 +238,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description O contato de quem comprou. Sem CPF nem endereço. */
+        /** @description O contato de quem comprou. Sem CPF nem endereço. Para o auditor (#403), os três vêm nulos. */
         AdminCustomer: {
             /** Format: email */
-            email: string;
+            email: string | null;
             /** @description Quem recebe; nulo nos pedidos de antes do */
             name: string | null;
             /** @description Só os dígitos, com o DDD. */
@@ -991,6 +991,7 @@ export interface operations {
                 /** @description Itens por página. */
                 limit?: components["parameters"]["Limit"];
                 status?: components["schemas"]["OrderStatus"];
+                /** @description Busca por e-mail, nome ou número. Só para o operador; o auditor (#403) recebe 403. */
                 q?: string;
                 /** @description Criados a partir de (inclusive). */
                 from?: string;
