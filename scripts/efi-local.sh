@@ -25,7 +25,8 @@ export EFI_PIX_CERTIFICATE_BASE64
 compose=(docker compose -f compose.yaml -f infra/compose/compose.efi.yaml)
 
 # 1. o túnel primeiro, com um endereço provisório (o compose exige o EFI_PUBLIC_URL para ler o arquivo)
-EFI_PUBLIC_URL=https://aguardando.invalid "${compose[@]}" up -d --no-deps efi-tunnel
+export EFI_PUBLIC_URL=https://aguardando.invalid
+"${compose[@]}" up -d --no-deps efi-tunnel
 url=""
 for _ in $(seq 1 30); do
   url=$("${compose[@]}" logs efi-tunnel 2>&1 | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1 || true)
@@ -33,6 +34,16 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [ -n "$url" ] || { echo "o túnel não deu o endereço em 30 s: docker compose logs efi-tunnel"; exit 1; }
+# o endereço sai antes da conexão: sem ela (a rede bloqueia a porta 7844, a do túnel), os avisos não chegam
+for _ in $(seq 1 30); do
+  "${compose[@]}" logs efi-tunnel 2>&1 | grep -q 'Registered tunnel connection' && break
+  sleep 1
+done
+"${compose[@]}" logs efi-tunnel 2>&1 | grep -q 'Registered tunnel connection' || {
+  echo "o túnel não conectou: a rede deve bloquear a porta 7844 (TCP e UDP), a do Cloudflare Tunnel"
+  "${compose[@]}" rm -sf efi-tunnel >/dev/null
+  exit 1
+}
 export EFI_PUBLIC_URL=$url
 
 # 2. o resto, com o endereço do túnel nos avisos da Efí (o payments cadastra o webhook do PIX ao subir)
