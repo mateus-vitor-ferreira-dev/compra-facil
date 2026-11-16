@@ -2,6 +2,7 @@
 
 import {
   ChartColumn,
+  ClipboardList,
   CircleAlert,
   Factory,
   FolderTree,
@@ -45,6 +46,7 @@ export const ADMIN_GROUPS: { label: string; sections: Section[] }[] = [
     label: "Operação",
     sections: [
       { href: "/admin/fornecedor", label: "Fornecedor", Icon: Factory },
+      { href: "/admin/pedidos-a-fazer", label: "Pedidos a fazer", Icon: ClipboardList },
       { href: "/admin/atrasos", label: "Pedidos no fornecedor", Icon: Truck },
       { href: "/admin/devolucoes", label: "Devoluções", Icon: Undo2 },
     ],

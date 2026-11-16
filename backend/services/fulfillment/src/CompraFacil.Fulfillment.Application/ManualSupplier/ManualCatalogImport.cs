@@ -51,4 +51,8 @@ public sealed class ManualCatalogImport(IManualCatalogRepository sheet, CatalogS
 }
 
 /// <summary>Se o fornecedor é o manual (Supplier:Mode = manual).</summary>
-public sealed record ManualSupplierMode(bool Enabled);
+public sealed record ManualSupplierMode(bool Enabled)
+{
+    /// <summary>O nome do fornecedor manual nos pedidos, nos eventos e no catálogo.</summary>
+    public const string SupplierName = "manual";
+}

@@ -381,9 +381,22 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("next_attempt_at");
 
+                    b.Property<long?>("PaidFreightCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paid_freight_cost_cents");
+
+                    b.Property<long?>("PaidProductCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paid_product_cost_cents");
+
                     b.Property<DateTimeOffset?>("PlacedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("placed_at");
+
+                    b.Property<string>("PlacedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("placed_by");
 
                     b.Property<long?>("ProductCostCents")
                         .HasColumnType("bigint")

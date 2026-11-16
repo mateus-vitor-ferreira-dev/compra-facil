@@ -124,8 +124,17 @@ estorno são os mesmos.
   (`manual-economico` ou `manual-expresso`), `__BaseCents` (até 1 kg), `__PerExtraKgCents` (cada quilo começado depois),
   `__MinDays` e `__MaxDays`; o acréscimo por região do CEP (`Supplier__Manual__RegionPercent__<1º dígito>`) e os dias a
   mais (`RegionExtraDays`); `Supplier__Manual__HandlingDays` (padrão 2) é o prazo do fornecedor para despachar.
-- **Pedido pago:** fica `awaiting_staff`, na fila "Pedidos a fazer". O cancelamento pelo painel antes de a equipe fazer o
-  pedido no fornecedor estorna o cliente, como hoje.
+- **Pedido pago:** fica `awaiting_staff`, na fila "Pedidos a fazer" (`GET .../supplier-orders/to-place`, com o endereço e
+  o CPF do cliente para o operador). A rotina da equipe, pelo painel:
+  1. faz o pedido no site do fornecedor e registra o número dele e o que pagou (`.../placed`): o cliente vê "enviado ao
+     fornecedor", e a margem passa a usar o valor pago;
+  2. se o fornecedor não tiver o produto, marca "sem estoque" (`.../out-of-stock`): o pedido falha e o cliente é estornado;
+  3. informa o rastreio quando o fornecedor despachar (`.../tracking`): o cliente recebe o código;
+  4. marca a entrega (`.../delivered`) quando o rastreio mostrar.
+- **Cancelar:** na fila, o cancelamento do painel estorna o cliente na hora. Depois de feito no fornecedor, só com a
+  confirmação de que a equipe cancelou lá (`cancelled_at_supplier`), para a loja não pagar um pedido já estornado.
+- **Devolução:** o fornecedor manual não abre disputa; a devolução cai como recusada na abertura, e a equipe combina com o
+  fornecedor e instrui o cliente pela tela de devoluções, como já faz hoje.
 
 ### Receber pela Efí (#379)
 

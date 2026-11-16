@@ -82,9 +82,7 @@ public sealed class ManualSupplierOptions
 /// </summary>
 internal sealed class ManualSupplierGateway(IManualCatalogRepository sheet, IOptions<ManualSupplierOptions> options) : ISupplierGateway
 {
-    public const string SupplierName = "manual";
-
-    public string Name => SupplierName;
+    public string Name => ManualSupplierMode.SupplierName;
 
     public Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct) =>
         Task.FromResult<SupplierPlacement>(new SupplierPlacement.AwaitingStaff());
