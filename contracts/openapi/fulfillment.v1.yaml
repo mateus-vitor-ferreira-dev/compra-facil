@@ -426,15 +426,55 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
-  /v1/admin/supplier-orders/{order_id}/cancel:
+  /v1/admin/supplier-orders/to-place:
+    get:
+      tags: [admin]
+      operationId: listSupplierOrdersToPlace
+      summary: A fila "Pedidos a fazer" do fornecedor manual
+      description: |
+        Os pedidos pagos esperando a equipe fazer no fornecedor (`awaiting_staff`, #412), os mais antigos primeiro,
+        com o custo esperado. Também para o papel `auditor` (o Balcão do agentes-hub), mas sem `customer_email` e
+        `ship_to`, que só o operador vê: é com eles que a equipe preenche o pedido no fornecedor.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: A fila.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SupplierOrderToPlace"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/{order_id}/placed:
     post:
       tags: [admin]
-      operationId: cancelSupplierOrder
-      summary: Cancela o pedido que não foi despachado e estorna o cliente
+      operationId: markSupplierOrderPlaced
+      summary: A equipe fez o pedido no fornecedor manual
       description: |
-        Cancela no fornecedor, se ele já tem o pedido, e publica `SupplierOrderFailed` com `store_cancelled`: o
-        orders cancela e o payments estorna. Despachado ou sendo enviado agora dá 409. Fornecedor fora do ar dá
-        503, e nada muda. Repetir é seguro.
+        Da fila `awaiting_staff` para `placed`, com o número do pedido no fornecedor e, se a equipe informar, o que
+        pagou pelos produtos e pelo frete (a margem passa a usar esses valores). Sai o `SupplierOrderPlaced`, como
+        na API de um fornecedor. Fora da fila, 409. Só o papel `admin`.
       security:
         - bearerAuth: []
       parameters:
@@ -444,6 +484,165 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlacedRequest"
+      responses:
+        "204":
+          description: Feito.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/{order_id}/out-of-stock:
+    post:
+      tags: [admin]
+      operationId: markSupplierOrderOutOfStock
+      summary: O fornecedor manual não tinha o produto
+      description: |
+        O pedido da fila falha com `out_of_stock` (`SupplierOrderFailed`): o orders cancela e o payments estorna. O
+        corpo é opcional, com o detalhe para o painel. Fora da fila, 409. Só o papel `admin`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OutOfStockRequest"
+      responses:
+        "204":
+          description: Feito.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/{order_id}/tracking:
+    post:
+      tags: [admin]
+      operationId: markSupplierOrderShipped
+      summary: O rastreio do pedido no fornecedor manual
+      description: |
+        De `placed` para `shipped`, com o código, a transportadora e o link: sai o `SupplierOrderShipped`, e o
+        cliente recebe o rastreio. Antes de o pedido ser feito no fornecedor, ou depois de despachado, 409. Só o papel `admin`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackingRequest"
+      responses:
+        "204":
+          description: Feito.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/{order_id}/delivered:
+    post:
+      tags: [admin]
+      operationId: markSupplierOrderDelivered
+      summary: O pedido do fornecedor manual foi entregue
+      description: |
+        De `shipped` para `delivered` (`SupplierOrderDelivered`), quando o rastreio mostra a entrega. Fora do
+        transporte, 409. Só o papel `admin`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Feito.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/{order_id}/cancel:
+    post:
+      tags: [admin]
+      operationId: cancelSupplierOrder
+      summary: Cancela o pedido que não foi despachado e estorna o cliente
+      description: |
+        Cancela no fornecedor, se ele já tem o pedido, e publica `SupplierOrderFailed` com `store_cancelled`: o
+        orders cancela e o payments estorna. Despachado ou sendo enviado agora dá 409. Fornecedor fora do ar dá
+        503, e nada muda. Repetir é seguro. No fornecedor manual (#412), um pedido já feito pela equipe só cancela
+        com `cancelled_at_supplier: true`, a confirmação de que ela cancelou no site do fornecedor; sem isso, 409.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                cancelled_at_supplier:
+                  type: boolean
+                  description: Fornecedor manual - a equipe já cancelou o pedido no fornecedor.
       responses:
         "204":
           description: Cancelado.
@@ -877,6 +1076,130 @@ components:
         unchanged:
           type: integer
           minimum: 0
+
+    PlacedRequest:
+      type: object
+      required: [supplier_order_id]
+      additionalProperties: false
+      properties:
+        supplier_order_id:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: O número do pedido no site do fornecedor.
+        paid_product_cost_cents:
+          type: integer
+          minimum: 1
+          description: O que a equipe pagou pelos produtos, em centavos de real.
+        paid_freight_cost_cents:
+          type: integer
+          minimum: 0
+          description: O que a equipe pagou pelo frete, em centavos de real.
+
+    OutOfStockRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        detail:
+          type: string
+          maxLength: 500
+
+    TrackingRequest:
+      type: object
+      required: [number]
+      additionalProperties: false
+      properties:
+        number:
+          type: string
+          minLength: 1
+          maxLength: 64
+        carrier:
+          type: string
+          maxLength: 64
+          examples: ["Correios"]
+        url:
+          type: string
+          format: uri
+          maxLength: 500
+          description: O link de rastreio (https).
+
+    SupplierOrderToPlace:
+      type: object
+      required: [order_id, awaiting_since, items]
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        awaiting_since:
+          type: string
+          format: date-time
+          description: Quando entrou na fila.
+        promised_by:
+          type: [string, "null"]
+          format: date
+          description: A data de entrega prometida ao cliente.
+        items:
+          type: array
+          items:
+            type: object
+            required: [sku, name, quantity]
+            properties:
+              sku:
+                type: string
+                description: O SKU da loja, que é o da planilha do fornecedor.
+              name:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+        revenue_cents:
+          type: [integer, "null"]
+          description: O que o cliente pagou, com o frete.
+        freight_charged_cents:
+          type: [integer, "null"]
+          description: O frete cobrado do cliente (zero no frete grátis).
+        shipping_service:
+          type: [string, "null"]
+          examples: ["economico"]
+        expected_product_cost_cents:
+          type: [integer, "null"]
+          description: O custo dos produtos pela planilha.
+        expected_freight_cost_cents:
+          type: [integer, "null"]
+          description: O custo do frete pela tabela.
+        customer_email:
+          type: [string, "null"]
+          description: Só para o papel `admin`.
+        ship_to:
+          description: Para quem e para onde o fornecedor manda; só para o papel `admin`.
+          oneOf:
+            - $ref: "#/components/schemas/ToPlaceShipTo"
+            - type: "null"
+
+    ToPlaceShipTo:
+      type: object
+      required: [name, cpf, phone, zip_code, street, number, district, city, state]
+      properties:
+        name:
+          type: string
+        cpf:
+          type: string
+        phone:
+          type: string
+        zip_code:
+          type: string
+        street:
+          type: string
+        number:
+          type: string
+        complement:
+          type: [string, "null"]
+        district:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
 
     ManualSheetSummary:
       type: object

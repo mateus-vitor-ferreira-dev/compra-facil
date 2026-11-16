@@ -20,6 +20,7 @@ internal sealed class SupplierOrderConfiguration : IEntityTypeConfiguration<Supp
         builder.Property(o => o.Id).ValueGeneratedNever();
         builder.Property(o => o.CustomerEmail).HasMaxLength(320);
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(o => o.PlacedBy).HasMaxLength(200);
         builder.Property(o => o.Supplier).HasMaxLength(32);
         builder.Property(o => o.SupplierOrderId).HasMaxLength(64);
         builder.Property(o => o.ShippingService).HasMaxLength(32);

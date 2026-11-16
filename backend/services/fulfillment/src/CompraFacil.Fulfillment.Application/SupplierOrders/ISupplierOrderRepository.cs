@@ -24,6 +24,9 @@ public interface ISupplierOrderRepository
     /// <summary>Os que falharam desde <paramref name="since"/>, os mais recentes primeiro, sem rastrear.</summary>
     Task<List<SupplierOrder>> ListFailedAsync(DateTimeOffset since, int limit, CancellationToken ct);
 
+    /// <summary>A fila "Pedidos a fazer" do fornecedor manual (#412): os mais antigos primeiro, sem rastrear.</summary>
+    Task<List<SupplierOrder>> ListAwaitingStaffAsync(int limit, CancellationToken ct);
+
     /// <summary>Lança ConcurrencyConflictException se outra transação mudou o pedido.</summary>
     Task SaveChangesAsync(CancellationToken ct);
 
