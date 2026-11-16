@@ -64,7 +64,8 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version-file: frontend/web/.nvmrc
-          cache: npm
+          # no runner próprio, o ~/.npm da máquina já persiste: o cache do GitHub só trafega GBs pela internet (#415)
+          cache: ${{ (github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted') && 'npm' || '' }}
           cache-dependency-path: frontend/web/package-lock.json
       - run: npm ci
       - name: Tipos dos contratos em dia (contracts/openapi)
@@ -148,7 +149,8 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version-file: frontend/web/.nvmrc
-          cache: npm
+          # no runner próprio, o ~/.npm da máquina já persiste: o cache do GitHub só trafega GBs pela internet (#415)
+          cache: ${{ (github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted') && 'npm' || '' }}
           cache-dependency-path: frontend/web/package-lock.json
       - run: npm ci
       - name: Build e publicação (OpenNext + Wrangler)
