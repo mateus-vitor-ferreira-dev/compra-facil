@@ -109,6 +109,16 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
         var order = await OrderAsync(id);
         Assert.Equal((SupplierOrderStatus.Placed, "PED-7781", 9500L, 2200L), (order.Status, order.SupplierOrderId, order.PaidProductCostCents!.Value, order.PaidFreightCostCents!.Value));
         Assert.NotNull(order.PlacedBy);
+        // feito, sai da fila e aparece entre os que esperam o rastreio
+        Assert.DoesNotContain((await admin.GetFromJsonAsync<JsonElement>("/v1/admin/supplier-orders/to-place", Ct)).GetProperty("data").EnumerateArray(),
+            o => o.GetProperty("order_id").GetGuid() == id);
+        var toShip = (await admin.GetFromJsonAsync<JsonElement>("/v1/admin/supplier-orders/manual?status=placed", Ct)).GetProperty("data")
+            .EnumerateArray().Single(o => o.GetProperty("order_id").GetGuid() == id);
+        Assert.Equal(("placed", "PED-7781"), (toShip.GetProperty("status").GetString(), toShip.GetProperty("supplier_order_id").GetString()));
+        using (var badStage = await admin.GetAsync("/v1/admin/supplier-orders/manual?status=failed", Ct))
+        {
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, badStage.StatusCode);
+        }
         var margins = await admin.GetFromJsonAsync<JsonElement>("/v1/admin/order-margins", Ct);
         var margin = margins.GetProperty("data").EnumerateArray().Single(m => m.GetProperty("order_id").GetGuid() == id);
         Assert.Equal((9500, 2200), (margin.GetProperty("product_cost_cents").GetInt64(), margin.GetProperty("freight_cents").GetInt64()));
@@ -118,6 +128,9 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
         {
             Assert.Equal(HttpStatusCode.NoContent, tracking.StatusCode);
         }
+        var inTransit = (await admin.GetFromJsonAsync<JsonElement>("/v1/admin/supplier-orders/manual?status=shipped", Ct)).GetProperty("data")
+            .EnumerateArray().Single(o => o.GetProperty("order_id").GetGuid() == id);
+        Assert.Equal("BR123456789BR", inTransit.GetProperty("tracking").GetProperty("number").GetString());
         using (var delivered = await PostAsync($"/v1/admin/supplier-orders/{id}/delivered", null, fx.Identity.AdminToken()))
         {
             Assert.Equal(HttpStatusCode.NoContent, delivered.StatusCode);

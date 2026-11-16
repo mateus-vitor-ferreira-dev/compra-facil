@@ -137,5 +137,13 @@ for (const scheme of ["light", "dark"] as const) {
         await audit(page, path);
       }
     });
+
+    test("painel no fornecedor manual (#412)", async ({ page }) => {
+      await signIn(page, "admin@manual.exemplo.com");
+      for (const path of ["/admin/pedidos-a-fazer", "/admin/fornecedor"]) {
+        await page.goto(path);
+        await audit(page, path);
+      }
+    });
   });
 }

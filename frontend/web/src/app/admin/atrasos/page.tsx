@@ -275,8 +275,21 @@ function OverdueItem({ order: o, now }: { order: OverdueOrder; now: number }) {
         orderId={o.order_id}
         number={orderNumber(o.order_id)}
         canRetry={o.status === "pending" && o.attempts > 0}
-        canCancel={o.status === "pending" || o.status === "placed"}
+        canCancel={
+          o.status === "pending" ||
+          o.status === "awaiting_staff" ||
+          (o.status === "placed" && o.supplier !== "manual")
+        }
       />
+      {o.supplier === "manual" && o.status === "placed" && (
+        <p className="text-ink-soft">
+          Feito no fornecedor pela equipe: para cancelar, cancele lá e confirme em{" "}
+          <Link href="/admin/pedidos-a-fazer" className="text-ink font-medium underline underline-offset-4">
+            Pedidos a fazer
+          </Link>
+          .
+        </p>
+      )}
       {o.last_error && (
         <details>
           <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium pointer-fine:min-h-8">

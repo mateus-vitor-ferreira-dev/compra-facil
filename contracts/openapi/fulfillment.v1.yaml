@@ -466,6 +466,52 @@ paths:
           $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/manual:
+    get:
+      tags: [admin]
+      operationId: listManualSupplierOrders
+      summary: Os pedidos do fornecedor manual em andamento
+      description: |
+        Depois da fila "Pedidos a fazer": `placed`, os feitos no fornecedor esperando o rastreio, e `shipped`, os
+        em transporte esperando a entrega, os mais antigos primeiro (#412). Como a fila, também para o `auditor`,
+        sem `customer_email` e `ship_to`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [placed, shipped]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Os pedidos da etapa.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SupplierOrderToPlace"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
   /v1/admin/supplier-orders/{order_id}/placed:
     post:
       tags: [admin]
@@ -1125,8 +1171,29 @@ components:
 
     SupplierOrderToPlace:
       type: object
-      required: [order_id, awaiting_since, items]
+      description: Um pedido do fornecedor manual, na fila ou em andamento.
+      required: [order_id, awaiting_since, items, status]
       properties:
+        status:
+          type: string
+          enum: [awaiting_staff, placed, shipped]
+        supplier_order_id:
+          type: [string, "null"]
+          description: O número do pedido no fornecedor, depois de feito.
+        paid_product_cost_cents:
+          type: [integer, "null"]
+        paid_freight_cost_cents:
+          type: [integer, "null"]
+        tracking:
+          oneOf:
+            - $ref: "./orders.v1.yaml#/components/schemas/Tracking"
+            - type: "null"
+        placed_at:
+          type: [string, "null"]
+          format: date-time
+        shipped_at:
+          type: [string, "null"]
+          format: date-time
         order_id:
           type: string
           format: uuid

@@ -27,8 +27,11 @@ export function PricingRuleForm({
   initial,
   categories,
   submitLabel,
+  costInReais = false,
 }: {
   rateMilli: number;
+  /** fornecedor manual (#412): o custo da planilha já é em reais, sem câmbio na conta */
+  costInReais?: boolean;
   initial: { margin_percent: number; min_price_cents: number };
   categories?: { id: string; name: string; children: Category[] }[];
   submitLabel: string;
@@ -112,7 +115,7 @@ export function PricingRuleForm({
 
       <div className="bg-ink/4 space-y-3 rounded-md p-4">
         <TextField
-          label="Custo de exemplo (US$)"
+          label={costInReais ? "Custo de exemplo (R$)" : "Custo de exemplo (US$)"}
           inputMode="decimal"
           value={cost}
           onChange={(e) => setCost(e.target.value)}
@@ -121,12 +124,20 @@ export function PricingRuleForm({
         />
         {sample ? (
           <ol aria-label="A conta do preço" className="space-y-1 text-sm tabular-nums">
-            <li className="flex justify-between gap-4">
-              <span>
-                {usd(costCents!)} × {rate(rateMilli)}
-              </span>
-              <span>{brl(sample.costBrl)}</span>
-            </li>
+            {!costInReais && (
+              <li className="flex justify-between gap-4">
+                <span>
+                  {usd(costCents!)} × {rate(rateMilli)}
+                </span>
+                <span>{brl(sample.costBrl)}</span>
+              </li>
+            )}
+            {costInReais && (
+              <li className="flex justify-between gap-4">
+                <span>Custo</span>
+                <span>{brl(sample.costBrl)}</span>
+              </li>
+            )}
             <li className="flex justify-between gap-4">
               <span>+ {marginN}% de margem</span>
               <span>{brl(sample.withMargin)}</span>

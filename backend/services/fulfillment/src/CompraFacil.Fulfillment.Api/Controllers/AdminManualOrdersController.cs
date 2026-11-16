@@ -32,6 +32,25 @@ public sealed class AdminManualOrdersController(ManualOrderActions actions) : Co
         return new ToPlaceList([.. (await actions.ListToPlaceAsync(n, ct)).Select(o => ToPlaceOrder.From(o, operatorView))]);
     }
 
+    /// <summary>listManualSupplierOrders: os do fornecedor manual feitos (esperando o rastreio) ou em transporte.</summary>
+    [HttpGet("v1/admin/supplier-orders/manual")]
+    public async Task<ToPlaceList> InProgress([FromQuery] SupplierOrderStatus? status, [FromQuery] int? limit, CancellationToken ct)
+    {
+        var n = limit ?? 50;
+        List<ValidationFailure> failures = [];
+        if (n is < 1 or > ManualOrderActions.MaxToPlace)
+        {
+            failures.Add(new("Limit", $"deve estar entre 1 e {ManualOrderActions.MaxToPlace}"));
+        }
+        if (status is not (SupplierOrderStatus.Placed or SupplierOrderStatus.Shipped))
+        {
+            failures.Add(new("Status", "placed (esperando o rastreio) ou shipped (em transporte)"));
+        }
+        Validate(failures);
+        var operatorView = User.IsInRole("admin");
+        return new ToPlaceList([.. (await actions.ListInProgressAsync(status!.Value, n, ct)).Select(o => ToPlaceOrder.From(o, operatorView))]);
+    }
+
     /// <summary>markSupplierOrderPlaced: a equipe fez o pedido no fornecedor. O cliente vê "enviado ao fornecedor".</summary>
     [HttpPost("v1/admin/supplier-orders/{order_id:guid}/placed")]
     [Authorize(Policy = JwtAuth.AdminPolicy)]
@@ -154,14 +173,22 @@ public sealed record ToPlaceOrder(
     long? ExpectedProductCostCents,
     long? ExpectedFreightCostCents,
     string? CustomerEmail,
-    ToPlaceShipTo? ShipTo)
+    ToPlaceShipTo? ShipTo,
+    SupplierOrderStatus Status,
+    string? SupplierOrderId,
+    long? PaidProductCostCents,
+    long? PaidFreightCostCents,
+    Tracking? Tracking,
+    DateTimeOffset? PlacedAt,
+    DateTimeOffset? ShippedAt)
 {
     public static ToPlaceOrder From(SupplierOrder o, bool operatorView)
     {
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.AwaitingStaffSince ?? o.CreatedAt, o.PromisedBy, o.Items, o.RevenueCents, o.FreightCents, o.ShippingService,
             o.ProductCostCents, o.FreightCostCents,
-            operatorView ? o.CustomerEmail : null, operatorView && o.ShipTo is { } s ? ToPlaceShipTo.From(s) : null);
+            operatorView ? o.CustomerEmail : null, operatorView && o.ShipTo is { } s ? ToPlaceShipTo.From(s) : null,
+            o.Status, o.SupplierOrderId, o.PaidProductCostCents, o.PaidFreightCostCents, o.Tracking, o.PlacedAt, o.ShippedAt);
     }
 }
 

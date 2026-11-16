@@ -230,6 +230,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-orders/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Os pedidos do fornecedor manual em andamento
+         * @description Depois da fila "Pedidos a fazer": `placed`, os feitos no fornecedor esperando o rastreio, e `shipped`, os
+         *     em transporte esperando a entrega, os mais antigos primeiro (#412). Como a fila, também para o `auditor`,
+         *     sem `customer_email` e `ship_to`.
+         */
+        get: operations["listManualSupplierOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/{order_id}/placed": {
         parameters: {
             query?: never;
@@ -601,7 +623,19 @@ export interface components {
              */
             url?: string;
         };
+        /** @description Um pedido do fornecedor manual, na fila ou em andamento. */
         SupplierOrderToPlace: {
+            /** @enum {string} */
+            status: "awaiting_staff" | "placed" | "shipped";
+            /** @description O número do pedido no fornecedor, depois de feito. */
+            supplier_order_id?: string | null;
+            paid_product_cost_cents?: number | null;
+            paid_freight_cost_cents?: number | null;
+            tracking?: components["schemas"]["Tracking"] | null;
+            /** Format: date-time */
+            placed_at?: string | null;
+            /** Format: date-time */
+            shipped_at?: string | null;
             /** Format: uuid */
             order_id: string;
             /**
@@ -1413,6 +1447,35 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description A fila. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SupplierOrderToPlace"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listManualSupplierOrders: {
+        parameters: {
+            query: {
+                status: "placed" | "shipped";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os pedidos da etapa. */
             200: {
                 headers: {
                     [name: string]: unknown;

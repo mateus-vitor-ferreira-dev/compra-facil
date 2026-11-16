@@ -45,6 +45,11 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
             .Where(o => o.Status == SupplierOrderStatus.AwaitingStaff)
             .OrderBy(o => o.AwaitingStaffSince).Take(limit).ToListAsync(ct);
 
+    public Task<List<SupplierOrder>> ListByStatusAsync(string supplier, SupplierOrderStatus status, int limit, CancellationToken ct) =>
+        db.SupplierOrders.AsNoTracking()
+            .Where(o => o.Supplier == supplier && o.Status == status)
+            .OrderBy(o => o.CreatedAt).Take(limit).ToListAsync(ct);
+
     public Task<DateTimeOffset?> LastWebhookAtAsync(CancellationToken ct) =>
         db.SupplierWebhooks.MaxAsync(w => (DateTimeOffset?)w.ReceivedAt, ct);
 

@@ -5,6 +5,8 @@ const config: NextConfig = {
   devIndicators: { position: "bottom-right" },
   reactStrictMode: true,
   poweredByHeader: false,
+  // a planilha do fornecedor manual (#412) sobe por server action: o fulfillment aceita até 5 MB
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   // o front só fala com a API pelo servidor (BFF): nenhuma URL da API vai para o navegador
   env: {},
   async headers() {

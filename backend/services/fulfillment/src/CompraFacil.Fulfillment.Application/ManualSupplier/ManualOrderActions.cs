@@ -19,6 +19,12 @@ public sealed class ManualOrderActions(ISupplierOrderRepository orders, IOutbox 
 
     public Task<List<SupplierOrder>> ListToPlaceAsync(int limit, CancellationToken ct) => orders.ListAwaitingStaffAsync(limit, ct);
 
+    /// <summary>Os feitos no fornecedor esperando o rastreio (placed) e os em transporte esperando a entrega (shipped).</summary>
+    public Task<List<SupplierOrder>> ListInProgressAsync(SupplierOrderStatus status, int limit, CancellationToken ct) =>
+        status is SupplierOrderStatus.Placed or SupplierOrderStatus.Shipped
+            ? orders.ListByStatusAsync(ManualSupplierMode.SupplierName, status, limit, ct)
+            : throw new ArgumentOutOfRangeException(nameof(status), status, "só placed ou shipped");
+
     public Task<SupplierOrderActionResult> PlacedAsync(Guid orderId, StaffPlacement placement, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(placement);
