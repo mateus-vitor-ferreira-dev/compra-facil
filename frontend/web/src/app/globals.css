@@ -3,8 +3,8 @@
 
 /*
  * Design system do Embrulhado: o trio do presente de Natal. A logo traz o vermelho da caixa e o dourado da fita; o
- * terceiro, o pinheiro, é a base da loja (texto e botões num verde quase grafite, fundo neve no claro e verde-noite
- * no escuro). Assim o vermelho fica só na marca e no encarte da campanha, e o dourado só no preço. Tema escuro pelo
+ * terceiro, o pinheiro, é a base da loja (texto e botões num verde quase grafite, fundo neve no claro e grafite neutro
+ * no escuro, para o verde ser acento e não fundo). Assim o vermelho fica só na marca e no encarte da campanha, e o dourado só no preço. Tema escuro pelo
  * sistema ou pela classe .dark no <html>. Os pares de contraste passam no AA nos dois temas.
  */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -38,44 +38,44 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --paper: #0f1714;
-    --surface: #18231f;
-    --ink: #edf2ee;
-    --ink-soft: #a9b7b0;
-    --line: #2a3832;
-    --field-line: #74847c;
+    --paper: #131517;
+    --surface: #1c1f22;
+    --ink: #eef0f1;
+    --ink-soft: #a9afb5;
+    --line: #2c3035;
+    --field-line: #737a82;
     --success: #4fc79a;
     --danger: #ff7a80;
     --danger-ink: #ff7a80;
-    --on-danger: #0f1714;
+    --on-danger: #131517;
     --focus: #f2b632;
-    --photo: #22302a;
-    --hero: #1d4a39;
+    --photo: #25292d;
+    --hero: #245c47;
     --on-hero: #f6f7f5;
     --chart-1: #5fcb9b;
     --chart-2: #e0a92e;
-    --panel: #0a100d;
+    --panel: #0d0f11;
   }
 }
 
 .dark {
-  --paper: #0f1714;
-  --surface: #18231f;
-  --ink: #edf2ee;
-  --ink-soft: #a9b7b0;
-  --line: #2a3832;
-  --field-line: #74847c;
+  --paper: #131517;
+  --surface: #1c1f22;
+  --ink: #eef0f1;
+  --ink-soft: #a9afb5;
+  --line: #2c3035;
+  --field-line: #737a82;
   --success: #4fc79a;
   --danger: #ff7a80;
   --danger-ink: #ff7a80;
-  --on-danger: #0f1714;
+  --on-danger: #131517;
   --focus: #f2b632;
-  --photo: #22302a;
-  --hero: #1d4a39;
+  --photo: #25292d;
+  --hero: #245c47;
   --on-hero: #f6f7f5;
   --chart-1: #5fcb9b;
   --chart-2: #e0a92e;
-  --panel: #0a100d;
+  --panel: #0d0f11;
 }
 
 @theme inline {

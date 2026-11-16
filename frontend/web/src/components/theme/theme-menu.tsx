@@ -28,7 +28,7 @@ function useThemeChoice(): ThemeChoice {
  */
 function Swatch({ theme }: { theme: ThemeChoice }) {
   const light = { paper: THEME_COLORS.light, ink: "#14261f" };
-  const dark = { paper: THEME_COLORS.dark, ink: "#edf2ee" };
+  const dark = { paper: THEME_COLORS.dark, ink: "#eef0f1" };
   const clip = `amostra-${useId().replace(/:/g, "")}`;
   const ink = (theme === "light" ? light : dark).ink;
   return (
