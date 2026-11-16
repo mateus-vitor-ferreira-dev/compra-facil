@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { FRONT } from "./ports";
 
 async function audit(page: Page) {
   const results = await new AxeBuilder({ page })
@@ -15,9 +16,7 @@ async function audit(page: Page) {
 const TV = "/produto/0199f6a0-0000-7000-8000-000000000000";
 
 async function ownSpace(page: Page) {
-  await page
-    .context()
-    .addCookies([{ name: "cf_teste_manutencao", value: crypto.randomUUID(), url: "http://localhost:3000" }]);
+  await page.context().addCookies([{ name: "cf_teste_manutencao", value: crypto.randomUUID(), url: FRONT }]);
 }
 
 async function deploying(page: Page, on: boolean) {
