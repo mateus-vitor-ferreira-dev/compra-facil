@@ -15,7 +15,8 @@ public sealed class InvoiceOptions
 
     public string ClientId { get; set; } = "sim-client";
     public string ClientSecret { get; set; } = "sim-secret";
-    public string Scope { get; set; } = "nfe";
+    /// <summary>nfe para a nota e cep para o código IBGE do município do destinatário.</summary>
+    public string Scope { get; set; } = "nfe cep";
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
 
     /// <summary>homologacao (sem valor fiscal) ou producao.</summary>
@@ -33,6 +34,23 @@ public sealed class InvoiceOptions
     public string ReturnCfopInState { get; set; } = "1202";
     public string ReturnCfopOutOfState { get; set; } = "2202";
 
+    /// <summary>Origem da mercadoria (orig): 0 = nacional; 2 = estrangeira comprada no mercado interno.</summary>
+    public int ProductOrigin { get; set; }
+
+    /// <summary>
+    /// CSOSN do ICMS no Simples Nacional: 102 na venda (tributada sem permissão de crédito) e 900 na
+    /// devolução. O contador confirma (#226).
+    /// </summary>
+    public int Csosn { get; set; } = 102;
+    public int ReturnCsosn { get; set; } = 900;
+
+    /// <summary>CST do PIS e da COFINS no Simples Nacional, sem destaque: 49 na saída e 99 na entrada.</summary>
+    public string PisCofinsCst { get; set; } = "49";
+    public string ReturnPisCofinsCst { get; set; } = "99";
+
+    /// <summary>verProc: o aplicativo que emite a nota.</summary>
+    public string AppVersion { get; set; } = "compra-facil-1";
+
     public InvoiceIssuerParty Issuer { get; set; } = new();
 }
 
@@ -43,7 +61,7 @@ public sealed class InvoiceIssuerParty
     public string Name { get; set; } = "CompraFacil Comercio LTDA";
     public string StateRegistration { get; set; } = "ISENTO";
 
-    /// <summary>Regime tributário: 1 = Simples Nacional (MEI e ME).</summary>
+    /// <summary>Regime tributário (CRT): 1 = Simples Nacional; 4 = MEI (NT 2024.001), que restringe os CFOPs.</summary>
     public int TaxRegime { get; set; } = 1;
     public string Street { get; set; } = "Rua da Loja";
     public string Number { get; set; } = "1";

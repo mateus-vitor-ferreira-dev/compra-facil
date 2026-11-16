@@ -11,8 +11,9 @@ namespace CompraFacil.Fulfillment.Infrastructure.Invoices;
 /// <summary>
 /// A NF-e pela API da Nuvem Fiscal (em dev, o invoice-sim no mesmo contrato). A referência da nota é o
 /// order_id: antes de emitir, procura a nota do pedido (uma tentativa anterior pode ter emitido e caído antes
-/// da resposta), e só emite se não houver. O corpo leva as tags da NF-e que a loja preenche; os impostos
-/// (Simples Nacional, sem destaque) entram com a venda de verdade, conferidos pelo contador.
+/// da resposta), e só emite se não houver. O corpo leva as tags da NF-e que a loja preenche, com os impostos
+/// do Simples Nacional sem destaque (CSOSN e CST da configuração, que o contador confirma) e o município do
+/// destinatário pelo CEP, na consulta de CEP da própria Nuvem Fiscal.
 /// </summary>
 internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalTokenCache tokens, IOptions<InvoiceOptions> options, TimeProvider clock)
     : IInvoiceIssuer
@@ -21,42 +22,89 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
     private const string Rejected = "rejeitado";
     private const string Cancelled = "cancelado";
 
+    // denegado: a SEFAZ negou o uso (o número fica gasto); erro: a Nuvem Fiscal recusou antes da SEFAZ
+    private const string Denied = "denegado";
+    private const string Failed = "erro";
+
+    // o evento de cancelamento: registrado na SEFAZ, rejeitado por ela ou ainda pendente
+    private const string EventRegistered = "registrado";
+    private const string EventRejected = "rejeitado";
+
+    /// <summary>Na homologação, a SEFAZ só aceita este nome no destinatário (rejeição 598).</summary>
+    internal const string HomologationRecipient = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
+
+    private static readonly TimeSpan s_brasilia = TimeSpan.FromHours(-3);
+
     // forma de pagamento da NF-e (tPag): 17 = PIX, 03 = cartão de crédito
     private static readonly Dictionary<string, string> s_paymentCodes = new(StringComparer.OrdinalIgnoreCase) { ["pix"] = "17", ["card"] = "03" };
 
-    public async Task<InvoiceIssue> IssueAsync(Invoice invoice, CancellationToken ct)
+    public Task<InvoiceIssue> IssueAsync(Invoice invoice, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(invoice);
-        return await EmitAsync(invoice.Id.ToString(), Body(invoice, options.Value, isReturn: false), ct);
+        return EmitAsync(invoice, invoice.Id.ToString(), isReturn: false, ct);
     }
 
-    public async Task<InvoiceIssue> IssueReturnAsync(Invoice invoice, CancellationToken ct)
+    public Task<InvoiceIssue> IssueReturnAsync(Invoice invoice, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(invoice);
-        return await EmitAsync(ReturnReference(invoice), Body(invoice, options.Value, isReturn: true), ct);
+        return EmitAsync(invoice, ReturnReference(invoice), isReturn: true, ct);
     }
 
     /// <summary>A devolução tem a própria referência: a do pedido é a nota de venda.</summary>
     private static string ReturnReference(Invoice invoice) => $"{invoice.Id}-devolucao";
 
-    private async Task<InvoiceIssue> EmitAsync(string reference, object body, CancellationToken ct)
+    private async Task<InvoiceIssue> EmitAsync(Invoice invoice, string reference, bool isReturn, CancellationToken ct)
     {
         var o = options.Value;
+        // a consulta pede o CNPJ do emitente: a mesma conta pode emitir por mais de uma empresa
         var found = await SendAsync<Page>(() => new HttpRequestMessage(HttpMethod.Get,
-            $"nfe?ambiente={Uri.EscapeDataString(o.Environment)}&referencia={Uri.EscapeDataString(reference)}"), ct);
-        var existing = found?.Data is { Count: > 0 } list ? list[0] : null;
-        var dfe = existing ?? await SendAsync<Dfe>(() => new HttpRequestMessage(HttpMethod.Post, "nfe")
+            $"nfe?cpf_cnpj={Uri.EscapeDataString(o.Issuer.Cnpj)}&ambiente={Uri.EscapeDataString(o.Environment)}&referencia={Uri.EscapeDataString(reference)}"), ct);
+        var dfe = found?.Data is { Count: > 0 } list ? list[0] : null;
+        if (dfe is null)
         {
-            Content = JsonContent.Create(body, options: Json.Write),
-        }, ct) ?? throw new InvoiceIssuerUnavailableException("resposta vazia do emissor");
+            if (await CityCodeAsync(invoice.ShipTo.ZipCode, ct) is not { } cityCode)
+            {
+                // sem o município, a SEFAZ rejeitaria a nota (cMun é obrigatório): nem adianta mandar
+                return new InvoiceIssue.Rejected(null, 0, $"CEP do destinatário sem município na consulta de CEP: {invoice.ShipTo.ZipCode}");
+            }
+            var body = Body(invoice, o, cityCode, isReturn);
+            try
+            {
+                dfe = await SendAsync<Dfe>(() => new HttpRequestMessage(HttpMethod.Post, "nfe")
+                {
+                    Content = JsonContent.Create(body, options: Json.Write),
+                }, ct) ?? throw new InvoiceIssuerUnavailableException("resposta vazia do emissor");
+            }
+            catch (HttpStatusException e) when (e.Status is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity)
+            {
+                // a Nuvem Fiscal recusou o corpo antes da SEFAZ (schema): tentar de novo dá no mesmo
+                return new InvoiceIssue.Rejected(null, 0, $"o emissor recusou a nota: {e.Body}");
+            }
+        }
         return dfe.Status switch
         {
             Authorized or Cancelled when dfe.Chave is { Length: 44 } key && dfe.Numero is { } number =>
                 new InvoiceIssue.Authorized(dfe.Id, key, number, dfe.Serie ?? o.Series, dfe.Autorizacao?.DataEvento ?? clock.GetUtcNow()),
-            Rejected => new InvoiceIssue.Rejected(dfe.Id, dfe.Autorizacao?.CodigoStatus ?? 0, dfe.Autorizacao?.MotivoStatus ?? "rejeitada"),
+            Rejected or Denied or Failed => new InvoiceIssue.Rejected(dfe.Id, dfe.Autorizacao?.CodigoStatus ?? 0,
+                dfe.Autorizacao?.MotivoStatus ?? dfe.Autorizacao?.Mensagem ?? $"nota {dfe.Status} no emissor"),
             // pendente ou em processamento na SEFAZ: a próxima tentativa acha a nota pela referência
             _ => throw new InvoiceIssuerUnavailableException($"nota ainda {dfe.Status} no emissor"),
         };
+    }
+
+    /// <summary>O código IBGE do município pelo CEP (GET /cep). Nulo se o CEP não existe na consulta.</summary>
+    private async Task<string?> CityCodeAsync(string zipCode, CancellationToken ct)
+    {
+        var cep = new string([.. zipCode.Where(char.IsAsciiDigit)]);
+        try
+        {
+            var found = await SendAsync<ZipCodeAddress>(() => new HttpRequestMessage(HttpMethod.Get, $"cep/{cep}"), ct);
+            return found?.CodigoIbge is { Length: 7 } code && code.All(char.IsAsciiDigit) ? code : null;
+        }
+        catch (HttpStatusException e) when (e.Status is HttpStatusCode.NotFound or HttpStatusCode.BadRequest)
+        {
+            return null;
+        }
     }
 
     public async Task<string> GetXmlAsync(string providerId, CancellationToken ct)
@@ -73,9 +121,16 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
 
     public async Task CancelAsync(string providerId, string justification, CancellationToken ct)
     {
+        var id = Uri.EscapeDataString(providerId);
+        // uma tentativa anterior pode ter cancelado e caído antes da resposta: pedir de novo seria recusado
+        if ((await SendAsync<Dfe>(() => new HttpRequestMessage(HttpMethod.Get, $"nfe/{id}"), ct))?.Status == Cancelled)
+        {
+            return;
+        }
+        CancelEvent? cancelled;
         try
         {
-            using var response = await SendRawAsync(() => new HttpRequestMessage(HttpMethod.Post, $"nfe/{Uri.EscapeDataString(providerId)}/cancelamento")
+            cancelled = await SendAsync<CancelEvent>(() => new HttpRequestMessage(HttpMethod.Post, $"nfe/{id}/cancelamento")
             {
                 Content = JsonContent.Create(new { justificativa = justification }, options: Json.Write),
             }, ct);
@@ -84,9 +139,21 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
         {
             throw new InvoiceCancelRefusedException($"o emissor recusou o cancelamento: {e.Body}");
         }
+        switch (cancelled?.Status)
+        {
+            case EventRegistered:
+                return;
+            case EventRejected:
+                // a SEFAZ recusou o evento (fora do prazo, nota já com outro evento...): a equipe resolve
+                throw new InvoiceCancelRefusedException(
+                    $"a SEFAZ recusou o cancelamento ({cancelled.CodigoStatus}): {cancelled.MotivoStatus ?? cancelled.Mensagem}");
+            default:
+                // pendente: na próxima volta, a consulta da nota diz se cancelou
+                throw new InvoiceIssuerUnavailableException($"cancelamento ainda {cancelled?.Status ?? "sem resposta"} no emissor");
+        }
     }
 
-    private object Body(Invoice invoice, InvoiceOptions o, bool isReturn)
+    private object Body(Invoice invoice, InvoiceOptions o, string recipientCityCode, bool isReturn)
     {
         var to = invoice.ShipTo;
         var issuer = o.Issuer;
@@ -97,6 +164,10 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
         decimal Reais(long cents) => cents / 100m;
         var products = invoice.Lines.Sum(l => l.TotalCents);
         var freight = Freight(invoice);
+        var csosn = isReturn ? o.ReturnCsosn : o.Csosn;
+        var pisCofins = isReturn ? o.ReturnPisCofinsCst : o.PisCofinsCst;
+        var homologation = string.Equals(o.Environment, "homologacao", StringComparison.OrdinalIgnoreCase);
+        var phone = new string([.. to.Phone.Where(char.IsAsciiDigit)]);
         return new
         {
             ambiente = o.Environment,
@@ -110,7 +181,8 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
                     natOp = isReturn ? o.ReturnOperationNature : o.OperationNature,
                     mod = 55,
                     serie = o.Series,
-                    dhEmi = clock.GetUtcNow().ToString("yyyy-MM-ddTHH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
+                    // no horário de Brasília (sem horário de verão desde 2019): a SEFAZ confere o fuso da UF
+                    dhEmi = clock.GetUtcNow().ToOffset(s_brasilia).ToString("yyyy-MM-ddTHH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
                     tpNF = isReturn ? 0 : 1, // entrada na devolução, saída na venda
                     idDest = sameState ? 1 : 2, // operação interna ou interestadual
                     cMunFG = issuer.CityCode,
@@ -120,6 +192,9 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
                     NFref = isReturn ? new[] { new { refNFe = invoice.AccessKey } } : null, // a nota de venda
                     indFinal = 1, // consumidor final
                     indPres = 2, // venda pela internet
+                    indIntermed = 0, // no site da própria loja, sem marketplace (obrigatório com indPres=2)
+                    procEmi = 0, // aplicativo do contribuinte
+                    verProc = o.AppVersion,
                 },
                 emit = new
                 {
@@ -143,19 +218,20 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
                 dest = new
                 {
                     CPF = to.Cpf,
-                    xNome = to.Name,
+                    xNome = homologation ? HomologationRecipient : to.Name,
                     enderDest = new
                     {
                         xLgr = to.Street,
                         nro = to.Number,
                         xCpl = to.Complement,
                         xBairro = to.District,
+                        cMun = recipientCityCode,
                         xMun = to.City,
                         UF = to.State,
                         CEP = to.ZipCode,
                         cPais = "1058",
                         xPais = "BRASIL",
-                        fone = to.Phone,
+                        fone = phone.Length is >= 6 and <= 14 ? phone : null, // só dígitos, com o DDD
                     },
                     indIEDest = 9, // não contribuinte
                     email = invoice.CustomerEmail,
@@ -181,22 +257,65 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
                         indTot = 1,
                         vFrete = freight[i] > 0 ? Reais(freight[i]) : (decimal?)null,
                     },
+                    // Simples Nacional: o ICMS, o PIS e a COFINS são recolhidos no DAS, sem destaque na nota
+                    imposto = new
+                    {
+                        ICMS = csosn == 900
+                            ? (object)new { ICMSSN900 = new { orig = o.ProductOrigin, CSOSN = csosn } }
+                            : new { ICMSSN102 = new { orig = o.ProductOrigin, CSOSN = csosn } },
+                        PIS = new { PISOutr = new { CST = pisCofins, vBC = 0m, pPIS = 0m, vPIS = 0m } },
+                        COFINS = new { COFINSOutr = new { CST = pisCofins, vBC = 0m, pCOFINS = 0m, vCOFINS = 0m } },
+                    },
                 }).ToList(),
-                // o total: os produtos, o frete cobrado do cliente (#222) e a nota, que soma os dois
-                total = new { ICMSTot = new { vProd = Reais(products), vFrete = Reais(invoice.FreightCents), vNF = Reais(invoice.TotalCents) } },
+                // o total: os produtos, o frete cobrado do cliente (#222) e a nota, que soma os dois. O
+                // modelo pede todos os campos do ICMSTot, zerados onde a loja não tem valor
+                total = new
+                {
+                    ICMSTot = new
+                    {
+                        vBC = 0m,
+                        vICMS = 0m,
+                        vICMSDeson = 0m,
+                        vFCP = 0m,
+                        vBCST = 0m,
+                        vST = 0m,
+                        vFCPST = 0m,
+                        vFCPSTRet = 0m,
+                        vProd = Reais(products),
+                        vFrete = Reais(invoice.FreightCents),
+                        vSeg = 0m,
+                        vDesc = 0m,
+                        vII = 0m,
+                        vIPI = 0m,
+                        vIPIDevol = 0m,
+                        vPIS = 0m,
+                        vCOFINS = 0m,
+                        vOutro = 0m,
+                        vNF = Reais(invoice.TotalCents),
+                    },
+                },
                 transp = new { modFrete = 0 }, // frete por conta do emitente (o fornecedor manda)
                 pag = new
                 {
                     // a devolução não recebe nada (90 = sem pagamento): o estorno ao cliente é fora da nota
-                    detPag = new[]
-                    {
-                        isReturn
-                            ? new { tPag = "90", vPag = 0m }
-                            : new { tPag = s_paymentCodes.GetValueOrDefault(invoice.PaymentMethod, "99"), vPag = Reais(invoice.TotalCents) },
-                    },
+                    detPag = new[] { Payment(invoice, isReturn) },
                 },
             },
         };
+    }
+
+    private static object Payment(Invoice invoice, bool isReturn)
+    {
+        if (isReturn)
+        {
+            return new { tPag = "90", vPag = 0m };
+        }
+        var code = s_paymentCodes.GetValueOrDefault(invoice.PaymentMethod, "99");
+        var paid = invoice.TotalCents / 100m;
+        // cartão (03) pede o grupo card; 2 = pagamento não integrado à nota (a loja não manda bandeira nem autorização)
+        return code == "03"
+            ? new { tPag = code, vPag = paid, card = (object?)new { tpIntegra = 2 } }
+            : new { tPag = code, vPag = paid, card = (object?)null };
     }
 
     /// <summary>O frete rateado entre os itens pelo valor de cada um (a NF-e pede o vFrete por item); o último leva a sobra.</summary>
@@ -313,7 +432,11 @@ internal sealed class NuvemFiscalInvoiceIssuer(HttpClient http, NuvemFiscalToken
 
     private sealed record Dfe(string Id, string Status, string? Chave, int? Numero, int? Serie, Authorization? Autorizacao);
 
-    private sealed record Authorization(int CodigoStatus, string? MotivoStatus, DateTimeOffset? DataEvento);
+    private sealed record Authorization(int CodigoStatus, string? MotivoStatus, string? Mensagem, DateTimeOffset? DataEvento);
+
+    private sealed record CancelEvent(string? Id, string? Status, int? CodigoStatus, string? MotivoStatus, string? Mensagem);
+
+    private sealed record ZipCodeAddress(string? CodigoIbge, string? Municipio, string? Uf);
 }
 
 /// <summary>O token OAuth2 do emissor, guardado até perto de vencer (um por processo).</summary>

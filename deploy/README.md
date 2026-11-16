@@ -97,6 +97,18 @@ pedido pago vai direto ao fornecedor, com o endereço e sem chave nem XML, e nad
 A nota pedida pelo cliente sai à mão, pelo meio que o contador indicar. Quando o A1 e a Nuvem Fiscal
 estiverem prontos (#229), basta tirar a variável: os pedidos novos passam a sair com nota.
 
+Para emitir pela Nuvem Fiscal, além das credenciais (`Invoice__ClientId`, `Invoice__ClientSecret`, com os
+escopos `nfe cep`), o emitente (`Invoice__Issuer__*`) e os códigos fiscais que o contador confirma:
+
+| Variável | Padrão | O que é |
+|---|---|---|
+| `Invoice__Issuer__TaxRegime` | `1` | CRT. O MEI é `4` (NT 2024.001), que só aceita alguns CFOPs |
+| `Invoice__CfopInState`, `Invoice__CfopOutOfState` | `5120`, `6120` | CFOP da venda (venda à ordem). Com CRT 4, a SEFAZ pede `5102`/`6102` (rejeição 337) |
+| `Invoice__Csosn`, `Invoice__ReturnCsosn` | `102`, `900` | CSOSN da venda e da devolução (rejeição 782 sem o 900 na devolução) |
+| `Invoice__PisCofinsCst`, `Invoice__ReturnPisCofinsCst` | `49`, `99` | CST do PIS e da COFINS, sem destaque |
+| `Invoice__ProductOrigin` | `0` | Origem da mercadoria; `2` para importado comprado no Brasil |
+| `Invoice__Environment` | `homologacao` | Na homologação, o destinatário sai com o nome que a SEFAZ exige; `producao` para valer |
+
 ### Receber pela Efí (#379)
 
 O payments cobra pela Efí: o cartão na API Cobranças, o PIX na API Pix. No painel da Efí (**API → Aplicações**),
