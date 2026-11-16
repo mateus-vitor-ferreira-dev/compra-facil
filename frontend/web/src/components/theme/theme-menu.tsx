@@ -27,8 +27,8 @@ function useThemeChoice(): ThemeChoice {
  * metade de cada). Cores fixas de propósito: mostram o outro tema, não o atual.
  */
 function Swatch({ theme }: { theme: ThemeChoice }) {
-  const light = { paper: THEME_COLORS.light, ink: "#4a0d14" };
-  const dark = { paper: THEME_COLORS.dark, ink: "#f8eeec" };
+  const light = { paper: THEME_COLORS.light, ink: "#14261f" };
+  const dark = { paper: THEME_COLORS.dark, ink: "#edf2ee" };
   const clip = `amostra-${useId().replace(/:/g, "")}`;
   const ink = (theme === "light" ? light : dark).ink;
   return (

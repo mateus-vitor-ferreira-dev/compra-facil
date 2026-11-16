@@ -7,7 +7,7 @@ export type ThemeChoice = "light" | "dark" | "system";
 export const THEME_KEY = "tema";
 
 /** A cor da barra do navegador em cada tema: o papel (--paper) de cada um. */
-export const THEME_COLORS = { light: "#fbf7f6", dark: "#1d0d10" } as const;
+export const THEME_COLORS = { light: "#f6f7f5", dark: "#0f1714" } as const;
 
 const CHANGE_EVENT = "tema-mudou";
 

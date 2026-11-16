@@ -2,79 +2,80 @@
 @import "tw-animate-css";
 
 /*
- * Design system do Embrulhado: a caixa de presente de Natal. O vermelho da caixa é da marca (logo, encarte da
- * campanha); vinho no texto e nos botões; a fita dourada no preço de campanha e no selo de desconto. Tema escuro
- * pelo sistema ou pela classe .dark no <html>. Os pares de contraste passam no AA nos dois temas.
+ * Design system do Embrulhado: o trio do presente de Natal. A logo traz o vermelho da caixa e o dourado da fita; o
+ * terceiro, o pinheiro, é a base da loja (texto e botões num verde quase grafite, fundo neve no claro e verde-noite
+ * no escuro). Assim o vermelho fica só na marca e no encarte da campanha, e o dourado só no preço. Tema escuro pelo
+ * sistema ou pela classe .dark no <html>. Os pares de contraste passam no AA nos dois temas.
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --radius: 0.375rem;
 
-  --paper: #fbf7f6; /* fundo */
+  --paper: #f6f7f5; /* neve: fundo, branco frio, sem puxar para o rosa da caixa */
   --surface: #ffffff; /* cartões e campos */
-  --ink: #4a0d14; /* vinho: texto e botões (14,5:1 no papel) */
-  --ink-soft: #6d5357; /* texto secundário (6,5:1 no papel) */
-  --line: #eadcdd;
-  --field-line: #8c7276; /* borda dos campos: 4,1:1 no papel, 4,4:1 no cartão */
-  --tag: #f2b632; /* a fita dourada: etiqueta de campanha */
-  --tag-ink: #4a0d14; /* 8,5:1 na etiqueta */
-  --success: #1f6b4a; /* pinheiro, 6,4:1 no cartão */
+  --ink: #14261f; /* pinheiro-noite: texto e botões (14,7:1 no papel) */
+  --ink-soft: #4f5e57; /* texto secundário (6,4:1 no papel) */
+  --line: #dde3df;
+  --field-line: #7d8a84; /* borda dos campos: 3,4:1 no papel, 3,6:1 no cartão */
+  --tag: #f2b632; /* a fita dourada da logo: preço de campanha */
+  --tag-ink: #14261f; /* 8,7:1 na etiqueta */
+  --success: #1b7046; /* 6,1:1 no cartão */
   --danger: #b42318; /* o vermelho de erro, mais fechado que o da marca */
-  --danger-ink: #962016; /* texto vermelho sobre fundo tingido de vermelho */
+  --danger-ink: #9a1d14; /* texto vermelho sobre fundo tingido de vermelho */
   --on-danger: #ffffff; /* texto sobre o vermelho */
-  --focus: #4a0d14;
-  --photo: #f4ecea; /* fundo das fotos e dos placeholders */
-  --hero: #c8202f; /* o encarte da campanha: o vermelho da caixa (5,7:1 com o branco) */
+  --focus: #14261f;
+  --photo: #eceeeb; /* fundo das fotos e dos placeholders */
+  --hero: #1d4a39; /* o encarte da campanha: pinheiro, com a etiqueta dourada em cima (10:1 com o branco) */
   --on-hero: #ffffff;
-  --chart-1: #c8202f;
-  --chart-2: #a8740a;
-  --brand: #c8202f; /* o vermelho da caixa de presente, só na marca: não em botão, para não parecer erro */
+  --chart-1: #1f6b4a; /* pinheiro */
+  --chart-2: #a8740a; /* âmbar da fita */
+  --brand: #c8202f; /* o vermelho da caixa, só na logo e nos selos de campanha: não em botão, para não parecer erro */
   --ribbon: #f2b632; /* a fita e o laço da logo */
-  --panel: #4a0d14; /* a coluna do painel: vinho nos dois temas, para o vermelho do encarte ficar só na loja */
-  --on-panel: #fff4f1;
+  --panel: #14261f; /* a coluna do painel */
+  --on-panel: #f6f7f5;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --paper: #1d0d10;
-    --surface: #2a161a;
-    --ink: #f8eeec;
-    --ink-soft: #c9b3b5;
-    --line: #47292f;
-    --field-line: #9b8085;
+    --paper: #0f1714;
+    --surface: #18231f;
+    --ink: #edf2ee;
+    --ink-soft: #a9b7b0;
+    --line: #2a3832;
+    --field-line: #74847c;
     --success: #4fc79a;
     --danger: #ff7a80;
     --danger-ink: #ff7a80;
-    --on-danger: #1d0d10;
+    --on-danger: #0f1714;
     --focus: #f2b632;
-    --photo: #3a1f24;
-    --hero: #a51a27;
-    --on-hero: #fff4f1;
-    --chart-1: #ff6b75;
+    --photo: #22302a;
+    --hero: #1d4a39;
+    --on-hero: #f6f7f5;
+    --chart-1: #5fcb9b;
     --chart-2: #e0a92e;
-    --panel: #14070a;
+    --panel: #0a100d;
   }
 }
 
 .dark {
-  --paper: #1d0d10;
-  --surface: #2a161a;
-  --ink: #f8eeec;
-  --ink-soft: #c9b3b5;
-  --line: #47292f;
-  --field-line: #9b8085;
+  --paper: #0f1714;
+  --surface: #18231f;
+  --ink: #edf2ee;
+  --ink-soft: #a9b7b0;
+  --line: #2a3832;
+  --field-line: #74847c;
   --success: #4fc79a;
   --danger: #ff7a80;
   --danger-ink: #ff7a80;
-  --on-danger: #1d0d10;
+  --on-danger: #0f1714;
   --focus: #f2b632;
-  --photo: #3a1f24;
-  --hero: #a51a27;
-  --on-hero: #fff4f1;
-  --chart-1: #ff6b75;
+  --photo: #22302a;
+  --hero: #1d4a39;
+  --on-hero: #f6f7f5;
+  --chart-1: #5fcb9b;
   --chart-2: #e0a92e;
-  --panel: #14070a;
+  --panel: #0a100d;
 }
 
 @theme inline {
