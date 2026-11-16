@@ -55,11 +55,13 @@ public sealed class ManualSupplierTests(ManualSupplierFixture fx) : IClassFixtur
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private const string Sheet = "sku;nome;categoria;custo;estoque;peso_g;foto\n"
+    internal const string Sheet = "sku;nome;categoria;custo;estoque;peso_g;foto\n"
         + "fon-bt-01;Fone Bluetooth;fones-over-ear;89,90;25;250;https://exemplo.com/fone.jpg\n"
         + "\"PAN-22\";\"Frigideira 22 cm; antiaderente\";frigideiras;R$ 1.049,00;3;;\n";
 
-    private async Task<HttpResponseMessage> UploadAsync(string csv, string? token)
+    private Task<HttpResponseMessage> UploadAsync(string csv, string? token) => UploadAsync(fx, csv, token);
+
+    internal static async Task<HttpResponseMessage> UploadAsync(ManualSupplierFixture fx, string csv, string? token)
     {
         using var client = fx.Factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/admin/supplier-catalog/sheet")
@@ -134,10 +136,19 @@ public sealed class ManualSupplierTests(ManualSupplierFixture fx) : IClassFixtur
             await gateway.GetStockAsync(["FON-BT-01", "NAO-EXISTE"], Ct));
     }
 
+}
+
+/// <summary>O pedido pago no fornecedor manual (#412), num banco só dele: a planilha de um teste não atrapalha o outro.</summary>
+public sealed class ManualSupplierOrderTests(ManualSupplierFixture fx) : IClassFixture<ManualSupplierFixture>
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private Task<HttpResponseMessage> UploadAsync(string csv, string? token) => ManualSupplierTests.UploadAsync(fx, csv, token);
+
     [Fact]
     public async Task Frete_em_reais_pela_tabela_e_pedido_pago_vai_para_a_fila_da_equipe()
     {
-        using (var upload = await UploadAsync(Sheet, fx.Identity.AdminToken()))
+        using (var upload = await UploadAsync(ManualSupplierTests.Sheet, fx.Identity.AdminToken()))
         {
             Assert.Equal(HttpStatusCode.OK, upload.StatusCode);
         }
