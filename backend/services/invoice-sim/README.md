@@ -50,5 +50,5 @@ Erros no formato da Nuvem Fiscal: `{"error": {"code", "message"}}`.
 
 | Rota | |
 |---|---|
-| `GET /sim/notas` | Todas as notas, da mais nova para a mais velha. |
-| `POST /sim/reset` | Apaga as notas. A numeração parte do horário: reiniciado, o simulador não repete número nem id. |
+| `GET /sim/notas` | Todas as notas, da mais nova para a mais velha. Com `X-Sim-Admin-Token` igual a `SIM_ADMIN_TOKEN` (vazio, fecha). |
+| `POST /sim/reset` (com `X-Sim-Admin-Token`) | Apaga as notas. A numeração parte do horário: reiniciado, o simulador não repete número nem id. |

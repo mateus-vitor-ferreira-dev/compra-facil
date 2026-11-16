@@ -15,7 +15,9 @@ type Config struct {
 
 	ClientID     string
 	ClientSecret string
-	TokenTTL     time.Duration
+	// AdminToken abre as rotas /sim; vazio, o simulador gera um aleatório ao subir, e elas ficam fechadas
+	AdminToken string
+	TokenTTL   time.Duration
 
 	// CFOPs aceitos (venda à ordem: 5120 dentro do estado, 6120 fora)
 	AllowedCFOP  []string
@@ -30,6 +32,7 @@ func load(getenv func(string) string) (Config, error) {
 		LogLevel:     str(getenv, "LOG_LEVEL", "info"),
 		ClientID:     str(getenv, "SIM_CLIENT_ID", "sim-client"),
 		ClientSecret: str(getenv, "SIM_CLIENT_SECRET", "sim-secret"),
+		AdminToken:   strings.TrimSpace(getenv("SIM_ADMIN_TOKEN")),
 	}
 	for _, cfop := range strings.Split(str(getenv, "SIM_ALLOWED_CFOP", "5120,6120,1202,2202"), ",") {
 		if cfop = strings.TrimSpace(cfop); cfop != "" {

@@ -463,6 +463,8 @@ services:
     environment:
       SIM_WEBHOOK_URL: http://fulfillment:8007/v1/webhooks/supplier
       SIM_WEBHOOK_SECRET: ${SUPPLIER_SIM_WEBHOOK_SECRET:-sim-secret}
+      # as rotas /sim (pedidos com CPF, custo e estoque do feed) só com X-Sim-Admin-Token; o e2e manda este
+      SIM_ADMIN_TOKEN: ${SUPPLIER_SIM_ADMIN_TOKEN:-sim-admin}
     ports:
       - "127.0.0.1:${SUPPLIER_SIM_PORT:-8091}:8090"
     healthcheck:
@@ -500,6 +502,7 @@ services:
     environment:
       SIM_CLIENT_ID: ${INVOICE_SIM_CLIENT_ID:-sim-client}
       SIM_CLIENT_SECRET: ${INVOICE_SIM_CLIENT_SECRET:-sim-secret}
+      SIM_ADMIN_TOKEN: ${INVOICE_SIM_ADMIN_TOKEN:-sim-admin} # /sim/notas e /sim/reset
     ports:
       - "127.0.0.1:${INVOICE_SIM_PORT:-8094}:8090"
     healthcheck:
