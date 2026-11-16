@@ -6,6 +6,12 @@ namespace CompraFacil.Fulfillment.Infrastructure.Supplier;
 /// </summary>
 public sealed class SupplierOptions
 {
+    /// <summary>
+    /// api (o padrão: o CJ, ou o simulador dele) ou manual (#412): sem API, a equipe faz o pedido no fornecedor pelo
+    /// painel, e o catálogo vem da planilha (Supplier:Manual).
+    /// </summary>
+    public string Mode { get; set; } = "api";
+
     /// <summary>Nome do fornecedor nos eventos e no banco.</summary>
     public string Name { get; set; } = "cj";
 

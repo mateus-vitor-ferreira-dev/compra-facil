@@ -33,7 +33,8 @@ internal sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.ToTable("roles");
         builder.HasData(
             new Role { Id = Roles.CustomerId, Name = Roles.Customer, NormalizedName = "CUSTOMER", ConcurrencyStamp = "customer" },
-            new Role { Id = Roles.AdminId, Name = Roles.Admin, NormalizedName = "ADMIN", ConcurrencyStamp = "admin" });
+            new Role { Id = Roles.AdminId, Name = Roles.Admin, NormalizedName = "ADMIN", ConcurrencyStamp = "admin" },
+            new Role { Id = Roles.AuditorId, Name = Roles.Auditor, NormalizedName = "AUDITOR", ConcurrencyStamp = "auditor" });
     }
 }
 

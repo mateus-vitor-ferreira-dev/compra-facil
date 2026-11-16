@@ -1,0 +1,19 @@
+# O e2e no runner próprio (#415): nenhuma porta publicada no host. O k6 e o seed falam com os serviços pela rede
+# do compose (gateway, catalog), então as portas do compose.yaml só serviam para colidir com o que já roda na
+# máquina (o ambiente de desenvolvimento, o outro runner, outros projetos): "port is already allocated" no
+# Postgres derrubava o e2e da develop. Com um nome de projeto por run (COMPOSE_PROJECT_NAME), redes e volumes
+# também não se misturam.
+#   docker compose -f compose.yaml -f infra/compose/compose.ci.yaml up -d --wait
+services:
+  gateway: { ports: !reset [] }
+  grafana: { ports: !reset [] }
+  invoice-sim: { ports: !reset [] }
+  mailpit: { ports: !reset [] }
+  otel-collector: { ports: !reset [] }
+  payment-sim: { ports: !reset [] }
+  postgres: { ports: !reset [] }
+  prometheus: { ports: !reset [] }
+  redis: { ports: !reset [] }
+  redpanda: { ports: !reset [] }
+  redpanda-console: { ports: !reset [] }
+  supplier-sim: { ports: !reset [] }

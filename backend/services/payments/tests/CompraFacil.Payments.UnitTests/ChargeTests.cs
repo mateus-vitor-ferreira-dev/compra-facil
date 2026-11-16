@@ -126,6 +126,24 @@ public sealed class ChargeTests
     }
 
     [Fact]
+    public void RefundNotRealized_LeavesTheAmountToRefundAgain()
+    {
+        var p = Start(PaymentMethod.Pix);
+        p.MarkPending("t", s_pix, s_now);
+        p.Approve("t", 0, s_now);
+        p.Refund(s_amount.AmountCents, "k1", "D1", s_now);
+        Assert.Equal(PaymentStatus.Refunded, p.Status);
+
+        Assert.NotNull(p.RefundFailed("D1", s_now));
+        Assert.Null(p.RefundFailed("D1", s_now)); // já marcado
+        Assert.Null(p.RefundFailed("outro", s_now));
+        Assert.Equal((PaymentStatus.Approved, 0L, (DateTimeOffset?)null), (p.Status, p.RefundedCents, p.RefundedAt));
+        Assert.Null(p.RefundOf("k1"));
+        Assert.True(p.Refund(s_amount.AmountCents, "k1", "D2", s_now)); // a mesma chave, outra devolução
+        Assert.False(p.Refund(1, "k9", "D1", s_now)); // a referência que falhou não volta
+    }
+
+    [Fact]
     public void Payer_IsKeptOnlyUntilCharged()
     {
         var payer = new Payer("Ana Souza", "52998224725", "35999990000",

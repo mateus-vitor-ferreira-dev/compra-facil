@@ -339,7 +339,28 @@ const adminOrders = [
       delivered_at: "2026-11-01T14:00:00Z",
     },
   ),
+  // o estorno do PIX que a Efí aceitou e não realizou, sem saldo na conta (#396)
+  adminOrder(
+    "01a18d66-0000-7000-8000-0000b4000004",
+    "cancelled",
+    "supplier_failed",
+    "Duda Reis",
+    "duda@exemplo.com",
+    null,
+    "Lavras",
+    "MG",
+    "pix",
+    1,
+    7900,
+    "2026-11-04T09:00:00Z",
+    {
+      refunded_at: null,
+      refund_failed_at: "2026-11-04T12:00:00Z",
+    },
+  ),
 ];
+/** Os estornos pedidos de novo pelo painel (#396), pela chave. */
+const refundsAgain = new Set();
 
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
@@ -1025,6 +1046,171 @@ function send(res, status, body, type = "application/json") {
 const problem = (res, status, title) =>
   send(res, status, { type: "about:blank", title, status }, "application/problem+json");
 
+// ---------- fornecedor manual (#412) ----------
+// O modo manual vale só para o operador de @manual.exemplo.com: os outros testes do painel rodam em paralelo no modo
+// com API. O teste começa com POST /__manual/reset.
+const adminEmail = (req) => accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "";
+const isManualAdmin = (req) => isAdmin(req) && adminEmail(req).endsWith("@manual.exemplo.com");
+const MANUAL_TO_PLACE = "7c41e0aa-2b8f-4d1e-9a55-6f0b2d3c4e10";
+const MANUAL_PLACED = "8d52f1bb-3c9a-4e2f-8b66-7a1c3e4d5f21";
+const MANUAL_SHIPPED = "9e63a2cc-4dab-4f3a-9c77-8b2d4f5e6a32";
+let manual;
+function resetManual() {
+  const base = {
+    items: [{ sku: "FON-BT-01", name: "Fone de ouvido Bluetooth", quantity: 1 }],
+    revenue_cents: 17980,
+    freight_charged_cents: 1990,
+    shipping_service: "economico",
+    expected_product_cost_cents: 8990,
+    expected_freight_cost_cents: 1990,
+    customer_email: "ana@exemplo.com",
+    ship_to: {
+      name: "Ana Souza",
+      cpf: "52998224725",
+      phone: "11987654321",
+      zip_code: "01310100",
+      street: "Avenida Paulista",
+      number: "1000",
+      complement: "Apto 12",
+      district: "Bela Vista",
+      city: "São Paulo",
+      state: "SP",
+    },
+    paid_product_cost_cents: null,
+    paid_freight_cost_cents: null,
+    tracking: null,
+    placed_at: null,
+    shipped_at: null,
+    promised_by: "2026-12-28",
+  };
+  manual = new Map([
+    [
+      MANUAL_TO_PLACE,
+      {
+        ...base,
+        order_id: MANUAL_TO_PLACE,
+        status: "awaiting_staff",
+        supplier_order_id: null,
+        awaiting_since: iso(Date.now() - 26 * 3_600_000),
+      },
+    ],
+    [
+      MANUAL_PLACED,
+      {
+        ...base,
+        order_id: MANUAL_PLACED,
+        status: "placed",
+        supplier_order_id: "PED-5501",
+        awaiting_since: iso(Date.now() - 50 * 3_600_000),
+        placed_at: iso(Date.now() - 40 * 3_600_000),
+      },
+    ],
+    [
+      MANUAL_SHIPPED,
+      {
+        ...base,
+        order_id: MANUAL_SHIPPED,
+        status: "shipped",
+        supplier_order_id: "PED-5490",
+        awaiting_since: iso(Date.now() - 90 * 3_600_000),
+        placed_at: iso(Date.now() - 80 * 3_600_000),
+        tracking: { number: "BR987654321BR", provider: "Correios", url: null },
+        shipped_at: iso(Date.now() - 48 * 3_600_000),
+      },
+    ],
+  ]);
+}
+resetManual();
+
+/** As rotas do fornecedor manual: respondem a requisição que é delas e deixam as outras sem resposta. */
+async function manualSupplier(req, res, url) {
+  if (req.method === "POST" && url.pathname === "/__manual/reset") {
+    resetManual();
+    return res.writeHead(204).end();
+  }
+  if (url.pathname === "/fulfillment/v1/admin/supplier-catalog/sheet") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    if (req.method === "GET") {
+      return isManualAdmin(req)
+        ? send(res, 200, { enabled: true, products: 12, imported_at: iso(Date.now() - 5 * 86_400_000) })
+        : send(res, 200, { enabled: false, products: 0, imported_at: null });
+    }
+    const body = await new Promise((resolve) => {
+      const chunks = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    });
+    if (body.includes("doze")) {
+      res.writeHead(422, { "Content-Type": "application/problem+json" });
+      return res.end(
+        JSON.stringify({
+          type: "about:blank",
+          title: "Planilha com erro",
+          status: 422,
+          detail: "1 linha precisa de correção; nada mudou na loja.",
+          sheet_errors: [{ line: 3, message: 'custo inválido: "doze" (ex.: 12,90)' }],
+        }),
+      );
+    }
+    return send(res, 200, { products: 2, sync: { created: 1, updated: 1, removed: 0, unchanged: 0 } });
+  }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-catalog/sheet/template") {
+    res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8" });
+    return res.end("sku;nome;categoria;custo;estoque;peso_g;foto\r\n");
+  }
+  const list = (status) => send(res, 200, { data: [...manual.values()].filter((o) => o.status === status) });
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/to-place") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return list("awaiting_staff");
+  }
+  if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/manual") {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    return list(url.searchParams.get("status"));
+  }
+  const action = url.pathname.match(
+    /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/(placed|out-of-stock|tracking|delivered|cancel)$/,
+  );
+  if (req.method !== "POST" || !action || !manual.has(action[1])) return undefined;
+  if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+  const order = manual.get(action[1]);
+  const body = req.headers["content-type"]?.includes("json") ? await json(req) : {};
+  const now = new Date().toISOString();
+  switch (action[2]) {
+    case "placed":
+      if (order.status !== "awaiting_staff") return problem(res, 409, "Ação indisponível");
+      Object.assign(order, {
+        status: "placed",
+        supplier_order_id: body.supplier_order_id,
+        paid_product_cost_cents: body.paid_product_cost_cents ?? null,
+        paid_freight_cost_cents: body.paid_freight_cost_cents ?? null,
+        placed_at: now,
+      });
+      break;
+    case "tracking":
+      if (order.status !== "placed") return problem(res, 409, "Ação indisponível");
+      Object.assign(order, {
+        status: "shipped",
+        tracking: { number: body.number, provider: body.carrier ?? null, url: body.url ?? null },
+        shipped_at: now,
+      });
+      break;
+    case "delivered":
+      if (order.status !== "shipped") return problem(res, 409, "Ação indisponível");
+      order.status = "delivered";
+      break;
+    case "out-of-stock":
+      if (order.status !== "awaiting_staff") return problem(res, 409, "Ação indisponível");
+      order.status = "failed";
+      break;
+    case "cancel":
+      if (order.status === "placed" && !body?.cancelled_at_supplier)
+        return problem(res, 409, "Cancele no fornecedor primeiro");
+      order.status = "failed";
+      break;
+  }
+  return res.writeHead(204).end();
+}
+
 async function json(req) {
   let raw = "";
   for await (const chunk of req) raw += chunk;
@@ -1146,6 +1332,27 @@ createServer(async (req, res) => {
       });
     return send(res, 200, { data, page: { next_cursor: null, has_more: false } });
   }
+  // o pagamento do pedido e o estorno pelo painel (#396)
+  if (req.method === "GET" && url.pathname === "/payments/v1/payments") {
+    const order = adminOrders.find((o) => o.id === url.searchParams.get("order_id"));
+    const data = order
+      ? [
+          {
+            id: "01a18d66-0000-7000-8000-0000c4000004",
+            order_id: order.id,
+            status: "approved",
+            method: order.payment.method,
+          },
+        ]
+      : [];
+    return send(res, 200, { data });
+  }
+  const refundAgain = url.pathname.match(/^\/payments\/v1\/admin\/payments\/([0-9a-f-]{36})\/refunds$/);
+  if (req.method === "POST" && refundAgain) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    refundsAgain.add(req.headers["idempotency-key"]);
+    return send(res, 200, { id: refundAgain[1], status: "refunded" });
+  }
   if (req.method === "GET" && url.pathname.startsWith("/orders/v1/admin/orders/")) {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     const order = adminOrders.find((o) => o.id === url.pathname.split("/").pop());
@@ -1250,6 +1457,9 @@ createServer(async (req, res) => {
       ],
     });
   }
+  // as rotas do fornecedor manual respondem elas mesmas; as outras seguem adiante
+  await manualSupplier(req, res, url);
+  if (res.headersSent) return;
   const orderAction = url.pathname.match(
     /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/(retry|cancel)$/,
   );

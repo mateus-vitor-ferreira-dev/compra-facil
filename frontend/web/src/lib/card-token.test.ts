@@ -46,7 +46,6 @@ describe("tokenizeCard na Efí", () => {
       expirationMonth: "03",
       expirationYear: "2030",
       holderName: "Ana Souza",
-      holderDocument: "",
       reuse: false,
     });
   });
@@ -62,6 +61,26 @@ describe("tokenizeCard na Efí", () => {
       field: "number",
     });
     expect(efi.environment).toHaveBeenCalledWith("sandbox");
+  });
+
+  it("o erro do nome do titular vai para o nome; o do documento, não", async () => {
+    efi.result.mockRejectedValue({
+      code: 400,
+      error: "nome_titular_cartao_invalido",
+      error_description: "O nome do titular do cartão deve conter pelo menos duas palavras",
+    });
+    expect(await tokenizeCard({ ...simulator, environment: "sandbox" }, card)).toMatchObject({
+      ok: false,
+      field: "name",
+    });
+    efi.result.mockRejectedValue({
+      code: 400,
+      error: "documento_titular_cartao_invalido",
+      error_description: "O documento do titular do cartão é inválido",
+    });
+    const result = await tokenizeCard({ ...simulator, environment: "sandbox" }, card);
+    expect(result).toMatchObject({ ok: false });
+    expect(result).not.toHaveProperty("field", "name");
   });
 
   it("sem rede: o erro diz para tentar de novo", async () => {

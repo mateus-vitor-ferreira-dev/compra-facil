@@ -1,6 +1,7 @@
 using CompraFacil.BuildingBlocks.Data;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.Fulfillment.Application.Invoices;
+using CompraFacil.Fulfillment.Application.ManualSupplier;
 using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Infrastructure.Invoices;
@@ -38,13 +39,25 @@ public static class DependencyInjection
                 "Supplier:AcceptOrdersSince é obrigatório em produção (a data a partir da qual os pedidos vão ao fornecedor)");
         }
         builder.Services.AddSingleton(new OrderCutoff(since));
-        builder.Services.AddSingleton<CjTokenCache>();
-        builder.Services.AddHttpClient<ISupplierGateway, CjSupplierGateway>((sp, http) =>
+        // o fornecedor (ADR 0007): pela API (o CJ, ou o simulador dele) ou manual, pela equipe no painel (#412)
+        var manual = string.Equals(supplier.GetValue<string>("Mode"), "manual", StringComparison.OrdinalIgnoreCase);
+        builder.Services.AddSingleton(new ManualSupplierMode(manual));
+        builder.Services.Configure<ManualSupplierOptions>(builder.Configuration.GetSection(ManualSupplierOptions.Section));
+        builder.Services.AddScoped<IManualCatalogRepository, ManualCatalogRepository>();
+        if (manual)
         {
-            var o = sp.GetRequiredService<IOptions<SupplierOptions>>().Value;
-            http.BaseAddress = o.BaseUrl;
-            http.Timeout = o.Timeout;
-        });
+            builder.Services.AddScoped<ISupplierGateway, ManualSupplierGateway>();
+        }
+        else
+        {
+            builder.Services.AddSingleton<CjTokenCache>();
+            builder.Services.AddHttpClient<ISupplierGateway, CjSupplierGateway>((sp, http) =>
+            {
+                var o = sp.GetRequiredService<IOptions<SupplierOptions>>().Value;
+                http.BaseAddress = o.BaseUrl;
+                http.Timeout = o.Timeout;
+            });
+        }
         // o frete e o prazo por CEP (#222)
         builder.Services.AddSingleton(builder.Configuration.GetSection(Application.Shipping.ShippingSettings.Section)
             .Get<Application.Shipping.ShippingSettings>() ?? new Application.Shipping.ShippingSettings());

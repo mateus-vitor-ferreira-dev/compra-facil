@@ -30,9 +30,13 @@ public enum ProviderStatus
     Disputed,
 }
 
-/// <summary>Uma cobrança como o provedor a devolve.</summary>
+/// <summary>
+/// Uma cobrança como o provedor a devolve. <see cref="FailedRefunds"/>: as referências dos estornos que o provedor
+/// aceitou e depois não realizou (a devolução do PIX que termina NAO_REALIZADO, #396).
+/// </summary>
 public sealed record ProviderPayment(
-    string Reference, ProviderStatus Status, FailureReason? FailureReason = null, PixCharge? Pix = null, string? CardLastFour = null);
+    string Reference, ProviderStatus Status, FailureReason? FailureReason = null, PixCharge? Pix = null, string? CardLastFour = null,
+    IReadOnlyList<string>? FailedRefunds = null);
 
 public sealed record ProviderRefund(string Reference, long AmountCents);
 

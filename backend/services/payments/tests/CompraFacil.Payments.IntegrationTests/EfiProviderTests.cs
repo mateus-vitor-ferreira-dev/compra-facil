@@ -138,6 +138,11 @@ public sealed class EfiProviderTests
         var refund = await provider.RefundAsync("cfabc0000000000000000000000000000", null, "pagamento:cancel", Ct);
 
         Assert.Equal(("D99", 12000L), (refund.Reference, refund.AmountCents));
+
+        // a devolução que a Efí não realizou aparece na consulta da cobrança
+        server.Routes["GET /v2/cob/cfabc0000000000000000000000000000"] = new([(HttpStatusCode.OK, Cob("CONCLUIDA", "1800")
+            .Replace("\"status\":\"DEVOLVIDO\"", "\"status\":\"NAO_REALIZADO\"", StringComparison.Ordinal))]);
+        Assert.Equal(["D1"], (await provider.GetAsync("cfabc0000000000000000000000000000", Ct)).FailedRefunds);
         Assert.Equal(32, id.Length);
         Assert.Contains("\"valor\":\"120.00\"", server.Calls.Single(c => c.Method == HttpMethod.Put).Body, StringComparison.Ordinal); // o pago menos o já devolvido
     }
@@ -157,7 +162,7 @@ public sealed class EfiProviderTests
         Assert.Equal(("391", ProviderStatus.Authorized, "0087"), (result.Reference, result.Status, result.CardLastFour));
         var open = JsonDocument.Parse(server.Calls.Single(c => c.Path == "/v1/charge").Body!).RootElement;
         Assert.Equal(12990, open.GetProperty("items")[0].GetProperty("value").GetInt64());
-        Assert.Equal(s_order.ToString(), open.GetProperty("metadata").GetProperty("custom_id").GetString());
+        Assert.Equal($"embrulhado-{s_order}", open.GetProperty("metadata").GetProperty("custom_id").GetString());
         Assert.Equal("https://api.loja/payments/v1/webhooks/efi/charges", open.GetProperty("metadata").GetProperty("notification_url").GetString());
         var card = JsonDocument.Parse(server.Calls.Single(c => c.Path == "/v1/charge/391/pay").Body!).RootElement
             .GetProperty("payment").GetProperty("credit_card");

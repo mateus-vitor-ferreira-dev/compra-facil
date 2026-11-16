@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Testing;
 using CompraFacil.Fulfillment.Domain;
@@ -113,5 +114,29 @@ public sealed class OverdueOrdersTests(OverdueFixture fx) : IClassFixture<Overdu
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, customer.StatusCode);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, badLimit.StatusCode);
+    }
+
+    [Fact]
+    public async Task Auditor_ReadsTheLists_ButCannotRetryCancelOrInstruct()
+    {
+        using var overdue = await GetAsync(fx.Identity.AuditorToken());
+        Assert.Equal(HttpStatusCode.OK, overdue.StatusCode);
+
+        using var http = fx.Factory.CreateClient();
+        http.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.AuditorToken());
+        foreach (var path in new[] { "/v1/admin/supplier-orders/failed", "/v1/admin/supplier-returns" })
+        {
+            using var list = await http.GetAsync(path, Ct);
+            Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        }
+        var id = Guid.NewGuid();
+        foreach (var path in new[] { $"/v1/admin/supplier-orders/{id}/retry", $"/v1/admin/supplier-orders/{id}/cancel" })
+        {
+            using var action = await http.PostAsync(path, null, Ct);
+            Assert.Equal(HttpStatusCode.Forbidden, action.StatusCode);
+        }
+        using var instruct = await http.PostAsync($"/v1/admin/supplier-returns/{id}/customer-instruction",
+            JsonContent.Create(new { instruction = "send_to_store" }), Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, instruct.StatusCode);
     }
 }

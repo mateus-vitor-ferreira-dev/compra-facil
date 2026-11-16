@@ -288,6 +288,11 @@ export interface components {
             return_requested_at?: string | null;
             /** Format: date-time */
             refunded_at?: string | null;
+            /**
+             * Format: date-time
+             * @description A última vez que o provedor aceitou o estorno e não o realizou (#396); com `refunded_at` nulo, falta estornar de novo.
+             */
+            refund_failed_at?: string | null;
             /** Format: date-time */
             updated_at: string;
         };
@@ -534,6 +539,12 @@ export interface components {
              *     `invoice_failed` ou `store_cancelled`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
              */
             refunded_at?: string | null;
+            /**
+             * Format: date-time
+             * @description A última vez que o provedor aceitou o estorno e não o realizou (#396). O pedido volta a esperar o
+             *     estorno (`refunded_at` nulo) até a loja estornar de novo.
+             */
+            refund_failed_at?: string | null;
             /**
              * Format: date-time
              * @description Quando o cliente pediu a devolução (#223).

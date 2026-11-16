@@ -160,6 +160,10 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("character varying(8)")
                         .HasColumnName("payment_method");
 
+                    b.Property<DateTimeOffset?>("RefundFailedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("refund_failed_at");
+
                     b.Property<DateTimeOffset?>("RefundedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("refunded_at");

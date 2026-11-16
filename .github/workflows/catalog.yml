@@ -49,12 +49,14 @@ defaults:
 jobs:
   lint:
     name: golangci-lint
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
         with:
+          # no runner próprio, o GOMODCACHE e o GOCACHE da máquina já persistem (#415)
+          cache: ${{ github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted' }}
           go-version-file: backend/services/catalog/go.mod
           cache-dependency-path: backend/services/catalog/go.sum
       # módulos baixados antes: com o cache frio, carregar os pacotes estourava o prazo do lint
@@ -64,15 +66,20 @@ jobs:
           version: v2.14.0
           working-directory: backend/services/catalog
           args: --timeout=8m
+          # no runner próprio, o cache do lint fica no disco da máquina (~/.cache/golangci-lint): o do GitHub
+          # travava baixando a 0 MB/s até o timeout do job, que cancelou o catalog de todo push na develop (#415)
+          skip-cache: ${{ !github.event.pull_request.head.repo.fork && vars.RUNNER == 'self-hosted' }}
 
   test:
     name: testes (-race)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
         with:
+          # no runner próprio, o GOMODCACHE e o GOCACHE da máquina já persistem (#415)
+          cache: ${{ github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted' }}
           go-version-file: backend/services/catalog/go.mod
           cache-dependency-path: backend/services/catalog/go.sum
       - name: go test (Postgres e Redpanda reais via testcontainers-go)
@@ -88,7 +95,7 @@ jobs:
     name: imagem no GHCR
     needs: [lint, test]
     if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -147,6 +154,10 @@ jobs:
     name: imagem roda em ARM
     needs: image
     # runner ARM nativo: a imagem publicada roda como no VPS da produção, sem emulação
+    # roda a imagem arm64 de verdade: precisa de máquina ARM. O runner próprio é x86 e sem QEMU, e o rótulo
+    # "self-hosted-arm" não existe: o job ficava 24 h na fila até o GitHub cancelar (#415). Lá, a conferência
+    # fica com o healthcheck do deploy no VPS ARM
+    if: vars.RUNNER != 'self-hosted'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:

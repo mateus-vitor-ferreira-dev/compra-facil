@@ -32,6 +32,10 @@ public sealed class JwtAuthTests : IAsyncLifetime
             .RequireAuthorization(JwtAuth.AdminPolicy);
         _app.MapPost("/v1/me/x", (ClaimsPrincipal user) => Results.Ok(new { email = user.FindFirstValue("email") }))
             .RequireAuthorization(JwtAuth.CustomerPolicy);
+        _app.MapGet("/v1/admin/lista", () => Results.Ok()).RequireAuthorization(JwtAuth.AdminReadPolicy);
+        // como um controller com AdminReadPolicy na classe e AdminPolicy na ação que muda algo
+        _app.MapPost("/v1/admin/lista/acao", () => Results.NoContent())
+            .RequireAuthorization(JwtAuth.AdminReadPolicy).RequireAuthorization(JwtAuth.AdminPolicy);
         await _app.StartAsync();
         _http = _app.GetTestClient();
     }
@@ -75,6 +79,31 @@ public sealed class JwtAuthTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("0199f6a0-0000-7000-8000-000000000a1a", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Auditor_ReadsTheAdminLists_ButChangesNothing()
+    {
+        using var auditorReads = await SendAsync(HttpMethod.Get, "/v1/admin/lista", _identity.AuditorToken());
+        using var adminReads = await SendAsync(HttpMethod.Get, "/v1/admin/lista", _identity.AdminToken());
+        using var customerReads = await SendAsync(HttpMethod.Get, "/v1/admin/lista", _identity.CustomerToken());
+        using var auditorActs = await SendAsync(HttpMethod.Post, "/v1/admin/lista/acao", _identity.AuditorToken());
+        using var adminActs = await SendAsync(HttpMethod.Post, "/v1/admin/lista/acao", _identity.AdminToken());
+        using var auditorOnAdmin = await CallAsync("/v1/admin/x", _identity.AuditorToken());
+
+        Assert.Equal(HttpStatusCode.OK, auditorReads.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, adminReads.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, customerReads.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, auditorActs.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, adminActs.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, auditorOnAdmin.StatusCode);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string token)
+    {
+        using var request = new HttpRequestMessage(method, path);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await _http.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     [Fact]

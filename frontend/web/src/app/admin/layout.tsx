@@ -29,20 +29,20 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       <AdminNav
         brand={
           <Link href="/admin" className="inline-flex items-center gap-2 rounded-md">
-            <LogoMark className="text-on-hero [&_.fill-paper]:fill-hero [&_.stroke-paper]:stroke-hero size-7" />
+            <LogoMark className="size-7" />
             <span className="font-bold tracking-tight">Painel {brand.name}</span>
           </Link>
         }
         account={
           <div className="space-y-2 text-sm">
-            <p className="text-on-hero/75 truncate px-1" title={account.email}>
+            <p className="text-on-panel/75 truncate px-1" title={account.email}>
               {account.email}
             </p>
             <div className="flex flex-wrap items-center gap-1">
-              <ThemeMenu className="text-on-hero hover:bg-on-hero/10" />
+              <ThemeMenu className="text-on-panel hover:bg-on-panel/10" />
               <Link
                 href="/"
-                className="hover:bg-on-hero/10 inline-flex min-h-11 items-center rounded-md px-3 font-medium"
+                className="hover:bg-on-panel/10 inline-flex min-h-11 items-center rounded-md px-3 font-medium"
               >
                 Ver a loja
               </Link>
@@ -51,7 +51,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                   variant="ghost"
                   size="sm"
                   pendingLabel="Saindo…"
-                  className="text-on-hero hover:bg-on-hero/10"
+                  className="text-on-panel hover:bg-on-panel/10"
                 >
                   Sair
                 </SubmitButton>

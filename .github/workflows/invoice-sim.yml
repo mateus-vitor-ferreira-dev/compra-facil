@@ -27,12 +27,14 @@ defaults:
 jobs:
   lint:
     name: golangci-lint
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
         with:
+          # no runner próprio, o GOMODCACHE e o GOCACHE da máquina já persistem (#415)
+          cache: ${{ github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted' }}
           go-version-file: backend/services/invoice-sim/go.mod
           cache-dependency-path: backend/services/invoice-sim/go.sum
       - run: go mod download
@@ -41,15 +43,19 @@ jobs:
           version: v2.14.0
           working-directory: backend/services/invoice-sim
           args: --timeout=8m
+          # no runner próprio, o cache do lint fica no disco; o do GitHub travava o job (#415)
+          skip-cache: ${{ !github.event.pull_request.head.repo.fork && vars.RUNNER == 'self-hosted' }}
 
   test:
     name: testes (-race)
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
         with:
+          # no runner próprio, o GOMODCACHE e o GOCACHE da máquina já persistem (#415)
+          cache: ${{ github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted' }}
           go-version-file: backend/services/invoice-sim/go.mod
           cache-dependency-path: backend/services/invoice-sim/go.sum
       - run: go vet ./...

@@ -208,6 +208,135 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-orders/to-place": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A fila "Pedidos a fazer" do fornecedor manual
+         * @description Os pedidos pagos esperando a equipe fazer no fornecedor (`awaiting_staff`, #412), os mais antigos primeiro,
+         *     com o custo esperado. Também para o papel `auditor` (o Balcão do agentes-hub), mas sem `customer_email` e
+         *     `ship_to`, que só o operador vê: é com eles que a equipe preenche o pedido no fornecedor.
+         */
+        get: operations["listSupplierOrdersToPlace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Os pedidos do fornecedor manual em andamento
+         * @description Depois da fila "Pedidos a fazer": `placed`, os feitos no fornecedor esperando o rastreio, e `shipped`, os
+         *     em transporte esperando a entrega, os mais antigos primeiro (#412). Como a fila, também para o `auditor`,
+         *     sem `customer_email` e `ship_to`.
+         */
+        get: operations["listManualSupplierOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/placed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A equipe fez o pedido no fornecedor manual
+         * @description Da fila `awaiting_staff` para `placed`, com o número do pedido no fornecedor e, se a equipe informar, o que
+         *     pagou pelos produtos e pelo frete (a margem passa a usar esses valores). Sai o `SupplierOrderPlaced`, como
+         *     na API de um fornecedor. Fora da fila, 409. Só o papel `admin`.
+         */
+        post: operations["markSupplierOrderPlaced"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/out-of-stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * O fornecedor manual não tinha o produto
+         * @description O pedido da fila falha com `out_of_stock` (`SupplierOrderFailed`): o orders cancela e o payments estorna. O
+         *     corpo é opcional, com o detalhe para o painel. Fora da fila, 409. Só o papel `admin`.
+         */
+        post: operations["markSupplierOrderOutOfStock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/tracking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * O rastreio do pedido no fornecedor manual
+         * @description De `placed` para `shipped`, com o código, a transportadora e o link: sai o `SupplierOrderShipped`, e o
+         *     cliente recebe o rastreio. Antes de o pedido ser feito no fornecedor, ou depois de despachado, 409. Só o papel `admin`.
+         */
+        post: operations["markSupplierOrderShipped"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-orders/{order_id}/delivered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * O pedido do fornecedor manual foi entregue
+         * @description De `shipped` para `delivered` (`SupplierOrderDelivered`), quando o rastreio mostra a entrega. Fora do
+         *     transporte, 409. Só o papel `admin`.
+         */
+        post: operations["markSupplierOrderDelivered"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/{order_id}/cancel": {
         parameters: {
             query?: never;
@@ -221,7 +350,8 @@ export interface paths {
          * Cancela o pedido que não foi despachado e estorna o cliente
          * @description Cancela no fornecedor, se ele já tem o pedido, e publica `SupplierOrderFailed` com `store_cancelled`: o
          *     orders cancela e o payments estorna. Despachado ou sendo enviado agora dá 409. Fornecedor fora do ar dá
-         *     503, e nada muda. Repetir é seguro.
+         *     503, e nada muda. Repetir é seguro. No fornecedor manual (#412), um pedido já feito pela equipe só cancela
+         *     com `cancelled_at_supplier: true`, a confirmação de que ela cancelou no site do fornecedor; sem isso, 409.
          */
         post: operations["cancelSupplierOrder"];
         delete?: never;
@@ -326,6 +456,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-catalog/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A planilha do fornecedor manual
+         * @description Se o modo manual (`Supplier:Mode=manual`,
+         */
+        get: operations["getSupplierSheet"];
+        put?: never;
+        /**
+         * Sobe a planilha do fornecedor manual
+         * @description O CSV do fornecedor (separado por `;` ou `,`, UTF-8 ou Latin-1), no corpo (`text/csv`) ou como o arquivo
+         *     `file` de um formulário. Colunas: `sku`, `nome`, `categoria` (o slug da categoria da loja), `custo` (em
+         *     reais, "12,90"), `estoque`, e as opcionais `peso_g` e `foto` (https). Tudo é conferido antes: uma linha
+         *     com erro e nada muda (422, com os erros por linha). Sem erro, a planilha substitui a anterior e passa pela
+         *     mesma sincronização do feed: o que é novo, mudou ou saiu chega à loja pelos eventos de sempre. Até 5 MB e
+         *     5000 produtos. Só com o papel `admin`.
+         */
+        post: operations["importSupplierSheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/supplier-catalog/sheet/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * O modelo da planilha
+         * @description O CSV com o cabeçalho e uma linha de exemplo, para a equipe preencher.
+         */
+        get: operations["getSupplierSheetTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/dead-letters": {
         parameters: {
             query?: never;
@@ -423,6 +602,110 @@ export interface components {
             removed: number;
             unchanged: number;
         };
+        PlacedRequest: {
+            /** @description O número do pedido no site do fornecedor. */
+            supplier_order_id: string;
+            /** @description O que a equipe pagou pelos produtos, em centavos de real. */
+            paid_product_cost_cents?: number;
+            /** @description O que a equipe pagou pelo frete, em centavos de real. */
+            paid_freight_cost_cents?: number;
+        };
+        OutOfStockRequest: {
+            detail?: string;
+        };
+        TrackingRequest: {
+            number: string;
+            /** @example Correios */
+            carrier?: string;
+            /**
+             * Format: uri
+             * @description O link de rastreio (https).
+             */
+            url?: string;
+        };
+        /** @description Um pedido do fornecedor manual, na fila ou em andamento. */
+        SupplierOrderToPlace: {
+            /** @enum {string} */
+            status: "awaiting_staff" | "placed" | "shipped";
+            /** @description O número do pedido no fornecedor, depois de feito. */
+            supplier_order_id?: string | null;
+            paid_product_cost_cents?: number | null;
+            paid_freight_cost_cents?: number | null;
+            tracking?: components["schemas"]["Tracking"] | null;
+            /** Format: date-time */
+            placed_at?: string | null;
+            /** Format: date-time */
+            shipped_at?: string | null;
+            /** Format: uuid */
+            order_id: string;
+            /**
+             * Format: date-time
+             * @description Quando entrou na fila.
+             */
+            awaiting_since: string;
+            /**
+             * Format: date
+             * @description A data de entrega prometida ao cliente.
+             */
+            promised_by?: string | null;
+            items: {
+                /** @description O SKU da loja, que é o da planilha do fornecedor. */
+                sku: string;
+                name: string;
+                quantity: number;
+            }[];
+            /** @description O que o cliente pagou, com o frete. */
+            revenue_cents?: number | null;
+            /** @description O frete cobrado do cliente (zero no frete grátis). */
+            freight_charged_cents?: number | null;
+            /** @example economico */
+            shipping_service?: string | null;
+            /** @description O custo dos produtos pela planilha. */
+            expected_product_cost_cents?: number | null;
+            /** @description O custo do frete pela tabela. */
+            expected_freight_cost_cents?: number | null;
+            /** @description Só para o papel `admin`. */
+            customer_email?: string | null;
+            /** @description Para quem e para onde o fornecedor manda; só para o papel `admin`. */
+            ship_to?: components["schemas"]["ToPlaceShipTo"] | null;
+        };
+        ToPlaceShipTo: {
+            name: string;
+            cpf: string;
+            phone: string;
+            zip_code: string;
+            street: string;
+            number: string;
+            complement?: string | null;
+            district: string;
+            city: string;
+            state: string;
+        };
+        ManualSheetSummary: {
+            /** @description Se o fornecedor está no modo manual. */
+            enabled: boolean;
+            /** @description Produtos na última planilha. */
+            products: number;
+            /**
+             * Format: date-time
+             * @description Quando a última planilha foi subida.
+             */
+            imported_at?: string | null;
+        };
+        SheetError: {
+            /** @description A linha da planilha (o cabeçalho é a 1). */
+            line: number;
+            message: string;
+        };
+        ManualImportResult: {
+            /** @description Produtos na planilha que entrou. */
+            products: number;
+            sync: components["schemas"]["CatalogSyncResult"];
+        };
+        /** @description A planilha teve erro (HTTP 422), com um item por linha; nada mudou. */
+        SheetProblem: components["schemas"]["Problem"] & {
+            sheet_errors: components["schemas"]["SheetError"][];
+        };
         OverdueSupplierOrder: {
             /**
              * Format: uuid
@@ -431,10 +714,11 @@ export interface components {
             order_id: string;
             /**
              * @description `pending`: na fila para o fornecedor (ou esperando nova tentativa) · `placing`: sendo enviado ·
+             *     `awaiting_staff`: fornecedor manual, na fila "Pedidos a fazer" da equipe (#412) ·
              *     `placed`: aceito e não despachado · `shipped`: despachado e não entregue.
              * @enum {string}
              */
-            status: "pending" | "placing" | "placed" | "shipped";
+            status: "pending" | "placing" | "awaiting_staff" | "placed" | "shipped";
             /**
              * @description `shipping`: o fornecedor não despachou no prazo · `delivery`: o envio não chegou no prazo.
              * @enum {string}
@@ -1151,7 +1435,154 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
-    cancelSupplierOrder: {
+    listSupplierOrdersToPlace: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A fila. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SupplierOrderToPlace"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listManualSupplierOrders: {
+        parameters: {
+            query: {
+                status: "placed" | "shipped";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os pedidos da etapa. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SupplierOrderToPlace"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    markSupplierOrderPlaced: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlacedRequest"];
+            };
+        };
+        responses: {
+            /** @description Feito. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    markSupplierOrderOutOfStock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["OutOfStockRequest"];
+            };
+        };
+        responses: {
+            /** @description Feito. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    markSupplierOrderShipped: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrackingRequest"];
+            };
+        };
+        responses: {
+            /** @description Feito. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    markSupplierOrderDelivered: {
         parameters: {
             query?: never;
             header?: never;
@@ -1161,6 +1592,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Feito. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    cancelSupplierOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description Fornecedor manual - a equipe já cancelou o pedido no fornecedor. */
+                    cancelled_at_supplier?: boolean;
+                };
+            };
+        };
         responses: {
             /** @description Cancelado. */
             204: {
@@ -1311,6 +1775,108 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    getSupplierSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O resumo da planilha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualSheetSummary"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    importSupplierSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": string;
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description A planilha entrou, e o que a sincronização fez na loja. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualImportResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description O fornecedor não está no modo manual, ou outra sincronização está rodando. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description O arquivo passa do limite. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Linhas com erro; nada mudou. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SheetProblem"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getSupplierSheetTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O modelo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     listDeadLetters: {

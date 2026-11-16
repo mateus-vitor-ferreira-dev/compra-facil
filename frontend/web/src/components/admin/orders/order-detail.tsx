@@ -1,5 +1,7 @@
-import { Mail, MessageCircle, Phone } from "lucide-react";
+import { Mail, MessageCircle, Phone, TriangleAlert } from "lucide-react";
+import { refundAgain } from "@/app/admin/pedidos/actions";
 import { Badge } from "@/components/ui/badge";
+import { SubmitButton } from "@/components/ui/submit-button";
 import type { AdminOrderDetail } from "@/lib/admin-api";
 import { adminOrderStatus, whatsappHref } from "@/lib/admin-orders";
 import { formatPhone } from "@/lib/delivery";
@@ -35,10 +37,58 @@ function timeline(o: AdminOrderDetail): { label: string; at: string }[] {
 }
 
 /**
+ * O provedor aceitou o estorno e não o realizou (#396): na Efí, a devolução do PIX sem saldo na conta, porque a
+ * tarifa já saiu do valor recebido. O cliente vê o estorno em andamento; a equipe põe saldo e estorna de novo.
+ */
+function RefundFailed({ order: o, notice }: { order: AdminOrderDetail; notice?: RefundNotice }) {
+  if (!o.refund_failed_at || o.refunded_at) return null;
+  return (
+    <section
+      aria-labelledby="estorno-falhou"
+      className="border-danger/40 bg-danger/5 space-y-3 rounded-md border p-4"
+    >
+      <h2 id="estorno-falhou" className="flex items-center gap-2 font-semibold">
+        <TriangleAlert aria-hidden="true" className="text-danger size-5 shrink-0" />O estorno não foi
+        realizado
+      </h2>
+      <p className="max-w-prose">
+        Em {fmt(o.refund_failed_at)}, o provedor aceitou o estorno e depois não o fez, e o valor não voltou ao
+        cliente. Na Efí, isso acontece quando a conta não tem saldo para a devolução. Ponha saldo na conta e
+        estorne de novo.
+      </p>
+      {notice === "pedido" ? (
+        <p role="status" className="font-medium">
+          Estorno pedido. O pedido muda quando o provedor confirmar.
+        </p>
+      ) : (
+        <form action={refundAgain}>
+          <input type="hidden" name="order_id" value={o.id} />
+          <input type="hidden" name="failed_at" value={o.refund_failed_at} />
+          {notice === "erro" && (
+            <p role="alert" className="text-danger-ink mb-2 font-medium">
+              O estorno não foi pedido agora. Tente de novo em instantes.
+            </p>
+          )}
+          <SubmitButton pendingLabel="Estornando…">Estornar de novo</SubmitButton>
+        </form>
+      )}
+    </section>
+  );
+}
+
+export type RefundNotice = "pedido" | "erro";
+
+/**
  * O pedido para a equipe (#382): quem comprou e como falar com ela, o que comprou e quanto pagou, a entrega e
  * o que aconteceu até aqui. Sem CPF nem endereço: a API do painel não os manda.
  */
-export function OrderDetail({ order: o }: { order: AdminOrderDetail }) {
+export function OrderDetail({
+  order: o,
+  refundNotice,
+}: {
+  order: AdminOrderDetail;
+  refundNotice?: RefundNotice;
+}) {
   const status = adminOrderStatus(o);
   const wa = whatsappHref(o.customer.phone);
   const track = o.tracking ? trackingHref(o.tracking.url) : null;
@@ -54,6 +104,8 @@ export function OrderDetail({ order: o }: { order: AdminOrderDetail }) {
         </div>
         <p className="text-ink-soft">Feito em {fmt(o.created_at)}.</p>
       </header>
+
+      <RefundFailed order={o} notice={refundNotice} />
 
       <div className="grid gap-8 @3xl:grid-cols-2">
         <section aria-labelledby="cliente" className="min-w-0 space-y-3">

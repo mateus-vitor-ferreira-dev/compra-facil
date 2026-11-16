@@ -1,52 +1,84 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // A loja no Cloudflare Workers, pelo OpenNext (ADR 0006). O CI publica com `npm run deploy`; a conta
-  // vem de CLOUDFLARE_ACCOUNT_ID, e o domínio da loja é um Custom Domain do Worker (README).
-  "name": "compra-facil-web",
+  // A loja do Embrulhado no Cloudflare Workers, pelo OpenNext (ADR 0006). O CI publica com `npm run deploy`; a conta
+  // vem de CLOUDFLARE_ACCOUNT_ID, e o domínio é um Custom Domain do Worker (o Cloudflare cria o registro sozinho).
+  // A loja de demonstração da entrega da disciplina é outro Worker (compra-facil-web), congelado no ambiente "demo"
+  // abaixo: o CI não o publica mais.
+  "name": "embrulhado-web",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": true,
+  // só o domínio da loja: sem a segunda origem pública em workers.dev
+  "workers_dev": false,
   "preview_urls": false,
-  // por enquanto, um subdomínio da Digital Codexa: um nível só, que o certificado universal da zona cobre
   "routes": [
-    { "pattern": "compra-facil.digitalcodexa.com", "custom_domain": true },
-    { "pattern": "comprafacil.digitalcodexa.com", "custom_domain": true },
+    { "pattern": "embrulhado.com.br", "custom_domain": true },
+    { "pattern": "www.embrulhado.com.br", "custom_domain": true },
   ],
-  // Valores do servidor que não são segredo. Os segredos (BFF_GATEWAY_KEY, GOOGLE_CLIENT_SECRET) vão
-  // com `wrangler secret put`.
+  // Valores do servidor que não são segredo. Os segredos vão com `wrangler secret put`: BFF_GATEWAY_KEY (o mesmo do
+  // gateway no Coolify), GOOGLE_CLIENT_SECRET e PAYMENT_PAYEE_CODE (o identificador de conta da Efí).
   "vars": {
-    "API_URL": "https://compra-facil-api.49.12.249.23.sslip.io",
-    "SITE_URL": "https://compra-facil.digitalcodexa.com",
-    // o IP de quem compra, que a Cloudflare põe em toda requisição e não deixa o cliente forjar: o BFF
-    // o repassa ao gateway para o rate limit ser por comprador (#176)
+    "API_URL": "https://api.embrulhado.com.br",
+    "SITE_URL": "https://embrulhado.com.br",
+    // o IP de quem compra, que a Cloudflare põe em toda requisição e não deixa o cliente forjar: o BFF o repassa ao
+    // gateway para o rate limit ser por comprador
     "CLIENT_IP_HEADER": "cf-connecting-ip",
-    // a loja de demonstração: a Efí simulada (o payment-sim), em sslip.io como a API (abre nas redes que
-    // bloqueiam a zona). Na venda de verdade: "production" e o identificador de conta da Efí (#379)
-    "PAYMENT_PROVIDER": "simulator",
-    "PAYMENT_PROVIDER_URL": "https://compra-facil-pagamento.49.12.249.23.sslip.io",
-    "DEMO_MODE": "true",
+    // a Efí de verdade: o navegador tokeniza o cartão com a biblioteca dela e o identificador de conta
+    "PAYMENT_PROVIDER": "production",
+    "DEMO_MODE": "false",
   },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
-  // a manutenção (#370): a marca do deploy, que o deploy.yml liga pela API do Cloudflare, e a janela agendada
-  // pelo painel. O namespace compra-facil-manutencao da conta (deploy/README.md, "Aviso de manutenção"); o
-  // wrangler dev usa uma cópia local, e o mesmo id vai na variável CLOUDFLARE_KV_MAINTENANCE_ID do repositório
+  // a manutenção: a marca do deploy, que o deploy.yml liga pela API do Cloudflare, e a janela agendada pelo painel.
+  // O namespace embrulhado-manutencao, só da loja (a demonstração tem o dela); o mesmo id vai na variável
+  // CLOUDFLARE_KV_MAINTENANCE_ID do repositório
   "kv_namespaces": [
     {
       "binding": "MAINTENANCE",
-      "id": "5aa63329c6cf44af9434ac57fdc019ce",
+      "id": "402572c3ef244c8db6b99082100a54b1",
     },
   ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "compra-facil-web",
+      "service": "embrulhado-web",
     },
   ],
   "observability": {
     "enabled": true,
+  },
+  "env": {
+    // A loja de demonstração da entrega da disciplina, como está publicada: só para republicar à mão, se um dia
+    // for preciso (`npx opennextjs-cloudflare deploy -- --env demo`). O código dela é o da branch entrega-disciplina.
+    "demo": {
+      "name": "compra-facil-web",
+      "workers_dev": true,
+      "routes": [
+        { "pattern": "compra-facil.digitalcodexa.com", "custom_domain": true },
+        { "pattern": "comprafacil.digitalcodexa.com", "custom_domain": true },
+      ],
+      "vars": {
+        "API_URL": "https://compra-facil-api.49.12.249.23.sslip.io",
+        "SITE_URL": "https://compra-facil.digitalcodexa.com",
+        "CLIENT_IP_HEADER": "cf-connecting-ip",
+        "PAYMENT_PROVIDER": "simulator",
+        "PAYMENT_PROVIDER_URL": "https://compra-facil-pagamento.49.12.249.23.sslip.io",
+        "DEMO_MODE": "true",
+      },
+      "kv_namespaces": [
+        {
+          "binding": "MAINTENANCE",
+          "id": "5aa63329c6cf44af9434ac57fdc019ce",
+        },
+      ],
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "compra-facil-web",
+        },
+      ],
+    },
   },
 }

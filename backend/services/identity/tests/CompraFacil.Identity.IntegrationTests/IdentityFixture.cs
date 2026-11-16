@@ -18,6 +18,8 @@ public class IdentityFixture : IAsyncLifetime
 {
     public const string AdminEmail = "admin@comprafacil.test";
     public const string AdminPassword = "senha-do-operador";
+    public const string AuditorEmail = "leitura@comprafacil.test";
+    public const string AuditorPassword = "senha-da-leitura";
 
     private readonly PostgresFixture _postgres = new();
 
@@ -39,6 +41,8 @@ public class IdentityFixture : IAsyncLifetime
             .UseSetting("ConnectionStrings:Default", _postgres.ConnectionString)
             .UseSetting("Identity:Admin:Email", AdminEmail)
             .UseSetting("Identity:Admin:Password", AdminPassword)
+            .UseSetting("Identity:Auditor:Email", AuditorEmail)
+            .UseSetting("Identity:Auditor:Password", AuditorPassword)
             .UseSetting("Kafka:Enabled", "false") // os eventos são conferidos no outbox
             .UseSetting("Identity:EmailConfirmation:Required", RequireConfirmedEmail ? "true" : "false")
             .UseSetting("Identity:Google:Authority", FakeGoogle.Authority)

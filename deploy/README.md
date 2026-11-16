@@ -68,6 +68,25 @@ O log da execução mostra a porcentagem. Para testar o e-mail, troque `85` por 
 A tarefa roda dentro desta stack: se ela cair, o aviso que chega é o **Server unreachable** ou o **Restart limit
 reached**.
 
+## Os dois ambientes
+
+Desde 16/11, a loja de demonstração da entrega da disciplina e a loja de verdade são ambientes separados no mesmo VPS:
+
+| | Demonstração (disciplina) | Embrulhado (loja de verdade) |
+|---|---|---|
+| Código | branch e tag `entrega-disciplina` (= v1.6.0), protegidas contra push | `main` |
+| API | recurso `compra-facil-api` do Coolify, `compose.demo.yaml`, imagem fixa do último deploy | recurso `embrulhado`, `compose.yaml`, em `api.embrulhado.com.br` |
+| Loja | Worker `compra-facil-web` (`compra-facil.digitalcodexa.com`), ambiente `demo` do `wrangler.jsonc` | Worker `embrulhado-web` (`embrulhado.com.br`), a configuração principal |
+| Manutenção | KV `compra-facil-manutencao` | KV `embrulhado-manutencao` |
+| Deploy pelo CI | desligado: as variáveis ficaram como `COOLIFY_APP_UUID_DEMO` e `CLOUDFLARE_ACCOUNT_ID_DEMO` | `COOLIFY_APP_UUID`, `CLOUDFLARE_ACCOUNT_ID`, `URL_API`, `URL_LOJA` e `CLOUDFLARE_KV_MAINTENANCE_ID` da loja |
+
+A demonstração não recebe mais deploy. Para republicá-la à mão, se um dia for preciso: no Coolify, o recurso já lê a
+branch `entrega-disciplina`; a loja dela, com `npx opennextjs-cloudflare deploy -- --env demo` a partir dessa branch.
+
+Os segredos do Worker da loja (`wrangler secret put`, uma vez): `BFF_GATEWAY_KEY` (o mesmo do gateway no Coolify),
+`GOOGLE_CLIENT_SECRET` e `PAYMENT_PAYEE_CODE` (o identificador de conta da Efí). No Google Cloud, o cliente OAuth
+precisa de `https://embrulhado.com.br/api/auth/google/callback` entre os redirecionamentos autorizados.
+
 ## Loja de demonstração
 
 Antes das contas de verdade, [`coolify/compose.demo.yaml`](coolify/compose.demo.yaml) sobe a stack com o fornecedor, o
@@ -97,6 +116,45 @@ pedido pago vai direto ao fornecedor, com o endereço e sem chave nem XML, e nad
 A nota pedida pelo cliente sai à mão, pelo meio que o contador indicar. Quando o A1 e a Nuvem Fiscal
 estiverem prontos (#229), basta tirar a variável: os pedidos novos passam a sair com nota.
 
+Para emitir pela Nuvem Fiscal, além das credenciais (`Invoice__ClientId`, `Invoice__ClientSecret`, com os
+escopos `nfe cep`), o emitente (`Invoice__Issuer__*`) e os códigos fiscais que o contador confirma:
+
+| Variável | Padrão | O que é |
+|---|---|---|
+| `Invoice__Issuer__TaxRegime` | `1` | CRT. O MEI é `4` (NT 2024.001), que só aceita alguns CFOPs |
+| `Invoice__CfopInState`, `Invoice__CfopOutOfState` | `5120`, `6120` | CFOP da venda (venda à ordem). Com CRT 4, a SEFAZ pede `5102`/`6102` (rejeição 337) |
+| `Invoice__Csosn`, `Invoice__ReturnCsosn` | `102`, `900` | CSOSN da venda e da devolução (rejeição 782 sem o 900 na devolução) |
+| `Invoice__PisCofinsCst`, `Invoice__ReturnPisCofinsCst` | `49`, `99` | CST do PIS e da COFINS, sem destaque |
+| `Invoice__ProductOrigin` | `0` | Origem da mercadoria; `2` para importado comprado no Brasil |
+| `Invoice__Environment` | `homologacao` | Na homologação, o destinatário sai com o nome que a SEFAZ exige; `producao` para valer |
+
+### Fornecedor manual (#412)
+
+Enquanto não houver fornecedor com API, o fulfillment roda com `Supplier__Mode=manual`: a equipe sobe a planilha do
+fornecedor no painel e faz cada pedido no site dele. Nada muda para o cliente: o checkout, o frete, o pagamento e o
+estorno são os mesmos.
+
+- **Planilha** (`POST /fulfillment/v1/admin/supplier-catalog/sheet`, e o modelo em `.../sheet/template`): CSV com
+  `sku;nome;categoria;custo;estoque`, e as opcionais `peso_g` e `foto` (https). A `categoria` é o slug da categoria da
+  loja, e o `custo` é em reais ("12,90"). Uma linha com erro e nada muda; sem erro, a planilha nova substitui a anterior,
+  e o que entrou, mudou ou saiu chega à loja pela sincronização de sempre. O preço sai das margens de `/admin/fornecedor`.
+- **Estoque:** o da planilha, menos `Supplier__Manual__SafetyStock` (padrão 1), porque ela envelhece entre uma subida e outra.
+- **Frete:** a tabela da loja em reais, até haver a do fornecedor escolhido: `Supplier__Manual__Freight__0__Service`
+  (`manual-economico` ou `manual-expresso`), `__BaseCents` (até 1 kg), `__PerExtraKgCents` (cada quilo começado depois),
+  `__MinDays` e `__MaxDays`; o acréscimo por região do CEP (`Supplier__Manual__RegionPercent__<1º dígito>`) e os dias a
+  mais (`RegionExtraDays`); `Supplier__Manual__HandlingDays` (padrão 2) é o prazo do fornecedor para despachar.
+- **Pedido pago:** fica `awaiting_staff`, na fila "Pedidos a fazer" (`GET .../supplier-orders/to-place`, com o endereço e
+  o CPF do cliente para o operador). A rotina da equipe, pelo painel:
+  1. faz o pedido no site do fornecedor e registra o número dele e o que pagou (`.../placed`): o cliente vê "enviado ao
+     fornecedor", e a margem passa a usar o valor pago;
+  2. se o fornecedor não tiver o produto, marca "sem estoque" (`.../out-of-stock`): o pedido falha e o cliente é estornado;
+  3. informa o rastreio quando o fornecedor despachar (`.../tracking`): o cliente recebe o código;
+  4. marca a entrega (`.../delivered`) quando o rastreio mostrar.
+- **Cancelar:** na fila, o cancelamento do painel estorna o cliente na hora. Depois de feito no fornecedor, só com a
+  confirmação de que a equipe cancelou lá (`cancelled_at_supplier`), para a loja não pagar um pedido já estornado.
+- **Devolução:** o fornecedor manual não abre disputa; a devolução cai como recusada na abertura, e a equipe combina com o
+  fornecedor e instrui o cliente pela tela de devoluções, como já faz hoje.
+
 ### Receber pela Efí (#379)
 
 O payments cobra pela Efí: o cartão na API Cobranças, o PIX na API Pix. No painel da Efí (**API → Aplicações**),
@@ -109,10 +167,23 @@ nota). No Coolify:
 | `EFI_PIX_CERTIFICATE_BASE64` | o `.p12` em base64 (`base64 -w0 certificado.p12`), exigido em toda chamada da API Pix |
 | `EFI_PIX_KEY` | a chave PIX da conta que recebe |
 | `EFI_PIX_WEBHOOK_SECRET` | um segredo aleatório (`openssl rand -hex 24`): vai na URL do webhook do PIX e é conferido em cada aviso |
-| `Payments__Efi__ChargeNotificationUrl` | `https://<API>/payments/v1/webhooks/efi/charges` |
-| `Payments__Efi__PixWebhookUrl` | `https://<API>/payments/v1/webhooks/efi/pix` |
+| `EFI_CHARGE_NOTIFICATION_URL` | `https://<API>/payments/v1/webhooks/efi/charges` |
+| `EFI_PIX_WEBHOOK_URL` | `https://<API>/payments/v1/webhooks/efi/pix` |
+| `EFI_STORE_NAME`, `EFI_PROJECT_TAG` | o nome que o cliente vê no banco (padrão `Embrulhado`) e o projeto no `custom_id` do cartão (padrão `embrulhado`), que separa esta loja no extrato |
 
-Para testar antes na homologação: `EFI_CHARGES_URL=https://cobrancas-h.api.efipay.com.br/`,
+O identificador de conta (32 caracteres) vai no Worker da loja, em `PAYMENT_PAYEE_CODE`, com
+`PAYMENT_PROVIDER=production`.
+
+**Homologação na máquina local**, antes de ligar a venda: as credenciais e o `.p12` de homologação num
+`~/.efi/homologacao.env` (fora do repositório, chmod 600, com os nomes da tabela acima, mais `EFI_P12` com o caminho
+do certificado e `PAYMENT_PAYEE_CODE`). O `task efi:homologacao` sobe o ambiente com a Efí no lugar do payment-sim
+(`infra/compose/compose.efi.yaml`) e um túnel do Cloudflare para os avisos dela chegarem, e mostra o comando do front
+com `PAYMENT_PROVIDER=sandbox`. Só a homologação: com a produção, o payments local cadastraria o webhook do PIX da
+conta de verdade apontando para esta máquina. O `scripts/efi-conferir.sh homologacao|producao` pede o token nas duas
+APIs e mostra só o status e os escopos, e o `scripts/efi-cofre.sh guardar|restaurar` leva o `~/.efi` para o
+Bitwarden (uma nota segura por ambiente, com o `.p12` em base64) e de volta, em outro computador.
+
+Para testar a homologação no servidor: `EFI_CHARGES_URL=https://cobrancas-h.api.efipay.com.br/`,
 `EFI_PIX_URL=https://pix-h.api.efipay.com.br/` e as credenciais e o certificado de homologação. Lá, o último
 dígito do cartão decide (1, 2 e 3 recusam) e o PIX de até R$ 10,00 é pago sozinho.
 

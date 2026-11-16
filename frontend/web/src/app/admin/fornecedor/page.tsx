@@ -1,10 +1,18 @@
-import { CircleCheck, RefreshCw } from "lucide-react";
+import { CircleCheck, Download, RefreshCw } from "lucide-react";
 import type { Metadata } from "next";
 import { PricingRuleForm } from "@/components/admin/pricing-rule-form";
+import { SupplierSheetForm } from "@/components/admin/supplier-sheet-form";
 import { SupplierStatusPanel } from "@/components/admin/supplier-status";
 import { StateMessage } from "@/components/ui/state";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { listCategories, pricingSettings, supplierStatus, type PricingSettings } from "@/lib/admin-api";
+import {
+  listCategories,
+  pricingSettings,
+  supplierSheet,
+  supplierStatus,
+  type ManualSheetSummary,
+  type PricingSettings,
+} from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { parseRate } from "@/lib/pricing";
@@ -57,8 +65,9 @@ function notice(q: Record<string, string | string[] | undefined>): { ok: boolean
  */
 export default async function Supplier({ searchParams }: Props) {
   const { token } = await requireAdmin("/admin/fornecedor");
-  const [status, result, categories, tree, query] = await Promise.all([
+  const [status, sheet, result, categories, tree, query] = await Promise.all([
     supplierStatus(token),
+    supplierSheet(token),
     pricingSettings(token),
     listCategories(),
     categoryOptions(),
@@ -66,6 +75,7 @@ export default async function Supplier({ searchParams }: Props) {
   ]);
   const message = notice(query);
   const names = new Map((categories.ok ? categories.data.data : []).map((c) => [c.id, c.name]));
+  const manual = sheet.result.ok && sheet.result.data.enabled ? sheet.result.data : null;
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -74,15 +84,20 @@ export default async function Supplier({ searchParams }: Props) {
           <h1 className="text-2xl font-semibold tracking-tight">Fornecedor</h1>
           <p className="text-ink-soft max-w-prose">
             Os produtos do fornecedor entram na loja com o preço pela margem abaixo, e o preço acompanha
-            quando o custo muda. O feed é lido de hora em hora; leia agora para ver uma mudança já.
+            quando o custo muda.{" "}
+            {manual
+              ? "O catálogo e o estoque vêm da planilha que a equipe sobe aqui."
+              : "O feed é lido de hora em hora; leia agora para ver uma mudança já."}
           </p>
         </div>
-        <form action={syncFeed}>
-          <SubmitButton variant="secondary" pendingLabel="Lendo o feed…">
-            <RefreshCw aria-hidden="true" className="size-4" />
-            Ler o feed agora
-          </SubmitButton>
-        </form>
+        {!manual && (
+          <form action={syncFeed}>
+            <SubmitButton variant="secondary" pendingLabel="Lendo o feed…">
+              <RefreshCw aria-hidden="true" className="size-4" />
+              Ler o feed agora
+            </SubmitButton>
+          </form>
+        )}
       </div>
 
       {message && (
@@ -97,7 +112,7 @@ export default async function Supplier({ searchParams }: Props) {
         </p>
       )}
 
-      <SupplierStatusPanel status={status} />
+      {manual ? <SheetSection sheet={manual} now={sheet.readAt} /> : <SupplierStatusPanel status={status} />}
 
       {!result.ok ? (
         <StateMessage
@@ -106,9 +121,64 @@ export default async function Supplier({ searchParams }: Props) {
           description={`O catálogo respondeu ${result.error.status}. Tente de novo em instantes.`}
         />
       ) : (
-        <SupplierRules settings={result.data} names={names} tree={tree} />
+        <SupplierRules settings={result.data} names={names} tree={tree} manual={manual !== null} />
       )}
     </div>
+  );
+}
+
+const when = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "America/Sao_Paulo",
+});
+
+/** O fornecedor manual (#412): a planilha é o catálogo e o estoque dele. */
+function SheetSection({ sheet, now }: { sheet: ManualSheetSummary; now: number }) {
+  const days = sheet.imported_at ? (now - new Date(sheet.imported_at).getTime()) / 86_400_000 : null;
+  return (
+    <section aria-labelledby="planilha-titulo" className="border-line space-y-4 border-b pb-8">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <h2 id="planilha-titulo" className="text-xl font-semibold tracking-tight">
+            Planilha do fornecedor
+          </h2>
+          <p className="text-ink-soft max-w-prose text-sm">
+            {sheet.imported_at ? (
+              <>
+                {plural(sheet.products, "produto", "produtos")}, subida em{" "}
+                <time dateTime={sheet.imported_at}>{when.format(new Date(sheet.imported_at))}</time>.
+                {days !== null && days > 3 && (
+                  <span className="text-danger font-semibold">
+                    {" "}
+                    Faz mais de 3 dias: o estoque pode estar velho, e a loja vender o que o fornecedor não
+                    tem.
+                  </span>
+                )}
+              </>
+            ) : (
+              "Nenhuma planilha ainda. Suba a do fornecedor para os produtos entrarem na loja."
+            )}
+          </p>
+        </div>
+        <a
+          href="/admin/fornecedor/modelo"
+          download
+          className="inline-flex min-h-11 items-center gap-2 font-medium underline underline-offset-4 pointer-fine:min-h-8"
+        >
+          <Download aria-hidden="true" className="size-4" />
+          Baixar o modelo
+        </a>
+      </div>
+      <p className="text-ink-soft max-w-prose text-sm">
+        Colunas: <strong className="text-ink">sku</strong>, <strong className="text-ink">nome</strong>,{" "}
+        <strong className="text-ink">categoria</strong> (o endereço da categoria na loja, como
+        fones-over-ear), <strong className="text-ink">custo</strong> em reais,{" "}
+        <strong className="text-ink">estoque</strong>, e, se tiver, peso_g e foto (um link https). A loja
+        vende o estoque menos 1 unidade, de segurança.
+      </p>
+      <SupplierSheetForm />
+    </section>
   );
 }
 
@@ -116,13 +186,16 @@ function SupplierRules({
   settings,
   names,
   tree,
+  manual,
 }: {
   settings: PricingSettings;
   names: Map<string, string>;
   tree: Awaited<ReturnType<typeof categoryOptions>>;
+  manual: boolean;
 }) {
   const usd = settings.exchange_rates.USD ?? "";
-  const rateMilli = parseRate(usd);
+  // no fornecedor manual, o custo da planilha já é em reais: a conta não passa pelo câmbio
+  const rateMilli = manual ? 1000 : parseRate(usd);
   if (!rateMilli) {
     return (
       <StateMessage
@@ -141,14 +214,15 @@ function SupplierRules({
             Margem padrão
           </h2>
           <p className="text-ink-soft text-sm">
-            Vale para toda categoria sem regra própria. Câmbio: US$ 1 = R$ {usd.replace(".", ",")}, da
-            configuração do serviço.
+            Vale para toda categoria sem regra própria.
+            {!manual && <> Câmbio: US$ 1 = R$ {usd.replace(".", ",")}, da configuração do serviço.</>}
             {!d.updated_at && " Ainda é a da configuração; gravar aqui passa a valer a sua."}
           </p>
         </div>
         <PricingRuleForm
           key={`padrao-${d.margin_percent}-${d.min_price_cents}`}
           rateMilli={rateMilli}
+          costInReais={manual}
           initial={d}
           submitLabel="Gravar a margem padrão"
         />
@@ -205,6 +279,7 @@ function SupplierRules({
           <div className="mt-4">
             <PricingRuleForm
               rateMilli={rateMilli}
+              costInReais={manual}
               initial={d}
               categories={tree}
               submitLabel="Gravar a regra da categoria"

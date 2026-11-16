@@ -30,7 +30,10 @@ permissions:
 jobs:
   image:
     name: ${{ matrix.name }}
-    runs-on: ubuntu-24.04-arm
+    # as imagens só copiam configuração sobre a base arm64 ou compilam Go cruzado (GOARCH=$TARGETARCH): nenhum
+    # RUN executa na arquitetura de destino, então o buildx monta arm64 numa máquina x86, sem QEMU. No runner
+    # próprio (x86), roda nele; o rótulo "self-hosted-arm" não existe e prendia o job por 24 h (#415)
+    runs-on: ${{ (vars.RUNNER == 'self-hosted' && !github.event.pull_request.head.repo.fork && 'self-hosted') || 'ubuntu-24.04-arm' }}
     timeout-minutes: 15
     strategy:
       fail-fast: false

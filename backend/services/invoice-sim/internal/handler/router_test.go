@@ -67,20 +67,35 @@ func decode(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
 	return out
 }
 
+// totals: os 19 campos do ICMSTot, zerados fora os produtos e a nota.
+func totals(v float64) map[string]any {
+	t := map[string]any{"vProd": v, "vFrete": 0, "vNF": v}
+	for _, f := range []string{"vBC", "vICMS", "vICMSDeson", "vFCP", "vBCST", "vST", "vFCPST", "vFCPSTRet",
+		"vSeg", "vDesc", "vII", "vIPI", "vIPIDevol", "vPIS", "vCOFINS", "vOutro"} {
+		t[f] = 0
+	}
+	return t
+}
+
 func emission(ref, email string) map[string]any {
 	return map[string]any{
 		"ambiente": "homologacao", "referencia": ref,
 		"infNFe": map[string]any{
 			"versao": "4.00",
-			"ide":    map[string]any{"natOp": "Venda", "mod": 55, "serie": 1},
+			"ide":    map[string]any{"natOp": "Venda", "mod": 55, "serie": 1, "indPres": 2, "indIntermed": 0, "procEmi": 0, "verProc": "teste"},
 			"emit": map[string]any{"CNPJ": "11222333000181", "xNome": "Loja", "IE": "ISENTO", "CRT": 1,
 				"enderEmit": map[string]any{"xLgr": "Rua", "nro": "1", "xBairro": "Centro", "xMun": "Lavras", "UF": "MG", "CEP": "37200000"}},
-			"dest": map[string]any{"CPF": "52998224725", "xNome": "Ana Souza", "indIEDest": 9, "email": email,
-				"enderDest": map[string]any{"xLgr": "Av. Paulista", "nro": "1000", "xBairro": "Bela Vista", "xMun": "São Paulo", "UF": "SP", "CEP": "01310100"}},
+			"dest": map[string]any{"CPF": "52998224725", "xNome": nfe.HomologationRecipient, "indIEDest": 9, "email": email,
+				"enderDest": map[string]any{"xLgr": "Av. Paulista", "nro": "1000", "xBairro": "Bela Vista", "cMun": "3550308", "xMun": "São Paulo", "UF": "SP", "CEP": "01310100"}},
 			"det": []map[string]any{{"nItem": 1, "prod": map[string]any{
 				"cProd": "MOU-1", "cEAN": "SEM GTIN", "xProd": "Mouse", "NCM": "84716053", "CFOP": "6120", "uCom": "UN",
-				"qCom": 1, "vUnCom": 99.9, "vProd": 99.9}}},
-			"total": map[string]any{"ICMSTot": map[string]any{"vProd": 99.9, "vNF": 99.9}},
+				"qCom": 1, "vUnCom": 99.9, "vProd": 99.9},
+				"imposto": map[string]any{
+					"ICMS":   map[string]any{"ICMSSN102": map[string]any{"orig": 0, "CSOSN": 102}},
+					"PIS":    map[string]any{"PISOutr": map[string]any{"CST": "49", "vBC": 0, "pPIS": 0, "vPIS": 0}},
+					"COFINS": map[string]any{"COFINSOutr": map[string]any{"CST": "49", "vBC": 0, "pCOFINS": 0, "vCOFINS": 0}},
+				}}},
+			"total": map[string]any{"ICMSTot": totals(99.9)},
 			"pag":   map[string]any{"detPag": []map[string]any{{"tPag": "17", "vPag": 99.9}}},
 		},
 	}
@@ -88,14 +103,14 @@ func emission(ref, email string) map[string]any {
 
 func TestToken_ClientCredentials(t *testing.T) {
 	e := newEnv(t)
-	assert.Equal(t, http.StatusUnauthorized, e.do(http.MethodGet, "/nfe?referencia=x", nil).Code)
+	assert.Equal(t, http.StatusUnauthorized, e.do(http.MethodGet, "/nfe?cpf_cnpj=11222333000181&referencia=x", nil).Code)
 	status, _ := e.login("cli", "errado")
 	assert.Equal(t, http.StatusUnauthorized, status)
 	status, body := e.login("cli", "seg")
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "bearer", body["token_type"])
 	assert.InDelta(t, 3600, body["expires_in"], 0)
-	assert.Equal(t, http.StatusOK, e.do(http.MethodGet, "/nfe?referencia=x", nil).Code)
+	assert.Equal(t, http.StatusOK, e.do(http.MethodGet, "/nfe?cpf_cnpj=11222333000181&referencia=x", nil).Code)
 }
 
 func TestInvoice_EmitConsultCancelAndDocuments(t *testing.T) {
@@ -109,8 +124,9 @@ func TestInvoice_EmitConsultCancelAndDocuments(t *testing.T) {
 	id := inv["id"].(string)
 	assert.Len(t, inv["chave"], 44)
 
-	found := decode(t, e.do(http.MethodGet, "/nfe?ambiente=homologacao&referencia=pedido-1", nil))
+	found := decode(t, e.do(http.MethodGet, "/nfe?cpf_cnpj=11222333000181&ambiente=homologacao&referencia=pedido-1", nil))
 	assert.Len(t, found["data"], 1)
+	assert.Equal(t, http.StatusBadRequest, e.do(http.MethodGet, "/nfe?ambiente=homologacao&referencia=pedido-1", nil).Code, "sem o cpf_cnpj")
 	assert.Equal(t, http.StatusOK, e.do(http.MethodGet, "/nfe/"+id, nil).Code)
 
 	xml := e.do(http.MethodGet, "/nfe/"+id+"/xml", nil)
@@ -141,4 +157,14 @@ func TestInvoice_RejectedHasNoDocuments(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity,
 		e.do(http.MethodPost, "/nfe/"+id+"/cancelamento", map[string]string{"justificativa": "Pedido estornado ao cliente"}).Code)
 	assert.Equal(t, http.StatusBadRequest, e.do(http.MethodPost, "/nfe", map[string]any{"ambiente": "x"}).Code)
+}
+
+func TestCEP_CodigoIBGEComToken(t *testing.T) {
+	e := newEnv(t)
+	assert.Equal(t, http.StatusUnauthorized, e.do(http.MethodGet, "/cep/01310100", nil).Code)
+	e.login("cli", "seg")
+	rec := e.do(http.MethodGet, "/cep/01310100", nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "3550308", decode(t, rec)["codigo_ibge"])
+	assert.Equal(t, http.StatusNotFound, e.do(http.MethodGet, "/cep/00000000", nil).Code)
 }

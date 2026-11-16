@@ -31,17 +31,23 @@ permissions:
 jobs:
   e2e:
     name: compra ponta a ponta
-    runs-on: ubuntu-24.04
+    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     env:
       # o gateway com a rota do BFF (#176), para o teste do rate limit por comprador
       BFF_GATEWAY_KEY: chave-do-bff-no-ci
+      # sem portas no host e com um projeto por run: no runner próprio, as portas fixas colidiam com o que já
+      # roda na máquina e derrubavam o e2e da develop (#415). Todos os docker compose abaixo herdam os dois
+      COMPOSE_FILE: compose.yaml:infra/compose/compose.ci.yaml
+      COMPOSE_PROJECT_NAME: e2e-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7.0.1
       # o build das 6 imagens enche o disco do runner (e aí o Redpanda e o pull do k6 falham). Apagar os
       # SDKs que o job não usa leva ~4 min, então roda em segundo plano, junto com o build. (O
       # "docker builder prune" travou no runner, por isso não é usado.)
       - name: Libera espaço em segundo plano
+        # só nas máquinas do GitHub: no runner próprio, apagaria o que a máquina usa
+        if: runner.environment == 'github-hosted'
         run: |
           sudo nohup rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL \
             > /dev/null 2>&1 &

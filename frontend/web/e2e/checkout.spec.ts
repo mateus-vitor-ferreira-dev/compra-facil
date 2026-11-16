@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const STUB = "http://localhost:4010";
+import { STUB } from "./ports";
 const TV = "/produto/0199f6a0-0000-7000-8000-000000000000";
 const HEADPHONE = "0199f6a0-0000-7000-8000-000000000031"; // "modelo 29": só este teste muda o preço
 

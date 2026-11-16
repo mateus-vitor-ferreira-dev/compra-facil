@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { STUB } from "./ports";
 
 /**
  * Acessibilidade automatizada (#155): o axe em cada tela principal, nos dois temas, contra as regras
@@ -9,7 +10,7 @@ const TV = "/produto/0199f6a0-0000-7000-8000-000000000000";
 
 async function audit(page: Page, name: string) {
   // na navegação pelo cliente, o título troca logo depois da URL
-  await expect(page).toHaveTitle(/CompraFácil/);
+  await expect(page).toHaveTitle(/Embrulhado/);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
@@ -90,7 +91,7 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(page.getByRole("region", { name: "Valor do PIX" })).toBeVisible({ timeout: 10_000 });
       await audit(page, "PIX a pagar");
       const id = new URL(page.url()).pathname.split("/").pop();
-      await page.request.post(`http://localhost:4010/__pix/${id}/pay`);
+      await page.request.post(`${STUB}/__pix/${id}/pay`);
       await expect(page.getByRole("status").first()).toContainText("Pagamento aprovado", { timeout: 10_000 });
       await audit(page, "pedido confirmado");
     });
@@ -133,6 +134,14 @@ for (const scheme of ["light", "dark"] as const) {
         "/admin/fornecedor",
         "/admin/produtos/0199f6a0-0000-7000-8000-000000000063",
       ]) {
+        await page.goto(path);
+        await audit(page, path);
+      }
+    });
+
+    test("painel no fornecedor manual (#412)", async ({ page }) => {
+      await signIn(page, "admin@manual.exemplo.com");
+      for (const path of ["/admin/pedidos-a-fazer", "/admin/fornecedor"]) {
         await page.goto(path);
         await audit(page, path);
       }

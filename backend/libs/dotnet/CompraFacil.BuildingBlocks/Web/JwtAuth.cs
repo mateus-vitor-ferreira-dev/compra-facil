@@ -44,6 +44,13 @@ public static class JwtAuth
     /// <summary>Operador: rotas /v1/admin/*.</summary>
     public const string AdminPolicy = "admin";
 
+    /// <summary>
+    /// Leitura da operação: as rotas GET de /v1/admin que um vigia pode ler (#403). Aceita o operador e o papel
+    /// auditor, que não muda nada. A classe do controller pede esta; cada ação que muda algo pede também
+    /// <see cref="AdminPolicy"/>, e as duas juntas só deixam o operador passar.
+    /// </summary>
+    public const string AdminReadPolicy = "admin-read";
+
     /// <summary>Cliente: o que a loja faz em nome de quem está logado (pedido, "meus pedidos").</summary>
     public const string CustomerPolicy = "customer";
 
@@ -84,6 +91,7 @@ public static class JwtAuth
         });
         builder.Services.AddAuthorizationBuilder()
             .AddPolicy(AdminPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireRole("admin"))
+            .AddPolicy(AdminReadPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireRole("admin", "auditor"))
             .AddPolicy(CustomerPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireRole("customer"));
         return builder;
     }

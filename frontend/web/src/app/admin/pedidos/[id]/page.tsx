@@ -2,7 +2,7 @@ import { ChevronLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { OrderDetail } from "@/components/admin/orders/order-detail";
+import { OrderDetail, type RefundNotice } from "@/components/admin/orders/order-detail";
 import { OrderList } from "@/components/admin/orders/order-list";
 import { OrderPages } from "@/components/admin/orders/order-pages";
 import { buttonVariants } from "@/components/ui/button";
@@ -20,6 +20,12 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   return { title: `Pedido ${orderNumber(id)}` };
+}
+
+/** O resultado do "Estornar de novo", que a ação manda na URL (#396). */
+function refundNoticeOf(params: Record<string, string | string[] | undefined>): RefundNotice | undefined {
+  const value = params.estorno;
+  return value === "pedido" || value === "erro" ? value : undefined;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -74,7 +80,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
           Voltar aos pedidos
         </Link>
         {order.ok ? (
-          <OrderDetail order={order.data} />
+          <OrderDetail order={order.data} refundNotice={refundNoticeOf(await searchParams)} />
         ) : (
           <StateMessage
             tone="error"

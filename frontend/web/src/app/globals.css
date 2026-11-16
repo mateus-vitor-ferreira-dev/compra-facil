@@ -2,71 +2,79 @@
 @import "tw-animate-css";
 
 /*
- * Design system da CompraFácil (#149). Tinta e papel no dia a dia; o amarelo de etiqueta só no preço
- * de campanha e no selo de desconto. Tema escuro pelo sistema ou pela classe .dark no <html>.
+ * Design system do Embrulhado: a caixa de presente de Natal. O vermelho da caixa é da marca (logo, encarte da
+ * campanha); vinho no texto e nos botões; a fita dourada no preço de campanha e no selo de desconto. Tema escuro
+ * pelo sistema ou pela classe .dark no <html>. Os pares de contraste passam no AA nos dois temas.
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --radius: 0.375rem;
 
-  --paper: #f6f7f9; /* fundo */
+  --paper: #fbf7f6; /* fundo */
   --surface: #ffffff; /* cartões e campos */
-  --ink: #1b1f3b; /* texto e ações */
-  --ink-soft: #5b6075; /* texto secundário (5,8:1 no papel) */
-  --line: #dfe2ea;
-  --field-line: #868b9f; /* borda dos campos: 3,2:1 no papel, 3,4:1 no cartão */
-  --tag: #ffd23f; /* etiqueta de campanha */
-  --tag-ink: #1b1f3b;
-  --success: #0b6e50; /* 4,9:1 no próprio selo */
-  --danger: #c8323b;
-  --danger-ink: #a3262e; /* texto vermelho sobre fundo tingido de vermelho (6,2:1 no selo) */
+  --ink: #4a0d14; /* vinho: texto e botões (14,5:1 no papel) */
+  --ink-soft: #6d5357; /* texto secundário (6,5:1 no papel) */
+  --line: #eadcdd;
+  --field-line: #8c7276; /* borda dos campos: 4,1:1 no papel, 4,4:1 no cartão */
+  --tag: #f2b632; /* a fita dourada: etiqueta de campanha */
+  --tag-ink: #4a0d14; /* 8,5:1 na etiqueta */
+  --success: #1f6b4a; /* pinheiro, 6,4:1 no cartão */
+  --danger: #b42318; /* o vermelho de erro, mais fechado que o da marca */
+  --danger-ink: #962016; /* texto vermelho sobre fundo tingido de vermelho */
   --on-danger: #ffffff; /* texto sobre o vermelho */
-  --focus: #1b1f3b;
-  --photo: #eceef3; /* fundo das fotos e dos placeholders */
-  --hero: #1b1f3b; /* o encarte da campanha: escuro nos dois temas */
-  --on-hero: #f6f7f9;
-  /* séries dos gráficos do painel (#382), validadas no validate_palette da skill de dataviz contra o cartão */
-  --chart-1: #3a4fd0; /* anil, da família da tinta */
-  --chart-2: #c98500; /* âmbar, parente da etiqueta */
+  --focus: #4a0d14;
+  --photo: #f4ecea; /* fundo das fotos e dos placeholders */
+  --hero: #c8202f; /* o encarte da campanha: o vermelho da caixa (5,7:1 com o branco) */
+  --on-hero: #ffffff;
+  --chart-1: #c8202f;
+  --chart-2: #a8740a;
+  --brand: #c8202f; /* o vermelho da caixa de presente, só na marca: não em botão, para não parecer erro */
+  --ribbon: #f2b632; /* a fita e o laço da logo */
+  --panel: #4a0d14; /* a coluna do painel: vinho nos dois temas, para o vermelho do encarte ficar só na loja */
+  --on-panel: #fff4f1;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --paper: #12142a;
-    --surface: #1c1f3d;
-    --ink: #eef0f7;
-    --ink-soft: #aeb3c8;
-    --line: #2e3256;
-    --field-line: #7c82a3; /* 4,3:1 no cartão */
-    --success: #3fc495;
+    --paper: #1d0d10;
+    --surface: #2a161a;
+    --ink: #f8eeec;
+    --ink-soft: #c9b3b5;
+    --line: #47292f;
+    --field-line: #9b8085;
+    --success: #4fc79a;
     --danger: #ff7a80;
     --danger-ink: #ff7a80;
-    --on-danger: #12142a;
-    --focus: #ffd23f;
-    --photo: #262a4c;
-    --hero: #262b5e;
-    --chart-1: #6f7ff0;
-    --chart-2: #bd8300;
+    --on-danger: #1d0d10;
+    --focus: #f2b632;
+    --photo: #3a1f24;
+    --hero: #a51a27;
+    --on-hero: #fff4f1;
+    --chart-1: #ff6b75;
+    --chart-2: #e0a92e;
+    --panel: #14070a;
   }
 }
 
 .dark {
-  --paper: #12142a;
-  --surface: #1c1f3d;
-  --ink: #eef0f7;
-  --ink-soft: #aeb3c8;
-  --line: #2e3256;
-  --field-line: #7c82a3; /* 4,3:1 no cartão */
-  --success: #3fc495;
+  --paper: #1d0d10;
+  --surface: #2a161a;
+  --ink: #f8eeec;
+  --ink-soft: #c9b3b5;
+  --line: #47292f;
+  --field-line: #9b8085;
+  --success: #4fc79a;
   --danger: #ff7a80;
   --danger-ink: #ff7a80;
-  --on-danger: #12142a;
-  --focus: #ffd23f;
-  --photo: #262a4c;
-  --hero: #262b5e;
-  --chart-1: #6f7ff0;
-  --chart-2: #bd8300;
+  --on-danger: #1d0d10;
+  --focus: #f2b632;
+  --photo: #3a1f24;
+  --hero: #a51a27;
+  --on-hero: #fff4f1;
+  --chart-1: #ff6b75;
+  --chart-2: #e0a92e;
+  --panel: #14070a;
 }
 
 @theme inline {
@@ -90,6 +98,10 @@
   --color-on-hero: var(--on-hero);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
+  --color-brand: var(--brand);
+  --color-ribbon: var(--ribbon);
+  --color-panel: var(--panel);
+  --color-on-panel: var(--on-panel);
 
   /* nomes do shadcn/ui, para os componentes que vierem dele */
   --color-background: var(--paper);

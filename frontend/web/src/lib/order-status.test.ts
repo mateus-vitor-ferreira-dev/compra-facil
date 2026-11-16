@@ -54,6 +54,29 @@ describe("orderStatus", () => {
     );
   });
 
+  it("estorno que o provedor não realizou: o cliente sabe que está atrasado e que a loja cuida (#396)", () => {
+    const failed = {
+      status: "cancelled",
+      cancellation_reason: "supplier_failed",
+      refunded_at: null,
+      refund_failed_at: "2026-11-04T12:00:00Z",
+    } as const;
+    expect(orderStatus(failed).detail).toContain("levando mais tempo do que o normal");
+    expect(isFinal(failed)).toBe(false);
+    // estornado de novo: o atraso sai do texto
+    expect(orderStatus({ ...failed, refunded_at: "2026-11-05T10:00:00Z" }).detail).not.toContain(
+      "mais tempo",
+    );
+    // o cartão recusado nunca foi cobrado: não há estorno a atrasar
+    expect(
+      orderStatus({
+        status: "cancelled",
+        cancellation_reason: "payment_failed",
+        refund_failed_at: "2026-11-04T12:00:00Z",
+      }).detail,
+    ).not.toContain("mais tempo");
+  });
+
   it("orderNumber mostra os 8 últimos caracteres em maiúsculas, como os e-mails", () => {
     expect(orderNumber("01a18d66-0000-7000-8000-00004f2a9c1b")).toBe("4F2A9C1B");
   });

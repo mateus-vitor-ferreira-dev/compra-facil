@@ -151,7 +151,7 @@ export default async function ProductPage({ params }: Props) {
               <p className="font-semibold">
                 {p.campaign.name}: {off}% de desconto neste produto
               </p>
-              <Countdown endsAt={p.campaign.ends_at} className="text-on-hero/85 text-sm" />
+              <Countdown endsAt={p.campaign.ends_at} className="text-on-hero text-sm" />
             </div>
           )}
 

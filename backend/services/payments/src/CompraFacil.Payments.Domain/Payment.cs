@@ -44,8 +44,11 @@ public enum FailureReason
     PixExpired,
 }
 
-/// <summary>Um estorno aplicado: a chave da requisição e a referência no provedor, para o mesmo não contar duas vezes.</summary>
-public sealed record RefundEntry(string Key, string Reference, long AmountCents, DateTimeOffset At);
+/// <summary>
+/// Um estorno aplicado: a chave da requisição e a referência no provedor, para o mesmo não contar duas vezes.
+/// <see cref="FailedAt"/>: o provedor aceitou e depois não o realizou (#396); não conta no estornado.
+/// </summary>
+public sealed record RefundEntry(string Key, string Reference, long AmountCents, DateTimeOffset At, DateTimeOffset? FailedAt = null);
 
 /// <summary>O PIX: o copia-e-cola, o QR em PNG (base64), a página de pagamento e a validade.</summary>
 public sealed record PixCharge(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
@@ -244,8 +247,32 @@ public sealed class Payment
         UpdatedAt = now;
     }
 
-    /// <summary>O estorno desta chave, se já foi aplicado (a requisição repetida).</summary>
-    public RefundEntry? RefundOf(string key) => _refunds.FirstOrDefault(r => r.Key == key);
+    /// <summary>O estorno desta chave, se já foi aplicado e não falhou (a requisição repetida).</summary>
+    public RefundEntry? RefundOf(string key) => _refunds.FirstOrDefault(r => r.Key == key && r.FailedAt is null);
+
+    /// <summary>
+    /// O provedor aceitou o estorno <paramref name="reference"/> e depois não o realizou (#396): ele sai do estornado,
+    /// e o pagamento volta a ter o que devolver (o total estornado vira Approved de novo). Devolve o estorno, ou nulo
+    /// se não é deste pagamento ou já foi marcado.
+    /// </summary>
+    public RefundEntry? RefundFailed(string reference, DateTimeOffset now)
+    {
+        var index = _refunds.FindIndex(r => r.Reference == reference && r.FailedAt is null);
+        if (index < 0)
+        {
+            return null;
+        }
+        var failed = _refunds[index] with { FailedAt = now };
+        _refunds[index] = failed;
+        RefundedCents -= failed.AmountCents;
+        if (Status == PaymentStatus.Refunded)
+        {
+            Status = PaymentStatus.Approved;
+        }
+        RefundedAt = _refunds.Where(r => r.FailedAt is null).Select(r => (DateTimeOffset?)r.At).LastOrDefault();
+        UpdatedAt = now;
+        return failed;
+    }
 
     /// <summary>
     /// Devolve <paramref name="amountCents"/> do que foi pago; o total vira Refunded. False se o estorno desta
@@ -253,7 +280,8 @@ public sealed class Payment
     /// </summary>
     public bool Refund(long amountCents, string key, string refundReference, DateTimeOffset now)
     {
-        if (_refunds.Any(r => r.Key == key || r.Reference == refundReference))
+        // a chave de um estorno que falhou pode ser usada de novo; a referência no provedor, não
+        if (_refunds.Any(r => (r.Key == key && r.FailedAt is null) || r.Reference == refundReference))
         {
             return false;
         }

@@ -33,7 +33,7 @@ public sealed class FreeShippingTests
             Down
                 ? throw new SupplierUnavailableException("fora do ar")
                 : Task.FromResult<IReadOnlyList<SupplierFreightOption>>(
-                    [new("CJ Express", 1000, 3, 5), new("CJPacket Ordinary", 400, 8, 12)]);
+                    [new("CJ Express", 1000, "USD", 3, 5), new("CJPacket Ordinary", 400, "USD", 8, 12)]);
 
         public Task<SupplierPlacement> PlaceOrderAsync(SupplierOrderRequest request, CancellationToken ct) => throw new NotSupportedException();
 

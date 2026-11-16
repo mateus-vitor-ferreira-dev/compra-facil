@@ -52,7 +52,7 @@ type SupplierProductUpdate struct {
 	UpdatedAt time.Time
 }
 
-// ErrUnmappedCategory: a categoria do fornecedor não tem categoria da loja na configuração. Não é
+// ErrUnmappedCategory: a categoria do fornecedor não tem categoria da loja na configuração nem é o slug de uma. Não é
 // mensagem envenenada: depois de configurar, o reprocessamento da DLT importa o produto.
 var ErrUnmappedCategory = errors.New("categoria do fornecedor sem categoria da loja")
 
@@ -138,11 +138,16 @@ func (s *SupplierCatalog) ApplyRemoval(ctx context.Context, supplier, vid string
 }
 
 func (s *SupplierCatalog) create(ctx context.Context, u SupplierProductUpdate) error {
-	slug, ok := s.opts.Categories[u.Category]
-	if !ok {
-		return fmt.Errorf("%w: %q (configure supplier.categories)", ErrUnmappedCategory, u.Category)
+	// a categoria do fornecedor vem pela configuração (o feed do CJ); sem ela, o fornecedor manual (#412) já
+	// escreve na planilha o slug da categoria da loja
+	slug, mapped := s.opts.Categories[u.Category]
+	if !mapped {
+		slug = u.Category
 	}
 	cat, err := s.categories.GetBySlug(ctx, slug)
+	if !mapped && errors.Is(err, domain.ErrNotFound) {
+		return fmt.Errorf("%w: %q (configure supplier.categories ou use o slug de uma categoria da loja)", ErrUnmappedCategory, u.Category)
+	}
 	if err != nil {
 		return fmt.Errorf("categoria %q da loja: %w", slug, err)
 	}

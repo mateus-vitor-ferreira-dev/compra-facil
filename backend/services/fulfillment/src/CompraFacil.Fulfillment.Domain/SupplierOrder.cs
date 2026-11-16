@@ -8,6 +8,12 @@ public enum SupplierOrderStatus
     /// <summary>Reservado por um despachante, que está chamando o fornecedor (ou caiu no meio).</summary>
     Placing,
 
+    /// <summary>
+    /// Fornecedor manual (#412): pago e na fila "Pedidos a fazer", esperando a equipe fazer o pedido no
+    /// fornecedor. O despachante não pega mais: quem anda com ele é o painel.
+    /// </summary>
+    AwaitingStaff,
+
     /// <summary>O fornecedor aceitou o pedido.</summary>
     Placed,
 
@@ -91,6 +97,8 @@ public sealed class SupplierOrder
     public DateTimeOffset? NextAttemptAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? ClaimedAt { get; private set; }
+    /// <summary>Quando entrou na fila "Pedidos a fazer" (fornecedor manual, #412).</summary>
+    public DateTimeOffset? AwaitingStaffSince { get; private set; }
     public DateTimeOffset? PlacedAt { get; private set; }
     public DateTimeOffset? ShippedAt { get; private set; }
     public DateTimeOffset? DeliveredAt { get; private set; }
@@ -114,6 +122,17 @@ public sealed class SupplierOrder
 
     /// <summary>O custo dos produtos em reais, no câmbio da compra; nulo se algum não veio do fornecedor.</summary>
     public long? ProductCostCents { get; private set; }
+
+    /// <summary>
+    /// Fornecedor manual (#412): o que a equipe pagou de fato pelos produtos e pelo frete ao fazer o pedido. A margem
+    /// usa estes no lugar dos esperados (<see cref="ProductCostCents"/> e <see cref="FreightCostCents"/>), que ficam
+    /// para comparar.
+    /// </summary>
+    public long? PaidProductCostCents { get; private set; }
+    public long? PaidFreightCostCents { get; private set; }
+
+    /// <summary>Quem da equipe registrou o pedido no fornecedor (o e-mail do operador).</summary>
+    public string? PlacedBy { get; private set; }
 
     /// <summary>Fixa os valores da compra: o custo e o câmbio mudam depois, e a margem do pedido, não.</summary>
     public void RecordEconomics(long revenueCents, long freightCents, long? productCostCents, string? shippingService = null) =>
@@ -151,7 +170,7 @@ public sealed class SupplierOrder
     public SupplierOrderChange MarkPlaced(string supplierOrderId, DateTimeOffset now)
     {
         SupplierOrderId ??= supplierOrderId;
-        if (Status is not (SupplierOrderStatus.Pending or SupplierOrderStatus.Placing))
+        if (Status is not (SupplierOrderStatus.Pending or SupplierOrderStatus.Placing or SupplierOrderStatus.AwaitingStaff))
         {
             return SupplierOrderChange.None;
         }
@@ -159,6 +178,39 @@ public sealed class SupplierOrder
         PlacedAt = now;
         LastError = null;
         return SupplierOrderChange.Placed;
+    }
+
+    /// <summary>
+    /// Fornecedor manual: o despachante deixou o pedido (com a nota, se houver) na fila da equipe. Sem evento: para o
+    /// cliente, o pedido continua pago até a equipe fazê-lo no fornecedor.
+    /// </summary>
+    public bool MarkAwaitingStaff(DateTimeOffset now)
+    {
+        if (Status is not (SupplierOrderStatus.Pending or SupplierOrderStatus.Placing))
+        {
+            return false;
+        }
+        Status = SupplierOrderStatus.AwaitingStaff;
+        AwaitingStaffSince = now;
+        LastError = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Fornecedor manual: a equipe fez o pedido no fornecedor e registrou o número dele e o que pagou. Só da fila
+    /// "Pedidos a fazer"; repetir não muda nada.
+    /// </summary>
+    public SupplierOrderChange MarkPlacedByStaff(
+        string supplierOrderId, long? paidProductCostCents, long? paidFreightCostCents, string placedBy, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(supplierOrderId);
+        if (Status != SupplierOrderStatus.AwaitingStaff)
+        {
+            return SupplierOrderChange.None;
+        }
+        SupplierOrderId = supplierOrderId;
+        (PaidProductCostCents, PaidFreightCostCents, PlacedBy) = (paidProductCostCents, paidFreightCostCents, placedBy);
+        return MarkPlaced(supplierOrderId, now);
     }
 
     /// <summary>Recusa de negócio (sem estoque, pedido recusado, cancelado pelo fornecedor): não tenta de novo.</summary>

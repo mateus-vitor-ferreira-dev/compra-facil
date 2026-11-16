@@ -37,21 +37,22 @@ services:
     command: ["--configFile=/etc/traefik/traefik.yml"]
     environment:
       # a loja (o domínio do front); separe por vírgula se houver mais de um
-      CORS_ALLOWED_ORIGINS: ${FRONT_URL:?a URL da loja}
+      # mais de um endereço da loja (com e sem www): CORS_ALLOWED_ORIGINS com a lista separada por vírgula
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-${FRONT_URL:?a URL da loja}}
       # o mesmo valor no BFF do front (Cloudflare): o rate limit passa a ser por comprador (#176)
       BFF_GATEWAY_KEY: ${BFF_GATEWAY_KEY:?o segredo do BFF}
       # atrás do proxy do Coolify: o IP do cliente é o último do X-Forwarded-For
       CLIENT_IP_DEPTH: "1"
       # as fotos saem do R2, não do gateway
       GATEWAY_MEDIA: "off"
-      # o fulfillment (dropshipping, ADR 0007) entra na produção com o fornecedor de verdade (#227)
-      GATEWAY_FULFILLMENT: "off"
+      # o fulfillment entra com o fornecedor manual: a planilha e a fila "Pedidos a fazer" no painel
+      GATEWAY_FULFILLMENT: "on"
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
       timeout: 3s
       retries: 6
-    depends_on: [catalog, orders, inventory, payments, notifications, identity]
+    depends_on: [catalog, orders, inventory, payments, notifications, identity, fulfillment]
 
   postgres:
     image: postgres:17.11-alpine
@@ -90,13 +91,14 @@ services:
       PGHOST: postgres
       PGPASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: postgres
-      SERVICE_DATABASES: catalog,orders,inventory,payments,notifications,identity
+      SERVICE_DATABASES: catalog,orders,inventory,payments,notifications,identity,fulfillment
       SERVICE_DB_PASSWORD_CATALOG: ${PG_CATALOG_PASSWORD:?}
       SERVICE_DB_PASSWORD_ORDERS: ${PG_ORDERS_PASSWORD:?}
       SERVICE_DB_PASSWORD_INVENTORY: ${PG_INVENTORY_PASSWORD:?}
       SERVICE_DB_PASSWORD_PAYMENTS: ${PG_PAYMENTS_PASSWORD:?}
       SERVICE_DB_PASSWORD_NOTIFICATIONS: ${PG_NOTIFICATIONS_PASSWORD:?}
       SERVICE_DB_PASSWORD_IDENTITY: ${PG_IDENTITY_PASSWORD:?}
+      SERVICE_DB_PASSWORD_FULFILLMENT: ${PG_FULFILLMENT_PASSWORD:?}
     depends_on:
       postgres:
         condition: service_healthy
@@ -110,13 +112,14 @@ services:
       PGHOST: postgres
       PGUSER: postgres
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      BACKUP_DATABASES: catalog,orders,inventory,payments,notifications,identity
+      BACKUP_DATABASES: catalog,orders,inventory,payments,notifications,identity,fulfillment
       BACKUP_TIME: "06:00"
       BACKUP_RETENTION_DAYS: "14"
-      S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:?o endpoint S3 do R2}
-      S3_BUCKET: ${BACKUP_S3_BUCKET:-compra-facil-backups}
-      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:?}
-      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:?}
+      # sem o endpoint, o backup fica parado e avisa no log (o bucket e a chave do R2 ainda não existem)
+      S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      S3_BUCKET: ${BACKUP_S3_BUCKET:-embrulhado-backups}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
       OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
       postgres:
@@ -164,9 +167,10 @@ services:
     mem_limit: 192m
     command: ["--config=/etc/otelcol/config.yaml"]
     environment:
-      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT:?o endpoint OTLP do Grafana Cloud}
+      # sem o Grafana Cloud, o Collector manda para um endereço vazio e descarta: os serviços não dependem dele
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT:-http://127.0.0.1:1}
       # base64 de "<instance id>:<token>"
-      GRAFANA_CLOUD_OTLP_AUTH: ${GRAFANA_CLOUD_OTLP_AUTH:?}
+      GRAFANA_CLOUD_OTLP_AUTH: ${GRAFANA_CLOUD_OTLP_AUTH:-}
 
   catalog:
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-catalog:${IMAGE_TAG:-main}
@@ -200,6 +204,9 @@ services:
       # o operador inicial; conta que já existe mantém a senha trocada depois
       Identity__Admin__Email: ${ADMIN_EMAIL:?o e-mail do operador}
       Identity__Admin__Password: ${ADMIN_PASSWORD:?a senha inicial do operador}
+      # a conta só de leitura do vigia do agentes-hub (#403); vazia, não é criada
+      Identity__Auditor__Email: ${AUDITOR_EMAIL:-}
+      Identity__Auditor__Password: ${AUDITOR_PASSWORD:-}
       Identity__Google__ClientIds__0: ${GOOGLE_CLIENT_ID:-}
 
   orders:
@@ -207,6 +214,8 @@ services:
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-orders:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
+      # a cotação de frete (orders) e o estoque do fornecedor (inventory) vêm do fulfillment
+      Fulfillment__BaseUrl: http://fulfillment:8007/
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${PG_ORDERS_PASSWORD}
       Catalog__GrpcAddress: http://catalog:9001
 
@@ -215,6 +224,8 @@ services:
     image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-inventory:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
+      # a cotação de frete (orders) e o estoque do fornecedor (inventory) vêm do fulfillment
+      Fulfillment__BaseUrl: http://fulfillment:8007/
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${PG_INVENTORY_PASSWORD}
       # loja de demonstração: produto novo (inclusive os do seed) nasce com estoque para dar para comprar
       Inventory__InitialOnHandForNewProducts: ${INITIAL_STOCK_FOR_NEW_PRODUCTS:-100}
@@ -233,8 +244,14 @@ services:
       Payments__Efi__PixCertificateBase64: ${EFI_PIX_CERTIFICATE_BASE64:-}
       Payments__Efi__PixKey: ${EFI_PIX_KEY:-}
       Payments__Efi__PixWebhookSecret: ${EFI_PIX_WEBHOOK_SECRET:-}
-      # e, ao ligar a venda: Payments__Efi__ChargeNotificationUrl e Payments__Efi__PixWebhookUrl com o domínio da
-      # API (…/payments/v1/webhooks/efi/charges e …/pix), no Coolify (deploy/README.md)
+      # o nome que o cliente vê no banco ("<nome>, pedido 1A2B3C4D") e o projeto no custom_id do cartão, que separa
+      # no extrato da conta Efí o que entrou por esta loja (agentes-hub#183)
+      Payments__Efi__StoreName: ${EFI_STORE_NAME:-Embrulhado}
+      Payments__Efi__ProjectTag: ${EFI_PROJECT_TAG:-embrulhado}
+      # os avisos da Efí, com o domínio da API (deploy/README.md). Vazios: o cartão não recebe a mudança de status e o
+      # webhook do PIX não é cadastrado (o PIX pago só é visto quando vence, pelo job)
+      Payments__Efi__ChargeNotificationUrl: ${EFI_CHARGE_NOTIFICATION_URL:-}
+      Payments__Efi__PixWebhookUrl: ${EFI_PIX_WEBHOOK_URL:-}
 
   notifications:
     <<: *dotnet
@@ -243,12 +260,28 @@ services:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${PG_NOTIFICATIONS_PASSWORD}
       # SMTP de verdade (Resend: smtp.resend.com, 587, usuário "resend", a chave da API como senha)
-      Smtp__Host: ${SMTP_HOST:?}
+      # vazio, o envio falha e é tentado de novo: os e-mails saem quando o SMTP entrar
+      Smtp__Host: ${SMTP_HOST:-}
       Smtp__Port: ${SMTP_PORT:-587}
       Smtp__UseTls: "true"
-      Smtp__User: ${SMTP_USER:?}
-      Smtp__Password: ${SMTP_PASSWORD:?}
-      Smtp__FromAddress: ${SMTP_FROM:?o remetente, de um domínio verificado}
+      Smtp__User: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__FromAddress: ${SMTP_FROM:-pedidos@embrulhado.com.br}
+
+  # o fornecedor manual: a equipe compra no fornecedor pela fila "Pedidos a fazer" e sobe a planilha do catálogo
+  fulfillment:
+    <<: *dotnet
+    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-fulfillment:${IMAGE_TAG:-main}
+    environment:
+      <<: *dotnet-env
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${PG_FULFILLMENT_PASSWORD:?}
+      Supplier__Mode: manual
+      # só pedidos confirmados a partir daqui vão para a fila (o consumer lê o tópico desde o começo)
+      Supplier__AcceptOrdersSince: ${SUPPLIER_ACCEPT_ORDERS_SINCE:?a data a partir da qual os pedidos vão ao fornecedor}
+      # os preços da loja para o frete grátis pela margem
+      Catalog__GrpcAddress: http://catalog:9001
+      # MEI sem certificado A1: o pedido vai ao fornecedor sem nota (deploy/README.md, "Vender sem nota fiscal")
+      Invoice__Enabled: "false"
 
 volumes:
   postgres-data:

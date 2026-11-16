@@ -90,7 +90,7 @@ public sealed partial class EfiWebhooksController(
         {
             if (refund.TryGetProperty("status", out var status) && status.GetString() == "NAO_REALIZADO")
             {
-                // o estorno já foi contado: o dinheiro não voltou ao cliente, e a equipe devolve pelo painel da Efí
+                // a consulta da cobrança logo abaixo tira o estorno das contas e publica PaymentRefundFailed (#396)
                 LogRefundRefused(logger, txid, refund.TryGetProperty("motivo", out var m) ? m.GetString() : null);
             }
         }
@@ -107,7 +107,7 @@ public sealed partial class EfiWebhooksController(
         _ => "ignored",
     });
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "a Efí não realizou a devolução do PIX {Txid} ({Reason}): devolver pelo painel da Efí")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "a Efí não realizou a devolução do PIX {Txid} ({Reason}): o pedido volta a esperar o estorno; estornar de novo pelo painel quando houver saldo")]
     private static partial void LogRefundRefused(ILogger logger, string txid, string? reason);
 }
 

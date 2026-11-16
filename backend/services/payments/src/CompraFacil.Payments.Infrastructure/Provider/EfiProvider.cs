@@ -27,7 +27,7 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
         var txid = TxidOf(request.OrderId);
         var seconds = (int)Math.Max(60, Math.Ceiling((request.ExpiresAt - clock.GetUtcNow()).TotalSeconds));
         var body = new CobRequest(new CobCalendar(seconds), DebtorOf(request.Payer), new CobValue(Reais(request.Amount.AmountCents)),
-            options.Value.PixKey, $"CompraFácil, pedido {OrderNumber(request.OrderId)}");
+            options.Value.PixKey, $"{options.Value.StoreName}, pedido {OrderNumber(request.OrderId)}");
         Cob cob;
         try
         {
@@ -52,8 +52,8 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
     {
         ArgumentNullException.ThrowIfNull(request);
         var body = new ChargeRequest(
-            [new ChargeItem($"CompraFácil, pedido {OrderNumber(request.OrderId)}", request.Amount.AmountCents, 1)],
-            new ChargeMetadata(request.OrderId.ToString(), options.Value.ChargeNotificationUrl?.AbsoluteUri));
+            [new ChargeItem($"{options.Value.StoreName}, pedido {OrderNumber(request.OrderId)}", request.Amount.AmountCents, 1)],
+            new ChargeMetadata($"{options.Value.ProjectTag}-{request.OrderId}", options.Value.ChargeNotificationUrl?.AbsoluteUri));
         try
         {
             var created = await api.SendAsync<Envelope<CreatedCharge>>(EfiApiKind.Charges, HttpMethod.Post, "v1/charge", body, ct);
@@ -224,7 +224,10 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
             _ => throw new PaymentProviderUnavailableException($"status desconhecido da Efí no PIX: {cob.Status}"),
         };
         var pix = cob.PixCopiaECola is { Length: > 0 } code ? new PixCharge(code, QrPng(code), ticket, expires) : null;
-        return new ProviderPayment(cob.Txid, status, Pix: pix);
+        // a devolução aceita e não realizada (sem saldo na conta, #396): a referência é a mesma que o estorno guardou
+        var failed = (cob.Pix ?? []).SelectMany(p => p.Devolucoes ?? []).Where(d => d.Status == "NAO_REALIZADO")
+            .Select(d => d.RtrId ?? d.Id).ToList();
+        return new ProviderPayment(cob.Txid, status, Pix: pix, FailedRefunds: failed.Count > 0 ? failed : null);
     }
 
     /// <summary>O cartão: approved é aprovado pela operadora e não liquidado (Authorized); paid, liquidado.</summary>

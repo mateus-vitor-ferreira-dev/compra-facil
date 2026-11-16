@@ -97,6 +97,18 @@ public sealed class AdminOrdersTests(OrdersFixture fx) : IClassFixture<OrdersFix
     }
 
     [Fact]
+    public async Task O_papel_so_de_leitura_tambem_ve_a_lista_e_o_resumo()
+    {
+        using var http = fx.Factory.CreateClient();
+        http.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.AuditorToken());
+        foreach (var path in new[] { "/v1/admin/orders", "/v1/admin/sales-summary?from=2030-01-01T00:00:00Z&to=2030-02-01T00:00:00Z" })
+        {
+            using var ok = await http.GetAsync(path, Ct);
+            Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        }
+    }
+
+    [Fact]
     public async Task Lista_traz_o_contato_sem_CPF_nem_endereco_e_filtra()
     {
         var day = new DateTimeOffset(2031, 3, 10, 15, 0, 0, TimeSpan.Zero);

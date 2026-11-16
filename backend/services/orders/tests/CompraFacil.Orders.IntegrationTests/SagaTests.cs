@@ -334,6 +334,14 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         ContractAssert.AssertEvent("orders.v1.yaml", "OrderRefunded", refundedEvent);
         var r = EventEnvelope.TryParse(refundedEvent)!;
         Assert.Equal(reason, r.Data.GetProperty("reason").GetString());
+
+        // o provedor não realizou o estorno (#396): o pedido volta a esperar, sem avisar o cliente de novo
+        await HandleAsync<PaymentRefundFailedData, OnPaymentRefundFailed>(new PaymentRefundFailedData(order, Guid.NewGuid()));
+        var failed = await GetOrderAsync(order);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", failed.GetRawText());
+        Assert.Equal((JsonValueKind.Null, JsonValueKind.String),
+            (failed.GetProperty("refunded_at").ValueKind, failed.GetProperty("refund_failed_at").ValueKind));
+        Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled, OrderEvents.OrderRefunded], await EventTypesAsync(order));
     }
 
     [Fact]

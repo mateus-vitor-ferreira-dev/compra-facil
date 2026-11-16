@@ -591,6 +591,10 @@ components:
             refunded_at:
               type: [string, "null"]
               format: date-time
+            refund_failed_at:
+              type: [string, "null"]
+              format: date-time
+              description: A última vez que o provedor aceitou o estorno e não o realizou (#396); com `refunded_at` nulo, falta estornar de novo.
             updated_at:
               type: string
               format: date-time
@@ -1013,6 +1017,12 @@ components:
           description: |
             Quando o valor voltou ao cliente, no pedido cancelado por `supplier_failed`,
             `invoice_failed` ou `store_cancelled`, ou no devolvido (`returned`). Nulo nesse pedido é o estorno em andamento.
+        refund_failed_at:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            A última vez que o provedor aceitou o estorno e não o realizou (#396). O pedido volta a esperar o
+            estorno (`refunded_at` nulo) até a loja estornar de novo.
         return_requested_at:
           type: [string, "null"]
           format: date-time

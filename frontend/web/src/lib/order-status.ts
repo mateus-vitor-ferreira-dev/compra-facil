@@ -20,6 +20,8 @@ export type OrderProgress = {
   shipped_at?: string | null;
   delivered_at?: string | null;
   refunded_at?: string | null;
+  /** O provedor aceitou o estorno e não o realizou (#396); com refunded_at nulo, o estorno está atrasado. */
+  refund_failed_at?: string | null;
   /** O cliente se arrependeu (#223): pediu a devolução dentro dos 7 dias da entrega. */
   return_requested_at?: string | null;
   payment?: Payment;
@@ -29,7 +31,13 @@ export type OrderProgress = {
 
 type StatusInput = Pick<
   OrderProgress,
-  "status" | "cancellation_reason" | "stock_reserved_at" | "sent_to_supplier_at" | "refunded_at" | "payment"
+  | "status"
+  | "cancellation_reason"
+  | "stock_reserved_at"
+  | "sent_to_supplier_at"
+  | "refunded_at"
+  | "refund_failed_at"
+  | "payment"
 >;
 
 /** O pedido espera o cliente pagar o PIX: o código já foi gerado. */
@@ -37,6 +45,12 @@ export const awaitingPix = (order: Pick<OrderProgress, "status" | "payment">) =>
   order.status === "pending" && !!order.payment?.pix;
 
 export type Tone = "neutral" | "success" | "danger";
+
+/** O estorno que demorou porque o provedor não o realizou de primeira (#396): o cliente sabe que a loja já está nisso. */
+const LATE_REFUND = " O estorno está levando mais tempo do que o normal, e a loja já está cuidando dele.";
+
+const lateRefund = (order: Pick<OrderProgress, "refunded_at" | "refund_failed_at">) =>
+  order.refund_failed_at && !order.refunded_at ? LATE_REFUND : "";
 
 function cancelledDetail(reason: Reason, refundedAt?: string | null, method?: Payment["method"]) {
   switch (reason) {
@@ -88,13 +102,15 @@ export function orderStatus(order: StatusInput): { label: string; tone: Tone; de
         tone: "neutral",
         detail: order.refunded_at
           ? "Você desistiu da compra. O valor pago, com o frete, foi estornado."
-          : "Você desistiu da compra. Estamos estornando o valor pago, com o frete.",
+          : "Você desistiu da compra. Estamos estornando o valor pago, com o frete." + lateRefund(order),
       };
     case "cancelled":
       return {
         label: "Cancelado",
         tone: "danger",
-        detail: cancelledDetail(order.cancellation_reason, order.refunded_at, order.payment?.method),
+        detail:
+          cancelledDetail(order.cancellation_reason, order.refunded_at, order.payment?.method) +
+          (paidThenCancelled(order.cancellation_reason) ? lateRefund(order) : ""),
       };
     default:
       if (awaitingPix(order)) {

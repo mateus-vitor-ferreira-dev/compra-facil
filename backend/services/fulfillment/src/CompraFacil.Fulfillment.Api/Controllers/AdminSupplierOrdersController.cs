@@ -11,7 +11,7 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 /// <summary>listOverdueSupplierOrders (contracts/openapi/fulfillment.v1.yaml): os pedidos parados no fornecedor.</summary>
 [ApiController]
 [Produces("application/json")]
-[Authorize(Policy = JwtAuth.AdminPolicy)]
+[Authorize(Policy = JwtAuth.AdminReadPolicy)] // as listas; o que muda algo pede também AdminPolicy (#403)
 public sealed class AdminSupplierOrdersController(
     OverdueOrders overdue, PendingSupplierReturns returns, SupplierOrderActions actions, SupplierReturnActions returnActions,
     OrderMargins margins) : ControllerBase
@@ -50,16 +50,27 @@ public sealed class AdminSupplierOrdersController(
 
     /// <summary>retrySupplierOrder: tenta agora o pedido que espera a próxima tentativa.</summary>
     [HttpPost("v1/admin/supplier-orders/{order_id:guid}/retry")]
+    [Authorize(Policy = JwtAuth.AdminPolicy)]
     public async Task<IActionResult> Retry([FromRoute(Name = "order_id")] Guid orderId, CancellationToken ct) =>
         Result(await actions.RetryAsync(orderId, ct), "O pedido não está esperando uma nova tentativa");
 
     /// <summary>cancelSupplierOrder: cancela o que não foi despachado; o cliente é estornado.</summary>
     [HttpPost("v1/admin/supplier-orders/{order_id:guid}/cancel")]
-    public async Task<IActionResult> Cancel([FromRoute(Name = "order_id")] Guid orderId, CancellationToken ct)
+    [Authorize(Policy = JwtAuth.AdminPolicy)]
+    public async Task<IActionResult> Cancel(
+        [FromRoute(Name = "order_id")] Guid orderId,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] CancelRequest? request,
+        CancellationToken ct)
     {
         try
         {
-            return Result(await actions.CancelAsync(orderId, ct), "O pedido já foi despachado ou está sendo enviado ao fornecedor");
+            var result = await actions.CancelAsync(orderId, ct, request?.CancelledAtSupplier ?? false);
+            if (result == SupplierOrderActionResult.NeedsSupplierCancellation)
+            {
+                throw new ConflictException("Cancele no fornecedor primeiro",
+                    "O pedido já foi feito no fornecedor: cancele-o lá e confirme com cancelled_at_supplier, para a loja estornar o cliente");
+            }
+            return Result(result, "O pedido já foi despachado ou está sendo enviado ao fornecedor");
         }
         catch (SupplierUnavailableException e)
         {
@@ -91,6 +102,7 @@ public sealed class AdminSupplierOrdersController(
     /// cliente (#281). O cliente recebe por e-mail.
     /// </summary>
     [HttpPost("v1/admin/supplier-returns/{order_id:guid}/customer-instruction")]
+    [Authorize(Policy = JwtAuth.AdminPolicy)]
     public async Task<IActionResult> InstructCustomer(
         [FromRoute(Name = "order_id")] Guid orderId, [FromBody] CustomerInstructionRequest request, CancellationToken ct)
     {
@@ -184,6 +196,9 @@ public sealed record FailedSupplierOrder(
         return new(o.Id, o.FailureReason ?? "", o.FailureDetail, o.Supplier, o.SupplierOrderId, o.CustomerEmail, o.Attempts, o.CreatedAt, o.FailedAt!.Value);
     }
 }
+
+/// <summary>O corpo opcional do cancelSupplierOrder: no fornecedor manual, a confirmação de que foi cancelado lá.</summary>
+public sealed record CancelRequest(bool? CancelledAtSupplier);
 
 public sealed record FailedSupplierOrderList(IReadOnlyList<FailedSupplierOrder> Data);
 

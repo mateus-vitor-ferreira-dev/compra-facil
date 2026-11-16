@@ -71,6 +71,10 @@ type Ide struct {
 	FinNFe   int    `json:"finNFe"`
 	IndFinal int    `json:"indFinal"`
 	IndPres  int    `json:"indPres"`
+	// indIntermed é obrigatório na venda pela internet (indPres=2); procEmi e verProc, sempre
+	IndIntermed *int   `json:"indIntermed,omitempty"`
+	ProcEmi     *int   `json:"procEmi,omitempty"`
+	VerProc     string `json:"verProc,omitempty"`
 	// NFref: as notas que esta referencia (a de venda, na devolução)
 	NFref []NFref `json:"NFref,omitempty"`
 }
@@ -114,8 +118,38 @@ type Dest struct {
 }
 
 type Det struct {
-	NItem int  `json:"nItem"`
-	Prod  Prod `json:"prod"`
+	NItem   int      `json:"nItem"`
+	Prod    Prod     `json:"prod"`
+	Imposto *Imposto `json:"imposto,omitempty"`
+}
+
+// Imposto é o subconjunto do Simples Nacional sem destaque: o grupo do CSOSN, o PIS e a COFINS.
+type Imposto struct {
+	ICMS   ICMS   `json:"ICMS"`
+	PIS    PIS    `json:"PIS"`
+	COFINS COFINS `json:"COFINS"`
+}
+
+type ICMS struct {
+	ICMSSN102 *ICMSSN `json:"ICMSSN102,omitempty"`
+	ICMSSN900 *ICMSSN `json:"ICMSSN900,omitempty"`
+}
+
+type ICMSSN struct {
+	Orig  int `json:"orig"`
+	CSOSN int `json:"CSOSN"`
+}
+
+type PIS struct {
+	PISOutr *CST `json:"PISOutr,omitempty"`
+}
+
+type COFINS struct {
+	COFINSOutr *CST `json:"COFINSOutr,omitempty"`
+}
+
+type CST struct {
+	CST string `json:"CST"`
 }
 
 type Prod struct {
@@ -134,10 +168,38 @@ type Total struct {
 	ICMSTot ICMSTot `json:"ICMSTot"`
 }
 
+// ICMSTot: o modelo pede os 19 campos; os que a loja zera vêm como ponteiro, para conferir que vieram.
 type ICMSTot struct {
-	VProd  float64 `json:"vProd"`
-	VFrete float64 `json:"vFrete,omitempty"`
-	VNF    float64 `json:"vNF"`
+	VBC        *float64 `json:"vBC,omitempty"`
+	VICMS      *float64 `json:"vICMS,omitempty"`
+	VICMSDeson *float64 `json:"vICMSDeson,omitempty"`
+	VFCP       *float64 `json:"vFCP,omitempty"`
+	VBCST      *float64 `json:"vBCST,omitempty"`
+	VST        *float64 `json:"vST,omitempty"`
+	VFCPST     *float64 `json:"vFCPST,omitempty"`
+	VFCPSTRet  *float64 `json:"vFCPSTRet,omitempty"`
+	VProd      float64  `json:"vProd"`
+	VFrete     float64  `json:"vFrete"`
+	VSeg       *float64 `json:"vSeg,omitempty"`
+	VDesc      *float64 `json:"vDesc,omitempty"`
+	VII        *float64 `json:"vII,omitempty"`
+	VIPI       *float64 `json:"vIPI,omitempty"`
+	VIPIDevol  *float64 `json:"vIPIDevol,omitempty"`
+	VPIS       *float64 `json:"vPIS,omitempty"`
+	VCOFINS    *float64 `json:"vCOFINS,omitempty"`
+	VOutro     *float64 `json:"vOutro,omitempty"`
+	VNF        float64  `json:"vNF"`
+}
+
+// complete diz se vieram todos os campos que a loja zera.
+func (t ICMSTot) complete() bool {
+	for _, v := range []*float64{t.VBC, t.VICMS, t.VICMSDeson, t.VFCP, t.VBCST, t.VST, t.VFCPST, t.VFCPSTRet,
+		t.VSeg, t.VDesc, t.VII, t.VIPI, t.VIPIDevol, t.VPIS, t.VCOFINS, t.VOutro} {
+		if v == nil {
+			return false
+		}
+	}
+	return true
 }
 
 type Transp struct {
@@ -151,7 +213,19 @@ type Pag struct {
 type DetPag struct {
 	TPag string  `json:"tPag"`
 	VPag float64 `json:"vPag"`
+	Card *Card   `json:"card,omitempty"`
 }
+
+// Card é o grupo do cartão (tPag 03 e 04).
+type Card struct {
+	TpIntegra int `json:"tpIntegra"`
+}
+
+// TPagCredit é o cartão de crédito, que pede o grupo card.
+const TPagCredit = "03"
+
+// HomologationRecipient é o único nome de destinatário que a SEFAZ aceita na homologação (rejeição 598).
+const HomologationRecipient = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
 
 type InfAdic struct {
 	InfCpl string `json:"infCpl,omitempty"`
@@ -279,10 +353,22 @@ func (i *Issuer) validate(req Request) (int, string) {
 		return 237, "Rejeição: CPF do destinatário inválido"
 	case strings.TrimSpace(n.Dest.XNome) == "":
 		return 225, "Rejeição: Falha no Schema XML (dest/xNome)"
+	case req.Ambiente == EnvSandbox && n.Dest.XNome != HomologationRecipient:
+		return 598, "Rejeição: NF-e emitida em ambiente de homologação com Razão Social do destinatário diferente de " + HomologationRecipient
 	case !digits(n.Dest.EnderDest.CEP, 8):
 		return 225, "Rejeição: Falha no Schema XML (enderDest/CEP)"
 	case !validUF(n.Dest.EnderDest.UF) || !validUF(n.Emit.EnderEmit.UF):
 		return 225, "Rejeição: Falha no Schema XML (UF)"
+	case !digits(n.Dest.EnderDest.CMun, 7):
+		return 225, "Rejeição: Falha no Schema XML (enderDest/cMun)"
+	case n.Dest.EnderDest.CMun[:2] != strconv.Itoa(ufCodes[n.Dest.EnderDest.UF]):
+		return 274, "Rejeição: Código Município do destinatário diverge da UF"
+	case n.Ide.ProcEmi == nil || strings.TrimSpace(n.Ide.VerProc) == "":
+		return 225, "Rejeição: Falha no Schema XML (ide/procEmi, verProc)"
+	case n.Ide.IndPres == 2 && n.Ide.IndIntermed == nil:
+		return 225, "Rejeição: Falha no Schema XML (ide/indIntermed)"
+	case !n.Total.ICMSTot.complete():
+		return 225, "Rejeição: Falha no Schema XML (ICMSTot)"
 	case len(n.Det) == 0:
 		return 225, "Rejeição: Falha no Schema XML (det)"
 	}
@@ -295,6 +381,8 @@ func (i *Issuer) validate(req Request) (int, string) {
 			return 543, "Rejeição: CFOP não permitido para a operação"
 		case d.Prod.QCom <= 0 || d.Prod.VProd <= 0:
 			return 225, "Rejeição: Falha no Schema XML (prod)"
+		case !d.Imposto.simples():
+			return 225, "Rejeição: Falha no Schema XML (det/imposto)"
 		}
 		sum += d.Prod.VProd
 	}
@@ -312,12 +400,30 @@ func (i *Issuer) validate(req Request) (int, string) {
 	}
 	var paid float64
 	for _, p := range n.Pag.DetPag {
+		if p.TPag == TPagCredit && p.Card == nil {
+			return 225, "Rejeição: Falha no Schema XML (detPag/card)"
+		}
 		paid += p.VPag
 	}
 	if cents(paid) < cents(n.Total.ICMSTot.VNF) {
 		return 866, "Rejeição: Ausência de troco quando o valor dos pagamentos informados for maior que o total da nota"
 	}
 	return 0, ""
+}
+
+// simples confere o imposto do Simples Nacional: um grupo de CSOSN, o PIS e a COFINS com CST.
+func (imp *Imposto) simples() bool {
+	if imp == nil || imp.PIS.PISOutr == nil || imp.COFINS.COFINSOutr == nil ||
+		imp.PIS.PISOutr.CST == "" || imp.COFINS.COFINSOutr.CST == "" {
+		return false
+	}
+	switch {
+	case imp.ICMS.ICMSSN102 != nil:
+		return slices.Contains([]int{102, 103, 300, 400}, imp.ICMS.ICMSSN102.CSOSN)
+	case imp.ICMS.ICMSSN900 != nil:
+		return imp.ICMS.ICMSSN900.CSOSN == 900
+	}
+	return false
 }
 
 // authorizedKeys confere se há referências e se todas são de notas autorizadas. Quem chama tem o lock.
@@ -350,11 +456,12 @@ func (i *Issuer) Get(id string) (Invoice, error) {
 	return inv.snapshot(), nil
 }
 
-// FindByReferencia é o GET /nfe?referencia=: a nota de um pedido, para a loja confirmar depois de um timeout.
-func (i *Issuer) FindByReferencia(ambiente, referencia string) []Invoice {
+// FindByReferencia é o GET /nfe?cpf_cnpj=&referencia=: a nota de um pedido, do emitente, para a loja
+// confirmar depois de um timeout.
+func (i *Issuer) FindByReferencia(cnpj, ambiente, referencia string) []Invoice {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	if id, ok := i.byReferencia[ambiente+"/"+referencia]; ok {
+	if id, ok := i.byReferencia[ambiente+"/"+referencia]; ok && i.byID[id].request.InfNFe.Emit.CNPJ == cnpj {
 		return []Invoice{i.byID[id].snapshot()}
 	}
 	return []Invoice{}
