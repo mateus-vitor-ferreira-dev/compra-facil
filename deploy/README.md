@@ -177,7 +177,8 @@ O identificador de conta (32 caracteres) vai no Worker da loja, em `PAYMENT_PAYE
 **Homologação na máquina local**, antes de ligar a venda: as credenciais e o `.p12` de homologação num
 `~/.efi/homologacao.env` (fora do repositório, chmod 600, com os nomes da tabela acima, mais `EFI_P12` com o caminho
 do certificado e `PAYMENT_PAYEE_CODE`). O `task efi:homologacao` sobe o ambiente com a Efí no lugar do payment-sim
-(`infra/compose/compose.efi.yaml`) e um túnel do Cloudflare para os avisos dela chegarem, e mostra o comando do front
+(`infra/compose/compose.efi.yaml`) e um túnel do Cloudflare para os avisos dela chegarem (o túnel só publica
+`/payments/v1/webhooks/efi/*`, por um proxy na frente do gateway; à mão, `ssh -R 80:localhost:8099 nokey@localhost.run`), e mostra o comando do front
 com `PAYMENT_PROVIDER=sandbox`. Só a homologação: com a produção, o payments local cadastraria o webhook do PIX da
 conta de verdade apontando para esta máquina. O `scripts/efi-conferir.sh homologacao|producao` pede o token nas duas
 APIs e mostra só o status e os escopos, e o `scripts/efi-cofre.sh guardar|restaurar` leva o `~/.efi` para o
