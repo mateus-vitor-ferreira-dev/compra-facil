@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-
-const STUB = "http://localhost:4010";
+import { STUB } from "./ports";
 
 // o modo manual (#412) vale só para o operador de @manual.exemplo.com na API falsa
 async function login(page: Page, path: string) {
