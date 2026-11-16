@@ -2,15 +2,19 @@ import { brand } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 /**
- * O símbolo é a etiqueta de preço (o furo e o canto chanfrado), independente do nome; ao lado, o
- * nome em texto, de lib/brand.ts. currentColor: segue o tema.
+ * O símbolo é a caixa de presente de Natal (o nome vem de "embrulhar"): caixa vermelha, fita e laço dourados.
+ * Cores fixas, as da marca, nos dois temas; o mesmo desenho do favicon (app/icon.svg). Ao lado, o nome em texto,
+ * de lib/brand.ts.
  */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className={cn("size-8", className)}>
-      <path d="M4 9.5 9.5 4H26a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9.5Z" fill="currentColor" />
-      <circle cx="10" cy="10" r="2.25" className="fill-paper" />
-      <path d="M11 21.5h10M11 17h6" className="stroke-paper" strokeWidth="2.5" strokeLinecap="round" />
+      <rect x="6" y="15" width="20" height="13.5" rx="1.2" fill="#c8202f" />
+      <rect x="6" y="15" width="20" height="2.2" fill="#a51a27" />
+      <rect x="4" y="10.5" width="24" height="5.5" rx="1.2" fill="#e1313f" />
+      <rect x="14.25" y="10.5" width="3.5" height="18" fill="#f2b632" />
+      <path d="M16 10.5c-3-4.6-8.7-5.6-9-2s5.4 3 9 2zm0 0c3-4.6 8.7-5.6 9-2s-5.4 3-9 2z" fill="#f2b632" />
+      <circle cx="16" cy="10.5" r="1.9" fill="#b8860b" />
     </svg>
   );
 }

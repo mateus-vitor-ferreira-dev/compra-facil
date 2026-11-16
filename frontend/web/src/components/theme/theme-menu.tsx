@@ -27,8 +27,8 @@ function useThemeChoice(): ThemeChoice {
  * metade de cada). Cores fixas de propósito: mostram o outro tema, não o atual.
  */
 function Swatch({ theme }: { theme: ThemeChoice }) {
-  const light = { paper: THEME_COLORS.light, ink: "#1b1f3b" };
-  const dark = { paper: THEME_COLORS.dark, ink: "#eef0f7" };
+  const light = { paper: THEME_COLORS.light, ink: "#4a0d14" };
+  const dark = { paper: THEME_COLORS.dark, ink: "#f8eeec" };
   const clip = `amostra-${useId().replace(/:/g, "")}`;
   const ink = (theme === "light" ? light : dark).ink;
   return (
@@ -51,7 +51,7 @@ function Swatch({ theme }: { theme: ThemeChoice }) {
         <rect width="36" height="24" fill={(theme === "dark" ? dark : light).paper} />
       )}
       {/* a etiqueta amarela de campanha e duas linhas de texto, como no card de produto */}
-      <path d="M22 5h9v6l-2 2h-7z" fill="#ffd23f" />
+      <path d="M22 5h9v6l-2 2h-7z" fill="#f2b632" />
       <rect x="5" y="14" width="14" height="2.5" rx="1" fill={ink} />
       <rect x="5" y="18.5" width="9" height="2.5" rx="1" fill={ink} opacity="0.55" />
     </svg>

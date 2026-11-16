@@ -80,7 +80,7 @@ export function AdminNav({ brand, account }: { brand: ReactNode; account: ReactN
   const current = ADMIN_SECTIONS.find((s) => isCurrent(path, s));
 
   return (
-    <aside className="bg-hero text-on-hero flex flex-col [--focus:var(--on-hero)] lg:sticky lg:top-0 lg:h-dvh lg:overflow-y-auto">
+    <aside className="bg-panel text-on-panel flex flex-col [--focus:var(--ribbon)] lg:sticky lg:top-0 lg:h-dvh lg:overflow-y-auto">
       <div className="flex min-h-14 items-center justify-between gap-3 px-4 lg:px-5 lg:pt-5">
         {brand}
         <button
@@ -88,7 +88,7 @@ export function AdminNav({ brand, account }: { brand: ReactNode; account: ReactN
           aria-expanded={open}
           aria-controls={menuId}
           onClick={() => setOpenAt(open ? null : path)}
-          className="hover:bg-on-hero/10 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 font-medium lg:hidden"
+          className="hover:bg-on-panel/10 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-3 font-medium lg:hidden"
         >
           {open ? (
             <X aria-hidden="true" className="size-5" />
@@ -115,7 +115,7 @@ export function AdminNav({ brand, account }: { brand: ReactNode; account: ReactN
         <nav aria-label="Seções do painel" className="px-2 lg:px-3 lg:pt-4">
           {ADMIN_GROUPS.map((group) => (
             <div key={group.label} className="mt-3 first:mt-0">
-              <p id={`${menuId}-${group.label}`} className="text-on-hero/60 px-3 pb-1 text-sm font-medium">
+              <p id={`${menuId}-${group.label}`} className="text-on-panel/60 px-3 pb-1 text-sm font-medium">
                 {group.label}
               </p>
               <ul aria-labelledby={`${menuId}-${group.label}`}>
@@ -127,10 +127,10 @@ export function AdminNav({ brand, account }: { brand: ReactNode; account: ReactN
                         href={s.href}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "text-on-hero/80 hover:text-on-hero hover:bg-on-hero/8 relative flex min-h-11 items-center gap-3 rounded-md px-3 font-medium pointer-fine:min-h-9",
+                          "text-on-panel/80 hover:text-on-panel hover:bg-on-panel/8 relative flex min-h-11 items-center gap-3 rounded-md px-3 font-medium pointer-fine:min-h-9",
                           // a seção atual: fundo e uma barra à esquerda, não só a cor
                           active &&
-                            "bg-on-hero/12 text-on-hero before:bg-tag before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full",
+                            "bg-on-panel/12 text-on-panel before:bg-tag before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full",
                         )}
                       >
                         <s.Icon aria-hidden="true" className="size-4 shrink-0" />
@@ -143,7 +143,7 @@ export function AdminNav({ brand, account }: { brand: ReactNode; account: ReactN
             </div>
           ))}
         </nav>
-        <div className="border-on-hero/15 mx-4 mt-6 border-t pt-4 lg:mx-5 lg:mt-auto">{account}</div>
+        <div className="border-on-panel/15 mx-4 mt-6 border-t pt-4 lg:mx-5 lg:mt-auto">{account}</div>
       </div>
     </aside>
   );

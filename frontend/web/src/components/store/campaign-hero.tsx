@@ -26,7 +26,7 @@ export function CampaignHero({ campaign, others }: { campaign: Campaign; others:
             {campaign.product_count ? ` em ${count.format(campaign.product_count)} produtos` : ""}, com o
             preço já baixado na etiqueta.
           </p>
-          <Countdown endsAt={campaign.ends_at} className="text-on-hero/85" />
+          <Countdown endsAt={campaign.ends_at} className="text-on-hero" />
           <Link
             href="/ofertas"
             className={cn(
@@ -54,12 +54,12 @@ export function CampaignHero({ campaign, others }: { campaign: Campaign; others:
         {others.length > 0 && (
           // sem link e abaixo do botão: no celular, cederia a primeira tela aos produtos
           <div className="border-on-hero/20 hidden border-t pt-5 md:col-span-2 md:block">
-            <h3 className="text-on-hero/85 text-sm">Também acontecendo</h3>
+            <h3 className="text-on-hero text-sm">Também acontecendo</h3>
             <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
               {others.map((c) => (
                 <li key={c.id}>
                   <span className="font-semibold">{c.name}</span>{" "}
-                  <span className="text-on-hero/85">até {c.discount_percent}% de desconto</span>
+                  <span className="text-on-hero">até {c.discount_percent}% de desconto</span>
                 </li>
               ))}
             </ul>
