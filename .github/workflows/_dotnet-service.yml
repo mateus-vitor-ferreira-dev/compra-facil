@@ -36,7 +36,9 @@ jobs:
       - uses: actions/setup-dotnet@v6.0.0
         with:
           global-json-file: backend/global.json
-          cache: true
+          # no self-hosted o ~/.nuget/packages fica no disco; o upload do cache do GitHub (~750 MB)
+          # estourava o timeout do job (#415)
+          cache: ${{ github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted' }}
           cache-dependency-path: "**/packages.lock.json"
       - name: Restore (lock files; CI=true trava as versões)
         run: dotnet restore services/${{ inputs.service }}/*.slnx
@@ -98,7 +100,11 @@ jobs:
     name: imagem roda em ARM
     needs: image
     # runner ARM nativo: a imagem publicada roda como no VPS da produção, sem emulação
-    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-24.04') || vars.RUNNER || 'ubuntu-24.04' }}-arm
+    # roda a imagem arm64 de verdade: precisa de máquina ARM. O runner próprio é x86 e sem QEMU, e o rótulo
+    # "self-hosted-arm" não existe: o job ficava 24 h na fila até o GitHub cancelar (#415). Lá, a conferência
+    # fica com o healthcheck do deploy no VPS ARM
+    if: vars.RUNNER != 'self-hosted'
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       contents: read

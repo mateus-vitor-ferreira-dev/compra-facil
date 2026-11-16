@@ -162,7 +162,7 @@ public sealed class EfiProviderTests
         Assert.Equal(("391", ProviderStatus.Authorized, "0087"), (result.Reference, result.Status, result.CardLastFour));
         var open = JsonDocument.Parse(server.Calls.Single(c => c.Path == "/v1/charge").Body!).RootElement;
         Assert.Equal(12990, open.GetProperty("items")[0].GetProperty("value").GetInt64());
-        Assert.Equal(s_order.ToString(), open.GetProperty("metadata").GetProperty("custom_id").GetString());
+        Assert.Equal($"embrulhado-{s_order}", open.GetProperty("metadata").GetProperty("custom_id").GetString());
         Assert.Equal("https://api.loja/payments/v1/webhooks/efi/charges", open.GetProperty("metadata").GetProperty("notification_url").GetString());
         var card = JsonDocument.Parse(server.Calls.Single(c => c.Path == "/v1/charge/391/pay").Body!).RootElement
             .GetProperty("payment").GetProperty("credit_card");

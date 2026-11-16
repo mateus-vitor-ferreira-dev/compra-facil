@@ -20,12 +20,13 @@ conferir os campos na documentação dela: este simulador não foi validado cont
 | Método e rota | Observação |
 |---|---|
 | `POST /oauth/token` | `grant_type=client_credentials`, `client_id`, `client_secret` (form). Na Nuvem Fiscal, em `auth.nuvemfiscal.com.br`. |
-| `POST /nfe` | `{ambiente, referencia, infNFe}` com as tags da NF-e (`ide`, `emit`, `dest`, `det[].prod`, `total.ICMSTot`, `pag.detPag`). Sempre 200: o `status` diz se a SEFAZ autorizou (`autorizado`, com `chave` de 44 dígitos e protocolo) ou rejeitou (`rejeitado`, com `autorizacao.codigo_status` e `motivo_status`). A mesma `referencia` no mesmo ambiente devolve a mesma nota. |
-| `GET /nfe?ambiente=&referencia=` | `{data: [nota]}`: para a loja achar a nota de um pedido depois de um timeout. |
+| `POST /nfe` | `{ambiente, referencia, infNFe}` com as tags da NF-e (`ide`, `emit`, `dest`, `det[].prod`, `det[].imposto`, `total.ICMSTot`, `pag.detPag`). Sempre 200: o `status` diz se a SEFAZ autorizou (`autorizado`, com `chave` de 44 dígitos e protocolo) ou rejeitou (`rejeitado`, com `autorizacao.codigo_status` e `motivo_status`). A mesma `referencia` no mesmo ambiente devolve a mesma nota. |
+| `GET /nfe?cpf_cnpj=&ambiente=&referencia=` | `{data: [nota]}`: para a loja achar a nota de um pedido depois de um timeout. Sem o `cpf_cnpj` do emitente, 400, como na Nuvem Fiscal. |
 | `GET /nfe/{id}` | |
 | `POST /nfe/{id}/cancelamento` | `{justificativa}` de 15 a 255 caracteres. Só a autorizada, dentro do prazo; a nota fica `cancelado`. Repetir devolve o mesmo evento. |
 | `GET /nfe/{id}/cancelamento` | |
 | `GET /nfe/{id}/xml`, `GET /nfe/{id}/pdf` | O `nfeProc` (sem assinatura) e um DANFE simplificado. A nota rejeitada não tem nenhum dos dois (404). |
+| `GET /cep/{cep}` | `{cep, codigo_ibge, municipio, uf}`: a loja tira daqui o `cMun` do destinatário. Sem a base dos Correios, o simulador devolve a capital da UF pela faixa do CEP (Lavras à parte); fora das faixas (`000…`), 404. |
 
 Erros no formato da Nuvem Fiscal: `{"error": {"code", "message"}}`.
 
@@ -35,7 +36,9 @@ Erros no formato da Nuvem Fiscal: `{"error": {"code", "message"}}`.
 |---|---|
 | 207 | CNPJ do emitente inválido |
 | 237 | CPF do destinatário inválido (dígitos verificadores) |
-| 225 | Falha no schema: sem nome, CEP sem 8 dígitos, UF inválida, sem itens |
+| 225 | Falha no schema: sem nome, CEP sem 8 dígitos, UF inválida, `cMun` sem 7 dígitos, sem `procEmi`/`verProc`, venda pela internet sem `indIntermed`, `ICMSTot` sem os 19 campos, item sem `imposto` do Simples (CSOSN 102/103/300/400 ou 900, `PISOutr` e `COFINSOutr` com CST), cartão (03) sem o grupo `card`, sem itens |
+| 274 | `cMun` do destinatário de outra UF |
+| 598 | Homologação com o nome do destinatário diferente de `NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL` |
 | 778 | NCM sem 8 dígitos |
 | 543 | CFOP fora de `SIM_ALLOWED_CFOP` |
 | 610 | Total da nota diferente da soma dos itens |

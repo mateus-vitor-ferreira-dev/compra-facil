@@ -1,0 +1,22 @@
+# A Efí de verdade no ambiente local, no lugar do payment-sim: a homologação para provar o PIX e o cartão de ponta a
+# ponta antes da venda (#396). As credenciais ficam fora do repositório, num .env com os nomes do Coolify, e o túnel
+# do Cloudflare dá à Efí um endereço público para os avisos de pagamento.
+#   task efi:homologacao   (scripts/efi-local.sh, que lê ~/.efi/homologacao.env e acha o endereço do túnel)
+services:
+  payments:
+    environment:
+      Payments__Efi__ChargesBaseUrl: ${EFI_CHARGES_URL:?o .env da Efí}
+      Payments__Efi__PixBaseUrl: ${EFI_PIX_URL:?o .env da Efí}
+      Payments__Efi__ClientId: ${EFI_CLIENT_ID:?o .env da Efí}
+      Payments__Efi__ClientSecret: ${EFI_CLIENT_SECRET:?o .env da Efí}
+      Payments__Efi__PixCertificateBase64: ${EFI_PIX_CERTIFICATE_BASE64:?o .p12 em base64}
+      Payments__Efi__PixKey: ${EFI_PIX_KEY:?o .env da Efí}
+      Payments__Efi__PixWebhookSecret: ${EFI_PIX_WEBHOOK_SECRET:?o .env da Efí}
+      Payments__Efi__ChargeNotificationUrl: ${EFI_PUBLIC_URL:?o endereço do túnel}/payments/v1/webhooks/efi/charges
+      Payments__Efi__PixWebhookUrl: ${EFI_PUBLIC_URL:?o endereço do túnel}/payments/v1/webhooks/efi/pix
+
+  # túnel rápido (trycloudflare.com, sem conta): o endereço muda a cada subida, e o script recria o payments com ele
+  efi-tunnel:
+    image: cloudflare/cloudflared:2026.10.6
+    command: ["tunnel", "--no-autoupdate", "--url", "http://gateway:80"]
+    depends_on: [gateway]

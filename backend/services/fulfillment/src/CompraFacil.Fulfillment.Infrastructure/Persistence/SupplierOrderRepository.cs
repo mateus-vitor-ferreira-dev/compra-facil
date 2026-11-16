@@ -28,7 +28,8 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
         DateTimeOffset createdBefore, DateTimeOffset shippedBefore, DateOnly today, int limit, CancellationToken ct)
     {
         var notShipped = await db.SupplierOrders.AsNoTracking()
-            .Where(o => (o.Status == SupplierOrderStatus.Pending || o.Status == SupplierOrderStatus.Placing || o.Status == SupplierOrderStatus.Placed)
+            .Where(o => (o.Status == SupplierOrderStatus.Pending || o.Status == SupplierOrderStatus.Placing
+                    || o.Status == SupplierOrderStatus.AwaitingStaff || o.Status == SupplierOrderStatus.Placed)
                 && o.CreatedAt < createdBefore)
             .OrderBy(o => o.CreatedAt).Take(limit).ToListAsync(ct);
         var notDelivered = await db.SupplierOrders.AsNoTracking()
@@ -38,6 +39,16 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
             .OrderBy(o => o.ShippedAt).Take(limit).ToListAsync(ct);
         return [.. notShipped, .. notDelivered];
     }
+
+    public Task<List<SupplierOrder>> ListAwaitingStaffAsync(int limit, CancellationToken ct) =>
+        db.SupplierOrders.AsNoTracking()
+            .Where(o => o.Status == SupplierOrderStatus.AwaitingStaff)
+            .OrderBy(o => o.AwaitingStaffSince).Take(limit).ToListAsync(ct);
+
+    public Task<List<SupplierOrder>> ListByStatusAsync(string supplier, SupplierOrderStatus status, int limit, CancellationToken ct) =>
+        db.SupplierOrders.AsNoTracking()
+            .Where(o => o.Supplier == supplier && o.Status == status)
+            .OrderBy(o => o.CreatedAt).Take(limit).ToListAsync(ct);
 
     public Task<DateTimeOffset?> LastWebhookAtAsync(CancellationToken ct) =>
         db.SupplierWebhooks.MaxAsync(w => (DateTimeOffset?)w.ReceivedAt, ct);

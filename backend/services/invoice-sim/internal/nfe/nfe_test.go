@@ -3,6 +3,7 @@ package nfe
 import (
 	"bytes"
 	"encoding/xml"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -11,22 +12,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func ptr[T any](v T) *T { return &v }
+
+// zeroTotals: o ICMSTot com os campos que a loja zera, como o fulfillment manda.
+func zeroTotals(vProd, vFrete, vNF float64) ICMSTot {
+	z := func() *float64 { return ptr(0.0) }
+	return ICMSTot{VBC: z(), VICMS: z(), VICMSDeson: z(), VFCP: z(), VBCST: z(), VST: z(), VFCPST: z(), VFCPSTRet: z(),
+		VProd: vProd, VFrete: vFrete, VSeg: z(), VDesc: z(), VII: z(), VIPI: z(), VIPIDevol: z(), VPIS: z(), VCOFINS: z(),
+		VOutro: z(), VNF: vNF}
+}
+
+func simples(csosn int) *Imposto {
+	imp := &Imposto{PIS: PIS{PISOutr: &CST{CST: "49"}}, COFINS: COFINS{COFINSOutr: &CST{CST: "49"}}}
+	if csosn == 900 {
+		imp.ICMS.ICMSSN900 = &ICMSSN{CSOSN: 900}
+	} else {
+		imp.ICMS.ICMSSN102 = &ICMSSN{CSOSN: csosn}
+	}
+	return imp
+}
+
 // Request devolve um pedido de emissão válido: o mesmo que o fulfillment manda.
 func request(ref string) Request {
 	return Request{
 		Ambiente: EnvSandbox, Referencia: ref,
 		InfNFe: InfNFe{
 			Versao: "4.00",
-			Ide:    Ide{CUF: 35, NatOp: "Venda de mercadoria adquirida de terceiros, remetida pelo fornecedor", Mod: 55, Serie: 1, TpNF: 1},
+			Ide: Ide{CUF: 35, NatOp: "Venda de mercadoria adquirida de terceiros, remetida pelo fornecedor", Mod: 55, Serie: 1, TpNF: 1,
+				IndPres: 2, IndIntermed: ptr(0), ProcEmi: ptr(0), VerProc: "compra-facil-1"},
 			Emit: Emit{CNPJ: "11222333000181", XNome: "CompraFacil Comercio LTDA", IE: "ISENTO", CRT: 1,
 				EnderEmit: Endereco{XLgr: "Rua da Loja", Nro: "1", XBairro: "Centro", XMun: "Lavras", UF: "MG", CEP: "37200000"}},
-			Dest: Dest{CPF: "52998224725", XNome: "Ana Souza", IndIEDest: 9, Email: "ana@exemplo.com",
-				EnderDest: Endereco{XLgr: "Avenida Paulista", Nro: "1000", XCpl: "Apto 12", XBairro: "Bela Vista", XMun: "São Paulo", UF: "SP", CEP: "01310100"}},
+			Dest: Dest{CPF: "52998224725", XNome: HomologationRecipient, IndIEDest: 9, Email: "ana@exemplo.com",
+				EnderDest: Endereco{XLgr: "Avenida Paulista", Nro: "1000", XCpl: "Apto 12", XBairro: "Bela Vista", CMun: "3550308", XMun: "São Paulo", UF: "SP", CEP: "01310100"}},
 			Det: []Det{
-				{NItem: 1, Prod: Prod{CProd: "MOU-1", CEAN: "SEM GTIN", XProd: "Mouse", NCM: "84716053", CFOP: "6120", UCom: "UN", QCom: 2, VUnCom: 49.95, VProd: 99.9}},
-				{NItem: 2, Prod: Prod{CProd: "TEC-1", CEAN: "SEM GTIN", XProd: "Teclado", NCM: "84716052", CFOP: "6120", UCom: "UN", QCom: 1, VUnCom: 150, VProd: 150}},
+				{NItem: 1, Prod: Prod{CProd: "MOU-1", CEAN: "SEM GTIN", XProd: "Mouse", NCM: "84716053", CFOP: "6120", UCom: "UN", QCom: 2, VUnCom: 49.95, VProd: 99.9}, Imposto: simples(102)},
+				{NItem: 2, Prod: Prod{CProd: "TEC-1", CEAN: "SEM GTIN", XProd: "Teclado", NCM: "84716052", CFOP: "6120", UCom: "UN", QCom: 1, VUnCom: 150, VProd: 150}, Imposto: simples(102)},
 			},
-			Total: Total{ICMSTot: ICMSTot{VProd: 249.9, VNF: 249.9}},
+			Total: Total{ICMSTot: zeroTotals(249.9, 0, 249.9)},
 			Pag:   Pag{DetPag: []DetPag{{TPag: "17", VPag: 249.9}}},
 		},
 	}
@@ -48,8 +70,9 @@ func TestEmit_AuthorizesWithAValidAccessKey(t *testing.T) {
 	again, err := i.Emit(request("pedido-1"))
 	require.NoError(t, err)
 	assert.Equal(t, inv.ID, again.ID)
-	assert.Equal(t, []Invoice{inv}, i.FindByReferencia(EnvSandbox, "pedido-1"))
-	assert.Empty(t, i.FindByReferencia(EnvProduction, "pedido-1"))
+	assert.Equal(t, []Invoice{inv}, i.FindByReferencia("11222333000181", EnvSandbox, "pedido-1"))
+	assert.Empty(t, i.FindByReferencia("11222333000181", EnvProduction, "pedido-1"))
+	assert.Empty(t, i.FindByReferencia("99888777000166", EnvSandbox, "pedido-1"), "outro emitente não vê a nota")
 
 	other, err := i.Emit(request("pedido-2"))
 	require.NoError(t, err)
@@ -71,6 +94,16 @@ func TestEmit_RejectsLikeTheSefaz(t *testing.T) {
 		{"pagamento menor que o total", func(r *Request) { r.InfNFe.Pag.DetPag[0].VPag = 200 }, 866},
 		{"CEP incompleto", func(r *Request) { r.InfNFe.Dest.EnderDest.CEP = "0131" }, 225},
 		{"recusa de propósito", func(r *Request) { r.InfNFe.Dest.Email = "ana+recusar-nota@exemplo.com" }, 999},
+		{"nome do cliente na homologação", func(r *Request) { r.InfNFe.Dest.XNome = "Ana Souza" }, 598},
+		{"sem o município", func(r *Request) { r.InfNFe.Dest.EnderDest.CMun = "" }, 225},
+		{"município de outra UF", func(r *Request) { r.InfNFe.Dest.EnderDest.CMun = "3106200" }, 274},
+		{"sem procEmi", func(r *Request) { r.InfNFe.Ide.ProcEmi = nil }, 225},
+		{"internet sem indIntermed", func(r *Request) { r.InfNFe.Ide.IndIntermed = nil }, 225},
+		{"ICMSTot incompleto", func(r *Request) { r.InfNFe.Total.ICMSTot.VBC = nil }, 225},
+		{"item sem imposto", func(r *Request) { r.InfNFe.Det[0].Imposto = nil }, 225},
+		{"CSOSN de quem não é do Simples", func(r *Request) { r.InfNFe.Det[0].Imposto = simples(101) }, 225},
+		{"item sem PIS", func(r *Request) { r.InfNFe.Det[1].Imposto.PIS.PISOutr = nil }, 225},
+		{"cartão sem o grupo card", func(r *Request) { r.InfNFe.Pag.DetPag[0].TPag = TPagCredit }, 225},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -210,4 +243,19 @@ func TestValidCPF(t *testing.T) {
 	assert.True(t, ValidCPF("52998224725"))
 	assert.False(t, ValidCPF("11111111111"))
 	assert.False(t, ValidCPF("5299822472"))
+}
+
+func TestLookupCEP_MunicipioDaUF(t *testing.T) {
+	addr, ok := LookupCEP("01310100")
+	require.True(t, ok)
+	assert.Equal(t, Address{CEP: "01310100", CodigoIBGE: "3550308", Municipio: "São Paulo", UF: "SP"}, addr)
+	lavras, _ := LookupCEP("37200000")
+	assert.Equal(t, "3138203", lavras.CodigoIBGE)
+	for _, r := range cepRanges {
+		assert.Equal(t, strconv.Itoa(ufCodes[r.uf]), r.ibge[:2], "o IBGE de %s começa pelo código da UF", r.city)
+	}
+	_, ok = LookupCEP("00000000")
+	assert.False(t, ok)
+	_, ok = LookupCEP("0131")
+	assert.False(t, ok)
 }

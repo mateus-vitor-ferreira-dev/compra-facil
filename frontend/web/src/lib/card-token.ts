@@ -1,4 +1,5 @@
 import type { Brand, CardField, CheckedCard } from "./card";
+import type EfiPayType from "payment-token-efi";
 
 /**
  * O provedor de pagamento, como a página o recebe do servidor (#379): a Efí, com o identificador de conta (é
@@ -15,7 +16,10 @@ export type PaymentProvider = {
 export type TokenResult =
   { ok: true; token: string; brand: Brand } | { ok: false; field?: CardField; message: string };
 
-/** Os dados do cartão como a Efí os recebe (setCreditCardData). */
+/**
+ * Os dados do cartão como a Efí os recebe (setCreditCardData), sem o documento do titular: a biblioteca só o
+ * dispensa quando ele não vem (null ou ausente). Uma string vazia ela valida como CPF e recusa o cartão.
+ */
 type EfiCard = {
   brand: string;
   number: string;
@@ -23,9 +27,11 @@ type EfiCard = {
   expirationMonth: string;
   expirationYear: string;
   holderName: string;
-  holderDocument: string;
   reuse: boolean;
 };
+
+/** O tipo da biblioteca, que declara o documento obrigatório (no código dele, é opcional). */
+type EfiCardData = Parameters<typeof EfiPayType.CreditCard.setCreditCardData>[0];
 
 type EfiError = { code?: number | string; error?: string; error_description?: unknown };
 
@@ -34,7 +40,8 @@ const REJECTED: [RegExp, CardField, string][] = [
   [/card_number|número|number|brand|bandeira/i, "number", "O provedor não reconheceu este número de cartão."],
   [/cvv|segurança/i, "cvv", "O código de segurança não confere."],
   [/expiration|validade|vencid|ano|mês/i, "expiry", "A validade não confere ou o cartão já venceu."],
-  [/holder|titular|nome/i, "name", "Digite o nome e o sobrenome como estão impressos no cartão."],
+  // só o nome: o erro do documento do titular também fala em "titular"
+  [/holder_name|nome/i, "name", "Digite o nome e o sobrenome como estão impressos no cartão."],
 ];
 
 const UNAVAILABLE =
@@ -53,7 +60,6 @@ function toEfi(card: CheckedCard): EfiCard {
     expirationMonth: pad2(card.month),
     expirationYear: String(card.year),
     holderName: card.name.trim(),
-    holderDocument: "",
     reuse: false,
   };
 }
@@ -85,7 +91,7 @@ async function tokenizeOnEfi(provider: PaymentProvider, card: CheckedCard): Prom
     const { default: EfiPay } = await import("payment-token-efi");
     result = await EfiPay.CreditCard.setAccount(provider.payeeCode)
       .setEnvironment(provider.environment === "production" ? "production" : "sandbox")
-      .setCreditCardData(toEfi(card))
+      .setCreditCardData(toEfi(card) as EfiCardData)
       .getPaymentToken();
   } catch (e) {
     // a biblioteca lança o erro de validação como {code, error, error_description}; o resto é rede

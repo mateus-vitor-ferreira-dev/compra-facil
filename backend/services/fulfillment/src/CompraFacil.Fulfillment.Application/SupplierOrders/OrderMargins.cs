@@ -17,7 +17,8 @@ public sealed record OrderEconomicsValues(
 /// <summary>O frete que entra na margem: o custo para a loja (#323) ou, nos pedidos de antes dele, o cobrado (eram iguais).</summary>
 internal static class FreightCost
 {
-    public static long? Of(SupplierOrder order) => order.FreightCostCents ?? (order.ShippingService is null ? order.FreightCents : null);
+    public static long? Of(SupplierOrder order) =>
+        order.PaidFreightCostCents ?? order.FreightCostCents ?? (order.ShippingService is null ? order.FreightCents : null);
 }
 
 /// <summary>Os pedidos criados em [<see cref="From"/>, <see cref="To"/>); sem um dos lados, sem limite nele.</summary>
@@ -99,8 +100,9 @@ public sealed class OrderMargins(IOrderMarginRepository margins)
     {
         var o = row.Order;
         var freight = FreightCost.Of(o);
-        var (outcome, margin) = Compute(new OrderEconomicsValues(o.Status, o.RevenueCents, o.ProductCostCents, freight, row.FeeCents, row.Returned));
-        return new OrderMargin(o, outcome, o.RevenueCents, o.ProductCostCents, freight, row.FeeCents, margin, o.FreightCents);
+        var product = o.PaidProductCostCents ?? o.ProductCostCents; // o pago pela equipe (fornecedor manual) vale mais
+        var (outcome, margin) = Compute(new OrderEconomicsValues(o.Status, o.RevenueCents, product, freight, row.FeeCents, row.Returned));
+        return new OrderMargin(o, outcome, o.RevenueCents, product, freight, row.FeeCents, margin, o.FreightCents);
     }
 
     private static (OrderOutcome Outcome, long? MarginCents) Compute(OrderEconomicsValues v)

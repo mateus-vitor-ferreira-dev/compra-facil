@@ -327,10 +327,78 @@ export function retrySupplierOrder(token: string, orderId: string) {
   );
 }
 
-/** Cancela o pedido que não foi despachado, e o cliente é estornado. */
-export function cancelSupplierOrder(token: string, orderId: string) {
+/**
+ * Cancela o pedido que não foi despachado, e o cliente é estornado. No fornecedor manual, um pedido já feito pela
+ * equipe só cancela com a confirmação de que ela cancelou lá (#412).
+ */
+export function cancelSupplierOrder(token: string, orderId: string, cancelledAtSupplier?: boolean) {
   return run(() =>
     api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/cancel", {
+      params: { path: { order_id: orderId } },
+      body: cancelledAtSupplier ? { cancelled_at_supplier: true } : undefined,
+    }),
+  );
+}
+
+// ---------- fornecedor manual (#412) ----------
+
+export type ManualOrder = FulfillmentSchemas["schemas"]["SupplierOrderToPlace"];
+export type ManualSheetSummary = FulfillmentSchemas["schemas"]["ManualSheetSummary"];
+export type SheetError = FulfillmentSchemas["schemas"]["SheetError"];
+export type PlacedInput = FulfillmentSchemas["schemas"]["PlacedRequest"];
+export type TrackingInput = FulfillmentSchemas["schemas"]["TrackingRequest"];
+
+/** A fila "Pedidos a fazer": os pagos esperando a equipe fazer no fornecedor, os mais antigos primeiro. */
+export async function ordersToPlace(token: string) {
+  const result = await run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/supplier-orders/to-place", {
+      params: { query: { limit: 200 } },
+      cache: "no-store",
+    }),
+  );
+  return { result, readAt: Date.now() };
+}
+
+/** Os feitos no fornecedor esperando o rastreio (placed) ou em transporte esperando a entrega (shipped). */
+export function manualOrders(token: string, status: "placed" | "shipped") {
+  return run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/supplier-orders/manual", {
+      params: { query: { status, limit: 200 } },
+      cache: "no-store",
+    }),
+  );
+}
+
+export function markOrderPlaced(token: string, orderId: string, body: PlacedInput) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/placed", {
+      params: { path: { order_id: orderId } },
+      body,
+    }),
+  );
+}
+
+export function markOrderOutOfStock(token: string, orderId: string, detail?: string) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/out-of-stock", {
+      params: { path: { order_id: orderId } },
+      body: detail ? { detail } : undefined,
+    }),
+  );
+}
+
+export function markOrderShipped(token: string, orderId: string, body: TrackingInput) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/tracking", {
+      params: { path: { order_id: orderId } },
+      body,
+    }),
+  );
+}
+
+export function markOrderDelivered(token: string, orderId: string) {
+  return run(() =>
+    api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/delivered", {
       params: { path: { order_id: orderId } },
     }),
   );
@@ -389,6 +457,60 @@ export async function deletePricingRule(token: string, categoryId: string) {
   );
   if (result.ok && result.data.repriced > 0) refreshStorefront();
   return result;
+}
+
+/** A planilha do fornecedor manual: se o modo está ligado, quantos produtos, quando subiu e o momento da leitura. */
+export async function supplierSheet(token: string) {
+  const result = await run(() =>
+    api.fulfillment({ token }).GET("/v1/admin/supplier-catalog/sheet", { cache: "no-store" }),
+  );
+  return { result, readAt: Date.now() };
+}
+
+export type SheetImport =
+  | { ok: true; products: number; sync: CatalogSyncResult }
+  | { ok: false; status: number; errors: SheetError[]; detail?: string; traceId?: string };
+
+/**
+ * Sobe o CSV do fornecedor manual. Uma linha com erro e nada muda: o 422 traz cada linha e o motivo, que a tela
+ * mostra para a equipe corrigir a planilha.
+ */
+export async function importSupplierSheet(token: string, csv: ArrayBuffer): Promise<SheetImport> {
+  try {
+    const { data, error, response } = await api
+      .fulfillment({ token })
+      .POST("/v1/admin/supplier-catalog/sheet", {
+        // os bytes como vieram: o fulfillment decide entre UTF-8 e o Latin-1 do Excel antigo
+        body: "",
+        bodySerializer: () => csv as unknown as string,
+        headers: { "Content-Type": "text/csv" },
+      });
+    if (response.ok && data) {
+      refreshStorefront();
+      return { ok: true, products: data.products, sync: data.sync };
+    }
+    const problem = (error ?? {}) as { detail?: string; trace_id?: string; sheet_errors?: SheetError[] };
+    return {
+      ok: false,
+      status: response.status,
+      errors: problem.sheet_errors ?? [],
+      detail: problem.detail,
+      traceId: problem.trace_id ?? response.headers.get("x-trace-id") ?? undefined,
+    };
+  } catch {
+    return { ok: false, status: 503, errors: [], detail: "o gateway não respondeu" };
+  }
+}
+
+/** O modelo do CSV, para a equipe baixar e preencher. */
+export async function supplierSheetTemplate(token: string) {
+  const { data, response } = await api
+    .fulfillment({ token })
+    .GET("/v1/admin/supplier-catalog/sheet/template", {
+      parseAs: "text",
+      cache: "no-store",
+    });
+  return response.ok ? (data as string) : null;
 }
 
 /** Lê o feed do fornecedor agora; o que mudou chega ao catálogo pelos eventos, em segundos. */

@@ -11,6 +11,12 @@ public enum SupplierOrderActionResult
 
     /// <summary>O pedido não está numa etapa em que a ação vale (já despachou, ou está sendo enviado agora).</summary>
     NotAllowed,
+
+    /// <summary>
+    /// Fornecedor manual: o pedido já foi feito no fornecedor, e só a equipe pode cancelá-lo lá. O painel pede a
+    /// confirmação antes de estornar o cliente.
+    /// </summary>
+    NeedsSupplierCancellation,
 }
 
 /// <summary>
@@ -40,7 +46,13 @@ public sealed class SupplierOrderActions(ISupplierOrderRepository orders, ISuppl
         });
 
     /// <exception cref="SupplierUnavailableException">O fornecedor não respondeu: nada muda, e a equipe tenta de novo.</exception>
-    public async Task<SupplierOrderActionResult> CancelAsync(Guid orderId, CancellationToken ct) =>
+    /// <param name="orderId">O pedido da loja.</param>
+    /// <param name="ct">Cancelamento da requisição.</param>
+    /// <param name="cancelledAtSupplier">
+    /// Fornecedor manual: a equipe confirma que já cancelou o pedido no site do fornecedor (sem isso, o pedido feito lá
+    /// seguiria e a loja pagaria por um pedido estornado).
+    /// </param>
+    public async Task<SupplierOrderActionResult> CancelAsync(Guid orderId, CancellationToken ct, bool cancelledAtSupplier = false) =>
         await OptimisticConcurrency.RetryAsync(orders.Reset, async () =>
         {
             if (await orders.GetAsync(orderId, ct) is not { } order)
@@ -51,12 +63,18 @@ public sealed class SupplierOrderActions(ISupplierOrderRepository orders, ISuppl
             {
                 case SupplierOrderStatus.Failed:
                     return SupplierOrderActionResult.Done; // repetido, ou o webhook do cancelamento chegou antes
-                case SupplierOrderStatus.Pending or SupplierOrderStatus.Placed:
+                // na fila da equipe (fornecedor manual), ainda não há pedido no fornecedor: só falha e estorna
+                case SupplierOrderStatus.Pending or SupplierOrderStatus.AwaitingStaff or SupplierOrderStatus.Placed:
                     break;
                 default:
                     return SupplierOrderActionResult.NotAllowed;
             }
-            if (order.SupplierOrderId is { Length: > 0 } id && !await supplier.CancelOrderAsync(id, ct))
+            var manual = order.Supplier == ManualSupplier.ManualSupplierMode.SupplierName;
+            if (manual && order.Status == SupplierOrderStatus.Placed && !cancelledAtSupplier)
+            {
+                return SupplierOrderActionResult.NeedsSupplierCancellation;
+            }
+            if (!manual && order.SupplierOrderId is { Length: > 0 } id && !await supplier.CancelOrderAsync(id, ct))
             {
                 return SupplierOrderActionResult.NotAllowed; // saiu antes de o webhook chegar
             }

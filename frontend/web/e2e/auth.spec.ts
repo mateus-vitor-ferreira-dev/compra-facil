@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const STUB = "http://localhost:4010";
+import { STUB } from "./ports";
 
 test("login guarda a sessão em cookies httpOnly, fora do alcance do JavaScript", async ({
   page,

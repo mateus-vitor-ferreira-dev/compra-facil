@@ -1,6 +1,6 @@
 // Package handler expõe o emissor no formato da API da Nuvem Fiscal (o subconjunto que a loja usa): o
-// token OAuth2 (client_credentials), a NF-e (emitir, consultar, cancelar, XML e PDF) e as rotas /sim de
-// demonstração.
+// token OAuth2 (client_credentials), a NF-e (emitir, consultar, cancelar, XML e PDF), a consulta de CEP
+// e as rotas /sim de demonstração.
 package handler
 
 import (
@@ -52,6 +52,7 @@ func NewRouter(issuer *nfe.Issuer, creds Credentials, log *slog.Logger) *gin.Eng
 	notas.GET("/:id/cancelamento", a.getCancel)
 	notas.GET("/:id/xml", a.xml)
 	notas.GET("/:id/pdf", a.pdf)
+	r.GET("/cep/:cep", a.requireToken, a.cep)
 
 	sim := r.Group("/sim")
 	sim.GET("/notas", func(c *gin.Context) { c.JSON(http.StatusOK, a.issuer.List()) })
@@ -125,13 +126,23 @@ func (a *API) emit(c *gin.Context) {
 	c.JSON(http.StatusOK, inv)
 }
 
+// list: como na Nuvem Fiscal, a consulta pede o CNPJ do emitente.
 func (a *API) list(c *gin.Context) {
-	ref := strings.TrimSpace(c.Query("referencia"))
-	if ref == "" {
-		apiError(c, http.StatusBadRequest, "ValidationFailed", "informe a referencia")
+	ref, cnpj := strings.TrimSpace(c.Query("referencia")), strings.TrimSpace(c.Query("cpf_cnpj"))
+	if ref == "" || cnpj == "" {
+		apiError(c, http.StatusBadRequest, "ValidationFailed", "informe o cpf_cnpj e a referencia")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": a.issuer.FindByReferencia(c.DefaultQuery("ambiente", nfe.EnvSandbox), ref)})
+	c.JSON(http.StatusOK, gin.H{"data": a.issuer.FindByReferencia(cnpj, c.DefaultQuery("ambiente", nfe.EnvSandbox), ref)})
+}
+
+func (a *API) cep(c *gin.Context) {
+	addr, ok := nfe.LookupCEP(c.Param("cep"))
+	if !ok {
+		apiError(c, http.StatusNotFound, "NotFound", "CEP não encontrado")
+		return
+	}
+	c.JSON(http.StatusOK, addr)
 }
 
 func (a *API) get(c *gin.Context) {

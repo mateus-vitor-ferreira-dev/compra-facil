@@ -1,6 +1,6 @@
 # ADR 0007 — Dropshipping: fornecedor, pagamento e nota fiscal por adaptadores
 
-- **Status:** aceito; o provedor de pagamento mudou no [ADR 0010](0010-pagamento-pela-efi.md) (a Efí no lugar do Mercado Pago)
+- **Status:** aceito; o provedor de pagamento mudou no [ADR 0010](0010-pagamento-pela-efi.md) (a Efí no lugar do Mercado Pago), e o fornecedor ganhou o modo manual no [ADR 0011](0011-fornecedor-manual.md)
 - **Data:** 2026-10-28
 - **Issues:** épico #215 (#216 a #229)
 

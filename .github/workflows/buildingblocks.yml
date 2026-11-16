@@ -44,7 +44,9 @@ jobs:
       - uses: actions/setup-dotnet@v6.0.0
         with:
           global-json-file: backend/global.json
-          cache: true
+          # no self-hosted o ~/.nuget/packages fica no disco; o upload do cache do GitHub (~750 MB)
+          # estourava o timeout do job (#415)
+          cache: ${{ github.event.pull_request.head.repo.fork || vars.RUNNER != 'self-hosted' }}
           cache-dependency-path: "**/packages.lock.json"
       - run: dotnet restore libs/dotnet/CompraFacil.BuildingBlocks.slnx
       - run: dotnet format libs/dotnet/CompraFacil.BuildingBlocks.slnx --verify-no-changes --no-restore
