@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 test("endereço que não existe: a 404 da loja, em português, com status 404", async ({ page }) => {
   const response = await page.goto("/uma-pagina-que-nao-existe");
   expect(response?.status()).toBe(404);
-  await expect(page).toHaveTitle("Página não encontrada | CompraFácil");
+  await expect(page).toHaveTitle("Página não encontrada | Embrulhado");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Esta página não está na prateleira");
   await expect(page.getByText("This page could not be found")).toHaveCount(0);
   // a moldura da loja: a busca do cabeçalho e o rodapé

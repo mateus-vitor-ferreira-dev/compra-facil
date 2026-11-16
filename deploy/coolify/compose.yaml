@@ -238,8 +238,8 @@ services:
       Payments__Efi__PixWebhookSecret: ${EFI_PIX_WEBHOOK_SECRET:-}
       # o nome que o cliente vê no banco ("<nome>, pedido 1A2B3C4D") e o projeto no custom_id do cartão, que separa
       # no extrato da conta Efí o que entrou por esta loja (agentes-hub#183)
-      Payments__Efi__StoreName: ${EFI_STORE_NAME:-CompraFácil}
-      Payments__Efi__ProjectTag: ${EFI_PROJECT_TAG:-comprafacil}
+      Payments__Efi__StoreName: ${EFI_STORE_NAME:-Embrulhado}
+      Payments__Efi__ProjectTag: ${EFI_PROJECT_TAG:-embrulhado}
       # os avisos da Efí, com o domínio da API (deploy/README.md). Vazios: o cartão não recebe a mudança de status e o
       # webhook do PIX não é cadastrado (o PIX pago só é visto quando vence, pelo job)
       Payments__Efi__ChargeNotificationUrl: ${EFI_CHARGE_NOTIFICATION_URL:-}

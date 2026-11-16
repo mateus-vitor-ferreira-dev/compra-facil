@@ -150,7 +150,7 @@ nota). No Coolify:
 | `EFI_PIX_WEBHOOK_SECRET` | um segredo aleatório (`openssl rand -hex 24`): vai na URL do webhook do PIX e é conferido em cada aviso |
 | `EFI_CHARGE_NOTIFICATION_URL` | `https://<API>/payments/v1/webhooks/efi/charges` |
 | `EFI_PIX_WEBHOOK_URL` | `https://<API>/payments/v1/webhooks/efi/pix` |
-| `EFI_STORE_NAME`, `EFI_PROJECT_TAG` | o nome que o cliente vê no banco (padrão `CompraFácil`) e o projeto no `custom_id` do cartão (padrão `comprafacil`), que separa esta loja no extrato |
+| `EFI_STORE_NAME`, `EFI_PROJECT_TAG` | o nome que o cliente vê no banco (padrão `Embrulhado`) e o projeto no `custom_id` do cartão (padrão `embrulhado`), que separa esta loja no extrato |
 
 O identificador de conta (32 caracteres) vai no Worker da loja, em `PAYMENT_PAYEE_CODE`, com
 `PAYMENT_PROVIDER=production`.

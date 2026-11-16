@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 
 /*
- * Design system da CompraFácil (#149). Tinta e papel no dia a dia; o amarelo de etiqueta só no preço
+ * Design system do Embrulhado (#149). Tinta e papel no dia a dia; o amarelo de etiqueta só no preço
  * de campanha e no selo de desconto. Tema escuro pelo sistema ou pela classe .dark no <html>.
  */
 @custom-variant dark (&:where(.dark, .dark *));
