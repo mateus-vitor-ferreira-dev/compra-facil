@@ -305,6 +305,7 @@ paths:
             $ref: "#/components/schemas/OrderStatus"
         - name: q
           in: query
+          description: Busca por e-mail, nome ou número. Só para o operador; o auditor recebe 403.
           schema:
             type: string
             maxLength: 100
@@ -485,11 +486,11 @@ components:
   schemas:
     AdminCustomer:
       type: object
-      description: O contato de quem comprou. Sem CPF nem endereço.
+      description: O contato de quem comprou. Sem CPF nem endereço. Para o auditor, os três vêm nulos.
       required: [email, name, phone]
       properties:
         email:
-          type: string
+          type: [string, "null"]
           format: email
         name:
           description: Quem recebe; nulo nos pedidos de antes do #221.

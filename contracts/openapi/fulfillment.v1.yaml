@@ -1347,7 +1347,8 @@ components:
           type: [string, "null"]
           description: O pedido no fornecedor, depois de aceito.
         customer_email:
-          type: string
+          description: Nulo para o auditor, que vê a operação sem o contato do cliente.
+          type: [string, "null"]
           format: email
         attempts:
           type: integer
@@ -1450,7 +1451,8 @@ components:
           format: int64
           description: Pode ser negativa. Nula se faltar um dos valores, ou se o cliente foi estornado.
         customer_email:
-          type: string
+          description: Nulo para o auditor, que vê a operação sem o contato do cliente.
+          type: [string, "null"]
           format: email
         created_at:
           type: string
@@ -1512,7 +1514,8 @@ components:
         supplier_order_id:
           type: [string, "null"]
         customer_email:
-          type: string
+          description: Nulo para o auditor, que vê a operação sem o contato do cliente.
+          type: [string, "null"]
           format: email
         attempts:
           type: integer
@@ -1555,7 +1558,8 @@ components:
           type: [string, "null"]
           description: Para onde o cliente manda o produto (do fornecedor, ou da loja no `send`).
         customer_email:
-          type: string
+          description: Nulo para o auditor, que vê a operação sem o contato do cliente.
+          type: [string, "null"]
           format: email
         items:
           type: array
