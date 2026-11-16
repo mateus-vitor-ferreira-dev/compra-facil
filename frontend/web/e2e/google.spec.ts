@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { STUB } from "./ports";
 
 test("conta nova pelo Google entra direto e volta para onde estava", async ({ page }) => {
   await page.goto("/entrar?voltar=%2Fcarrinho");
@@ -13,7 +14,7 @@ test("conta nova pelo Google entra direto e volta para onde estava", async ({ pa
 test("e-mail que já tem conta pede a senha uma vez para vincular", async ({ page, request }) => {
   // uma conta com senha só deste teste (a mesma pessoa tem um Google com esse e-mail)
   const email = `vincular-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@exemplo.com`;
-  await request.post("http://localhost:4010/identity/v1/accounts", {
+  await request.post(`${STUB}/identity/v1/accounts`, {
     data: { email, password: "senha-boa-123", name: "Bia" },
   });
   await page.goto("/entrar?voltar=%2Fconta");
