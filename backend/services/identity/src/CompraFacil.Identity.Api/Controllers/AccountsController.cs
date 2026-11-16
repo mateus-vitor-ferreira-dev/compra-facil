@@ -17,6 +17,7 @@ public sealed class AccountsController(
 {
     /// <summary>registerAccount: cadastro de cliente (papel customer). Não faz login: o front chama createSession em seguida.</summary>
     [HttpPost("v1/accounts")]
+    [AllowAnonymous]
     public async Task<IActionResult> Register(RegisterRequest body, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(body);
@@ -26,6 +27,7 @@ public sealed class AccountsController(
 
     /// <summary>confirmEmail: o link do e-mail de confirmação (o front repassa a conta e o token).</summary>
     [HttpPost("v1/accounts/confirm-email")]
+    [AllowAnonymous]
     public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest body, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(body);
@@ -35,6 +37,7 @@ public sealed class AccountsController(
 
     /// <summary>resendEmailConfirmation: manda outro link. Sempre 202: a resposta não diz se a conta existe.</summary>
     [HttpPost("v1/accounts/confirm-email/resend")]
+    [AllowAnonymous]
     public async Task<IActionResult> Resend(ResendConfirmationRequest body, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(body);

@@ -4,6 +4,7 @@ using System.Text.Json;
 using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Payments.Application.Payments;
 using CompraFacil.Payments.Infrastructure.Provider;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -14,6 +15,8 @@ namespace CompraFacil.Payments.Api.Controllers;
 /// só um token, e a cobrança é consultada na Efí. Cobrança desconhecida também responde 200, para a Efí não
 /// insistir.
 /// </summary>
+// a Efí não manda token: o PIX confere o segredo da URL, o cartão só traz uma referência que é reconsultada na Efí
+[AllowAnonymous]
 [ApiController]
 [Route("v1/webhooks/efi")]
 [Produces("application/json")]

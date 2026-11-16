@@ -57,6 +57,7 @@ public static class OwnTokenValidation
                 return Results.Problem(statusCode: status, title: "Muitas requisições",
                     detail: "limite de requisições por IP excedido; tente de novo em instantes");
             })
-            .ExcludeFromDescription();
+            .ExcludeFromDescription()
+            .AllowAnonymous(); // a resposta do rate limit do gateway: chega sem token
     }
 }

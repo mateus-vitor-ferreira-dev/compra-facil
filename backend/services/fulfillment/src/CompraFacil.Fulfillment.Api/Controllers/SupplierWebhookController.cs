@@ -7,6 +7,7 @@ using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Infrastructure.Supplier;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +17,8 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 /// receiveSupplierWebhook (contracts/openapi/fulfillment.v1.yaml): o fornecedor avisa cada mudança de
 /// status. A assinatura (HMAC-SHA256 do corpo cru) é conferida antes de ler o JSON.
 /// </summary>
+// o fornecedor não manda token: o corpo é conferido pela assinatura HMAC
+[AllowAnonymous]
 [ApiController]
 [Route("v1/webhooks/supplier")]
 [Produces("application/json")]

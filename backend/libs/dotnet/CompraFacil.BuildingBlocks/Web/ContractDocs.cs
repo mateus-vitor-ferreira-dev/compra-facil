@@ -53,6 +53,6 @@ internal static class ContractDocs
             </body>
             </html>
             """;
-        app.MapGet("/docs", () => Results.Content(page, "text/html; charset=utf-8")).ExcludeFromDescription();
+        app.MapGet("/docs", () => Results.Content(page, "text/html; charset=utf-8")).ExcludeFromDescription().AllowAnonymous();
     }
 }

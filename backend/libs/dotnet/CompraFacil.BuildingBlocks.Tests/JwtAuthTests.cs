@@ -36,8 +36,31 @@ public sealed class JwtAuthTests : IAsyncLifetime
         // como um controller com AdminReadPolicy na classe e AdminPolicy na ação que muda algo
         _app.MapPost("/v1/admin/lista/acao", () => Results.NoContent())
             .RequireAuthorization(JwtAuth.AdminReadPolicy).RequireAuthorization(JwtAuth.AdminPolicy);
+        _app.MapControllers();
         await _app.StartAsync();
         _http = _app.GetTestClient();
+    }
+
+    [Fact]
+    public async Task RouteWithoutAttribute_IsClosedByDefault_ExplicitAnonymousStaysOpen()
+    {
+        using (var anonymous = await CallAsync("/v1/esquecida", null))
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        }
+        using (var customer = await CallAsync("/v1/esquecida", _identity.CustomerToken()))
+        {
+            Assert.Equal(HttpStatusCode.OK, customer.StatusCode);
+        }
+        using (var open = await CallAsync("/v1/publica", null))
+        {
+            Assert.Equal(HttpStatusCode.OK, open.StatusCode);
+        }
+        // health continua aberto (o Docker chama sem token) e rota que não existe continua 404, não 401
+        using var health = await _http.GetAsync("/health", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+        using var missing = await CallAsync("/v1/nao-existe", null);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
     }
 
     public async ValueTask DisposeAsync()
@@ -56,6 +79,7 @@ public sealed class JwtAuthTests : IAsyncLifetime
             builder.Configuration[key] = value;
         }
         builder.AddServiceDefaults(new ServiceInfo("inventory"));
+        builder.Services.AddControllers().AddApplicationPart(typeof(JwtAuthTests).Assembly);
         builder.AddJwtAuth();
         var app = builder.Build();
         app.UseServiceDefaults();
@@ -267,4 +291,16 @@ public sealed class JwtAuthDiscoveryTests : IAsyncLifetime
         }
         Assert.Equal(HttpStatusCode.OK, status);
     }
+}
+
+/// <summary>Um controller de serviço qualquer: uma ação esquecida sem atributo e uma pública de propósito.</summary>
+[Microsoft.AspNetCore.Mvc.ApiController]
+public sealed class DefaultDenyController : Microsoft.AspNetCore.Mvc.ControllerBase
+{
+    [Microsoft.AspNetCore.Mvc.HttpPost("v1/esquecida")]
+    public Microsoft.AspNetCore.Mvc.IActionResult Forgotten() => Ok();
+
+    [Microsoft.AspNetCore.Mvc.HttpPost("v1/publica")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public Microsoft.AspNetCore.Mvc.IActionResult Public() => Ok();
 }

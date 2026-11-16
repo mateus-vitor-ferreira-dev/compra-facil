@@ -720,6 +720,9 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     {
         var id = Guid.NewGuid();
         await ConfirmedAsync(id);
+        // um número só deste pedido: outros testes deixam o falso respondendo "CJ1" para todos, e a contagem de
+        // cancelamentos misturaria pedidos
+        fx.Supplier.Respond = r => new SupplierPlacement.Accepted($"CJ-{r.OrderNumber:N}");
         await DispatchAsync();
         var supplierOrderId = (await OrderAsync(id)).SupplierOrderId!;
 

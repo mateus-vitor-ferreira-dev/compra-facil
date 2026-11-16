@@ -92,7 +92,9 @@ paths:
       tags: [reservations]
       operationId: getReservation
       summary: Reserva de um pedido
-      description: Útil para depurar a SAGA.
+      description: Útil para depurar a SAGA. Só o operador e o auditor; os itens de um pedido não são da vitrine.
+      security:
+        - bearerAuth: []
       parameters:
         - name: order_id
           in: path
@@ -107,6 +109,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Reservation"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
         "404":
           $ref: "./common/v1/common.yaml#/components/responses/NotFound"
         "500":

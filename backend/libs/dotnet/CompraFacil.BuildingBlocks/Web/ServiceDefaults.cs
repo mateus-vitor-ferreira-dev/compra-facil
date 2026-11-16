@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,7 +46,11 @@ public static class ServiceDefaults
         });
 
         builder.Services
-            .AddControllers()
+            // fechado por padrão: ação de controller sem [Authorize] nem [AllowAnonymous] pede um usuário autenticado.
+            // Uma rota nova esquecida sem atributo deixa de ficar aberta para a internet (o gateway expõe prefixos
+            // inteiros); o que é público de propósito (login, webhooks, vitrine) declara [AllowAnonymous]. Fica no
+            // MVC, não na política de fallback, para rota inexistente continuar 404 e não virar 401
+            .AddControllers(o => o.Filters.Add(new AuthorizeFilter()))
             .AddJsonOptions(o => ConfigureJson(o.JsonSerializerOptions))
             .ConfigureApiBehaviorOptions(o => o.InvalidModelStateResponseFactory = Problems.MalformedRequest);
         builder.Services.ConfigureHttpJsonOptions(o => ConfigureJson(o.SerializerOptions));
@@ -55,7 +60,7 @@ public static class ServiceDefaults
         builder.Services.AddExceptionHandler<ApplicationExceptionHandler>();
 
         builder.Services.AddHealthChecks();
-        // sem esquema: nada é exigido; o serviço com rotas protegidas chama AddJwtAuth
+        // o serviço com rotas protegidas chama AddJwtAuth (o identity, AddOwnTokenValidation)
         builder.Services.AddAuthentication();
         builder.Services.AddAuthorization();
         builder.AddObservability(service.Name);
@@ -82,18 +87,21 @@ public static class ServiceDefaults
         app.UseMiddleware<RequestIdMiddleware>();
         app.UseExceptionHandler();
         app.UseStatusCodePages(); // 404/405 (e 401/403 do JWT) sem corpo viram ProblemDetails
-        app.UseAuthentication();
-        app.UseAuthorization();
 
-        // liveness não olha dependências: só diz que o processo responde
-        app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
-        app.MapHealthChecks("/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains(ReadyTag) });
-
+        // antes da autorização: a política padrão fechada valeria também para os arquivos estáticos do contrato,
+        // que são públicos (o mesmo YAML do repositório)
         var service = app.Services.GetRequiredService<ServiceInfo>();
         if (service.ContractFile is not null)
         {
             ContractDocs.Map(app, service);
         }
+
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        // liveness não olha dependências: só diz que o processo responde
+        app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+        app.MapHealthChecks("/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains(ReadyTag) }).AllowAnonymous();
         return app;
     }
 
