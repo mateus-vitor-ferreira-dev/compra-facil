@@ -159,7 +159,9 @@ O identificador de conta (32 caracteres) vai no Worker da loja, em `PAYMENT_PAYE
 do certificado e `PAYMENT_PAYEE_CODE`). O `task efi:homologacao` sobe o ambiente com a Efí no lugar do payment-sim
 (`infra/compose/compose.efi.yaml`) e um túnel do Cloudflare para os avisos dela chegarem, e mostra o comando do front
 com `PAYMENT_PROVIDER=sandbox`. Só a homologação: com a produção, o payments local cadastraria o webhook do PIX da
-conta de verdade apontando para esta máquina.
+conta de verdade apontando para esta máquina. O `scripts/efi-conferir.sh homologacao|producao` pede o token nas duas
+APIs e mostra só o status e os escopos, e o `scripts/efi-cofre.sh guardar|restaurar` leva o `~/.efi` para o
+Bitwarden (uma nota segura por ambiente, com o `.p12` em base64) e de volta, em outro computador.
 
 Para testar a homologação no servidor: `EFI_CHARGES_URL=https://cobrancas-h.api.efipay.com.br/`,
 `EFI_PIX_URL=https://pix-h.api.efipay.com.br/` e as credenciais e o certificado de homologação. Lá, o último
