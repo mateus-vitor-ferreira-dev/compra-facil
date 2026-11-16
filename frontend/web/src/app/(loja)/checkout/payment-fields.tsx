@@ -25,7 +25,12 @@ const brl = (cents: number) => formatMoney({ amount_cents: cents, currency: "BRL
  * O cartão de teste, fora da produção: na homologação da Efí (e no simulador, que a imita), o último dígito do
  * número decide (1, 2 e 3 recusam). O nome tem duas palavras, como a biblioteca da Efí exige.
  */
-const TEST_CARD: CardInput = { number: "4509 9535 6623 3704", name: "Cliente Teste", expiry: "11/30", cvv: "123" };
+const TEST_CARD: CardInput = {
+  number: "4509 9535 6623 3704",
+  name: "Cliente Teste",
+  expiry: "11/30",
+  cvv: "123",
+};
 
 /**
  * Como pagar. Cada opção diz o que acontece depois, que é o que muda para o cliente: o PIX é pago na
