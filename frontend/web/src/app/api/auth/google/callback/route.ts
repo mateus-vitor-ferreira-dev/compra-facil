@@ -9,6 +9,7 @@ import {
   exchangeCode,
   readPending,
 } from "@/lib/auth/google";
+import { safeReturnTo } from "@/lib/auth/return-to";
 import { sessionCookies, type Tokens } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 
@@ -43,7 +44,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   if (response.ok) {
-    const redirect = clearPending(to(pending.back));
+    // o destino passou por um cookie: confere de novo antes de redirecionar
+    const redirect = clearPending(to(safeReturnTo(pending.back)));
     for (const c of sessionCookies((await response.json()) as Tokens))
       redirect.cookies.set(c.name, c.value, c.options);
     return redirect;
@@ -52,7 +54,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const redirect = clearPending(to("/entrar/vincular"));
     redirect.cookies.set(
       GOOGLE_LINK_COOKIE,
-      encodeCookie({ idToken, nonce: pending.nonce, email: emailOf(idToken), back: pending.back }),
+      encodeCookie({
+        idToken,
+        nonce: pending.nonce,
+        email: emailOf(idToken),
+        back: safeReturnTo(pending.back),
+      }),
       {
         httpOnly: true,
         secure: env.NODE_ENV === "production",

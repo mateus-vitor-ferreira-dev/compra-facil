@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { api } from "@/lib/api/client";
 import { GOOGLE_LINK_COOKIE, readPendingLink } from "@/lib/auth/google";
+import { safeReturnTo } from "@/lib/auth/return-to";
 import { sessionCookies } from "@/lib/auth/session";
 
 export type LinkState = { error?: string };
@@ -23,7 +24,7 @@ export async function linkGoogle(_: LinkState, form: FormData): Promise<LinkStat
   if (data) {
     for (const c of sessionCookies(data)) store.set(c.name, c.value, c.options);
     store.delete({ name: GOOGLE_LINK_COOKIE, path: "/entrar" });
-    redirect(pending.back);
+    redirect(safeReturnTo(pending.back));
   }
   switch (response.status) {
     case 401:
