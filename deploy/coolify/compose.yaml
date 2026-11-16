@@ -236,8 +236,10 @@ services:
       Payments__Efi__PixCertificateBase64: ${EFI_PIX_CERTIFICATE_BASE64:-}
       Payments__Efi__PixKey: ${EFI_PIX_KEY:-}
       Payments__Efi__PixWebhookSecret: ${EFI_PIX_WEBHOOK_SECRET:-}
-      # e, ao ligar a venda: Payments__Efi__ChargeNotificationUrl e Payments__Efi__PixWebhookUrl com o domínio da
-      # API (…/payments/v1/webhooks/efi/charges e …/pix), no Coolify (deploy/README.md)
+      # os avisos da Efí, com o domínio da API (deploy/README.md). Vazios: o cartão não recebe a mudança de status e o
+      # webhook do PIX não é cadastrado (o PIX pago só é visto quando vence, pelo job)
+      Payments__Efi__ChargeNotificationUrl: ${EFI_CHARGE_NOTIFICATION_URL:-}
+      Payments__Efi__PixWebhookUrl: ${EFI_PIX_WEBHOOK_URL:-}
 
   notifications:
     <<: *dotnet
