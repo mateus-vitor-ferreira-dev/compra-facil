@@ -56,6 +56,19 @@ public sealed class EfiOptions
     /// </summary>
     public bool PixWebhookSkipMtls { get; set; } = true;
 
+    /// <summary>
+    /// O nome da loja que o cliente vê no app do banco (a mensagem do PIX) e na cobrança do cartão:
+    /// "&lt;StoreName&gt;, pedido 1A2B3C4D".
+    /// </summary>
+    public string StoreName { get; set; } = "CompraFácil";
+
+    /// <summary>
+    /// O projeto no <c>custom_id</c> da cobrança do cartão ("&lt;ProjectTag&gt;-&lt;id do pedido&gt;"): a conta Efí recebe
+    /// de mais de um projeto, e o extrato separa cada entrada pela marca (agentes-hub#183). O PIX já se separa pela
+    /// chave e pelo txid ("cf…").
+    /// </summary>
+    public string ProjectTag { get; set; } = "comprafacil";
+
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
 }
 
