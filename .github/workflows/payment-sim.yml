@@ -43,6 +43,8 @@ jobs:
           version: v2.14.0
           working-directory: backend/services/payment-sim
           args: --timeout=8m
+          # no runner próprio, o cache do lint fica no disco; o do GitHub travava o job (#415)
+          skip-cache: ${{ !github.event.pull_request.head.repo.fork && vars.RUNNER == 'self-hosted' }}
 
   test:
     name: testes (-race)

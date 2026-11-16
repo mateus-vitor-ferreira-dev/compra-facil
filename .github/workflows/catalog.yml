@@ -66,6 +66,9 @@ jobs:
           version: v2.14.0
           working-directory: backend/services/catalog
           args: --timeout=8m
+          # no runner próprio, o cache do lint fica no disco da máquina (~/.cache/golangci-lint): o do GitHub
+          # travava baixando a 0 MB/s até o timeout do job, que cancelou o catalog de todo push na develop (#415)
+          skip-cache: ${{ !github.event.pull_request.head.repo.fork && vars.RUNNER == 'self-hosted' }}
 
   test:
     name: testes (-race)
