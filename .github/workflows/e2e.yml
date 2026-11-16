@@ -36,6 +36,10 @@ jobs:
     env:
       # o gateway com a rota do BFF (#176), para o teste do rate limit por comprador
       BFF_GATEWAY_KEY: chave-do-bff-no-ci
+      # sem portas no host e com um projeto por run: no runner próprio, as portas fixas colidiam com o que já
+      # roda na máquina e derrubavam o e2e da develop (#415). Todos os docker compose abaixo herdam os dois
+      COMPOSE_FILE: compose.yaml:infra/compose/compose.ci.yaml
+      COMPOSE_PROJECT_NAME: e2e-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7.0.1
       # o build das 6 imagens enche o disco do runner (e aí o Redpanda e o pull do k6 falham). Apagar os
