@@ -11,6 +11,7 @@ public static class PaymentEvents
     public const string PaymentFailed = nameof(PaymentFailed);
     public const string PaymentRefunded = nameof(PaymentRefunded);
     public const string PaymentRefundFailed = nameof(PaymentRefundFailed);
+    public const string PaymentReversed = nameof(PaymentReversed);
 
     public const string OrdersTopic = "orders.order.v1";
     public const string ReservationsTopic = "inventory.reservation.v1";
@@ -73,6 +74,15 @@ public sealed record PaymentRefundedData(
 /// <summary>O provedor aceitou o estorno e depois não o realizou (#396).</summary>
 public sealed record PaymentRefundFailedData(
     Guid OrderId, Guid PaymentId, Money Amount, long TotalRefundedCents, string Provider, string RefundReference, DateTimeOffset FailedAt);
+
+/// <summary>
+/// O pagamento já aprovado (o pedido confirmado) não vale mais: a operadora não confirmou o cartão (Status failed,
+/// com o motivo), o cancelou antes de liquidar (voided), ou o cliente o contestou (disputed, o chargeback). O
+/// orders para o pedido que ainda não foi ao fornecedor e marca o que já foi, para a equipe.
+/// </summary>
+public sealed record PaymentReversedData(
+    Guid OrderId, Guid PaymentId, Money Amount, string Provider, string? ProviderReference, PaymentStatus Status,
+    FailureReason? FailureReason, DateTimeOffset ReversedAt);
 
 public enum RefundKind
 {

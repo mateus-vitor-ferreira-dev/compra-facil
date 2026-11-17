@@ -139,8 +139,12 @@ public sealed class FakeProvider : IPaymentProvider
     public void FailRefund(string reference, string refundReference) =>
         _byRef[reference] = _byRef[reference] with { FailedRefunds = [refundReference] };
 
-    /// <summary>O que acontece no provedor sem a loja pedir (o cliente paga o PIX, a liquidação, a validade).</summary>
-    public void Set(string reference, ProviderStatus status) => _byRef[reference] = _byRef[reference] with { Status = status };
+    /// <summary>
+    /// O que acontece no provedor sem a loja pedir (o cliente paga o PIX, a liquidação, a validade, a operadora que
+    /// não confirma o cartão aprovado, a contestação).
+    /// </summary>
+    public void Set(string reference, ProviderStatus status, FailureReason? reason = null) =>
+        _byRef[reference] = _byRef[reference] with { Status = status, FailureReason = reason };
 
     private void ThrowIfDown()
     {
@@ -511,6 +515,78 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         using var again = await RefundAsync(back.Id, "de-novo", null);
         Assert.Equal(HttpStatusCode.OK, again.StatusCode);
         Assert.Equal(PaymentStatus.Refunded, (await PaymentOfAsync(order)).Status);
+    }
+
+    [Theory]
+    [InlineData(ProviderStatus.Rejected, FailureReason.FraudSuspected, PaymentStatus.Failed)] // approved → unpaid
+    [InlineData(ProviderStatus.Cancelled, null, PaymentStatus.Voided)] // approved → canceled
+    public async Task ApprovedCard_NotConfirmedByTheProvider_IsReversedOnce(ProviderStatus status, FailureReason? reason, PaymentStatus expected)
+    {
+        // o pedido já foi confirmado (PaymentApproved, captured false) quando a Efí diz que o dinheiro não vem
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 6490, Card("APRO"));
+        var reference = (await PaymentOfAsync(order)).ProviderReference!;
+
+        fx.Provider.Set(reference, status, reason);
+        Assert.Equal(NotificationResult.Applied, await NotifyAsync(reference));
+        Assert.Equal(NotificationResult.Ignored, await NotifyAsync(reference)); // repetida
+
+        var payment = await PaymentOfAsync(order);
+        Assert.Equal((expected, expected == PaymentStatus.Failed ? reason : null), (payment.Status, payment.FailureReason));
+        Assert.Equal([PaymentEvents.PaymentApproved, PaymentEvents.PaymentReversed], await TypesOfAsync(order));
+        var reversed = await LastAsync<PaymentReversedData>(order, PaymentEvents.PaymentReversed);
+        Assert.Equal((payment.Id, expected, payment.FailureReason, 6490L, reference),
+            (reversed.PaymentId, reversed.Status, reversed.FailureReason, reversed.Amount.AmountCents, reversed.ProviderReference));
+    }
+
+    [Theory]
+    [InlineData(false)] // approved → contested
+    [InlineData(true)] // paid → contested
+    public async Task ContestedCard_IsDisputed_AnnouncedOnce_AndNotRefundedByThePanel(bool settled)
+    {
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 8000, Card("APRO"));
+        if (settled)
+        {
+            await SettleAsync(order);
+        }
+        var payment = await PaymentOfAsync(order);
+
+        fx.Provider.Set(payment.ProviderReference!, ProviderStatus.Disputed);
+        Assert.Equal(NotificationResult.Applied, await NotifyAsync(payment.ProviderReference!));
+        Assert.Equal(NotificationResult.Ignored, await NotifyAsync(payment.ProviderReference!)); // repetida
+
+        Assert.Equal(PaymentStatus.Disputed, (await PaymentOfAsync(order)).Status);
+        Assert.Equal([PaymentEvents.PaymentApproved, PaymentEvents.PaymentReversed], await TypesOfAsync(order));
+        var reversed = await LastAsync<PaymentReversedData>(order, PaymentEvents.PaymentReversed);
+        Assert.Equal((PaymentStatus.Disputed, (FailureReason?)null), (reversed.Status, reversed.FailureReason));
+
+        // a contestação já devolve ao cliente: o painel não estorna de novo
+        var before = fx.Provider.RefundsMade;
+        using var refund = await RefundAsync(payment.Id, "na-disputa", null);
+        Assert.Equal(HttpStatusCode.Conflict, refund.StatusCode);
+        Assert.Equal(before, fx.Provider.RefundsMade);
+    }
+
+    [Fact]
+    public async Task ApprovedCardNotPaid_AfterTheOrderWasCancelled_ClosesTheRefundAsVoid()
+    {
+        // o pedido foi cancelado com o cartão aprovado e não liquidado (a devolução esperava a liquidação), e a
+        // operadora não pagou: não há mais o que devolver, e o estorno do pedido fecha como void
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 4500, Card("APRO"));
+        await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(order));
+        var reference = (await PaymentOfAsync(order)).ProviderReference!;
+
+        fx.Provider.Set(reference, ProviderStatus.Rejected);
+        Assert.Equal(NotificationResult.Applied, await NotifyAsync(reference));
+        Assert.Equal(NotificationResult.Ignored, await NotifyAsync(reference)); // repetida
+
+        var payment = await PaymentOfAsync(order);
+        Assert.Equal((PaymentStatus.Failed, (string?)null, 0L), (payment.Status, payment.PendingReversal, payment.RefundedCents));
+        Assert.Equal([PaymentEvents.PaymentApproved, PaymentEvents.PaymentRefunded], await TypesOfAsync(order));
+        var refunded = await LastAsync<PaymentRefundedData>(order, PaymentEvents.PaymentRefunded);
+        Assert.Equal((RefundKind.Void, true, 4500L, "cancel"), (refunded.Kind, refunded.Full, refunded.Amount.AmountCents, refunded.Reason));
     }
 
     [Fact]

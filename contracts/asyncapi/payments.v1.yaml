@@ -20,6 +20,11 @@ info:
       a Efí não tem chave de idempotência. Aprovado pela operadora, publica `PaymentApproved`
       (`captured: false`: o valor está garantido e o pedido segue); a liquidação chega depois pela
       notificação. Recusado, `PaymentFailed`.
+    - **Cartão que não se confirma**: o aprovado pela operadora ainda pode não ser pago (na Efí, `unpaid`) ou ser
+      cancelado antes de liquidar (`canceled`), e o aprovado ou liquidado pode ser contestado pelo cliente
+      (`contested`, o chargeback). O pedido já foi confirmado, então sai `PaymentReversed`: o orders o para se
+      ainda não foi ao fornecedor, ou o marca para a equipe. Se o pedido já tinha sido cancelado e a devolução
+      esperava a liquidação, não há mais o que devolver: sai `PaymentRefunded` com `kind: void`.
 
     `OrderCancelled` antes da cobrança descarta a pendência. Depois (o fornecedor não atendeu, a nota foi
     rejeitada ou a equipe cancelou), o dinheiro volta: o PIX não pago e o cartão em análise são cancelados
@@ -53,6 +58,8 @@ channels:
         $ref: "#/components/messages/PaymentRefunded"
       PaymentRefundFailed:
         $ref: "#/components/messages/PaymentRefundFailed"
+      PaymentReversed:
+        $ref: "#/components/messages/PaymentReversed"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -79,6 +86,7 @@ operations:
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
       - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
       - $ref: "#/channels/paymentEvents/messages/PaymentRefundFailed"
+      - $ref: "#/channels/paymentEvents/messages/PaymentReversed"
 
   onOrderEvents:
     action: receive
@@ -347,6 +355,60 @@ components:
                     type: string
                     description: ID do estorno no provedor.
                   failed_at:
+                    type: string
+                    format: date-time
+
+    PaymentReversed:
+      name: PaymentReversed
+      title: Pagamento aprovado que não vale mais
+      summary: |
+        O cartão já aprovado (o pedido confirmado) não se confirmou: a operadora não o pagou (`status: failed`, com
+        o motivo), o cancelou antes de liquidar (`voided`), ou o cliente o contestou (`disputed`, o chargeback). O
+        dinheiro não vem, ou volta ao cliente pela contestação: a loja não estorna. O orders cancela o pedido que
+        ainda não foi ao fornecedor (`payment_failed`) e marca o que já foi, para a equipe cancelar lá ou responder
+        a contestação no painel do provedor. Sai uma vez por pagamento: a notificação repetida não muda nada.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/OrderKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PaymentReversed
+              event_version:
+                const: 1
+              producer:
+                const: payments
+              data:
+                type: object
+                required: [order_id, payment_id, amount, provider, status, reversed_at]
+                properties:
+                  order_id:
+                    type: string
+                    format: uuid
+                  payment_id:
+                    type: string
+                    format: uuid
+                  amount:
+                    $ref: "../openapi/common/v1/common.yaml#/components/schemas/Money"
+                  provider:
+                    $ref: "#/components/schemas/Provider"
+                  provider_reference:
+                    type: [string, "null"]
+                    description: ID da cobrança no provedor.
+                  status:
+                    type: string
+                    enum: [failed, voided, disputed]
+                    description: O status do pagamento agora.
+                  failure_reason:
+                    description: O motivo, no `failed`; nulo nos outros.
+                    oneOf:
+                      - $ref: "../openapi/payments.v1.yaml#/components/schemas/FailureReason"
+                      - type: "null"
+                  reversed_at:
                     type: string
                     format: date-time
 

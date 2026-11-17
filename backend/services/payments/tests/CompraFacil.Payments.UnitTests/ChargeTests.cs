@@ -144,6 +144,26 @@ public sealed class ChargeTests
     }
 
     [Fact]
+    public void ApprovedCard_CanStillFail_OrBeDisputed()
+    {
+        // a operadora não confirmou o aprovado (unpaid): falha, mesmo depois de autorizado
+        var unpaid = Start(PaymentMethod.Card);
+        unpaid.Authorize("c1", "5682", 0, s_now);
+        unpaid.Fail(FailureReason.FraudSuspected, null, s_now);
+        Assert.Equal((PaymentStatus.Failed, FailureReason.FraudSuspected), (unpaid.Status, unpaid.FailureReason));
+
+        // a contestação: do autorizado ou do liquidado; repetida não muda nada
+        var disputed = Start(PaymentMethod.Card);
+        disputed.Authorize("c2", "5682", 0, s_now);
+        disputed.Capture(s_now);
+        Assert.True(disputed.Dispute(s_now));
+        Assert.False(disputed.Dispute(s_now));
+        Assert.Equal(PaymentStatus.Disputed, disputed.Status);
+        Assert.Throws<DomainException>(() => disputed.Refund(100, "k", "r", s_now)); // a contestação já devolve
+        Assert.Throws<DomainException>(() => unpaid.Dispute(s_now)); // o que não foi pago não se contesta
+    }
+
+    [Fact]
     public void Payer_IsKeptOnlyUntilCharged()
     {
         var payer = new Payer("Ana Souza", "52998224725", "35999990000",
