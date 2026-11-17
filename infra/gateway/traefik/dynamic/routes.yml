@@ -76,9 +76,13 @@ http:
       service: media
       middlewares: [security-headers, strip-service-prefix]
 {{- end }}
-    # login, refresh, logout, cadastro e confirmação de e-mail: as rotas que aceitam senha ou token, com rate limit
+    # login, refresh, logout, cadastro e confirmação de e-mail: as rotas que aceitam senha ou token, com rate limit.
+    # Depois de /identity/, sem diferenciar maiúsculas: o ASP.NET casa as rotas assim, e com PathPrefix (que
+    # diferencia) um POST /identity/v1/Sessions caía na rota identity, sem limite nenhum. O /identity fica
+    # exato como na rota identity (e no strip-service-prefix). A regra continua mais longa que a da rota
+    # identity, então tem prioridade sobre ela.
     identity-credentials:
-      rule: PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)
+      rule: PathRegexp(`^/identity/(?i:v1/(?:sessions|accounts))`)
       entryPoints: [web]
       service: identity
       middlewares: [cors, security-headers, strip-bff-key, identity-problem-429, identity-rate-limit, strip-service-prefix]
@@ -93,7 +97,7 @@ http:
       service: catalog
       middlewares: [cors, security-headers, strip-bff-key, catalog-problem-429, catalog-rate-limit-bff, strip-service-prefix]
     identity-credentials-bff:
-      rule: (PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
+      rule: PathRegexp(`^/identity/(?i:v1/(?:sessions|accounts))`) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
       entryPoints: [web]
       service: identity
       middlewares: [cors, security-headers, strip-bff-key, identity-problem-429, identity-rate-limit-bff, strip-service-prefix]
