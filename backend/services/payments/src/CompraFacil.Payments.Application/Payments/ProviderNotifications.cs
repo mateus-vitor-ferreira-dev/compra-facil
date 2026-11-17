@@ -123,12 +123,14 @@ public sealed class PixExpiry(IPaymentRepository payments, IPaymentProvider prov
 
 /// <summary>
 /// Estorno pelo painel (#220): parte ou o resto de um pagamento aprovado, idempotente pela chave da
-/// requisição (a mesma devolve o mesmo estorno). Publica PaymentRefunded.
+/// requisição (a mesma devolve o mesmo estorno, e o pedido ao provedor sai uma vez só). Publica PaymentRefunded.
 /// </summary>
-public sealed class RefundPayment(IPaymentRepository payments, IPaymentProvider provider, PaymentOutcome outcome, TimeProvider clock)
+public sealed class RefundPayment(IPaymentRepository payments, ProviderRefunds refunds)
 {
     /// <exception cref="BuildingBlocks.Web.NotFoundException">Pagamento inexistente.</exception>
-    /// <exception cref="DomainException">Não está aprovado, ou o valor passa do que falta devolver.</exception>
+    /// <exception cref="DomainException">
+    /// Não está aprovado, o valor passa do que falta devolver, ou há um estorno pedido ao provedor sem confirmação.
+    /// </exception>
     public Task<Payment> HandleAsync(Guid paymentId, long? amountCents, string idempotencyKey, CancellationToken ct) =>
         OptimisticConcurrency.RetryAsync(payments.Reset, async () =>
         {
@@ -141,7 +143,7 @@ public sealed class RefundPayment(IPaymentRepository payments, IPaymentProvider 
             }
             var left = payment.Amount.AmountCents - payment.RefundedCents;
             var amount = amountCents ?? left;
-            if (payment.Status != PaymentStatus.Approved || amount <= 0 || amount > left)
+            if (payment.PendingRefund?.Key != key && (payment.Status != PaymentStatus.Approved || amount <= 0 || amount > left))
             {
                 throw new DomainException(payment.Status switch
                 {
@@ -151,10 +153,13 @@ public sealed class RefundPayment(IPaymentRepository payments, IPaymentProvider 
                     _ => $"o estorno vai de 1 a {left} centavos",
                 });
             }
-            var refund = await provider.RefundAsync(payment.ProviderReference!, amount, key, ct);
-            if (payment.Refund(refund.AmountCents, key, refund.Reference, clock.GetUtcNow()))
+            var result = await refunds.RefundAsync(payment, amount, key, reason: null, ct);
+            if (result == RefundResult.Unconfirmed)
             {
-                outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund);
+                throw new DomainException("o estorno foi pedido ao provedor e ainda não se confirmou: confira no painel do provedor");
+            }
+            if (result == RefundResult.Applied)
+            {
                 PaymentsMetrics.Refunds.Add(1, new KeyValuePair<string, object?>("kind", "partial"));
             }
             await payments.SaveChangesAsync(ct);

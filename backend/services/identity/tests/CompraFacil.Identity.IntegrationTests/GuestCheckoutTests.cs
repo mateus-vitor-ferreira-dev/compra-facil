@@ -103,6 +103,31 @@ public sealed class GuestCheckoutTests(IdentityFixture fx) : IClassFixture<Ident
     }
 
     [Fact]
+    public async Task Start_SameForm_AfterTheWindow_Is409_AndOnlyTheLinkOpensThePurchase()
+    {
+        // F-010: a chave do formulário com o e-mail não reabre a compra para sempre
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+        var key = Guid.NewGuid();
+        using var first = await StartAsync(email, key);
+        var (id, _, _) = await MeAsync(await AccessTokenOf(first));
+
+        fx.Clock.Advance(TimeSpan.FromMinutes(29));
+        using var retry = await StartAsync(email, key); // a nova tentativa do checkout, ainda na janela
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+
+        fx.Clock.Advance(TimeSpan.FromMinutes(2));
+        using var late = await StartAsync(email, key);
+        Assert.Equal(HttpStatusCode.Conflict, late.StatusCode);
+        var problem = await IdentityClient.JsonOf(late);
+        Assert.Equal("esta compra já foi feita; o acesso a ela é pelo link enviado ao e-mail", problem.GetProperty("detail").GetString());
+        Assert.False(problem.TryGetProperty("access_token", out _));
+        Assert.Single(await Outbox.OfAsync(fx, Guid.Parse(id)), m => m.EventType == "GuestAccessRequested");
+
+        using var link = await AccessAsync(await LinkTokenAsync(Guid.Parse(id)));
+        Assert.Equal(id, (await MeAsync(await AccessTokenOf(link))).Id);
+    }
+
+    [Fact]
     public async Task Start_SameFormWithOtherEmail_Is409()
     {
         var key = Guid.NewGuid();

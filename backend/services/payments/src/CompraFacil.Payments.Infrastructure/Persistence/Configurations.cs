@@ -68,6 +68,14 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.HasIndex(p => new { p.Provider, p.ProviderReference }).IsUnique().HasFilter("provider_reference IS NOT NULL");
         builder.Property(p => p.RefundReference).HasMaxLength(128);
         builder.Property(p => p.PendingReversal).HasMaxLength(32);
+        // o estorno pedido ao provedor e ainda sem resposta (F-007): gravado antes de pedir
+        builder.ComplexProperty(p => p.PendingRefund, r =>
+        {
+            r.Property(x => x.Key).HasColumnName("pending_refund_key").HasMaxLength(200);
+            r.Property(x => x.AmountCents).HasColumnName("pending_refund_cents");
+            r.Property(x => x.Reason).HasColumnName("pending_refund_reason").HasMaxLength(32);
+            r.Property(x => x.RequestedAt).HasColumnName("pending_refund_requested_at");
+        });
         // o job do PIX vencido procura os pendentes pela validade
         builder.HasIndex(p => p.Status).HasFilter("status = 'Pending'");
         builder.ComplexProperty(p => p.Amount, m =>

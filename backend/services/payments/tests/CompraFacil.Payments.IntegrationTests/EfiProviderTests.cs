@@ -148,6 +148,34 @@ public sealed class EfiProviderTests
     }
 
     [Fact]
+    public async Task CardRefund_Resumed_ConfirmsOrAsksAgainOnlyTheSameDay()
+    {
+        // F-007: o estorno do cartão não tem chave; a nova tentativa confere antes de pedir de novo
+        var (provider, server) = Create();
+        server.On("GET /v1/charge/391", HttpStatusCode.OK, """{"code":200,"data":{"charge_id":391,"total":12990,"status":"refunded"}}""");
+        var done = await provider.ResumeRefundAsync("391", 12990, "pagamento:cancel", DateTimeOffset.UtcNow.AddDays(-3), Ct);
+        Assert.Equal(12990L, done!.AmountCents);
+        Assert.StartsWith("391-", done.Reference, StringComparison.Ordinal);
+        Assert.DoesNotContain(server.Calls, c => c.Method == HttpMethod.Post && c.Path.EndsWith("/refund", StringComparison.Ordinal));
+
+        server.Routes["GET /v1/charge/391"] = new([(HttpStatusCode.OK, """{"code":200,"data":{"charge_id":391,"total":12990,"status":"paid"}}""")]);
+        // pedido em outro dia: o parcial de lá pode ter saído, e a Efí aceitaria outro; sem confirmação
+        Assert.Null(await provider.ResumeRefundAsync("391", 3000, "pagamento:painel", DateTimeOffset.UtcNow.AddDays(-2), Ct));
+        Assert.DoesNotContain(server.Calls, c => c.Path == "/v1/charge/card/391/refund");
+
+        // no mesmo dia: pede de novo; a Efí recusa o repetido (o primeiro em processamento), e fica sem confirmação
+        server.On("POST /v1/charge/card/391/refund", HttpStatusCode.BadRequest,
+            """{"code":3500034,"error":"validation_error","error_description":"Já existe um estorno em processamento para esta cobrança."}""");
+        Assert.Null(await provider.ResumeRefundAsync("391", 3000, "pagamento:painel", DateTimeOffset.UtcNow, Ct));
+        // o que nunca chegou: a Efí aceita, e é o estorno
+        server.Routes["POST /v1/charge/card/391/refund"] = new([(HttpStatusCode.OK, """{"code":200,"data":"Reembolso em processamento"}""")]);
+        var again = await provider.ResumeRefundAsync("391", 3000, "pagamento:painel", DateTimeOffset.UtcNow, Ct);
+        Assert.Equal(3000L, again!.AmountCents);
+        Assert.Equal(2, server.Calls.Count(c => c.Path == "/v1/charge/card/391/refund"));
+        Assert.Contains("\"amount\":3000", server.Calls.Last(c => c.Path == "/v1/charge/card/391/refund").Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Card_OpensThenPays_WithTheCustomerTheEfiRequires()
     {
         var (provider, server) = Create();

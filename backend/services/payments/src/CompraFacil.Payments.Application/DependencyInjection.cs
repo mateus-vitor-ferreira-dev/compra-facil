@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<ChargeProcessor>();
         services.AddScoped<PaymentOutcome>();
         services.AddScoped<PaymentReversal>();
+        services.AddScoped<ProviderRefunds>();
         services.AddScoped<ProviderNotifications>();
         services.AddScoped<PixExpiry>();
         services.AddScoped<RefundPayment>();

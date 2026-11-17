@@ -126,6 +126,27 @@ public sealed class ChargeTests
     }
 
     [Fact]
+    public void RefundRequest_IsOneAtATime_AndLeavesWhenApplied()
+    {
+        var p = Start();
+        p.Authorize("c", null, 0, s_now);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k1", 1000, null, s_now)); // não liquidado
+        p.Capture(s_now);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k1", s_amount.AmountCents + 1, null, s_now));
+
+        p.RequestRefund("k1", 1000, "cancel", s_now);
+        Assert.Equal(new PendingRefund("k1", 1000, "cancel", s_now), p.PendingRefund);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k2", 1000, null, s_now)); // outro sem resposta
+        Assert.True(p.Refund(1000, "k1", "r1", s_now));
+        Assert.Null(p.PendingRefund);
+
+        p.RequestRefund("k2", 500, null, s_now);
+        p.DropPendingRefund(s_now); // o provedor recusou
+        Assert.Null(p.PendingRefund);
+        Assert.Equal(1000L, p.RefundedCents);
+    }
+
+    [Fact]
     public void RefundNotRealized_LeavesTheAmountToRefundAgain()
     {
         var p = Start(PaymentMethod.Pix);

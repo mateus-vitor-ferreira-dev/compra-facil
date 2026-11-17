@@ -14,6 +14,7 @@ import { formatMoney } from "@/lib/format";
 import { readMaintenance } from "@/lib/maintenance";
 import { listMyOrders } from "@/lib/orders-api";
 import { quoteShipping } from "@/lib/shipping-api";
+import { switchGuestBuyer } from "./actions";
 import { CheckoutForm } from "./checkout-form";
 import { QuantityCheck } from "./quantity-check";
 
@@ -63,6 +64,27 @@ export default async function CheckoutPage() {
     <main id="conteudo" className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
       <Breadcrumbs items={[{ href: "/carrinho", label: "Carrinho" }, { label: "Pagamento" }]} />
       <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Revise e faça o pedido</h1>
+
+      {/* a compra sem conta aberta neste navegador: o comprador vê de quem é e pode trocar (fora do formulário
+          do pedido, que não aceita outro dentro) */}
+      {account?.is_guest && (
+        <section aria-labelledby="conta" className="mt-6 space-y-1">
+          <h2 id="conta" className="text-xl font-semibold tracking-tight">
+            Compra sem conta
+          </h2>
+          <p className="text-ink-soft [overflow-wrap:anywhere]">
+            A confirmação, o recibo e o link do pedido vão para {account.email}.
+          </p>
+          <form action={switchGuestBuyer}>
+            <button
+              type="submit"
+              className="inline-flex min-h-11 cursor-pointer items-center font-semibold underline underline-offset-4 pointer-fine:min-h-8"
+            >
+              Não é você? Comprar com outro e-mail
+            </button>
+          </form>
+        </section>
+      )}
 
       <CheckoutForm
         idempotencyKey={crypto.randomUUID()}
@@ -121,7 +143,7 @@ export default async function CheckoutPage() {
               </ul>
             </section>
 
-            {account && (
+            {account && !account.is_guest && (
               <section aria-labelledby="conta" className="space-y-1">
                 <h2 id="conta" className="text-xl font-semibold tracking-tight">
                   Conta

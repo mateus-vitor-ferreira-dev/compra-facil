@@ -12,6 +12,7 @@ const accounts = new Map(); // email -> { password, name }, das contas criadas n
 const usedResetTokens = new Set(); // os links de "esqueci minha senha" já usados
 const guests = new Map(); // email -> nome, de quem comprou sem conta
 const guestKeys = new Map(); // chave do formulário -> email
+const guestIds = new Map(); // email -> id da conta de convidado (cada compra sem conta é uma conta)
 
 // a entrega dos pedidos da Ana (#221): o checkout dela já vem preenchido com ela
 const ANA_DELIVERY = {
@@ -1770,7 +1771,9 @@ createServer(async (req, res) => {
       const email = accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", ""));
       if (!email) return problem(res, 401, "Não autenticado");
       return send(res, 200, {
-        id: "0199f6a0-0000-7000-8000-000000000a1a",
+        id: guests.has(email)
+          ? (guestIds.get(email) ?? guestIds.set(email, crypto.randomUUID()).get(email))
+          : "0199f6a0-0000-7000-8000-000000000a1a",
         email,
         name: guests.get(email) ?? "Ana Souza",
         email_confirmed: true,

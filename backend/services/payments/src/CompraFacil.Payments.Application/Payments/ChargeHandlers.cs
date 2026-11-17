@@ -337,9 +337,11 @@ public sealed class OnOrderCancelled(IPaymentRepository payments, PaymentReversa
 /// <item>pago: estorna tudo o que falta (com o frete).</item>
 /// </list>
 /// Publica PaymentRefunded quando o dinheiro volta. A chave do estorno é o payment_id com o motivo, então a mensagem
-/// repetida não estorna duas vezes. Devolve o tipo ("void", "refund", "deferred"), ou nulo se não havia o que devolver.
+/// repetida não estorna duas vezes, e o estorno é pedido ao provedor uma vez só (<see cref="ProviderRefunds"/>).
+/// Devolve o tipo ("void", "refund", "deferred"), ou nulo se não havia o que devolver (ou o estorno pedido ainda não
+/// se confirmou).
 /// </summary>
-public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome outcome, TimeProvider clock)
+public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome outcome, ProviderRefunds refunds, TimeProvider clock)
 {
     public async Task<string?> ReverseAsync(Payment payment, string reason, CancellationToken ct)
     {
@@ -364,41 +366,57 @@ public sealed class PaymentReversal(IPaymentProvider provider, PaymentOutcome ou
             case PaymentStatus.Authorized:
                 return payment.DeferReversal(reason, clock.GetUtcNow()) ? "deferred" : null;
             case PaymentStatus.Approved:
-                var left = payment.Amount.AmountCents - payment.RefundedCents;
                 var key = $"{payment.Id}:{reason}";
-                var refund = await provider.RefundAsync(payment.ProviderReference!, left, key, ct);
-                payment.ClearPendingReversal(clock.GetUtcNow());
-                if (payment.Refund(refund.AmountCents, key, refund.Reference, clock.GetUtcNow()))
+                if (payment.PendingRefund is { } other && other.Key != key)
                 {
-                    outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund, reason);
-                    return "refund";
+                    // outro estorno (o do painel) pedido e sem resposta: confere antes; sem confirmação, o pedido
+                    // abaixo é recusado e a mensagem volta depois
+                    await refunds.ResumeAsync(payment, ct);
                 }
-                return null;
+                var result = payment.Status == PaymentStatus.Approved
+                    ? await refunds.RefundAsync(payment, payment.Amount.AmountCents - payment.RefundedCents, key, reason, ct)
+                    : RefundResult.Repeated;
+                if (result == RefundResult.Unconfirmed)
+                {
+                    return null; // a devolução que esperava continua esperando: a notificação seguinte confere de novo
+                }
+                payment.ClearPendingReversal(clock.GetUtcNow());
+                return result == RefundResult.Applied ? "refund" : null;
             default:
                 return null;
         }
     }
 
     /// <summary>
-    /// Depois de o provedor mudar a cobrança: a devolução que esperava a liquidação sai agora; se o cartão acabou
-    /// recusado, não há mais o que devolver.
+    /// Depois de o provedor mudar a cobrança: o estorno pedido e sem resposta se confirma, a devolução que esperava a
+    /// liquidação sai agora; se o cartão acabou recusado, não há mais o que devolver.
     /// </summary>
     public async Task<string?> ResumeAsync(Payment payment, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(payment);
+        string? kind = null;
+        if (payment.PendingRefund is not null)
+        {
+            var result = await refunds.ResumeAsync(payment, ct);
+            if (result == RefundResult.Unconfirmed)
+            {
+                return null;
+            }
+            kind = result == RefundResult.Applied ? "refund" : null;
+        }
         if (payment.PendingReversal is not { } reason)
         {
-            return null;
+            return kind;
         }
         if (payment.Status == PaymentStatus.Approved)
         {
-            return await ReverseAsync(payment, reason, ct);
+            return await ReverseAsync(payment, reason, ct) ?? kind;
         }
         if (payment.Status is not (PaymentStatus.Processing or PaymentStatus.Authorized))
         {
             payment.ClearPendingReversal(clock.GetUtcNow());
         }
-        return null;
+        return kind;
     }
 }
 

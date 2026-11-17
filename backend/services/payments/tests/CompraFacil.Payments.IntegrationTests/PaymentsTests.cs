@@ -29,12 +29,26 @@ public sealed class FakeProvider : IPaymentProvider
     private readonly ConcurrentDictionary<string, ProviderPayment> _byRef = new();
     private readonly ConcurrentDictionary<string, ProviderRefund> _refunds = new();
     private long _seq = 1000;
+    private int _refundCalls;
+    private int _resumeCalls;
 
     public string Name => "efi";
     private int _opened;
 
     public int Created => _pixByKey.Count + _opened;
     public int RefundsMade => _refunds.Count;
+
+    /// <summary>Os pedidos de estorno que chegaram ao provedor (no cartão da Efí, cada um devolve: não há chave).</summary>
+    public int RefundCalls => _refundCalls;
+
+    /// <summary>As conferências de um estorno pedido e sem resposta.</summary>
+    public int ResumeCalls => _resumeCalls;
+
+    /// <summary>Roda uma vez, logo depois de o provedor aceitar o estorno (o teste muda o pagamento: o conflito).</summary>
+    public Func<Task>? AfterRefundOnce { get; set; }
+
+    /// <summary>O próximo estorno é feito e cai antes de responder (o payments não sabe se devolveu).</summary>
+    public bool FailAfterRefundingOnce { get; set; }
     public List<string> Cancelled { get; } = [];
 
     /// <summary>Cobranças de cartão de fato pagas (o dinheiro saiu), por referência.</summary>
@@ -122,13 +136,33 @@ public sealed class FakeProvider : IPaymentProvider
         return Task.FromResult(_byRef[reference] = _byRef[reference] with { Status = ProviderStatus.Cancelled });
     }
 
-    public Task<ProviderRefund> RefundAsync(string reference, long? amountCents, string idempotencyKey, CancellationToken ct)
+    public async Task<ProviderRefund> RefundAsync(string reference, long? amountCents, string idempotencyKey, CancellationToken ct)
     {
         if (_byRef[reference].Status != ProviderStatus.Approved)
         {
             throw new PaymentProviderRejectedException("só o pago (liquidado) se estorna");
         }
-        return Task.FromResult(_refunds.GetOrAdd(idempotencyKey, _ => new ProviderRefund("re-" + Interlocked.Increment(ref _seq), amountCents ?? 0)));
+        Interlocked.Increment(ref _refundCalls);
+        var refund = _refunds.GetOrAdd(idempotencyKey, _ => new ProviderRefund("re-" + Interlocked.Increment(ref _seq), amountCents ?? 0));
+        if (FailAfterRefundingOnce)
+        {
+            FailAfterRefundingOnce = false;
+            throw new PaymentProviderUnavailableException("caiu depois de estornar");
+        }
+        if (AfterRefundOnce is { } after)
+        {
+            AfterRefundOnce = null;
+            await after();
+        }
+        return refund;
+    }
+
+    /// <summary>O estorno que o provedor já fez se confirma; o que nunca chegou é pedido agora.</summary>
+    public async Task<ProviderRefund?> ResumeRefundAsync(
+        string reference, long amountCents, string idempotencyKey, DateTimeOffset requestedAt, CancellationToken ct)
+    {
+        Interlocked.Increment(ref _resumeCalls);
+        return _refunds.TryGetValue(idempotencyKey, out var done) ? done : await RefundAsync(reference, amountCents, idempotencyKey, ct);
     }
 
     public Task<IReadOnlyList<string>> ChangedByNotificationAsync(string token, CancellationToken ct) =>
@@ -613,6 +647,64 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         var refunded = await LastAsync<PaymentRefundedData>(order, PaymentEvents.PaymentRefunded);
         Assert.Equal("return", refunded.Reason); // o fulfillment não cancela a nota
         Assert.Equal((RefundKind.Refund, true, 6430L), (refunded.Kind, refunded.Full, refunded.Amount.AmountCents));
+        Assert.Single(await EventsOfAsync(order), e => e.EventType == PaymentEvents.PaymentRefunded);
+    }
+
+    /// <summary>Uma escrita qualquer no pagamento, por outra transação: o xmin muda, e o SaveChanges seguinte conflita.</summary>
+    private async Task TouchPaymentAsync(Guid paymentId)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<PaymentsDbContext>().Payments.Where(p => p.Id == paymentId)
+            .ExecuteUpdateAsync(u => u.SetProperty(p => p.UpdatedAt, p => p.UpdatedAt), Ct);
+    }
+
+    [Fact]
+    public async Task CardRefund_ConflictAfterTheProviderAccepted_IsNotAskedAgain()
+    {
+        // F-007: o estorno do cartão não tem chave na Efí; o conflito depois de ela aceitar não pede outro
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 10000, Card("APRO"));
+        await SettleAsync(order);
+        var id = (await PaymentOfAsync(order)).Id;
+        var (calls, resumes) = (fx.Provider.RefundCalls, fx.Provider.ResumeCalls);
+
+        fx.Provider.AfterRefundOnce = () => TouchPaymentAsync(id);
+        using var partial = await RefundAsync(id, "parcial", 3000);
+        Assert.Equal(HttpStatusCode.OK, partial.StatusCode);
+        Assert.Equal(calls + 1, fx.Provider.RefundCalls);
+
+        fx.Provider.AfterRefundOnce = () => TouchPaymentAsync(id);
+        await HandleAsync<OrderCancelledData, OnOrderCancelled>(new OrderCancelledData(order));
+        Assert.Equal(calls + 2, fx.Provider.RefundCalls);
+        Assert.Equal(resumes, fx.Provider.ResumeCalls); // a resposta já estava nesta execução: nem a conferência
+
+        var payment = await PaymentOfAsync(order);
+        Assert.Equal((PaymentStatus.Refunded, 10000L, (PendingRefund?)null), (payment.Status, payment.RefundedCents, payment.PendingRefund));
+        Assert.Equal(2, (await EventsOfAsync(order)).Count(e => e.EventType == PaymentEvents.PaymentRefunded));
+    }
+
+    [Fact]
+    public async Task CardRefund_CrashAfterTheProviderAccepted_IsConfirmedInsteadOfAskedAgain()
+    {
+        var order = Guid.NewGuid();
+        await PlacedAndReservedAsync(order, 6430, Card("APRO"));
+        await SettleAsync(order);
+        var calls = fx.Provider.RefundCalls;
+
+        fx.Provider.FailAfterRefundingOnce = true;
+        await Assert.ThrowsAsync<PaymentProviderUnavailableException>(
+            () => HandleAsync<OrderReturnedData, OnOrderReturned>(new OrderReturnedData(order)));
+        var waiting = await PaymentOfAsync(order);
+        Assert.Equal((PaymentStatus.Approved, 6430L, "return"), (waiting.Status, waiting.PendingRefund?.AmountCents, waiting.PendingRefund?.Reason));
+
+        await HandleAsync<OrderReturnedData, OnOrderReturned>(new OrderReturnedData(order)); // a mensagem volta
+        await HandleAsync<OrderReturnedData, OnOrderReturned>(new OrderReturnedData(order)); // e de novo
+
+        Assert.Equal(calls + 1, fx.Provider.RefundCalls);
+        var payment = await PaymentOfAsync(order);
+        Assert.Equal((PaymentStatus.Refunded, 6430L, (PendingRefund?)null), (payment.Status, payment.RefundedCents, payment.PendingRefund));
+        var refunded = await LastAsync<PaymentRefundedData>(order, PaymentEvents.PaymentRefunded);
+        Assert.Equal(("return", true), (refunded.Reason, refunded.Full));
         Assert.Single(await EventsOfAsync(order), e => e.EventType == PaymentEvents.PaymentRefunded);
     }
 

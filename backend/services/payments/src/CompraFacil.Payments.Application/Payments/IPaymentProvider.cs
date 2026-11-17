@@ -86,6 +86,14 @@ public interface IPaymentProvider
     Task<ProviderRefund> RefundAsync(string reference, long? amountCents, string idempotencyKey, CancellationToken ct);
 
     /// <summary>
+    /// O estorno pedido em <paramref name="requestedAt"/> cuja resposta não chegou (o payments caiu no meio, ou o
+    /// provedor não respondeu). Devolve o estorno se o provedor o confirma, sem pedir de novo o que poderia sair duas
+    /// vezes; nulo se ainda não dá para saber (a equipe confere no painel do provedor).
+    /// </summary>
+    /// <exception cref="PaymentProviderRejectedException">O provedor recusou: nada foi devolvido.</exception>
+    Task<ProviderRefund?> ResumeRefundAsync(string reference, long amountCents, string idempotencyKey, DateTimeOffset requestedAt, CancellationToken ct);
+
+    /// <summary>
     /// A notificação do cartão traz só um token: o provedor diz quais cobranças mudaram. A verdade de cada uma
     /// vem do <see cref="GetAsync"/>.
     /// </summary>

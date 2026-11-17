@@ -4,8 +4,8 @@ import { updateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { accessToken } from "@/lib/auth/current";
-import { startGuest } from "@/lib/auth/flows";
+import { accessToken, currentAccount } from "@/lib/auth/current";
+import { signOut, startGuest } from "@/lib/auth/flows";
 import { loginHref } from "@/lib/auth/return-to";
 import { readCart, writeCart } from "@/lib/cart";
 import { emptyCart } from "@/lib/cart-rules";
@@ -149,6 +149,11 @@ async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutSt
     if (!guest.ok) {
       if (guest.status === 422)
         return failed("Confira o nome de quem recebe e o e-mail.", "Confira o e-mail digitado.");
+      // o formulário já foi enviado (com outro e-mail, ou há mais de 30 minutos): a compra se abre pelo link
+      if (guest.status === 409)
+        return failed(
+          "Este pedido já foi enviado. Para acompanhar a compra, use o link de acesso que mandamos para o e-mail dela.",
+        );
       return failed(
         guest.status === 429
           ? "Muitas tentativas seguidas. Espere alguns minutos e confirme de novo."
@@ -213,6 +218,16 @@ async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutSt
         },
       };
   }
+}
+
+/**
+ * "Não é você?": o navegador está numa compra sem conta (de outra pessoa, ou de um e-mail digitado errado). A
+ * sessão dela sai, e o pagamento volta pedindo o e-mail, que abre uma sessão de convidado nova. O carrinho fica.
+ * A conta com senha não sai por aqui: ela tem o "Sair" do menu.
+ */
+export async function switchGuestBuyer(): Promise<void> {
+  if ((await currentAccount())?.is_guest) await signOut();
+  redirect("/checkout");
 }
 
 function parseCookie(raw: string | undefined): unknown {

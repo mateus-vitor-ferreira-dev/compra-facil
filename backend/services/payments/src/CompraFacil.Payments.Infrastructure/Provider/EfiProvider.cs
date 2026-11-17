@@ -93,15 +93,7 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
         {
             return ToProvider(await GetCobAsync(reference, ct), ticket: null);
         }
-        try
-        {
-            var charge = await api.SendAsync<Envelope<Charge>>(EfiApiKind.Charges, HttpMethod.Get, $"v1/charge/{CardId(reference)}", null, ct);
-            return ToProvider(charge.Data);
-        }
-        catch (EfiApiException e)
-        {
-            throw e.Rejected();
-        }
+        return ToProvider(await GetChargeAsync(reference, ct));
     }
 
     public async Task<ProviderPayment> CancelAsync(string reference, CancellationToken ct)
@@ -133,23 +125,86 @@ internal sealed class EfiProvider(EfiApi api, IOptions<EfiOptions> options, Time
 
     /// <summary>
     /// O estorno do cartão não tem id nem chave de idempotência na Efí (responde "Reembolso em processamento"). A
-    /// referência local sai da chave; repetir depois de cair no meio pode ser recusado ("já existe um estorno em
-    /// processamento"), e aí a equipe confere no painel da Efí.
+    /// referência local sai da chave. Pedir de novo pode estornar duas vezes: por isso quem chama grava o pedido
+    /// antes, e a nova tentativa vem pelo <see cref="ResumeRefundAsync"/>.
     /// </summary>
     private async Task<ProviderRefund> RefundCardAsync(string reference, long? amountCents, string key, CancellationToken ct)
     {
-        var amount = amountCents ?? (await api.SendAsync<Envelope<Charge>>(EfiApiKind.Charges, HttpMethod.Get, $"v1/charge/{CardId(reference)}", null, ct)).Data.Total;
+        var amount = amountCents ?? (await GetChargeAsync(reference, ct)).Total;
         try
         {
-            await api.SendAsync<Envelope<object>>(EfiApiKind.Charges, HttpMethod.Post, $"v1/charge/card/{CardId(reference)}/refund",
-                new { amount }, ct);
+            await PostCardRefundAsync(reference, amount, ct);
         }
         catch (EfiApiException e)
         {
             throw e.Rejected();
         }
-        return new ProviderRefund($"{reference}-{RefundId(key)[..12]}", amount);
+        return new ProviderRefund(CardRefundReference(reference, key), amount);
     }
+
+    /// <summary>
+    /// O PIX repete a devolução (o id sai da chave: a repetida vira consulta). O cartão consulta a cobrança: toda
+    /// estornada (refunded), o pedido saiu. Senão, só pede de novo no mesmo dia (em Brasília) em que pediu: a Efí
+    /// recusa o segundo estorno enquanto o primeiro está em processamento e o segundo parcial do mesmo dia, então o
+    /// repetido que ela aceita é o que nunca chegou. A recusa, ou outro dia, fica sem confirmação: a equipe confere no
+    /// painel da Efí.
+    /// </summary>
+    public async Task<ProviderRefund?> ResumeRefundAsync(
+        string reference, long amountCents, string idempotencyKey, DateTimeOffset requestedAt, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
+        if (!IsCard(reference))
+        {
+            return await RefundPixAsync(reference, amountCents, idempotencyKey, ct);
+        }
+        Charge charge;
+        try
+        {
+            charge = await GetChargeAsync(reference, ct);
+        }
+        catch (PaymentProviderRejectedException)
+        {
+            return null; // a consulta recusada não diz se o estorno saiu
+        }
+        var refund = new ProviderRefund(CardRefundReference(reference, idempotencyKey), amountCents);
+        if (charge.Status == "refunded")
+        {
+            return refund;
+        }
+        if (charge.Status is not ("paid" or "settled") || BrasiliaDay(requestedAt) != BrasiliaDay(clock.GetUtcNow()))
+        {
+            return null;
+        }
+        try
+        {
+            await PostCardRefundAsync(reference, amountCents, ct);
+        }
+        catch (EfiApiException)
+        {
+            return null; // em processamento, ou o parcial do dia: o primeiro pode ter chegado
+        }
+        return refund;
+    }
+
+    private async Task PostCardRefundAsync(string reference, long amount, CancellationToken ct) =>
+        await api.SendAsync<Envelope<object>>(EfiApiKind.Charges, HttpMethod.Post, $"v1/charge/card/{CardId(reference)}/refund", new { amount }, ct);
+
+    private async Task<Charge> GetChargeAsync(string reference, CancellationToken ct)
+    {
+        try
+        {
+            return (await api.SendAsync<Envelope<Charge>>(EfiApiKind.Charges, HttpMethod.Get, $"v1/charge/{CardId(reference)}", null, ct)).Data;
+        }
+        catch (EfiApiException e)
+        {
+            throw e.Rejected();
+        }
+    }
+
+    private static string CardRefundReference(string reference, string key) => $"{reference}-{RefundId(key)[..12]}";
+
+    /// <summary>O dia em Brasília (UTC-3, sem horário de verão desde 2019), o do limite de um estorno parcial por dia.</summary>
+    private static DateOnly BrasiliaDay(DateTimeOffset at) => DateOnly.FromDateTime(at.ToOffset(TimeSpan.FromHours(-3)).DateTime);
 
     /// <summary>A devolução do PIX tem o id da loja (saído da chave): repetida é 409 e vira consulta.</summary>
     private async Task<ProviderRefund> RefundPixAsync(string txid, long? amountCents, string key, CancellationToken ct)

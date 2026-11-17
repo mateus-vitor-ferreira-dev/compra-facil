@@ -163,8 +163,9 @@ export interface paths {
         /**
          * Compra sem conta
          * @description Cria uma conta própria para esta compra, sem senha e com o papel `customer`, e abre a sessão. A
-         *     mesma `checkout_key` com o mesmo e-mail devolve a mesma conta: o reenvio do formulário não duplica o
-         *     pedido. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
+         *     mesma `checkout_key` com o mesmo e-mail devolve a mesma conta nos 30 minutos depois de a compra
+         *     começar: o reenvio do formulário não duplica o pedido. Depois, dá `409`, e a compra se abre só pelo
+         *     link enviado ao e-mail. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
          */
         post: operations["createGuestSession"];
         delete?: never;
@@ -825,7 +826,10 @@ export interface operations {
         responses: {
             200: components["responses"]["Tokens"];
             400: components["responses"]["BadRequest"];
-            /** @description A mesma `checkout_key` já foi usada com outro e-mail, ou chegou ao mesmo tempo que outra. */
+            /**
+             * @description A mesma `checkout_key` já foi usada com outro e-mail, chegou ao mesmo tempo que outra, ou começou
+             *     a compra há mais de 30 minutos (o acesso a ela é pelo link do e-mail).
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
