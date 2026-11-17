@@ -41,6 +41,24 @@ export function sessionCookies(
   ];
 }
 
+/**
+ * Sessão de operador sem a prova do segundo fator no access token (aberta antes da verificação em duas etapas
+ * existir): as APIs recusam o painel com ela, então o BFF pede o login de novo. Só lê o payload para decidir a
+ * navegação; quem confere a assinatura e o claim são as APIs.
+ */
+export function adminWithoutMfa(accessToken: string): boolean {
+  try {
+    // atob, não Buffer: o middleware pode rodar fora do Node
+    const base64 = (accessToken.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as { roles?: unknown; amr?: unknown };
+    const list = (v: unknown) => (Array.isArray(v) ? v : typeof v === "string" ? [v] : []);
+    return list(payload.roles).includes("admin") && !list(payload.amr).includes("mfa");
+  } catch {
+    return false; // não é um JWT legível: o identity e as APIs decidem
+  }
+}
+
 /** Apaga os dois cookies (logout ou sessão derrubada). */
 export function clearedCookies(): Array<{ name: string; value: string; options: CookieOptions }> {
   return [ACCESS_COOKIE, REFRESH_COOKIE].map((name) => ({ name, value: "", options: options(0) }));

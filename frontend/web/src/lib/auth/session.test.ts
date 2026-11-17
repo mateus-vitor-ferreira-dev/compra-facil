@@ -1,6 +1,7 @@
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
+  adminWithoutMfa,
   clearedCookies,
   refreshSession,
   sessionCookies,
@@ -30,6 +31,23 @@ describe("cookies da sessão", () => {
       [ACCESS_COOKIE, 0],
       [REFRESH_COOKIE, 0],
     ]);
+  });
+});
+
+describe("adminWithoutMfa", () => {
+  const jwt = (payload: object) =>
+    `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.assinatura`;
+
+  it("operador sem amr (sessão de antes da verificação em duas etapas) precisa entrar de novo", () => {
+    expect(adminWithoutMfa(jwt({ roles: ["admin"] }))).toBe(true);
+    expect(adminWithoutMfa(jwt({ roles: "admin", amr: ["pwd"] }))).toBe(true);
+  });
+
+  it("operador com amr mfa, cliente, auditor e token ilegível seguem", () => {
+    expect(adminWithoutMfa(jwt({ roles: ["admin"], amr: ["mfa"], name: "José Conceição" }))).toBe(false);
+    expect(adminWithoutMfa(jwt({ roles: ["customer"] }))).toBe(false);
+    expect(adminWithoutMfa(jwt({ roles: ["auditor"] }))).toBe(false);
+    expect(adminWithoutMfa("nao-e-jwt")).toBe(false);
   });
 });
 

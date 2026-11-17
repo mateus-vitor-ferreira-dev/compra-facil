@@ -13,6 +13,12 @@ const usedResetTokens = new Set(); // os links de "esqueci minha senha" já usad
 const guests = new Map(); // email -> nome, de quem comprou sem conta
 const guestKeys = new Map(); // chave do formulário -> email
 const guestIds = new Map(); // email -> id da conta de convidado (cada compra sem conta é uma conta)
+// a verificação em duas etapas da equipe (ameaça T8): todo "admin@..." entra com a senha e o código do app.
+// "admin@novo..." ainda não tem o app: o login leva ao cadastro do autenticador
+const mfaTickets = new Map(); // tíquete -> { email, status, used }
+const usedRecoveryCodes = new Set();
+const ADMIN_TOTP = "123456"; // o código que o "app autenticador" mostra
+const RECOVERY_CODES = Array.from({ length: 10 }, (_, i) => `rcod${i}-k7m2p`);
 
 // a entrega dos pedidos da Ana (#221): o checkout dela já vem preenchido com ela
 const ANA_DELIVERY = {
@@ -1023,6 +1029,17 @@ function googleChooser(res, url) {
   );
 }
 
+/** 202 do login de operador: o tíquete do segundo passo, nunca tokens. */
+function mfaChallenge(email) {
+  seq++;
+  const ticket = `tiquete-${seq}`;
+  const status = email.startsWith("admin@novo.") ? "mfa_setup_required" : "mfa_required";
+  mfaTickets.set(ticket, { email, status, used: false });
+  return { status, mfa_ticket: ticket, expires_in: status === "mfa_required" ? 300 : 900 };
+}
+
+const needsMfa = (email) => (email ?? "").startsWith("admin@");
+
 function tokens(email) {
   seq++;
   const access = `access-${seq}`;
@@ -1047,6 +1064,20 @@ function send(res, status, body, type = "application/json") {
 
 const problem = (res, status, title) =>
   send(res, status, { type: "about:blank", title, status }, "application/problem+json");
+
+// código do segundo fator errado: 422 no campo, como o identity
+const validationProblem = (res, field) =>
+  send(
+    res,
+    422,
+    {
+      type: "about:blank",
+      title: "Dados inválidos",
+      status: 422,
+      errors: [{ field, message: "código inválido" }],
+    },
+    "application/problem+json",
+  );
 
 // ---------- fornecedor manual (#412) ----------
 // O modo manual vale só para o operador de @manual.exemplo.com: os outros testes do painel rodam em paralelo no modo
@@ -1732,9 +1763,8 @@ createServer(async (req, res) => {
       const account = accounts.get(email);
       if (account ? account.password === password : password === "senha-boa-123") {
         // "confirmar@..." tem a confirmação de e-mail exigida: senha certa, mas 403
-        return email.startsWith("confirmar@")
-          ? problem(res, 403, "E-mail não confirmado")
-          : send(res, 200, tokens(email));
+        if (email.startsWith("confirmar@")) return problem(res, 403, "E-mail não confirmado");
+        return needsMfa(email) ? send(res, 202, mfaChallenge(email)) : send(res, 200, tokens(email));
       }
       return problem(res, 401, "Não autenticado");
     }
@@ -1745,6 +1775,8 @@ createServer(async (req, res) => {
       // e-mail com conta e senha (a Ana, as criadas no cadastro): o Google só entra depois do vínculo
       const hasPassword = claims.email === "ana@exemplo.com" || accounts.has(claims.email);
       if (hasPassword && !googleLinked.has(claims.email)) return problem(res, 409, "Conta já existe");
+      // o Google é só o primeiro fator da conta da equipe
+      if (needsMfa(claims.email)) return send(res, 202, mfaChallenge(claims.email));
       return send(res, 200, tokens(claims.email));
     }
     case "POST /identity/v1/sessions/google/link": {
@@ -1753,7 +1785,44 @@ createServer(async (req, res) => {
       const expected = accounts.get(claims.email)?.password ?? "senha-boa-123";
       if (claims.nonce !== nonce || password !== expected) return problem(res, 401, "Não autenticado");
       googleLinked.add(claims.email);
+      if (needsMfa(claims.email)) return send(res, 202, mfaChallenge(claims.email));
       return send(res, 200, tokens(claims.email));
+    }
+    case "POST /identity/v1/sessions/mfa": {
+      const { ticket, code, recovery_code: recovery } = await json(req);
+      const pending = mfaTickets.get(ticket);
+      if (!pending || pending.used || pending.status !== "mfa_required")
+        return problem(res, 401, "Não autenticado");
+      const valid = recovery
+        ? RECOVERY_CODES.includes(recovery) && !usedRecoveryCodes.has(`${pending.email}/${recovery}`)
+        : code === ADMIN_TOTP;
+      if (!valid) return validationProblem(res, recovery ? "RecoveryCode" : "Code");
+      if (recovery) usedRecoveryCodes.add(`${pending.email}/${recovery}`);
+      pending.used = true;
+      return send(res, 200, tokens(pending.email));
+    }
+    case "POST /identity/v1/sessions/mfa/setup": {
+      const pending = mfaTickets.get((await json(req)).ticket);
+      if (!pending || pending.used || pending.status !== "mfa_setup_required")
+        return problem(res, 401, "Não autenticado");
+      return send(res, 200, {
+        shared_key: "jbsw y3dp ehpk 3pxp",
+        authenticator_uri: `otpauth://totp/Embrulhado:${encodeURIComponent(pending.email)}?secret=JBSWY3DPEHPK3PXP&issuer=Embrulhado`,
+      });
+    }
+    case "POST /identity/v1/sessions/mfa/setup/confirm": {
+      const { ticket, code } = await json(req);
+      const pending = mfaTickets.get(ticket);
+      if (!pending || pending.used || pending.status !== "mfa_setup_required")
+        return problem(res, 401, "Não autenticado");
+      if (code !== ADMIN_TOTP) return validationProblem(res, "Code");
+      pending.used = true;
+      return send(res, 200, { ...tokens(pending.email), recovery_codes: RECOVERY_CODES });
+    }
+    case "POST /identity/v1/me/two-factor/recovery-codes": {
+      if (!isAdmin(req)) return problem(res, 403, "Sem permissão");
+      if ((await json(req)).code !== ADMIN_TOTP) return validationProblem(res, "Code");
+      return send(res, 200, { recovery_codes: RECOVERY_CODES.map((c) => c.replace("rcod", "novo")) });
     }
     case "POST /identity/v1/sessions/refresh": {
       stats.refresh++;
@@ -1781,6 +1850,10 @@ createServer(async (req, res) => {
         // "admin@..." é da equipe: abre o painel
         roles: email.startsWith("admin@") ? ["admin"] : ["customer"],
         created_at: "2026-10-01T10:00:00Z",
+        two_factor_enabled: needsMfa(email),
+        recovery_codes_left: needsMfa(email)
+          ? 10 - [...usedRecoveryCodes].filter((c) => c.startsWith(`${email}/`)).length
+          : null,
       });
     }
     case "GET /__stats":

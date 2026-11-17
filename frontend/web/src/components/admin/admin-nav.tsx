@@ -10,6 +10,7 @@ import {
   Package,
   Percent,
   ReceiptText,
+  ShieldCheck,
   Tag,
   Truck,
   Undo2,
@@ -56,6 +57,7 @@ export const ADMIN_GROUPS: { label: string; sections: Section[] }[] = [
     sections: [
       { href: "/admin/falhas", label: "Mensagens com falha", Icon: CircleAlert },
       { href: "/admin/manutencao", label: "Manutenção", Icon: Wrench },
+      { href: "/admin/seguranca", label: "Segurança da conta", Icon: ShieldCheck },
     ],
   },
 ];

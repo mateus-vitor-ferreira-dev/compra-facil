@@ -52,6 +52,27 @@ describe("POST /api/auth/login", () => {
     expect(res.headers.getSetCookie()).toEqual([]);
   });
 
+  it("conta com 2FA (202): nenhum token; o tíquete vai num cookie httpOnly das telas de entrada", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ status: "mfa_required", mfa_ticket: "tiquete", expires_in: 300 }, { status: 202 }),
+      ),
+    );
+
+    const res = await POST(login({ email: "admin@exemplo.com", password: "senha-boa-123" }));
+
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ status: "mfa_required", next: "/entrar/verificacao" });
+    const cookies = res.headers.getSetCookie();
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0]).toMatch(/^cf_mfa=/);
+    expect(cookies[0]).toMatch(/HttpOnly/i);
+    expect(cookies[0]).toMatch(/Path=\/entrar/);
+    expect(cookies[0]).toMatch(/Max-Age=300/);
+    expect(cookies.some((c) => c.startsWith("cf_access") || c.startsWith("cf_refresh"))).toBe(false);
+  });
+
   it("corpo inválido é 400 sem chamar o identity", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

@@ -48,7 +48,7 @@ export function startLogin(back: string): { pending: PendingLogin; url: string }
 
 export const encodeCookie = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
 
-function decodeCookie<T>(raw: string | undefined, schema: z.ZodType<T>): T | undefined {
+export function decodeCookie<T>(raw: string | undefined, schema: z.ZodType<T>): T | undefined {
   if (!raw) return undefined;
   try {
     const parsed = schema.safeParse(JSON.parse(Buffer.from(raw, "base64url").toString("utf8")));

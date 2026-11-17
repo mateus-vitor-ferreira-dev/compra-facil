@@ -26,7 +26,8 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   const password = String(form.get("password") ?? "");
   if (!email || !password) return { email, error: "Preencha o e-mail e a senha." };
 
-  const result = await signIn(email, password);
+  const result = await signIn(email, password, form.get("voltar"));
+  if (result.ok === "mfa") redirect(result.path);
   if (result.ok) redirect(safeReturnTo(form.get("voltar")));
   switch (result.status) {
     case 401:
@@ -135,7 +136,8 @@ export async function register(_: RegisterState, form: FormData): Promise<Regist
     return { values, error: "A conta não foi criada: a loja não respondeu. Tente de novo em instantes." };
   }
 
-  const session = await signIn(parsed.data.email, parsed.data.password);
+  const session = await signIn(parsed.data.email, parsed.data.password, form.get("voltar"));
+  if (session.ok === "mfa") redirect(session.path);
   if (session.ok) redirect(safeReturnTo(form.get("voltar")));
   if (session.status === 403) return { confirmTo: parsed.data.email };
   // a conta existe; só o login automático falhou

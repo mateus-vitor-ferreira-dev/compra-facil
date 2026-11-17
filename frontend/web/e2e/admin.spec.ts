@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 async function signIn(page: Page, email: string, path = "/admin/produtos") {
   await page.goto(path);
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  if (email.startsWith("admin@")) await passTwoFactor(page);
   await expect(page).not.toHaveURL(/\/entrar/);
 }
 
