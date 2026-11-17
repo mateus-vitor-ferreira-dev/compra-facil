@@ -1498,7 +1498,9 @@ components:
 
     FailedSupplierOrder:
       type: object
-      description: Um pedido que não chegou ao fornecedor. O cliente já foi estornado.
+      description: |
+        Um pedido que não chegou ao fornecedor. O cliente já foi estornado; no `order_cancelled` (o pagamento aprovado
+        deixou de valer), não havia o que estornar.
       required: [order_id, reason, supplier, customer_email, attempts, created_at, failed_at]
       properties:
         order_id:
@@ -1506,7 +1508,7 @@ components:
           format: uuid
         reason:
           type: string
-          enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected, store_cancelled]
+          enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected, store_cancelled, order_cancelled]
         detail:
           type: [string, "null"]
         supplier:

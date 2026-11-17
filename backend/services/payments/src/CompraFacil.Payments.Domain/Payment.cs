@@ -30,6 +30,12 @@ public enum PaymentStatus
 
     /// <summary>Todo o valor voltou ao cliente.</summary>
     Refunded,
+
+    /// <summary>
+    /// O cliente contestou o cartão na operadora (chargeback; na Efí, contested): o dinheiro está em disputa, e quem
+    /// responde é a equipe, no painel do provedor. Não se estorna pelo painel da loja (a contestação já devolve).
+    /// </summary>
+    Disputed,
 }
 
 /// <summary>Motivo da recusa (contrato FailureReason).</summary>
@@ -56,8 +62,9 @@ public sealed record PixCharge(string QrCode, string QrCodeBase64, string? Ticke
 /// <summary>
 /// Uma cobrança no provedor (#220, #379). PIX: nasce processing, fica pending com o QR e termina approved (pago)
 /// ou failed (expirou). Cartão: processing até o provedor decidir, authorized (aprovado pela operadora) e approved
-/// na liquidação; recusado é failed. O aprovado pode ser estornado em partes até o total. A devolução pedida
-/// antes da liquidação fica em <see cref="PendingReversal"/> e sai quando ela chega.
+/// na liquidação; recusado é failed. O aprovado pela operadora ainda pode não se confirmar (failed, voided), e o
+/// cartão autorizado ou liquidado pode ser contestado (disputed). O aprovado pode ser estornado em partes até o
+/// total. A devolução pedida antes da liquidação fica em <see cref="PendingReversal"/> e sai quando ela chega.
 /// </summary>
 public sealed class Payment
 {
@@ -191,9 +198,13 @@ public sealed class Payment
         UpdatedAt = now;
     }
 
+    /// <summary>
+    /// Recusado: a cobrança ainda aberta, ou o cartão aprovado que a operadora não confirmou antes da liquidação (na
+    /// Efí, de approved para unpaid): o dinheiro não vem.
+    /// </summary>
     public void Fail(FailureReason reason, string? providerReference, DateTimeOffset now)
     {
-        if (!IsOpen)
+        if (!IsOpen && Status != PaymentStatus.Authorized)
         {
             throw new DomainException($"pagamento {Id} já está {Status}");
         }
@@ -203,7 +214,10 @@ public sealed class Payment
         UpdatedAt = now;
     }
 
-    /// <summary>Cancela a cobrança antes do dinheiro sair (o PIX não pago, o cartão em análise): o cliente não é cobrado.</summary>
+    /// <summary>
+    /// Cancela a cobrança antes do dinheiro sair (o PIX não pago, o cartão em análise, ou o aprovado que a operadora
+    /// cancelou antes de liquidar): o cliente não é cobrado.
+    /// </summary>
     public void Void(DateTimeOffset now)
     {
         if (Status is not (PaymentStatus.Processing or PaymentStatus.Authorized or PaymentStatus.Pending))
@@ -214,6 +228,25 @@ public sealed class Payment
         Status = PaymentStatus.Voided;
         RefundedAt = now;
         UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// O cliente contestou o cartão autorizado ou liquidado (chargeback). False se já estava contestado (a
+    /// notificação repetida).
+    /// </summary>
+    public bool Dispute(DateTimeOffset now)
+    {
+        if (Status == PaymentStatus.Disputed)
+        {
+            return false;
+        }
+        if (Status is not (PaymentStatus.Authorized or PaymentStatus.Approved))
+        {
+            throw new DomainException($"pagamento {Id} está {Status}: só o cartão aprovado se contesta");
+        }
+        Status = PaymentStatus.Disputed;
+        UpdatedAt = now;
+        return true;
     }
 
     /// <summary>

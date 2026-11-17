@@ -160,11 +160,13 @@ export interface components {
         /**
          * @description `processing`: enviado ao provedor (ou o cartão em análise) · `pending`: PIX esperando o pagamento ·
          *     `authorized`: cartão com o valor garantido, a captura vem quando o fornecedor aceita · `approved`:
-         *     pago ou capturado (pode ter estorno parcial, `refunded_cents`) · `failed` · `voided`: autorização
-         *     cancelada, nada cobrado · `refunded`: tudo devolvido.
+         *     pago ou capturado (pode ter estorno parcial, `refunded_cents`) · `failed`: recusado (também o cartão
+         *     aprovado que a operadora não confirmou) · `voided`: autorização cancelada, nada cobrado · `refunded`: tudo
+         *     devolvido · `disputed`: o cliente contestou o cartão na operadora (chargeback); a equipe responde no
+         *     painel do provedor, e o painel da loja não estorna.
          * @enum {string}
          */
-        PaymentStatus: "processing" | "pending" | "authorized" | "approved" | "failed" | "voided" | "refunded";
+        PaymentStatus: "processing" | "pending" | "authorized" | "approved" | "failed" | "voided" | "refunded" | "disputed";
         /** @enum {string} */
         PaymentMethod: "pix" | "card";
         /**

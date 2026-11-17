@@ -17,6 +17,11 @@ info:
     O orders consome estes eventos (a SAGA do pedido com o fornecedor): o status do pedido, e na falha
     o cancelamento que faz o payments estornar o cliente.
 
+    Consome `OrderCancelled`: o pedido confirmado que o orders cancelou sem passar por aqui (o pagamento já
+    aprovado deixou de valer: o cartão que a operadora não confirmou, ou a contestação). Ainda na fila (do
+    despachante ou "Pedidos a fazer"), ele sai dela com `SupplierOrderFailed` (`order_cancelled`), e a nota
+    autorizada é cancelada; já com o fornecedor, fica para a equipe cancelar lá pelo painel.
+
     **Nota fiscal (#221).** A loja é a vendedora e emite a NF-e antes do despacho (venda à ordem). O
     despachante emite a nota do pedido antes de chamá-lo ao fornecedor: autorizada, publica
     `InvoiceIssued` e o pedido vai com a chave e o XML; rejeitada pela SEFAZ, publica `InvoiceRejected`
@@ -170,6 +175,18 @@ operations:
     summary: Põe o pedido pago na fila do fornecedor.
     messages:
       - $ref: "#/channels/orderEvents/messages/OrderConfirmed"
+    bindings:
+      $ref: "#/components/operationBindings/FulfillmentGroup"
+
+  onOrderCancelled:
+    action: receive
+    channel:
+      $ref: "#/channels/orderEvents"
+    summary: |
+      Tira da fila do fornecedor o pedido confirmado que o orders cancelou (o pagamento deixou de valer) e cancela a
+      nota; o que já está com o fornecedor fica para a equipe.
+    messages:
+      - $ref: "#/channels/orderEvents/messages/OrderCancelled"
     bindings:
       $ref: "#/components/operationBindings/FulfillmentGroup"
 
@@ -338,14 +355,15 @@ components:
                     description: Id do pedido no fornecedor.
                   reason:
                     type: string
-                    enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected, store_cancelled]
+                    enum: [out_of_stock, rejected, supplier_cancelled, supplier_unavailable, invoice_rejected, store_cancelled, order_cancelled]
                     description: |
                       `out_of_stock`: sem estoque no fornecedor · `rejected`: recusado na criação ·
                       `supplier_cancelled`: aceito e depois cancelado pelo fornecedor · `supplier_unavailable`:
                       fornecedor (ou o emissor da nota) fora do ar depois de todas as tentativas ·
                       `invoice_rejected`: a SEFAZ rejeitou a nota da loja, e o pedido nem foi ao fornecedor ·
                       `store_cancelled`: a equipe cancelou o pedido pelo painel (#225); o orders o mostra
-                      ao cliente com motivo próprio (#283).
+                      ao cliente com motivo próprio (#283) · `order_cancelled`: o orders já cancelou o pedido (o
+                      pagamento aprovado deixou de valer) antes de ele ir ao fornecedor; nada a estornar.
                   detail:
                     type: [string, "null"]
                     maxLength: 500

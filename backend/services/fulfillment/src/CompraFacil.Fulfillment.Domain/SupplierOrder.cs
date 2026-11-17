@@ -37,6 +37,12 @@ public static class SupplierFailureReasons
 
     /// <summary>A equipe cancelou pelo painel antes do despacho (#225): o cliente é estornado.</summary>
     public const string StoreCancelled = "store_cancelled";
+
+    /// <summary>
+    /// O pedido foi cancelado antes de ir ao fornecedor: o pagamento já aprovado deixou de valer (o cartão que a
+    /// operadora não confirmou, ou a contestação). Nada foi estornado: o dinheiro não veio.
+    /// </summary>
+    public const string OrderCancelled = "order_cancelled";
 }
 
 /// <summary>Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome e a quantidade.</summary>

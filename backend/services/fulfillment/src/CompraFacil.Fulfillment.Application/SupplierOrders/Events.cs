@@ -16,6 +16,7 @@ public static class FulfillmentEvents
 
     public const string OrdersTopic = "orders.order.v1";
     public const string OrderConfirmed = nameof(OrderConfirmed);
+    public const string OrderCancelled = nameof(OrderCancelled);
 }
 
 public sealed record Money(long AmountCents, string Currency);
@@ -40,6 +41,9 @@ public sealed record OrderConfirmedData(
         : null;
 }
 
+/// <summary>data do OrderCancelled (só os campos usados): o motivo do orders (payment_failed, supplier_failed...).</summary>
+public sealed record OrderCancelledData(Guid OrderId, string Reason);
+
 public sealed record SupplierOrderPlacedData(Guid OrderId, string Supplier, string SupplierOrderId, DateTimeOffset PlacedAt);
 
 public sealed record SupplierOrderShippedData(
@@ -49,7 +53,7 @@ public sealed record SupplierOrderDeliveredData(Guid OrderId, string Supplier, s
 
 /// <summary>
 /// O pedido não chegou ao fornecedor; reason: out_of_stock | rejected | supplier_cancelled | supplier_unavailable |
-/// invoice_rejected | store_cancelled.
+/// invoice_rejected | store_cancelled | order_cancelled.
 /// </summary>
 public sealed record SupplierOrderFailedData(Guid OrderId, string Supplier, string? SupplierOrderId, string Reason, string? Detail, DateTimeOffset FailedAt);
 

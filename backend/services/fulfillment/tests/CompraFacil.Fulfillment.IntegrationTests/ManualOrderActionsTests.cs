@@ -66,6 +66,36 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
     }
 
     [Fact]
+    public async Task Pagamento_revertido_tira_o_pedido_da_fila_da_equipe()
+    {
+        // na fila "Pedidos a fazer": o orders cancelou (o cartão aprovado não se confirmou), e o pedido sai da fila
+        var id = await PaidOrderAsync();
+        Assert.Equal(SupplierOrderStatus.AwaitingStaff, (await OrderAsync(id)).Status);
+
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var handler = ActivatorUtilities.CreateInstance<OnOrderCancelled>(scope.ServiceProvider);
+            await handler.HandleAsync(new OrderCancelledData(id, "payment_failed"),
+                new EventContext(Guid.NewGuid(), FulfillmentEvents.OrderCancelled, FulfillmentEvents.OrdersTopic, "req", DateTimeOffset.UtcNow), Ct);
+            await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
+        }
+
+        Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.OrderCancelled), ((await OrderAsync(id)).Status, (await OrderAsync(id)).FailureReason));
+        Assert.Equal([FulfillmentEvents.SupplierOrderFailed], await EventsAsync(id));
+        using var admin = fx.Factory.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", fx.Identity.AdminToken());
+        var queue = await admin.GetStringAsync("/v1/admin/supplier-orders/to-place", Ct);
+        Assert.DoesNotContain(id.ToString(), queue, StringComparison.Ordinal);
+        var failed = await admin.GetStringAsync("/v1/admin/supplier-orders/failed?limit=200", Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml", "/paths/~1v1~1admin~1supplier-orders~1failed/get/responses/200/content/application~1json/schema", failed);
+        Assert.Contains(id.ToString(), failed, StringComparison.Ordinal);
+
+        // a equipe não faz mais o pedido no fornecedor
+        using var placed = await PostAsync($"/v1/admin/supplier-orders/{id}/placed", new { supplier_order_id = "F-9" }, fx.Identity.AdminToken());
+        Assert.NotEqual(HttpStatusCode.OK, placed.StatusCode);
+    }
+
+    [Fact]
     public async Task Da_fila_ao_entregue_pelo_painel_com_os_eventos_de_sempre()
     {
         var id = await PaidOrderAsync();
