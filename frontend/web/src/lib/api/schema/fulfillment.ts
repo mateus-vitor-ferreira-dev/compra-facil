@@ -732,8 +732,11 @@ export interface components {
             supplier: string;
             /** @description O pedido no fornecedor, depois de aceito. */
             supplier_order_id?: string | null;
-            /** Format: email */
-            customer_email: string;
+            /**
+             * Format: email
+             * @description Nulo para o auditor, que vê a operação sem o contato do cliente.
+             */
+            customer_email: string | null;
             /** @description Tentativas de envio ao fornecedor que falharam (fornecedor fora, timeout). */
             attempts: number;
             /** @description O erro da última tentativa. */
@@ -810,8 +813,11 @@ export interface components {
              * @description Pode ser negativa. Nula se faltar um dos valores, ou se o cliente foi estornado.
              */
             margin_cents?: number | null;
-            /** Format: email */
-            customer_email: string;
+            /**
+             * Format: email
+             * @description Nulo para o auditor, que vê a operação sem o contato do cliente.
+             */
+            customer_email: string | null;
             /** Format: date-time */
             created_at: string;
         };
@@ -849,8 +855,11 @@ export interface components {
             detail?: string | null;
             supplier: string;
             supplier_order_id?: string | null;
-            /** Format: email */
-            customer_email: string;
+            /**
+             * Format: email
+             * @description Nulo para o auditor, que vê a operação sem o contato do cliente.
+             */
+            customer_email: string | null;
             attempts: number;
             /** Format: date-time */
             created_at: string;
@@ -877,8 +886,11 @@ export interface components {
             return_code?: string | null;
             /** @description Para onde o cliente manda o produto (do fornecedor, ou da loja no `send`). */
             return_address?: string | null;
-            /** Format: email */
-            customer_email: string;
+            /**
+             * Format: email
+             * @description Nulo para o auditor, que vê a operação sem o contato do cliente.
+             */
+            customer_email: string | null;
             items: {
                 sku: string;
                 name: string;
