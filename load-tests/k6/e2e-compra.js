@@ -174,10 +174,17 @@ function orderReaching(orderId, customer, status) {
   });
 }
 
+// a consulta de pagamentos é do painel (leitura da operação, #440): o teste entra como o operador, uma vez por VU
+let operatorToken = null;
+function operator() {
+  if (!operatorToken) operatorToken = login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD);
+  return operatorToken;
+}
+
 // o pagamento do pedido, esperando chegar a um dos status (sem status: qualquer desfecho)
 function paymentOf(orderId, ...statuses) {
   return eventually(`pagamento do pedido ${orderId} ${statuses.join('/')}`, () => {
-    const res = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { tags: { name: 'payments' } });
+    const res = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { headers: auth(operator()), tags: { name: 'payments' } });
     const data = res.status === 200 ? res.json('data') : [];
     const p = data.length > 0 ? data[0] : null;
     if (!p || p.status === 'processing') return null;
@@ -186,7 +193,7 @@ function paymentOf(orderId, ...statuses) {
 }
 
 function reservationOf(orderId) {
-  const res = http.get(`${GATEWAY}/inventory/v1/reservations/${orderId}`, { tags: { name: 'reservation' } });
+  const res = http.get(`${GATEWAY}/inventory/v1/reservations/${orderId}`, { headers: auth(operator()), tags: { name: 'reservation' } });
   return res.status === 200 ? res.json() : null;
 }
 
@@ -288,7 +295,7 @@ export default function (products) {
       'pedido cancelled': (o) => o.status === 'cancelled',
       'motivo out_of_stock': (o) => o.cancellation_reason === 'out_of_stock',
     });
-    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`).json('data');
+    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { headers: auth(operator()) }).json('data');
     check(charges, { 'nenhuma cobrança': (d) => d.length === 0 });
   });
 
@@ -362,7 +369,7 @@ export default function (products) {
       'pedido cancelled': (o) => o.status === 'cancelled',
       'motivo out_of_stock': (o) => o.cancellation_reason === 'out_of_stock',
     });
-    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`).json('data');
+    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { headers: auth(operator()) }).json('data');
     check(charges, { 'recusado antes de cobrar': (d) => d.length === 0 });
     set(50); // devolve o estoque para a próxima rodada
   });
