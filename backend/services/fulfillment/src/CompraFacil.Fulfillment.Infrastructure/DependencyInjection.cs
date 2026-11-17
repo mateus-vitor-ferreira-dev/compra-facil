@@ -42,7 +42,11 @@ public static class DependencyInjection
         // o fornecedor (ADR 0007): pela API (o CJ, ou o simulador dele) ou manual, pela equipe no painel (#412)
         var manual = string.Equals(supplier.GetValue<string>("Mode"), "manual", StringComparison.OrdinalIgnoreCase);
         builder.Services.AddSingleton(new ManualSupplierMode(manual));
-        if (!manual && builder.Environment.IsProduction()
+        // fornecedor de verdade = a conta não é a do simulador (o mesmo critério do painel de status). O compose
+        // local e o e2e rodam como Production com o simulador e o segredo dele, e continuam subindo
+        var realSupplier = !string.Equals(
+            supplier.GetValue<string>("Email") ?? SupplierOptions.SimulatorEmail, SupplierOptions.SimulatorEmail, StringComparison.OrdinalIgnoreCase);
+        if (!manual && realSupplier && builder.Environment.IsProduction()
             && supplier.GetValue<string>("WebhookSecret") is null or "" or SupplierOptions.SimulatorWebhookSecret)
         {
             // o segredo do simulador está no repositório: com ele, qualquer um assina um webhook que cancela pedido
