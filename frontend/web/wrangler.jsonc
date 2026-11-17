@@ -16,10 +16,13 @@
     { "pattern": "www.embrulhado.com.br", "custom_domain": true },
   ],
   // Valores do servidor que não são segredo. Os segredos vão com `wrangler secret put`: BFF_GATEWAY_KEY (o mesmo do
-  // gateway no Coolify), GOOGLE_CLIENT_SECRET e PAYMENT_PAYEE_CODE (o identificador de conta da Efí).
+  // gateway no Coolify), GOOGLE_CLIENT_SECRET (do cliente do GOOGLE_CLIENT_ID) e PAYMENT_PAYEE_CODE (o identificador de conta da Efí).
   "vars": {
     "API_URL": "https://api.embrulhado.com.br",
     "SITE_URL": "https://embrulhado.com.br",
+    // login com o Google (#180): o ID do cliente OAuth do projeto "Embrulhado" (não é segredo, vai na URL do Google).
+    // O redirect autorizado é SITE_URL + /api/auth/google/callback; a chave fica em GOOGLE_CLIENT_SECRET
+    "GOOGLE_CLIENT_ID": "649686824778-jehh5530sh8anoj2rl1hont71a14o09k.apps.googleusercontent.com",
     // o IP de quem compra, que a Cloudflare põe em toda requisição e não deixa o cliente forjar: o BFF o repassa ao
     // gateway para o rate limit ser por comprador
     "CLIENT_IP_HEADER": "cf-connecting-ip",
