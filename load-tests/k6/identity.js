@@ -12,10 +12,13 @@ function suffix() {
   return `${Date.now().toString(36)}${Math.floor(Math.random() * 1e9).toString(36)}`;
 }
 
-// login de uma conta que já existe; devolve o access token
+// login de uma conta que já existe; devolve o access token. A conta com 2FA (o operador) responde 202: o
+// segundo passo usa o código da chave TOTP do ambiente local (ADMIN_TOTP_KEY), e quem chamava login() para o
+// operador continua recebendo um token que as rotas de admin aceitam
 export function login(identityUrl, email, password) {
   const res = http.post(`${identityUrl}/v1/sessions`, JSON.stringify({ email, password }),
-    { headers: json, tags: { name: 'login' }, responseCallback: http.expectedStatuses(200) });
+    { headers: json, tags: { name: 'login' }, responseCallback: http.expectedStatuses(200, 202) });
+  if (res.status === 202) return secondFactor(identityUrl, email, res, __ENV.ADMIN_TOTP_KEY).access;
   if (res.status !== 200) fail(`login de ${email}: ${res.status} ${res.body}`);
   return res.json('access_token');
 }
@@ -52,8 +55,13 @@ export function totp(base32Key, at = Date.now()) {
 export function adminLogin(identityUrl, email, password, totpKey) {
   const first = http.post(`${identityUrl}/v1/sessions`, JSON.stringify({ email, password }),
     { headers: json, tags: { name: 'login' }, responseCallback: http.expectedStatuses(202) });
-  if (first.status !== 202 || first.json('status') !== 'mfa_required') {
-    fail(`login do operador ${email}: ${first.status} ${first.body} (a chave ADMIN_TOTP_KEY está no identity?)`);
+  return secondFactor(identityUrl, email, first, totpKey);
+}
+
+// o segundo passo a partir do 202 do login: { access, refresh }
+function secondFactor(identityUrl, email, first, totpKey) {
+  if (first.status !== 202 || first.json('status') !== 'mfa_required' || !totpKey) {
+    fail(`login do operador ${email}: ${first.status} ${first.body} (a chave ADMIN_TOTP_KEY está no identity e no k6?)`);
   }
   const ticket = first.json('mfa_ticket');
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -61,7 +69,7 @@ export function adminLogin(identityUrl, email, password, totpKey) {
       { headers: json, tags: { name: 'login-mfa' }, responseCallback: http.expectedStatuses(200, 422) });
     if (res.status === 200) return { access: res.json('access_token'), refresh: res.json('refresh_token') };
     if (res.status !== 422) break;
-    sleep(31 - ((Date.now() / 1000) % 30)); // o código deste passo já foi usado: o próximo
+    sleep(31 - ((Date.now() / 1000) % 30)); // o código deste passo já foi usado (outro login): o próximo
   }
   fail(`segundo fator do operador ${email} recusado`);
 }
