@@ -47,6 +47,7 @@ public sealed class AccountsController(
 
     /// <summary>requestPasswordReset: manda o link de "esqueci minha senha". Sempre 202: a resposta não diz se a conta existe.</summary>
     [HttpPost("v1/accounts/password-reset")]
+    [AllowAnonymous]
     public async Task<IActionResult> RequestPasswordReset(RequestPasswordResetRequest body, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(body);
@@ -56,6 +57,7 @@ public sealed class AccountsController(
 
     /// <summary>resetPassword: a senha nova pelo link do e-mail (o front repassa a conta e o token).</summary>
     [HttpPost("v1/accounts/password-reset/confirm")]
+    [AllowAnonymous]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest body, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(body);
