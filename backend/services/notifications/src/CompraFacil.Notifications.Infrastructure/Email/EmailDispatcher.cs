@@ -19,6 +19,9 @@ public sealed class SmtpOptions
     public int Port { get; set; } = 1025;
     public string FromAddress { get; set; } = "nao-responda@comprafacil.dev";
     public string FromName { get; set; } = "Embrulhado";
+
+    /// <summary>Para onde vai a resposta do cliente. O remetente é "nao-responda" num domínio sem caixa de entrada.</summary>
+    public string? ReplyTo { get; set; }
     public bool UseTls { get; set; }
     public string? User { get; set; }
     public string? Password { get; set; }
@@ -44,13 +47,18 @@ internal sealed class MailKitEmailSender(IOptions<SmtpOptions> options) : IEmail
         var o = options.Value;
         var message = new MimeMessage
         {
-            // Message-ID estável por evento: um servidor que deduplica reconhece a repetição
-            MessageId = $"{notification.Id}@comprafacil.dev",
+            // Message-ID estável por evento: um servidor que deduplica reconhece a repetição.
+            // O domínio é o do remetente, como pede a RFC 5322.
+            MessageId = $"{notification.Id}@{o.FromAddress[(o.FromAddress.LastIndexOf('@') + 1)..]}",
             Subject = notification.Subject,
             Body = new BodyBuilder { HtmlBody = notification.HtmlBody, TextBody = notification.TextBody }.ToMessageBody(),
         };
         message.From.Add(new MailboxAddress(o.FromName, o.FromAddress));
         message.To.Add(MailboxAddress.Parse(notification.To));
+        if (!string.IsNullOrWhiteSpace(o.ReplyTo))
+        {
+            message.ReplyTo.Add(MailboxAddress.Parse(o.ReplyTo));
+        }
 
         using var smtp = new SmtpClient { Timeout = (int)o.Timeout.TotalMilliseconds };
         await smtp.ConnectAsync(o.Host, o.Port, o.UseTls ? SecureSocketOptions.StartTls : SecureSocketOptions.None, ct);
