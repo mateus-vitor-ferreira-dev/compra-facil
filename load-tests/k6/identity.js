@@ -2,7 +2,8 @@
 // (o orders tira o cliente e o e-mail do token). Usado no setup(): o token vale 15 min, mais que
 // qualquer rodada destes scripts.
 import http from 'k6/http';
-import { fail } from 'k6';
+import crypto from 'k6/crypto';
+import { fail, sleep } from 'k6';
 
 const json = { 'Content-Type': 'application/json' };
 // cada chamada declara o próprio sucesso: os scripts trocam o padrão (o de caos aceita só 202/409)
@@ -17,6 +18,60 @@ export function login(identityUrl, email, password) {
     { headers: json, tags: { name: 'login' }, responseCallback: http.expectedStatuses(200) });
   if (res.status !== 200) fail(`login de ${email}: ${res.status} ${res.body}`);
   return res.json('access_token');
+}
+
+// o código TOTP (RFC 6238: HMAC-SHA1, 6 dígitos, 30 s) da chave Base32, como o app autenticador mostraria
+export function totp(base32Key, at = Date.now()) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const bytes = [];
+  let buffer = 0;
+  let bits = 0;
+  for (const c of base32Key.replace(/[\s=]/g, '').toUpperCase()) {
+    buffer = (buffer << 5) | alphabet.indexOf(c);
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((buffer >> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  const counter = new Uint8Array(8);
+  let step = Math.floor(at / 1000 / 30);
+  for (let i = 7; i >= 0; i--) {
+    counter[i] = step & 0xff;
+    step = Math.floor(step / 256);
+  }
+  const hex = crypto.hmac('sha1', new Uint8Array(bytes).buffer, counter.buffer, 'hex');
+  const offset = parseInt(hex.slice(-1), 16);
+  const binary = parseInt(hex.slice(offset * 2, offset * 2 + 8), 16) & 0x7fffffff;
+  return String(binary % 1000000).padStart(6, '0');
+}
+
+// login do operador, com o segundo fator (a 2FA é obrigatória para o admin): a senha dá o tíquete, o código
+// da chave TOTP do ambiente local (ADMIN_TOTP_KEY) abre a sessão. Devolve { access, refresh }. O mesmo código
+// não vale duas vezes: se outro login já o usou, espera o próximo
+export function adminLogin(identityUrl, email, password, totpKey) {
+  const first = http.post(`${identityUrl}/v1/sessions`, JSON.stringify({ email, password }),
+    { headers: json, tags: { name: 'login' }, responseCallback: http.expectedStatuses(202) });
+  if (first.status !== 202 || first.json('status') !== 'mfa_required') {
+    fail(`login do operador ${email}: ${first.status} ${first.body} (a chave ADMIN_TOTP_KEY está no identity?)`);
+  }
+  const ticket = first.json('mfa_ticket');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = http.post(`${identityUrl}/v1/sessions/mfa`, JSON.stringify({ ticket, code: totp(totpKey) }),
+      { headers: json, tags: { name: 'login-mfa' }, responseCallback: http.expectedStatuses(200, 422) });
+    if (res.status === 200) return { access: res.json('access_token'), refresh: res.json('refresh_token') };
+    if (res.status !== 422) break;
+    sleep(31 - ((Date.now() / 1000) % 30)); // o código deste passo já foi usado: o próximo
+  }
+  fail(`segundo fator do operador ${email} recusado`);
+}
+
+// troca o refresh token do operador por um par novo (o amr do segundo fator continua): { access, refresh }
+export function refreshSession(identityUrl, refresh) {
+  const res = http.post(`${identityUrl}/v1/sessions/refresh`, JSON.stringify({ refresh_token: refresh }),
+    { headers: json, tags: { name: 'refresh' }, responseCallback: http.expectedStatuses(200) });
+  if (res.status !== 200) fail(`refresh: ${res.status} ${res.body}`);
+  return { access: res.json('access_token'), refresh: res.json('refresh_token') };
 }
 
 // cadastra um cliente novo e faz login: { email, token }

@@ -251,6 +251,7 @@ services:
       BASE_URL: http://catalog:8001
       GATEWAY_URL: http://gateway
       BFF_GATEWAY_KEY: ${BFF_GATEWAY_KEY:-}
+      ADMIN_TOTP_KEY: ${ADMIN_TOTP_KEY:-JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP}
       # com -o experimental-prometheus-rw, as métricas do k6 vão para o Prometheus (dashboard Campanha)
       K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
       K6_PROMETHEUS_RW_TREND_STATS: p(95),p(99),avg
@@ -329,6 +330,9 @@ services:
       # operador inicial, só no ambiente local: entra no painel e nas rotas /v1/admin/*
       Identity__Admin__Email: ${ADMIN_EMAIL:-admin@comprafacil.local}
       Identity__Admin__Password: ${ADMIN_PASSWORD:-admin-compra-facil}
+      # a chave TOTP fixa do operador local (a 2FA é obrigatória para o admin): os scripts (k6, task token)
+      # calculam o código sem celular. Nunca em produção: lá o operador cadastra o próprio app
+      Identity__Admin__TotpKey: ${ADMIN_TOTP_KEY:-JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP}
       Identity__Auditor__Email: ${AUDITOR_EMAIL:-leitura@comprafacil.local}
       Identity__Auditor__Password: ${AUDITOR_PASSWORD:-leitura-compra-facil}
       # login com o Google (#180): o client id do Google Cloud; vazio desliga

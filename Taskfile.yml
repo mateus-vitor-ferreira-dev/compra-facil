@@ -176,15 +176,17 @@ tasks:
       - go run ./cmd/seed {{.CLI_ARGS}}
 
   token:
-    desc: "Access token do operador local, pelo login no identity (ex.: curl -H \"Authorization: Bearer $(task token)\" ...)"
+    desc: "Access token do operador local, pelo login no identity com o segundo fator (ex.: curl -H \"Authorization: Bearer $(task token)\" ...)"
     silent: true
     vars:
       ADMIN_EMAIL: '{{.ADMIN_EMAIL | default "admin@comprafacil.local"}}'
       ADMIN_PASSWORD: '{{.ADMIN_PASSWORD | default "admin-compra-facil"}}'
+      # a chave TOTP fixa do operador do compose (Identity__Admin__TotpKey): o código sai dela, sem celular
+      ADMIN_TOTP_KEY: '{{.ADMIN_TOTP_KEY | default "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"}}'
     cmds:
       - >-
-        curl -sSf -X POST http://localhost:${GATEWAY_PORT:-80}/identity/v1/sessions -H 'Content-Type: application/json'
-        -d '{"email":"{{.ADMIN_EMAIL}}","password":"{{.ADMIN_PASSWORD}}"}' | sed -E 's/.*"access_token":"([^"]+)".*/\1/'
+        python3 scripts/admin-token.py "http://localhost:${GATEWAY_PORT:-80}/identity"
+        '{{.ADMIN_EMAIL}}' '{{.ADMIN_PASSWORD}}' '{{.ADMIN_TOTP_KEY}}'
 
   # ---------- front (frontend/web) ----------
   web:dev:
