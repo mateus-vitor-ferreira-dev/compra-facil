@@ -22,7 +22,8 @@ public sealed class LoginValidator : AbstractValidator<LoginCommand>
 /// Login, refresh e logout. O login dá um access token curto (JWT) e um refresh token longo; cada
 /// refresh troca o refresh token por outro (rotação) e um token já trocado, apresentado de novo,
 /// derruba a sessão inteira. Dentro do intervalo de reuso (segundos depois da troca), o mesmo token
-/// ainda dá um par novo da sessão: são requisições paralelas do mesmo navegador, não uma cópia. Erro de
+/// ainda dá um par novo da sessão: são requisições paralelas do mesmo navegador, não uma cópia. Uma
+/// sessão aberta antes da última troca de senha (outro carimbo de segurança) não troca mais. Erro de
 /// credencial é sempre o mesmo 401, exista a conta ou não.
 /// </summary>
 public sealed class Sessions(
@@ -86,7 +87,7 @@ public sealed class Sessions(
     {
         ArgumentNullException.ThrowIfNull(user);
         var refreshToken = RefreshTokenValue.New();
-        refreshTokens.Add(RefreshToken.Issue(user.Id, RefreshTokenValue.Hash(refreshToken), clock.GetUtcNow(), options.Value.RefreshTokenLifetime));
+        refreshTokens.Add(RefreshToken.Issue(user.Id, user.SecurityStamp, RefreshTokenValue.Hash(refreshToken), clock.GetUtcNow(), options.Value.RefreshTokenLifetime));
         await refreshTokens.SaveChangesAsync(ct);
         return await SessionAsync(user, refreshToken, ct);
     }
@@ -117,6 +118,11 @@ public sealed class Sessions(
                 if (current.RotatedWithin(now, reuseInterval) && await refreshTokens.FamilyIsActiveAsync(current.FamilyId, now, ct)
                     && await users.FindByIdAsync(current.UserId.ToString()) is { } owner)
                 {
+                    if (!current.MatchesStamp(owner.SecurityStamp))
+                    {
+                        await refreshTokens.RevokeFamilyAsync(current.FamilyId, now, RevocationReason.StampChanged, ct);
+                        return null;
+                    }
                     var siblingToken = RefreshTokenValue.New();
                     refreshTokens.Add(current.Sibling(RefreshTokenValue.Hash(siblingToken), now, options.Value.RefreshTokenLifetime, reuseInterval));
                     await refreshTokens.SaveChangesAsync(ct);
@@ -131,6 +137,14 @@ public sealed class Sessions(
             var user = current.IsActive(now) ? await users.FindByIdAsync(current.UserId.ToString()) : null;
             if (user is null)
             {
+                return null;
+            }
+            // a senha mudou depois do login. A troca de senha revoga as sessões sem o lock das famílias:
+            // um refresh no meio dela cria um token que o UPDATE da troca não vê (READ COMMITTED). O
+            // carimbo pega esse token aqui, no próximo refresh, e a família toda cai
+            if (!current.MatchesStamp(user.SecurityStamp))
+            {
+                await refreshTokens.RevokeFamilyAsync(current.FamilyId, now, RevocationReason.StampChanged, ct);
                 return null;
             }
 

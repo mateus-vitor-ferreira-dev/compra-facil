@@ -10,7 +10,7 @@ public sealed class RefreshTokenTests
     [Fact]
     public void Rotate_RevokesThisOne_AndTheNextIsSameFamily()
     {
-        var first = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        var first = RefreshToken.Issue(Guid.NewGuid(), "carimbo", [1], s_now, s_lifetime);
 
         var next = first.Rotate([2], s_now.AddDays(1), s_lifetime);
 
@@ -27,7 +27,7 @@ public sealed class RefreshTokenTests
     public void RotatedWithin_OnlyRightAfterTheRotation()
     {
         var interval = TimeSpan.FromSeconds(10);
-        var first = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        var first = RefreshToken.Issue(Guid.NewGuid(), "carimbo", [1], s_now, s_lifetime);
         Assert.False(first.RotatedWithin(s_now, interval)); // ainda não foi trocado
 
         first.Rotate([2], s_now, s_lifetime);
@@ -40,7 +40,7 @@ public sealed class RefreshTokenTests
     [Fact]
     public void RotatedWithin_IsFalseForLogoutOrReuse()
     {
-        var token = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        var token = RefreshToken.Issue(Guid.NewGuid(), "carimbo", [1], s_now, s_lifetime);
         token.Revoke(s_now, RevocationReason.Logout);
 
         Assert.False(token.RotatedWithin(s_now, TimeSpan.FromSeconds(10)));
@@ -50,7 +50,7 @@ public sealed class RefreshTokenTests
     public void Sibling_IsSameFamily_AndOnlyInsideTheInterval()
     {
         var interval = TimeSpan.FromSeconds(10);
-        var first = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        var first = RefreshToken.Issue(Guid.NewGuid(), "carimbo", [1], s_now, s_lifetime);
         first.Rotate([2], s_now, s_lifetime);
 
         var sibling = first.Sibling([3], s_now.AddSeconds(2), s_lifetime, interval);
@@ -62,9 +62,32 @@ public sealed class RefreshTokenTests
     }
 
     [Fact]
+    public void TheStampOfTheLogin_GoesToTheWholeFamily()
+    {
+        var interval = TimeSpan.FromSeconds(10);
+        var first = RefreshToken.Issue(Guid.NewGuid(), "carimbo", [1], s_now, s_lifetime);
+
+        var next = first.Rotate([2], s_now, s_lifetime);
+        var sibling = first.Sibling([3], s_now.AddSeconds(1), s_lifetime, interval);
+
+        Assert.All(new[] { first, next, sibling }, t => Assert.True(t.MatchesStamp("carimbo")));
+        Assert.False(next.MatchesStamp("outro-carimbo")); // a senha mudou depois do login
+    }
+
+    [Fact]
+    public void MatchesStamp_AnAccountWithoutStamp_IsTheEmptyStamp()
+    {
+        var token = RefreshToken.Issue(Guid.NewGuid(), null, [1], s_now, s_lifetime);
+
+        Assert.True(token.MatchesStamp(null));
+        Assert.True(token.MatchesStamp(""));
+        Assert.False(token.MatchesStamp("carimbo"));
+    }
+
+    [Fact]
     public void Expired_IsInactive_AndCannotRotate()
     {
-        var token = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        var token = RefreshToken.Issue(Guid.NewGuid(), "carimbo", [1], s_now, s_lifetime);
 
         Assert.False(token.IsActive(s_now + s_lifetime));
         Assert.Throws<InvalidOperationException>(() => token.Rotate([2], s_now + s_lifetime, s_lifetime));
@@ -73,7 +96,7 @@ public sealed class RefreshTokenTests
     [Fact]
     public void Revoke_KeepsTheFirstReason()
     {
-        var token = RefreshToken.Issue(Guid.NewGuid(), [1], s_now, s_lifetime);
+        var token = RefreshToken.Issue(Guid.NewGuid(), "carimbo", [1], s_now, s_lifetime);
 
         token.Revoke(s_now, RevocationReason.Logout);
         token.Revoke(s_now.AddMinutes(1), RevocationReason.Reuse);
