@@ -20,6 +20,7 @@ public static partial class EmailComposer
     private static readonly IFluidTemplate s_cancelled = Load("order-cancelled");
     private static readonly IFluidTemplate s_confirmEmail = Load("confirm-email");
     private static readonly IFluidTemplate s_guestAccess = Load("guest-access");
+    private static readonly IFluidTemplate s_resetPassword = Load("reset-password");
     private static readonly IFluidTemplate s_invoiceIssued = Load("invoice-issued");
     private static readonly IFluidTemplate s_returned = Load("order-returned");
     private static readonly IFluidTemplate s_refunded = Load("order-refunded");
@@ -201,6 +202,24 @@ public static partial class EmailComposer
             valid_for = ValidFor(request.ExpiresAt - now),
         }), s_html);
         return new ComposedEmail("Confirme o seu e-mail", html, ToText(html) + "\n" + request.ConfirmationUrl.AbsoluteUri);
+    }
+
+    /// <summary>O link de "esqueci minha senha": cria uma senha nova para a conta.</summary>
+    public static async Task<ComposedEmail> ResetPasswordAsync(PasswordResetRequestedData request, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        // só links http(s): o template não pode virar um javascript: vindo de um evento adulterado
+        if (request.ResetUrl.Scheme is not ("http" or "https"))
+        {
+            throw new PoisonMessageException($"reset_url com esquema {request.ResetUrl.Scheme}");
+        }
+        var html = await s_resetPassword.RenderAsync(Context(new
+        {
+            name = FirstName(request.Name),
+            url = request.ResetUrl.AbsoluteUri,
+            valid_for = ValidFor(request.ExpiresAt - now),
+        }), s_html);
+        return new ComposedEmail("Redefinir sua senha", html, ToText(html) + "\n" + request.ResetUrl.AbsoluteUri);
     }
 
     /// <summary>"24 horas", "2 dias": a validade que o identity deu ao link.</summary>
