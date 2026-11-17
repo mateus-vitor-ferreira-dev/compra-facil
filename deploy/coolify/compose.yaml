@@ -121,6 +121,9 @@ services:
       AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
       OTLP_ENDPOINT: http://otel-collector:4318
+      # a chave pública do age (não é segredo): os dumps sobem cifrados para ela. A privada fica com o dono
+      # (Bitwarden), não no servidor; o restore.sh a recebe pela entrada padrão
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-age1cwkfy2fw6dd9m4rq3eh46y3y77962655m4kvfvk5rkj5a2fgtafqluq0g7}
     depends_on:
       postgres:
         condition: service_healthy

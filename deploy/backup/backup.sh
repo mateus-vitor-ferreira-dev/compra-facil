@@ -1,6 +1,6 @@
 #!/bin/sh
-# Um pg_dump (formato custom) de cada banco por dia no bucket, em postgres/<AAAA-MM-DD>/<banco>.dump,
-# mais os papéis (pg_dumpall --globals-only). Apaga os dias além da retenção. Depois de cada rodada,
+# Um pg_dump (formato custom) de cada banco por dia no bucket, em postgres/<AAAA-MM-DD>/<banco>.dump.age,
+# mais os papéis (pg_dumpall --globals-only), tudo cifrado com o age. Apaga os dias além da retenção. Depois de cada rodada,
 # manda ao Collector a métrica compra_facil.backup.last_success (o horário do último backup inteiro):
 # o alerta dispara quando ela envelhece.
 #   BACKUP_DATABASES  bancos, separados por vírgula
@@ -10,6 +10,9 @@
 #   S3_BUCKET, S3_ENDPOINT, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 #   PGHOST, PGUSER, PGPASSWORD                                  (o superusuário)
 #   OTLP_ENDPOINT     o Collector, http://otel-collector:4318   (vazio: não manda a métrica)
+#   BACKUP_AGE_RECIPIENT  a chave pública do age (age1...). Cada arquivo sobe cifrado para ela; a chave
+#                     privada não fica no servidor, fica com o dono. Quem lê o bucket, ou invade o servidor, não lê
+#                     os dumps, que têm os dados dos clientes e as chaves de assinatura do identity
 set -eu
 
 : "${BACKUP_DATABASES:?}" "${S3_BUCKET:?}" "${PGHOST:?}" "${PGPASSWORD:?}"
@@ -19,6 +22,14 @@ if [ -z "${S3_ENDPOINT:-}" ]; then
   log warn "S3_ENDPOINT vazio: nenhum backup é feito até o bucket ser configurado"
   while :; do sleep 3600; done
 fi
+# sem a chave pública, nada sobe em claro: fica parado, como sem o bucket (e o alerta de backup atrasado dispara)
+case "${BACKUP_AGE_RECIPIENT:-}" in
+  age1*) ;;
+  *)
+    log error "BACKUP_AGE_RECIPIENT vazio ou inválido: nenhum backup é feito sem a chave pública do age"
+    while :; do sleep 3600; done
+    ;;
+esac
 BACKUP_TIME=${BACKUP_TIME:-06:00}
 RETENTION=${BACKUP_RETENTION_DAYS:-14}
 # o R2 e outros S3 compatíveis recusam os checksums novos do aws-cli; só quando exigido
@@ -43,11 +54,19 @@ metric() { # metric <0|1>: o resultado da rodada
 run() {
   day=$(date -u +%F)
   dir=$(mktemp -d) || return 1
-  pg_dumpall --globals-only --no-role-passwords > "$dir/globals.sql" || { rm -rf "$dir"; return 1; }
+  plain="$dir/claro"
+  out="$dir/cifrado"
+  mkdir "$plain" "$out" || { rm -rf "$dir"; return 1; }
+  pg_dumpall --globals-only --no-role-passwords > "$plain/globals.sql" || { rm -rf "$dir"; return 1; }
   for db in $(echo "$BACKUP_DATABASES" | tr ',' ' '); do
-    pg_dump --format=custom --dbname="$db" --file="$dir/$db.dump" || { rm -rf "$dir"; return 1; }
+    pg_dump --format=custom --dbname="$db" --file="$plain/$db.dump" || { rm -rf "$dir"; return 1; }
   done
-  s3 cp --recursive --only-show-errors "$dir" "s3://$S3_BUCKET/postgres/$day/" || { rm -rf "$dir"; return 1; }
+  # o dump em claro só existe no disco do próprio servidor do banco, e sai daqui antes do upload
+  for f in "$plain"/*; do
+    age -r "$BACKUP_AGE_RECIPIENT" -o "$out/$(basename "$f").age" "$f" || { rm -rf "$dir"; return 1; }
+    rm -f "$f"
+  done
+  s3 cp --recursive --only-show-errors "$out" "s3://$S3_BUCKET/postgres/$day/" || { rm -rf "$dir"; return 1; }
   rm -rf "$dir"
   log info "backup de $day no bucket: $BACKUP_DATABASES"
 

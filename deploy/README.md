@@ -362,12 +362,17 @@ antecedência) e um aviso opcional. A loja mostra a faixa antes e durante a jane
 ## Backup e restauração
 
 O `pg-backup` roda às 6h UTC (3h em Brasília). Cada dia fica em `postgres/<AAAA-MM-DD>/` no bucket, com
-um `.dump` por banco e os papéis em `globals.sql`. Os dias além de 14 são apagados. A cada rodada ele
+um `.dump.age` por banco e os papéis em `globals.sql.age`, **cifrados com o age** para a chave pública
+`BACKUP_AGE_RECIPIENT` (no compose). A chave privada não fica no servidor: fica com o dono, no Bitwarden
+(item "Embrulhado: chave do backup (age)"). Sem ela, ninguém restaura, nem quem lê o bucket ou invade o
+VPS. Sem a chave pública, o backup não roda (e o alerta de backup atrasado dispara). Os dias além de 14 são apagados. A cada rodada ele
 manda ao Grafana Cloud as métricas `compra_facil_backup_last_success_seconds` (o horário do último
 backup inteiro) e `compra_facil_backup_last_run_ok_ratio`, para o alerta de backup atrasado (#162).
 
 Os comandos abaixo rodam no VPS, no contêiner do backup. O nome dele aparece em `docker ps`
-(`pg-backup-<uuid>`).
+(`pg-backup-<uuid>`). A restauração recebe a chave privada pela entrada padrão (`-i` no `docker exec`), de
+um arquivo que está na sua máquina: ela passa pelo SSH e fica só num diretório temporário do contêiner,
+apagado no fim. Com a chave salva em `~/embrulhado-backup.key` (tire do Bitwarden e apague depois):
 
 **Um backup agora**, antes de uma mudança arriscada:
 
@@ -378,7 +383,7 @@ docker exec -e BACKUP_NOW=1 pg-backup-<uuid> backup.sh
 **Um dado sumiu** (o banco está de pé). Restaure ao lado, em `<banco>_restaurado`, e copie o que falta:
 
 ```bash
-docker exec -e RESTORE_SUFFIX=_restaurado pg-backup-<uuid> restore.sh 2026-10-27 orders
+ssh vps "docker exec -i -e RESTORE_SUFFIX=_restaurado pg-backup-<uuid> restore.sh 2026-10-27 orders" < ~/embrulhado-backup.key
 docker exec postgres-<uuid> psql -U postgres -d orders_restaurado   # compare e copie
 docker exec postgres-<uuid> psql -U postgres -c 'DROP DATABASE orders_restaurado'
 ```
@@ -386,13 +391,15 @@ docker exec postgres-<uuid> psql -U postgres -c 'DROP DATABASE orders_restaurado
 **O banco se perdeu.** Pare no painel os serviços que usam os bancos, restaure no lugar e suba de novo:
 
 ```bash
-docker exec pg-backup-<uuid> restore.sh 2026-10-27 catalog orders inventory payments notifications identity
+ssh vps "docker exec -i pg-backup-<uuid> restore.sh 2026-10-27 catalog orders inventory payments notifications identity fulfillment" < ~/embrulhado-backup.key
 ```
 
 O `restore.sh` apaga e recria os objetos de cada banco a partir do dump daquele dia (`--clean`, numa
 transação só). O que foi escrito depois do backup se perde: é o custo do backup diário (ADR 0006).
 
-Os dois casos foram ensaiados com este compose, com um S3 local no lugar do R2.
+Os dois casos foram ensaiados com este compose, com um S3 local no lugar do R2. A cifra foi ensaiada em
+17/11: o arquivo no bucket começa com `age-encryption.org/v1`, a restauração sem a chave recusa, e com a
+chave devolve o banco.
 
 ## Quando algo dá errado
 
