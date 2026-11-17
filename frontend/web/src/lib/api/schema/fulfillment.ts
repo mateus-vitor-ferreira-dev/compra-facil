@@ -840,12 +840,15 @@ export interface components {
              */
             margin_cents: number;
         };
-        /** @description Um pedido que não chegou ao fornecedor. O cliente já foi estornado. */
+        /**
+         * @description Um pedido que não chegou ao fornecedor. O cliente já foi estornado; no `order_cancelled` (o pagamento aprovado
+         *     deixou de valer), não havia o que estornar.
+         */
         FailedSupplierOrder: {
             /** Format: uuid */
             order_id: string;
             /** @enum {string} */
-            reason: "out_of_stock" | "rejected" | "supplier_cancelled" | "supplier_unavailable" | "invoice_rejected" | "store_cancelled";
+            reason: "out_of_stock" | "rejected" | "supplier_cancelled" | "supplier_unavailable" | "invoice_rejected" | "store_cancelled" | "order_cancelled";
             detail?: string | null;
             supplier: string;
             supplier_order_id?: string | null;

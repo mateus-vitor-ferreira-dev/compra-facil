@@ -118,6 +118,7 @@ public static class DependencyInjection
             .Produces(SupplierCatalogEvents.Topic)
             .Produces(InvoiceEvents.Topic)
             .Handle<OrderConfirmedData, OnOrderConfirmed>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderConfirmed)
+            .Handle<OrderCancelledData, OnOrderCancelled>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderCancelled)
             .Handle<PaymentRefundedData, OnPaymentRefunded>(InvoiceEvents.PaymentsTopic, InvoiceEvents.PaymentRefunded)
             .Handle<PaymentApprovedData, OnPaymentApproved>(InvoiceEvents.PaymentsTopic, "PaymentApproved")
             .Handle<OrderReturnedData, OnOrderReturned>(FulfillmentEvents.OrdersTopic, InvoiceEvents.OrderReturned));
