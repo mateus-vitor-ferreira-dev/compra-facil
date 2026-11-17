@@ -343,6 +343,28 @@ namespace CompraFacil.Payments.Infrastructure.Migrations
                                 .HasColumnName("currency");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "PendingRefund", "CompraFacil.Payments.Domain.Payment.PendingRefund#PendingRefund", b1 =>
+                        {
+                            b1.Property<long>("AmountCents")
+                                .HasColumnType("bigint")
+                                .HasColumnName("pending_refund_cents");
+
+                            b1.Property<string>("Key")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("pending_refund_key");
+
+                            b1.Property<string>("Reason")
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)")
+                                .HasColumnName("pending_refund_reason");
+
+                            b1.Property<DateTimeOffset>("RequestedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("pending_refund_requested_at");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Pix", "CompraFacil.Payments.Domain.Payment.Pix#PixCharge", b1 =>
                         {
                             b1.Property<DateTimeOffset>("ExpiresAt")

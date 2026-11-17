@@ -18,6 +18,13 @@ public static class PaymentsMetrics
     public static readonly Counter<long> Refunds = s_meter.CreateCounter<long>(
         "compra_facil.payments.refunds", unit: "{refund}", description: "Estornos e devoluções à espera da liquidação, por tipo.");
 
+    /// <summary>
+    /// Estornos pedidos ao provedor cuja resposta não chegou e que ele não confirma (F-007): a equipe confere no
+    /// painel dele.
+    /// </summary>
+    public static readonly Counter<long> RefundsUnconfirmed = s_meter.CreateCounter<long>(
+        "compra_facil.payments.refunds_unconfirmed", unit: "{refund}", description: "Estornos pedidos e sem confirmação do provedor.");
+
     /// <summary>Estornos que o provedor aceitou e não realizou (#396): a equipe precisa devolver de novo.</summary>
     public static readonly Counter<long> RefundsFailed = s_meter.CreateCounter<long>(
         "compra_facil.payments.refunds_failed", unit: "{refund}", description: "Estornos aceitos pelo provedor e não realizados.");

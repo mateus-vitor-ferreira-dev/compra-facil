@@ -50,6 +50,13 @@ public enum FailureReason
 /// </summary>
 public sealed record RefundEntry(string Key, string Reference, long AmountCents, DateTimeOffset At, DateTimeOffset? FailedAt = null);
 
+/// <summary>
+/// Um estorno pedido ao provedor e ainda sem resposta guardada: a chave, o valor, o motivo (o da devolução do
+/// pedido; nulo, o do painel) e quando foi pedido. Gravado antes de chamar o provedor, para a nova tentativa não
+/// pedir de novo o estorno do cartão, que na Efí não tem chave de idempotência.
+/// </summary>
+public sealed record PendingRefund(string Key, long AmountCents, string? Reason, DateTimeOffset RequestedAt);
+
 /// <summary>O PIX: o copia-e-cola, o QR em PNG (base64), a página de pagamento e a validade.</summary>
 public sealed record PixCharge(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
 
@@ -102,6 +109,14 @@ public sealed class Payment
     /// a Efí não cancela nem estorna nessa janela). Sai na liquidação; nulo, nada esperando.
     /// </summary>
     public string? PendingReversal { get; private set; }
+
+    /// <summary>
+    /// O estorno pedido ao provedor e ainda não aplicado (um de cada vez). Nulo, nenhum. Fica se a resposta do
+    /// provedor não chegou (caiu no meio, ou ele não respondeu): a nova tentativa confere no provedor em vez de
+    /// pedir de novo.
+    /// </summary>
+    public PendingRefund? PendingRefund { get; private set; }
+
     public DateTimeOffset? CapturedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -275,6 +290,37 @@ public sealed class Payment
     }
 
     /// <summary>
+    /// Grava o estorno que vai ser pedido ao provedor, antes de pedir. Só um de cada vez: com outro ainda sem
+    /// resposta, recusa (a equipe confere no painel do provedor).
+    /// </summary>
+    public void RequestRefund(string key, long amountCents, string? reason, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (PendingRefund is { } pending)
+        {
+            throw new DomainException($"pagamento {Id}: o estorno {pending.Key} foi pedido ao provedor e ainda não se confirmou");
+        }
+        Ensure(PaymentStatus.Approved);
+        if (amountCents <= 0 || amountCents > Amount.AmountCents - RefundedCents)
+        {
+            throw new DomainException($"pagamento {Id}: estorno de {amountCents} com {Amount.AmountCents - RefundedCents} a devolver");
+        }
+        PendingRefund = new PendingRefund(key, amountCents, reason, now);
+        UpdatedAt = now;
+    }
+
+    /// <summary>O provedor recusou o estorno pedido: nada foi devolvido, e o pagamento pode ser estornado de novo.</summary>
+    public void DropPendingRefund(DateTimeOffset now)
+    {
+        if (PendingRefund is null)
+        {
+            return;
+        }
+        PendingRefund = null;
+        UpdatedAt = now;
+    }
+
+    /// <summary>
     /// Devolve <paramref name="amountCents"/> do que foi pago; o total vira Refunded. False se o estorno desta
     /// chave (ou desta referência no provedor) já foi aplicado.
     /// </summary>
@@ -283,6 +329,11 @@ public sealed class Payment
         // a chave de um estorno que falhou pode ser usada de novo; a referência no provedor, não
         if (_refunds.Any(r => (r.Key == key && r.FailedAt is null) || r.Reference == refundReference))
         {
+            if (PendingRefund?.Key == key)
+            {
+                PendingRefund = null; // o pedido que ficou sem resposta era este, já aplicado
+                UpdatedAt = now;
+            }
             return false;
         }
         Ensure(PaymentStatus.Approved);
@@ -292,6 +343,10 @@ public sealed class Payment
         }
         RefundedCents += amountCents;
         _refunds.Add(new RefundEntry(key, refundReference, amountCents, now));
+        if (PendingRefund?.Key == key)
+        {
+            PendingRefund = null;
+        }
         RefundReference = refundReference;
         RefundedAt = now;
         if (RefundedCents == Amount.AmountCents)
