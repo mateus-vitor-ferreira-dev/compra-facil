@@ -28,6 +28,8 @@ channels:
         $ref: "#/components/messages/EmailConfirmationRequested"
       GuestAccessRequested:
         $ref: "#/components/messages/GuestAccessRequested"
+      PasswordResetRequested:
+        $ref: "#/components/messages/PasswordResetRequested"
     bindings:
       kafka:
         bindingVersion: 0.5.0
@@ -47,6 +49,7 @@ operations:
       - $ref: "#/channels/accountEvents/messages/AccountRegistered"
       - $ref: "#/channels/accountEvents/messages/EmailConfirmationRequested"
       - $ref: "#/channels/accountEvents/messages/GuestAccessRequested"
+      - $ref: "#/channels/accountEvents/messages/PasswordResetRequested"
 
 components:
   messages:
@@ -163,6 +166,49 @@ components:
                   name:
                     type: string
                   confirmation_url:
+                    type: string
+                    format: uri
+                  expires_at:
+                    type: string
+                    format: date-time
+
+    PasswordResetRequested:
+      name: PasswordResetRequested
+      title: Redefinição de senha pedida
+      summary: Em cada pedido de "esqueci minha senha" de uma conta que existe. O notifications manda o e-mail com o link.
+      description: |
+        O `reset_url` é a página do front que cria a senha nova, com a conta e o token na query. O token
+        vale uma vez só (trocar a senha invalida todos os links pendentes da conta) e vence em `expires_at`.
+        Quem tem o link troca a senha da conta: o evento não deve ir para logs. Pedido para e-mail sem
+        conta não gera evento.
+      traits:
+        - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
+      bindings:
+        $ref: "./common/v1/common.yaml#/components/messageBindings/AccountKey"
+      payload:
+        allOf:
+          - $ref: "./common/v1/common.yaml#/components/schemas/EventEnvelope"
+          - type: object
+            properties:
+              event_type:
+                const: PasswordResetRequested
+              event_version:
+                const: 1
+              producer:
+                const: identity
+              data:
+                type: object
+                required: [account_id, email, name, reset_url, expires_at]
+                properties:
+                  account_id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                    format: email
+                  name:
+                    type: string
+                  reset_url:
                     type: string
                     format: uri
                   expires_at:

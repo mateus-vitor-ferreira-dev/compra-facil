@@ -20,6 +20,8 @@ const KNOWN = new Set([
   "/cadastro",
   "/conta",
   "/conta/confirmar-email",
+  "/conta/esqueci-a-senha",
+  "/conta/redefinir-senha",
   "/admin/produtos",
   "/admin/produtos/novo",
   "/admin/categorias",

@@ -44,6 +44,8 @@ for (const scheme of ["light", "dark"] as const) {
         TV,
         "/entrar",
         "/cadastro",
+        "/conta/esqueci-a-senha",
+        "/conta/redefinir-senha?conta=0199f6a0-0000-7000-8000-000000000a1a&token=token-bom",
       ]) {
         await page.goto(path);
         await audit(page, path);

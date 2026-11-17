@@ -199,6 +199,22 @@ public sealed class EmailFlowTests(EmailFixture fx) : IClassFixture<EmailFixture
     }
 
     [Fact]
+    public async Task PasswordReset_ArrivesWithTheLink()
+    {
+        var to = $"dani-{Guid.NewGuid():N}@exemplo.com";
+        var url = new Uri($"http://localhost:3000/conta/redefinir-senha?conta={Guid.NewGuid()}&token=tok");
+
+        await HandleAsync<PasswordResetRequestedData, OnPasswordResetRequested>(
+            new PasswordResetRequestedData(Guid.NewGuid(), to, "Dani", url, DateTimeOffset.UtcNow.AddHours(1)), Guid.NewGuid());
+        await DispatchAsync();
+
+        var message = await MessageAsync(Assert.Single(await InboxAsync(to)));
+        Assert.Equal("Redefinir sua senha", message.GetProperty("Subject").GetString());
+        Assert.Contains(url.AbsoluteUri, message.GetProperty("Text").GetString(), StringComparison.Ordinal);
+        Assert.Contains("Criar nova senha", message.GetProperty("HTML").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SameEvent_SendsOneEmail()
     {
         var to = $"duplo-{Guid.NewGuid():N}@exemplo.com";

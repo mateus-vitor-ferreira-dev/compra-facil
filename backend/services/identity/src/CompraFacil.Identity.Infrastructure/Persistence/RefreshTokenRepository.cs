@@ -30,6 +30,13 @@ internal sealed class RefreshTokenRepository(IdentityDbContext db) : IRefreshTok
                 .SetProperty(t => t.RevokedAt, now)
                 .SetProperty(t => t.RevocationReason, reason), ct);
 
+    public Task RevokeAllOfUserAsync(Guid userId, DateTimeOffset now, RevocationReason reason, CancellationToken ct) =>
+        db.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(t => t.RevokedAt, now)
+                .SetProperty(t => t.RevocationReason, reason), ct);
+
     public Task<bool> FamilyIsActiveAsync(Guid familyId, DateTimeOffset now, CancellationToken ct) =>
         db.RefreshTokens.AnyAsync(t => t.FamilyId == familyId && t.RevokedAt == null && t.ExpiresAt > now, ct);
 

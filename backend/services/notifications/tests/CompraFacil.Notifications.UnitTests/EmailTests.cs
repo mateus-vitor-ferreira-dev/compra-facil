@@ -202,6 +202,31 @@ public sealed class EmailTests
         await Assert.ThrowsAsync<CompraFacil.BuildingBlocks.Messaging.PoisonMessageException>(() =>
             EmailComposer.ConfirmEmailAsync(Confirmation(url), s_now));
 
+    [Fact]
+    public async Task ResetPassword_HasTheLink_TheFirstName_AndTheValidity()
+    {
+        var url = "http://localhost:3000/conta/redefinir-senha?conta=0199&token=abc_-123";
+
+        var email = await EmailComposer.ResetPasswordAsync(
+            new PasswordResetRequestedData(Guid.NewGuid(), "ana@exemplo.com", "Ana <b>Souza</b>", new Uri(url), s_now.AddHours(1)), s_now);
+
+        Assert.Equal("Redefinir sua senha", email.Subject);
+        Assert.Contains("href=\"http://localhost:3000/conta/redefinir-senha?conta=0199&amp;token=abc_-123\"", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("Criar nova senha", email.HtmlBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("<b>", email.HtmlBody, StringComparison.Ordinal);
+        Assert.Contains("O link vale por 1 hora", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains("sua senha continua a mesma", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains(url, email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/html,oi")]
+    public async Task ResetPassword_OnlyHttpLinks(string url) =>
+        await Assert.ThrowsAsync<CompraFacil.BuildingBlocks.Messaging.PoisonMessageException>(() =>
+            EmailComposer.ResetPasswordAsync(
+                new PasswordResetRequestedData(Guid.NewGuid(), "ana@exemplo.com", "Ana", new Uri(url), s_now.AddHours(1)), s_now));
+
     [Theory]
     [InlineData(0.9, "1 hora")]
     [InlineData(24, "24 horas")]

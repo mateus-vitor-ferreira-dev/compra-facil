@@ -64,6 +64,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/accounts/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pede o link para criar uma senha nova
+         * @description Sempre `202`, exista a conta ou não: a resposta não revela quem tem conta. Se o e-mail é de uma
+         *     conta (com ou sem senha: quem só entrou pelo Google também pode criar uma), o link sai por e-mail
+         *     e vale 1 hora. Compras sem conta não têm senha e não recebem nada. Cada pedido gera outro link; os
+         *     anteriores continuam valendo até vencer ou até a senha ser trocada.
+         */
+        post: operations["requestPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/accounts/password-reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cria a senha nova pelo link
+         * @description O link do e-mail leva para a página do front com `conta` e `token` na query; o front os manda aqui
+         *     com a senha nova (mesmas regras do cadastro). Troca a senha, confirma o e-mail (o link prova que
+         *     a pessoa o lê), desbloqueia a conta e revoga todos os refresh tokens: as sessões abertas caem.
+         *     O token vale uma vez só. Conta inexistente, token errado, já usado ou vencido: o mesmo `422` em
+         *     `token`; senha fora das regras: `422` em `password`.
+         */
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -314,6 +361,12 @@ export interface components {
             password: string;
             /** @example Ana Souza */
             name: string;
+        };
+        ResetPasswordRequest: {
+            /** Format: uuid */
+            account_id: string;
+            token: string;
+            password: string;
         };
         GoogleSessionRequest: {
             /** @description O ID token (JWT) que o Google devolveu ao BFF. */
@@ -627,6 +680,59 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    requestPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    email: components["schemas"]["Email"];
+                };
+            };
+        };
+        responses: {
+            /** @description Se a conta existe, o e-mail sai em instantes. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Senha trocada. O front leva o cliente ao login. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            422: components["responses"]["UnprocessableEntity"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };

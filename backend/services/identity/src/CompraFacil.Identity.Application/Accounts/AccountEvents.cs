@@ -7,6 +7,7 @@ public static class AccountEvents
     public const string AccountRegistered = nameof(AccountRegistered);
     public const string EmailConfirmationRequested = nameof(EmailConfirmationRequested);
     public const string GuestAccessRequested = nameof(GuestAccessRequested);
+    public const string PasswordResetRequested = nameof(PasswordResetRequested);
 }
 
 /// <summary>Conta criada (o cadastro); os outros serviços ficam sabendo que o cliente existe.</summary>
@@ -23,3 +24,9 @@ public sealed record EmailConfirmationRequestedData(Guid AccountId, string Email
 /// só naquela compra, até <paramref name="ExpiresAt"/>; o notifications o manda por e-mail.
 /// </summary>
 public sealed record GuestAccessRequestedData(Guid AccountId, string Email, string Name, Uri AccessUrl, DateTimeOffset ExpiresAt);
+
+/// <summary>
+/// Pedido de "esqueci minha senha" de uma conta que existe. O link leva o token, que troca a senha desta
+/// conta uma vez só e vence em <paramref name="ExpiresAt"/>; o notifications o manda por e-mail.
+/// </summary>
+public sealed record PasswordResetRequestedData(Guid AccountId, string Email, string Name, Uri ResetUrl, DateTimeOffset ExpiresAt);
