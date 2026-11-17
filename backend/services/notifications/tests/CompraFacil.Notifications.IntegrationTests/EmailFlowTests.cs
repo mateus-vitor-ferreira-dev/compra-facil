@@ -26,6 +26,8 @@ public sealed class EmailFixture : IAsyncLifetime
         .Build();
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
+    public const string ReplyTo = "atendimento@exemplo.com";
+
     public HttpClient Mailpit { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
@@ -37,6 +39,7 @@ public sealed class EmailFixture : IAsyncLifetime
             .UseSetting("Kafka:Enabled", "false")
             .UseSetting("Smtp:Host", _mailpit.Hostname)
             .UseSetting("Smtp:Port", _mailpit.GetMappedPublicPort(1025).ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .UseSetting("Smtp:ReplyTo", ReplyTo)
             .UseSetting("Smtp:DispatcherEnabled", "false"));
         using var _ = Factory.CreateClient();
     }
@@ -105,6 +108,7 @@ public sealed class EmailFlowTests(EmailFixture fx) : IClassFixture<EmailFixture
         var message = await MessageAsync(summary);
         Assert.EndsWith("confirmado", message.GetProperty("Subject").GetString(), StringComparison.Ordinal);
         Assert.Equal($"{eventId}@comprafacil.dev", message.GetProperty("MessageID").GetString());
+        Assert.Equal(EmailFixture.ReplyTo, Assert.Single(message.GetProperty("ReplyTo").EnumerateArray()).GetProperty("Address").GetString());
         var text = message.GetProperty("Text").GetString()!;
         Assert.Contains("Lava e Seca Electrolux", text, StringComparison.Ordinal);
         Assert.Contains("R$ 4.367,80", text, StringComparison.Ordinal);

@@ -267,6 +267,9 @@ services:
       Smtp__User: ${SMTP_USER:-}
       Smtp__Password: ${SMTP_PASSWORD:-}
       Smtp__FromAddress: ${SMTP_FROM:-pedidos@embrulhado.com.br}
+      Smtp__FromName: ${SMTP_FROM_NAME:-Embrulhado}
+      # a resposta do cliente vai para a caixa da loja (a raiz do domínio não recebe e-mail: null MX)
+      Smtp__ReplyTo: ${SMTP_REPLY_TO:-}
 
   # o fornecedor manual: a equipe compra no fornecedor pela fila "Pedidos a fazer" e sobe a planilha do catálogo
   fulfillment:
