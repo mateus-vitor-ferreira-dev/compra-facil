@@ -18,6 +18,8 @@ info:
     - **Logout** (`revokeSession`) derruba a sessão do refresh token.
     - **Google** (`createGoogleSession`, `linkGoogleSession`): login e cadastro com o ID token do Google;
       a conta é a do `sub` do Google, e um e-mail que já tem conta com senha só é vinculado com a senha.
+    - **Esqueci minha senha** (`requestPasswordReset`, `resetPassword`): o link vai por e-mail (pelo
+      notifications), vale 1 hora e uma vez só; trocar a senha derruba todas as sessões da conta.
 
     O access token vai em `Authorization: Bearer <token>` nas outras APIs, que o validam sozinhas com as
     chaves públicas de `/.well-known/jwks.json` (cache de 5 min). Claims: `sub` (id da conta), `email`,
@@ -136,6 +138,65 @@ paths:
           description: Se a conta existe e não está confirmada, o e-mail sai em instantes.
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/accounts/password-reset:
+    post:
+      tags: [accounts]
+      operationId: requestPasswordReset
+      summary: Pede o link para criar uma senha nova
+      description: |
+        Sempre `202`, exista a conta ou não: a resposta não revela quem tem conta. Se o e-mail é de uma
+        conta (com ou sem senha: quem só entrou pelo Google também pode criar uma), o link sai por e-mail
+        e vale 1 hora. Compras sem conta não têm senha e não recebem nada. Cada pedido gera outro link; os
+        anteriores continuam valendo até vencer ou até a senha ser trocada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  $ref: "#/components/schemas/Email"
+      responses:
+        "202":
+          description: Se a conta existe, o e-mail sai em instantes.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/accounts/password-reset/confirm:
+    post:
+      tags: [accounts]
+      operationId: resetPassword
+      summary: Cria a senha nova pelo link
+      description: |
+        O link do e-mail leva para a página do front com `conta` e `token` na query; o front os manda aqui
+        com a senha nova (mesmas regras do cadastro). Troca a senha, confirma o e-mail (o link prova que
+        a pessoa o lê), desbloqueia a conta e revoga todos os refresh tokens: as sessões abertas caem.
+        O token vale uma vez só. Conta inexistente, token errado, já usado ou vencido: o mesmo `422` em
+        `token`; senha fora das regras: `422` em `password`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "204":
+          description: Senha trocada. O front leva o cliente ao login.
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "429":
           $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
         "500":
@@ -475,6 +536,22 @@ components:
           minLength: 1
           maxLength: 120
           examples: ["Ana Souza"]
+
+    ResetPasswordRequest:
+      type: object
+      required: [account_id, token, password]
+      properties:
+        account_id:
+          type: string
+          format: uuid
+        token:
+          type: string
+          maxLength: 2048
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
 
     GoogleSessionRequest:
       type: object

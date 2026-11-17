@@ -10,6 +10,9 @@ public enum RevocationReason
 
     /// <summary>Um token já trocado foi apresentado de novo: a família inteira cai (provável roubo).</summary>
     Reuse,
+
+    /// <summary>A senha foi trocada pelo link de "esqueci minha senha": todas as sessões da conta caem.</summary>
+    PasswordReset,
 }
 
 /// <summary>
