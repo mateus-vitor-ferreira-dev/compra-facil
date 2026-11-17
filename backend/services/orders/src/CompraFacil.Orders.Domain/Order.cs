@@ -134,9 +134,23 @@ public sealed class Order
     /// </summary>
     public DateTimeOffset? RefundFailedAt { get; private set; }
 
-    /// <summary>Cancelado depois de pago e o estorno ainda não voltou.</summary>
+    /// <summary>
+    /// Quando o pagamento já aprovado deixou de valer (o cartão que a operadora não confirmou, ou a contestação do
+    /// cliente): nulo, o pagamento segue de pé. Com o pedido ainda fora do fornecedor, ele foi cancelado; senão, fica
+    /// marcado para a equipe (cancelar no fornecedor, responder a contestação).
+    /// </summary>
+    public DateTimeOffset? PaymentReversedAt { get; private set; }
+
+    /// <summary>Como o pagamento deixou de valer (o status dele no payments): failed, voided ou disputed.</summary>
+    public string? PaymentReversal { get; private set; }
+
+    /// <summary>
+    /// Cancelado depois de pago e o estorno ainda não voltou. Com o pagamento revertido, não há o que estornar: o
+    /// dinheiro não veio, ou voltou ao cliente pela contestação.
+    /// </summary>
     public bool AwaitingRefund =>
-        ((Status == OrderStatus.Cancelled && CancelledAfterPayment) || Status == OrderStatus.Returned) && RefundedAt is null;
+        ((Status == OrderStatus.Cancelled && CancelledAfterPayment) || Status == OrderStatus.Returned) && RefundedAt is null
+        && PaymentReversedAt is null;
 
     /// <summary>Cancelado depois de pago (o fornecedor, a nota ou a equipe): o cliente é estornado.</summary>
     public bool CancelledAfterPayment => IsAfterPayment(CancellationReason);
@@ -417,6 +431,31 @@ public sealed class Order
         }
         RefundedAt = null;
         RefundFailedAt = now;
+        UpdatedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// O pagamento já aprovado deixou de valer (<paramref name="reversal"/>: failed, voided ou disputed). O pedido
+    /// confirmado que ainda não foi ao fornecedor é cancelado (payment_failed, sem estorno: o dinheiro não veio); o
+    /// que já foi, ou já terminou, só fica marcado, para a equipe. Devolve false se nada mudou (o evento repetido, ou
+    /// o pedido ainda pendente).
+    /// </summary>
+    public bool RevertPayment(string reversal, string? failureReason, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reversal);
+        if (PaymentReversedAt is not null || Status == OrderStatus.Pending)
+        {
+            return false;
+        }
+        PaymentReversedAt = now;
+        PaymentReversal = reversal;
+        if (Status == OrderStatus.Confirmed && SentToSupplierAt is null)
+        {
+            Status = OrderStatus.Cancelled;
+            CancellationReason = Domain.CancellationReason.PaymentFailed;
+            PaymentFailureReason = failureReason;
+        }
         UpdatedAt = now;
         return true;
     }

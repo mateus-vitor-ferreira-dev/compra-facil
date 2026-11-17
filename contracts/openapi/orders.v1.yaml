@@ -595,6 +595,17 @@ components:
               type: [string, "null"]
               format: date-time
               description: A última vez que o provedor aceitou o estorno e não o realizou (#396); com `refunded_at` nulo, falta estornar de novo.
+            payment_reversed_at:
+              type: [string, "null"]
+              format: date-time
+              description: |
+                Quando o pagamento já aprovado deixou de valer (o cartão que a operadora não confirmou, ou a contestação
+                do cliente). Com o pedido ainda fora do fornecedor, ele foi cancelado (`payment_failed`); senão, a
+                equipe precisa agir: cancelar no fornecedor, ou responder a contestação no painel do provedor.
+            payment_reversal:
+              type: [string, "null"]
+              enum: [failed, voided, disputed, null]
+              description: "Como o pagamento deixou de valer: `failed` (não pago), `voided` (cancelado) ou `disputed` (contestado)."
             updated_at:
               type: string
               format: date-time

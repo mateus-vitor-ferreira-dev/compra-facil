@@ -261,6 +261,39 @@ public sealed class OnPaymentRefundFailed(OrderProgress progress) : IHandleEvent
     }
 }
 
+/// <summary>
+/// PaymentReversed → o pagamento já aprovado deixou de valer (o cartão que a operadora não confirmou, ou a
+/// contestação). O pedido que ainda não foi ao fornecedor é cancelado → OrderCancelled (payment_failed): o fulfillment
+/// o tira da fila e cancela a nota, o notifications avisa, e o payments não tem o que estornar. O que já foi ao
+/// fornecedor fica marcado no painel, para a equipe cancelar lá ou responder a contestação.
+/// </summary>
+public sealed partial class OnPaymentReversed(OrderProgress progress, ILogger<OnPaymentReversed> logger) : IHandleEvent<PaymentReversedData>
+{
+    public Task HandleAsync(PaymentReversedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        var cancelled = false;
+        return progress.ApplyAsync(data.OrderId, "PaymentReversed", (order, now) =>
+        {
+            var before = order.Status;
+            if (!order.RevertPayment(data.Status, data.FailureReason, now))
+            {
+                return false;
+            }
+            cancelled = before != OrderStatus.Cancelled && order.Status == OrderStatus.Cancelled;
+            if (!cancelled && order.Status != OrderStatus.Cancelled)
+            {
+                LogFlagged(logger, order.Id, order.Status, data.Status);
+            }
+            return true;
+        }, order => cancelled ? (OrderEvents.OrderCancelled, OrderCancelledData.From(order)) : null, ct);
+    }
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "o pagamento do pedido {OrderId} ({Status}) deixou de valer ({Reversal}) depois de ir ao fornecedor: a equipe precisa agir")]
+    private static partial void LogFlagged(ILogger logger, Guid orderId, OrderStatus status, string reversal);
+}
+
 /// <summary>PaymentRefunded → o estorno do pedido cancelado depois de pago voltou ao cliente.</summary>
 public sealed class OnPaymentRefunded(OrderProgress progress) : IHandleEvent<PaymentRefundedData>
 {

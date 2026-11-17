@@ -277,6 +277,29 @@ public sealed class OrderTests
     }
 
     [Fact]
+    public void ReversedPayment_CancelsBeforeTheSupplier_AndOnlyFlagsAfter()
+    {
+        // o pagamento aprovado deixou de valer antes de o pedido ir ao fornecedor: cancela, sem estorno
+        var early = Paid();
+        Assert.True(early.RevertPayment("failed", "card_declined", s_now.AddHours(1)));
+        Assert.False(early.RevertPayment("failed", "card_declined", s_now.AddHours(2))); // repetido
+        Assert.Equal((OrderStatus.Cancelled, CancellationReason.PaymentFailed, "card_declined", "failed"),
+            (early.Status, early.CancellationReason, early.PaymentFailureReason, early.PaymentReversal));
+        Assert.False(early.AwaitingRefund);
+
+        // já com o fornecedor: só marca; cancelado pela equipe depois, não espera estorno (o dinheiro não veio)
+        var late = Paid();
+        late.MarkSentToSupplier(s_now.AddHours(1));
+        Assert.True(late.RevertPayment("disputed", null, s_now.AddHours(2)));
+        Assert.Equal((OrderStatus.Confirmed, (DateTimeOffset?)s_now.AddHours(2)), (late.Status, late.PaymentReversedAt));
+        Assert.True(late.FailAtSupplier(s_now.AddHours(3), CancellationReason.StoreCancelled));
+        Assert.False(late.AwaitingRefund);
+
+        // o pedido ainda pendente não tem pagamento aprovado a reverter
+        Assert.False(Pending().RevertPayment("voided", null, s_now));
+    }
+
+    [Fact]
     public void SupplierFailure_CancelsThePaidOrder_UntilRefunded()
     {
         var order = Paid();
