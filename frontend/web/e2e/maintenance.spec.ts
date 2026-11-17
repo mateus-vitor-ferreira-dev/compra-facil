@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { FRONT } from "./ports";
+import { passTwoFactor } from "./two-factor";
 
 async function audit(page: Page) {
   const results = await new AxeBuilder({ page })
@@ -101,6 +102,7 @@ test("a manutenção agendada pelo painel aparece na loja, e cancelada some", as
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page.getByRole("heading", { level: 1, name: "Manutenção" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Manutenção" })).toHaveAttribute("aria-current", "page");
 

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { STUB } from "./ports";
+import { passTwoFactor } from "./two-factor";
 
 // o modo manual (#412) vale só para o operador de @manual.exemplo.com na API falsa
 async function login(page: Page, path: string) {
@@ -7,6 +8,7 @@ async function login(page: Page, path: string) {
   await page.getByLabel("E-mail").fill("admin@manual.exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page).toHaveURL(new RegExp(`${path}$`));
 }
 
@@ -114,6 +116,7 @@ test("sem o modo manual, a página manda para os pedidos no fornecedor", async (
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page.getByText("O fornecedor não está no modo manual")).toBeVisible();
   await expect(page.getByRole("link", { name: "Ver os pedidos no fornecedor" })).toHaveAttribute(
     "href",

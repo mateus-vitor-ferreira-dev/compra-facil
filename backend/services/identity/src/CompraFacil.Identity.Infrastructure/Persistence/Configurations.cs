@@ -67,6 +67,20 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
     }
 }
 
+internal sealed class MfaTicketConfiguration : IEntityTypeConfiguration<MfaTicket>
+{
+    public void Configure(EntityTypeBuilder<MfaTicket> builder)
+    {
+        builder.ToTable("mfa_tickets");
+        builder.HasKey(t => t.Id);
+        builder.Property(t => t.TokenHash).HasMaxLength(32);
+        builder.HasIndex(t => t.TokenHash).IsUnique();
+        builder.Property(t => t.Purpose).HasConversion<string>().HasMaxLength(16);
+        builder.Property(t => t.SecurityStamp).HasMaxLength(256);
+        builder.HasOne<User>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 internal sealed class GuestAccessLinkConfiguration : IEntityTypeConfiguration<GuestAccessLink>
 {
     public void Configure(EntityTypeBuilder<GuestAccessLink> builder)

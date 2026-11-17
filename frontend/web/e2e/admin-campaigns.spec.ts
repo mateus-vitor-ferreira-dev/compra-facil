@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 const local = (offsetMs: number) => new Date(Date.now() + offsetMs - 3 * 3600e3).toISOString().slice(0, 16);
 
@@ -7,6 +8,7 @@ async function signIn(page: Page) {
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page).toHaveURL(/\/admin\/campanhas$/);
 }
 

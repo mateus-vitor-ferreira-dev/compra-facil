@@ -4,6 +4,7 @@ import { loginHref } from "@/lib/auth/return-to";
 import {
   ACCESS_COOKIE,
   REFRESH_COOKIE,
+  adminWithoutMfa,
   clearedCookies,
   refreshSession,
   sessionCookies,
@@ -25,7 +26,14 @@ function toLogin(request: NextRequest): NextResponse {
  */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
-  if (request.cookies.has(ACCESS_COOKIE)) return NextResponse.next();
+  const access = request.cookies.get(ACCESS_COOKIE)?.value;
+  // o painel com uma sessão de operador sem o segundo fator: login de novo, agora com o código (ameaça T8)
+  if (access && needsSession(request.nextUrl.pathname) && adminWithoutMfa(access)) {
+    const response = toLogin(request);
+    for (const c of clearedCookies()) response.cookies.set(c.name, c.value, c.options);
+    return response;
+  }
+  if (access) return NextResponse.next();
   if (!refresh) return needsSession(request.nextUrl.pathname) ? toLogin(request) : NextResponse.next();
 
   const result = await refreshSession(refresh, fetch, gatewayHeaders(request.headers));

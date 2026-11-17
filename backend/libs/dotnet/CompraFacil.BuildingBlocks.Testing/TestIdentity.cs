@@ -7,7 +7,8 @@ namespace CompraFacil.BuildingBlocks.Testing;
 
 /// <summary>
 /// Faz o papel do identity nos testes: uma chave RSA, o JWKS dela (para <c>Auth:Jwks</c>, sem HTTP) e
-/// tokens no formato dos de verdade (RS256, kid, iss, aud, sub, email, roles, exp).
+/// tokens no formato dos de verdade (RS256, kid, iss, aud, sub, email, roles, exp). O token de operador sai
+/// com <c>amr</c> = <c>mfa</c>, como o do identity depois do segundo fator.
 /// </summary>
 public sealed class TestIdentity : IDisposable
 {
@@ -27,7 +28,10 @@ public sealed class TestIdentity : IDisposable
     /// <summary>O JSON de /.well-known/jwks.json: vai em <c>Auth:Jwks</c>.</summary>
     public string Jwks { get; }
 
-    public string AdminToken() => Token(["admin"]);
+    public string AdminToken() => Token(["admin"], amr: ["mfa"]);
+
+    /// <summary>O operador que só passou pela senha (sem <c>amr</c>): as rotas de operador recusam (ameaça T8).</summary>
+    public string AdminTokenWithoutMfa() => Token(["admin"]);
 
     /// <summary>O papel só de leitura da operação (#403).</summary>
     public string AuditorToken() => Token(["auditor"]);
@@ -37,9 +41,13 @@ public sealed class TestIdentity : IDisposable
 
     public string Token(
         string[] roles, string? subject = "0199f6a0-0000-7000-8000-000000000a1a", string email = "ana@exemplo.com",
-        DateTime? expires = null, string issuer = Issuer, string audience = Audience)
+        DateTime? expires = null, string issuer = Issuer, string audience = Audience, string[]? amr = null)
     {
         var claims = new Dictionary<string, object> { ["roles"] = roles, ["email"] = email };
+        if (amr is not null)
+        {
+            claims["amr"] = amr;
+        }
         if (subject is not null)
         {
             claims["sub"] = subject;

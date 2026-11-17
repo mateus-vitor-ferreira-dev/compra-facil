@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 test("mostra os pedidos atrasados no fornecedor por etapa", async ({ page }) => {
   await page.goto("/admin/atrasos");
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page).toHaveURL(/\/admin\/atrasos$/);
   await expect(page.getByRole("link", { name: "Pedidos no fornecedor" })).toHaveAttribute(
     "aria-current",
@@ -33,6 +35,7 @@ test("cancela o pedido parado com confirmação e mostra os que não chegaram", 
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
 
   const failed = page.getByRole("region", { name: /^Não chegaram ao fornecedor/ });
   await expect(failed).toContainText("Pedido 3F6A9C10, Sem estoque no fornecedor");

@@ -6,6 +6,8 @@ env:
   # cluster local, não produção: o operador inicial do compose
   Identity__Admin__Email: admin@comprafacil.local
   Identity__Admin__Password: admin-compra-facil
+  # a chave TOTP fixa do operador local (a 2FA é obrigatória para o admin), a mesma do compose
+  Identity__Admin__TotpKey: JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP
 resources:
   requests: { cpu: 100m, memory: 128Mi }
   limits: { cpu: "1", memory: 384Mi }

@@ -34,7 +34,8 @@ public interface IGoogleTokenValidator
 /// <summary>
 /// Entrar e se cadastrar com o Google (#180). A conta é achada pelo <c>sub</c> do Google (login externo),
 /// nunca só pelo e-mail: um e-mail que já tem conta com senha só é vinculado depois de confirmar a senha,
-/// senão quem controlasse um Google com aquele e-mail entraria na conta de outra pessoa.
+/// senão quem controlasse um Google com aquele e-mail entraria na conta de outra pessoa. O Google é só o
+/// primeiro fator: conta com 2FA (todo operador) recebe o mesmo desafio do login com senha (ameaça T8).
 /// </summary>
 public sealed class GoogleSignIn(
     IGoogleTokenValidator validator,
@@ -47,12 +48,12 @@ public sealed class GoogleSignIn(
 {
     public const string Provider = "Google";
 
-    public async Task<IssuedSession> SignInAsync(string idToken, string nonce, CancellationToken ct)
+    public async Task<SignInOutcome> SignInAsync(string idToken, string nonce, CancellationToken ct)
     {
         var google = await validator.ValidateAsync(idToken, nonce, ct);
         if (await users.FindByLoginAsync(Provider, google.Subject) is { } linked)
         {
-            return await sessions.StartAsync(linked, ct);
+            return await sessions.AfterFirstFactorAsync(linked, ct);
         }
         if (await users.FindByEmailAsync(google.Email) is not null)
         {
@@ -72,11 +73,11 @@ public sealed class GoogleSignIn(
                 new AccountRegisteredData(user.Id, user.Email!, user.Name, user.CreatedAt));
             return user;
         }, ct);
-        return await sessions.StartAsync(user, ct);
+        return SignInOutcome.Of(await sessions.StartAsync(user, ct)); // conta nova: cliente, sem 2FA
     }
 
     /// <summary>Liga o Google à conta do mesmo e-mail, depois de conferir a senha dela.</summary>
-    public async Task<IssuedSession> LinkAsync(string idToken, string nonce, string password, CancellationToken ct)
+    public async Task<SignInOutcome> LinkAsync(string idToken, string nonce, string password, CancellationToken ct)
     {
         var google = await validator.ValidateAsync(idToken, nonce, ct);
         var user = await users.FindByEmailAsync(google.Email)
@@ -101,7 +102,7 @@ public sealed class GoogleSignIn(
             user.EmailConfirmed = true;
             Check(await users.UpdateAsync(user));
         }
-        return await sessions.StartAsync(user, ct);
+        return await sessions.AfterFirstFactorAsync(user, ct);
     }
 
     public const string LinkRequiredTitle = "Conta já existe";

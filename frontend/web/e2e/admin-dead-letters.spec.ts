@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 test("mostra as mensagens com falha por serviço e reprocessa", async ({ page }) => {
   await page.goto("/admin/falhas");
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page).toHaveURL(/\/admin\/falhas$/);
 
   const inventory = page.getByRole("region", { name: /^Estoque/ });

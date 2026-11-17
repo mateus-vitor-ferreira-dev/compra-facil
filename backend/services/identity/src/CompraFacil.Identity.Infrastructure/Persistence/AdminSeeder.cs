@@ -1,3 +1,4 @@
+using CompraFacil.Identity.Application.Accounts;
 using CompraFacil.Identity.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,14 @@ public sealed class AdminSeedOptions
     public string? Email { get; set; }
     public string? Password { get; set; }
     public string Name { get; set; } = "Operador";
+
+    /// <summary>
+    /// Só no ambiente local e no CI (compose): a chave TOTP (Base32) do operador, para os scripts (k6,
+    /// <c>task token</c>) entrarem com o segundo fator sem um celular. Vale só para a conta que ainda não tem
+    /// 2FA e não gera códigos de recuperação. Em produção fica vazia: o operador cadastra o próprio app no
+    /// primeiro login.
+    /// </summary>
+    public string? TotpKey { get; set; }
 }
 
 /// <summary>
@@ -37,13 +46,14 @@ public sealed class AuditorSeedOptions
 /// e-mail de operador trocado) ganharia o papel com a própria senha.
 /// </summary>
 public sealed partial class AdminSeeder(
-    UserManager<User> users, IOptions<AdminSeedOptions> options, IOptions<AuditorSeedOptions> auditor, TimeProvider clock,
-    ILogger<AdminSeeder> logger)
+    UserManager<User> users, IUserStore<User> store, IOptions<AdminSeedOptions> options, IOptions<AuditorSeedOptions> auditor,
+    TimeProvider clock, ILogger<AdminSeeder> logger)
 {
     public async Task SeedAsync()
     {
         var o = options.Value;
         await SeedAsync(o.Email, o.Password, o.Name, Roles.Admin);
+        await SeedTotpKeyAsync(o.Email, o.TotpKey);
         var a = auditor.Value;
         await SeedAsync(a.Email, a.Password, a.Name, Roles.Auditor);
     }
@@ -72,6 +82,27 @@ public sealed partial class AdminSeeder(
         LogCreated(logger, email, role);
     }
 
+    // a chave fixa do ambiente local: liga a 2FA do operador que ainda não a tem
+    private async Task SeedTotpKeyAsync(string? email, string? key)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
+        if (Totp.FromBase32(key).Length < 16) // 128 bits; FormatException se nem for Base32
+        {
+            throw new InvalidOperationException("Identity:Admin:TotpKey precisa de pelo menos 26 caracteres Base32 (128 bits)");
+        }
+        var user = await users.FindByEmailAsync(email);
+        if (user is null || user.TwoFactorEnabled || !await users.IsInRoleAsync(user, Roles.Admin))
+        {
+            return;
+        }
+        await ((IUserAuthenticatorKeyStore<User>)store).SetAuthenticatorKeyAsync(user, key.Replace(" ", "", StringComparison.Ordinal).ToUpperInvariant(), CancellationToken.None);
+        Check(await users.SetTwoFactorEnabledAsync(user, true));
+        LogTotpSeeded(logger, email);
+    }
+
     private static void Check(IdentityResult result)
     {
         if (!result.Succeeded)
@@ -80,6 +111,10 @@ public sealed partial class AdminSeeder(
                 "Identity:Admin ou Identity:Auditor inválido: " + string.Join("; ", result.Errors.Select(e => e.Description)));
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message =
+        "2FA do operador {Email} ligada com a chave fixa de Identity:Admin:TotpKey: só para o ambiente local e o CI")]
+    private static partial void LogTotpSeeded(ILogger logger, string email);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "conta inicial {Email} criada com o papel {Role}")]
     private static partial void LogCreated(ILogger logger, string email, string role);

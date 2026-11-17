@@ -1,4 +1,6 @@
+using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Identity.Application.Accounts;
+using CompraFacil.Identity.Application.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +15,8 @@ public sealed class AccountsController(
     ConfirmEmail confirm,
     ResendConfirmation resend,
     RequestPasswordReset requestReset,
-    ResetPassword reset) : ControllerBase
+    ResetPassword reset,
+    TwoFactorSignIn twoFactor) : ControllerBase
 {
     /// <summary>registerAccount: cadastro de cliente (papel customer). Não faz login: o front chama createSession em seguida.</summary>
     [HttpPost("v1/accounts")]
@@ -70,7 +73,28 @@ public sealed class AccountsController(
     [Authorize]
     public async Task<AccountView> Me(CancellationToken ct) =>
         await queries.GetAsync(Guid.Parse(User.Identity!.Name!), ct);
+
+    /// <summary>
+    /// regenerateRecoveryCodes: códigos de recuperação novos (os anteriores deixam de valer), com um código atual
+    /// do autenticador e numa sessão que passou pelo segundo fator.
+    /// </summary>
+    [HttpPost("v1/me/two-factor/recovery-codes")]
+    [Authorize]
+    public async Task<RecoveryCodesResponse> RegenerateRecoveryCodes(RecoveryCodesRequest body, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        if (!User.HasClaim(AccessTokenIssuer.AmrClaim, AccessTokenIssuer.MfaMethod))
+        {
+            throw new ForbiddenException("Segundo fator exigido", "entre de novo com o código do autenticador para gerar códigos novos");
+        }
+        Response.Headers.CacheControl = "no-store";
+        return new RecoveryCodesResponse(await twoFactor.RegenerateRecoveryCodesAsync(Guid.Parse(User.Identity!.Name!), body.Code ?? "", ct));
+    }
 }
+
+public sealed record RecoveryCodesRequest(string? Code);
+
+public sealed record RecoveryCodesResponse(IReadOnlyList<string> RecoveryCodes);
 
 public sealed record RegisterRequest(string? Email, string? Password, string? Name);
 

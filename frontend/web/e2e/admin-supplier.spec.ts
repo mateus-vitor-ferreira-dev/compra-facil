@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 async function signIn(page: Page, path: string) {
   await page.goto(path);
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
 }
 
 test("margem do fornecedor: a conta ao vivo, a regra padrão, a de categoria e a leitura do feed", async ({
@@ -61,6 +63,7 @@ test("mostra a integração com o fornecedor, sem mostrar segredo", async ({ pag
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   const panel = page.getByRole("region", { name: "Integração com CJ" });
   await expect(panel).toContainText("Respondendo (12 ms)");
   await expect(panel).toContainText("As do simulador: troque nos segredos do ambiente antes de vender");

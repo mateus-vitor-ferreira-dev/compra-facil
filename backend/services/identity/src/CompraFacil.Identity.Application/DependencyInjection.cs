@@ -19,6 +19,8 @@ public static class DependencyInjection
         services.AddScoped<RequestPasswordReset>();
         services.AddScoped<ResetPassword>();
         services.AddScoped<Sessions>();
+        services.AddScoped<MfaTickets>();
+        services.AddScoped<TwoFactorSignIn>();
         services.AddScoped<GoogleSignIn>();
         services.AddScoped<GuestCheckout>();
         services.AddScoped<AccountQueries>();

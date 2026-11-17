@@ -3,15 +3,21 @@ import { cookies } from "next/headers";
 import { api } from "@/lib/api/client";
 import { maskEmail } from "@/lib/guest";
 import { currentAccount } from "./current";
+import { isChallenge, mfaPath, pendingMfaCookie } from "./mfa";
 import { REFRESH_COOKIE, clearedCookies, sessionCookies } from "./session";
 
-export type SignInResult = { ok: true } | { ok: false; status: number; retryAfter?: number };
+export type SignInResult =
+  | { ok: true }
+  | { ok: false; status: number; retryAfter?: number }
+  /** a senha conferiu, mas a conta pede o segundo fator: a tela do código (ou do cadastro do autenticador) */
+  | { ok: "mfa"; path: string };
 
 /**
  * Login no identity e os tokens nos cookies httpOnly. Só em server action (onde o Next deixa gravar
- * cookie). As rotas /api/auth/* fazem o mesmo para quem chama por JSON.
+ * cookie). As rotas /api/auth/* fazem o mesmo para quem chama por JSON. Conta com 2FA: guarda o tíquete
+ * do segundo passo (e o destino `back`) e diz para qual tela ir.
  */
-export async function signIn(email: string, password: string): Promise<SignInResult> {
+export async function signIn(email: string, password: string, back?: unknown): Promise<SignInResult> {
   try {
     const { data, response } = await api.identity().POST("/v1/sessions", { body: { email, password } });
     if (!data) {
@@ -19,6 +25,11 @@ export async function signIn(email: string, password: string): Promise<SignInRes
       return { ok: false, status: response.status, retryAfter: retry > 0 ? retry : undefined };
     }
     const store = await cookies();
+    if (isChallenge(data)) {
+      const c = pendingMfaCookie(data, back);
+      store.set(c.name, c.value, c.options);
+      return { ok: "mfa", path: mfaPath(data) };
+    }
     for (const c of sessionCookies(data)) store.set(c.name, c.value, c.options);
     return { ok: true };
   } catch {

@@ -43,7 +43,7 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
 
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-        var seeder = new AdminSeeder(users, Options.Create(new AdminSeedOptions()),
+        var seeder = new AdminSeeder(users, scope.ServiceProvider.GetRequiredService<IUserStore<User>>(), Options.Create(new AdminSeedOptions()),
             Options.Create(new AuditorSeedOptions { Email = email, Password = "senha-da-configuracao" }), fx.Clock,
             NullLogger<AdminSeeder>.Instance);
         await seeder.SeedAsync();
@@ -159,8 +159,13 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
     [Fact]
     public async Task Admin_FromConfiguration_HasTheAdminRole()
     {
+        // o operador entra a primeira vez cadastrando o autenticador (ameaça T8)
         using var login = await _api.LoginAsync(IdentityFixture.AdminEmail, IdentityFixture.AdminPassword);
-        var (access, _) = IdentityClient.Tokens(await IdentityClient.JsonOf(login));
+        var ticket = await IdentityClient.TicketOf(login, "mfa_setup_required");
+        using var setup = await _api.MfaSetupAsync(ticket);
+        var key = (await IdentityClient.JsonOf(setup)).GetProperty("shared_key").GetString()!;
+        using var enabled = await _api.MfaConfirmAsync(ticket, fx.CodeFor(key));
+        var (access, _) = IdentityClient.Tokens(await IdentityClient.JsonOf(enabled));
 
         using var me = await _api.MeAsync(access);
 

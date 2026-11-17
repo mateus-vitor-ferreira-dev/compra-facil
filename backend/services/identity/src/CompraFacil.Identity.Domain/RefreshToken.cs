@@ -19,6 +19,12 @@ public enum RevocationReason
     /// velha e a derrubou.
     /// </summary>
     StampChanged,
+
+    /// <summary>
+    /// A conta passou a exigir o segundo fator (2FA ativada, ou virou operador) e a sessão nasceu sem ele: o
+    /// refresh a derrubou.
+    /// </summary>
+    MfaRequired,
 }
 
 /// <summary>
@@ -27,7 +33,9 @@ public enum RevocationReason
 /// A exceção é o intervalo de reuso: logo depois da troca, o mesmo token ainda dá um irmão na família
 /// (requisições paralelas do mesmo navegador). Só o hash (SHA-256) é guardado: o banco vazado não dá
 /// sessões. A família guarda o carimbo de segurança da conta no login: trocou a senha, o carimbo muda e
-/// nenhum token da família troca mais, nem o que um refresh criou no meio da troca de senha.
+/// nenhum token da família troca mais, nem o que um refresh criou no meio da troca de senha. A família
+/// também guarda se o login passou pelo segundo fator (<see cref="Mfa"/>): o refresh repete a prova no
+/// access token só dentro da família que nasceu dela.
 /// </summary>
 public sealed class RefreshToken
 {
@@ -44,6 +52,9 @@ public sealed class RefreshToken
     /// <summary>O carimbo de segurança da conta quando a família começou (login); passa de token a token.</summary>
     public string SecurityStamp { get; private set; } = "";
 
+    /// <summary>O login desta família passou pelo segundo fator (TOTP ou código de recuperação).</summary>
+    public bool Mfa { get; private set; }
+
     /// <summary>Concorrência otimista (xmin): dois refresh simultâneos com o mesmo token não trocam os dois.</summary>
     public uint Version { get; private set; }
 
@@ -52,8 +63,8 @@ public sealed class RefreshToken
     }
 
     /// <summary>Primeiro token de uma família (login), com o carimbo de segurança atual da conta.</summary>
-    public static RefreshToken Issue(Guid userId, string? securityStamp, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime) =>
-        New(userId, Guid.CreateVersion7(), securityStamp ?? "", tokenHash, now, lifetime);
+    public static RefreshToken Issue(Guid userId, string? securityStamp, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime, bool mfa = false) =>
+        New(userId, Guid.CreateVersion7(), securityStamp ?? "", mfa, tokenHash, now, lifetime);
 
     /// <summary>
     /// A família começou com o carimbo que a conta tem agora. Se não, a senha mudou depois do login e a
@@ -83,7 +94,7 @@ public sealed class RefreshToken
         {
             throw new InvalidOperationException("só um token trocado há pouco tem irmão; fora do intervalo é reuso");
         }
-        return New(UserId, FamilyId, SecurityStamp, tokenHash, now, lifetime);
+        return New(UserId, FamilyId, SecurityStamp, Mfa, tokenHash, now, lifetime);
     }
 
     /// <summary>Troca este token pelo próximo da família, que vale <paramref name="lifetime"/> a partir de agora.</summary>
@@ -93,7 +104,7 @@ public sealed class RefreshToken
         {
             throw new InvalidOperationException("refresh token inativo não pode ser trocado");
         }
-        var next = New(UserId, FamilyId, SecurityStamp, nextTokenHash, now, lifetime);
+        var next = New(UserId, FamilyId, SecurityStamp, Mfa, nextTokenHash, now, lifetime);
         Revoke(now, Domain.RevocationReason.Rotated);
         ReplacedById = next.Id;
         return next;
@@ -110,12 +121,13 @@ public sealed class RefreshToken
         RevocationReason = reason;
     }
 
-    private static RefreshToken New(Guid userId, Guid familyId, string securityStamp, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime) => new()
+    private static RefreshToken New(Guid userId, Guid familyId, string securityStamp, bool mfa, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime) => new()
     {
         Id = Guid.CreateVersion7(),
         UserId = userId,
         FamilyId = familyId,
         SecurityStamp = securityStamp,
+        Mfa = mfa,
         TokenHash = tokenHash,
         CreatedAt = now,
         ExpiresAt = now + lifetime,

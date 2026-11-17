@@ -143,6 +143,60 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                     b.ToTable("guest_access_links", (string)null);
                 });
 
+            modelBuilder.Entity("CompraFacil.Identity.Domain.MfaTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("purpose");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("security_stamp");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("bytea")
+                        .HasColumnName("token_hash");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mfa_tickets");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_mfa_tickets_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_mfa_tickets_user_id");
+
+                    b.ToTable("mfa_tickets", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Identity.Domain.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -161,6 +215,10 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                     b.Property<Guid>("FamilyId")
                         .HasColumnType("uuid")
                         .HasColumnName("family_id");
+
+                    b.Property<bool>("Mfa")
+                        .HasColumnType("boolean")
+                        .HasColumnName("mfa");
 
                     b.Property<Guid?>("ReplacedById")
                         .HasColumnType("uuid")
@@ -579,6 +637,16 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_guest_access_links_asp_net_users_user_id");
+                });
+
+            modelBuilder.Entity("CompraFacil.Identity.Domain.MfaTicket", b =>
+                {
+                    b.HasOne("CompraFacil.Identity.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mfa_tickets_asp_net_users_user_id");
                 });
 
             modelBuilder.Entity("CompraFacil.Identity.Domain.RefreshToken", b =>

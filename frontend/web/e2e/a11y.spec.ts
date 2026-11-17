@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { STUB } from "./ports";
+import { passTwoFactor } from "./two-factor";
 
 /**
  * Acessibilidade automatizada (#155): o axe em cada tela principal, nos dois temas, contra as regras
@@ -27,6 +28,7 @@ async function signIn(page: Page, email: string) {
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  if (email.startsWith("admin@")) await passTwoFactor(page);
   await expect(page).not.toHaveURL(/\/entrar/);
 }
 

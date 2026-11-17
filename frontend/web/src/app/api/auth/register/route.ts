@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { api } from "@/lib/api/client";
+import { isChallenge } from "@/lib/auth/mfa";
 import { problem, rejectCrossSite } from "@/lib/auth/request";
 import { sessionCookies } from "@/lib/auth/session";
 
@@ -32,7 +33,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     body: { email: parsed.data.email, password: parsed.data.password },
   });
   const res = NextResponse.json(created.data, { status: 201 });
-  if (login.data) {
+  // conta nova é de cliente, sem 2FA: o desafio do segundo fator não aparece aqui
+  if (login.data && !isChallenge(login.data)) {
     for (const c of sessionCookies(login.data)) res.cookies.set(c.name, c.value, c.options);
   }
   return res;

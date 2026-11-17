@@ -211,7 +211,11 @@ Dados pessoais, retenção e o que falta da LGPD antes da venda real: [`docs/lgp
   e o refresh token (30 dias, troca a cada uso em `/identity/v1/sessions/refresh`). O access token vai em
   `Authorization: Bearer`. O cadastro manda um e-mail com o link de confirmação (a página do front repassa a conta e o
   token a `POST /identity/v1/accounts/confirm-email`). No ambiente local, o operador é
-  `admin@comprafacil.local` / `admin-compra-facil`.
+  `admin@comprafacil.local` / `admin-compra-facil`. O papel `admin` exige a verificação em duas etapas (TOTP): o login
+  responde `202` com um `mfa_ticket`, e a sessão sai de `POST /identity/v1/sessions/mfa` com o código do app
+  autenticador. No compose, a chave do operador é fixa (`ADMIN_TOTP_KEY`, padrão `JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP`,
+  para cadastrar num app ou para `task token`); em produção, o primeiro login cadastra o app
+  ([deploy/README.md](deploy/README.md#verificação-em-duas-etapas-do-painel)).
 - **Compra:** `POST /orders/v1/orders` com o token de cliente e o header `Idempotency-Key`; o corpo só traz os itens
   (o cliente e o e-mail dos avisos vêm do token). Responde `202` com o pedido `pending`. Depois, consulte
   `GET /orders/v1/orders/{id}` até ele virar `confirmed` ou `cancelled` (com `cancellation_reason`), ou acompanhe ao vivo

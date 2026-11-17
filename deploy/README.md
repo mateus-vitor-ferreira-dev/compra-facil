@@ -213,7 +213,7 @@ biblioteca da Efí e o identificador de conta (vai no Worker da loja).
 | `BFF_GATEWAY_KEY` | o segredo do BFF |
 | `POSTGRES_PASSWORD` | a do superusuário |
 | `PG_CATALOG_PASSWORD`, `PG_ORDERS_PASSWORD`, `PG_INVENTORY_PASSWORD`, `PG_PAYMENTS_PASSWORD`, `PG_NOTIFICATIONS_PASSWORD`, `PG_IDENTITY_PASSWORD` | uma por serviço |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | o operador inicial do painel. Troque a senha pelo painel depois: a variável não sobrescreve |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | o operador inicial do painel. Troque a senha pelo painel depois: a variável não sobrescreve. O primeiro login cadastra o app autenticador ([Verificação em duas etapas](#verificação-em-duas-etapas-do-painel)) |
 | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | `smtp.resend.com`, `resend`, a chave da API, `nao-responda@<domínio>` |
 | `BACKUP_S3_ENDPOINT`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | do R2 |
 | `GRAFANA_CLOUD_OTLP_ENDPOINT`, `GRAFANA_CLOUD_OTLP_AUTH` | do Grafana Cloud |
@@ -253,6 +253,61 @@ docker run --rm --network <rede da stack> \
 ```
 
 Depois disso, os deploys são do CI.
+
+## Verificação em duas etapas do painel
+
+O papel `admin` só abre o painel (e as rotas `/v1/admin` dos serviços) com a senha **e** o código de um
+app autenticador (TOTP). Uma senha vazada sozinha não estorna pagamento, não muda preço nem lê dados de
+cliente. O papel `auditor`, do robô que só lê, continua entrando só com a senha.
+
+**Primeiro login depois do deploy.** As sessões de operador abertas antes deixam de valer (o painel pede o
+login de novo). Na loja, entre com `ADMIN_EMAIL` e a senha: em vez do painel, aparece "Ative a
+verificação em duas etapas".
+
+1. Instale um app autenticador no celular (Google Authenticator, Microsoft Authenticator, 1Password…).
+2. Clique em **Gerar o QR code** e leia com o app (ou digite a chave que aparece embaixo). A conta aparece
+   no app como "Embrulhado".
+3. Digite o código de 6 números e clique em **Ativar e entrar**.
+4. A tela seguinte mostra **10 códigos de recuperação, uma única vez**. Baixe o `.txt` ou copie para um
+   gerenciador de senhas, fora do celular. Cada código entra uma vez sem o app.
+
+Faça isso logo depois do deploy: até o cadastro, quem tivesse a senha poderia cadastrar o próprio celular.
+
+**Daí em diante**, o login pede a senha e o código do app. Sem o celular, o link "Usar um código de
+recuperação" na tela do código. Em **Painel → Segurança da conta** aparecem quantos códigos ainda valem e
+dá para gerar 10 novos (os anteriores deixam de valer) com um código atual do app. Cinco códigos errados
+seguidos bloqueiam o login por 15 minutos, como a senha errada. Trocar a senha pelo "esqueci minha senha"
+**não** desliga a verificação.
+
+**Perdeu o celular e os códigos de recuperação.** Desligue a verificação da conta pelo banco, no VPS. A
+conta volta ao primeiro login: a próxima entrada pede o cadastro de um app novo.
+
+```bash
+docker exec -it postgres-<uuid> psql -U postgres -d identity
+```
+
+```sql
+BEGIN;
+-- a conta (o e-mail em maiúsculas é o normalizado do Identity)
+SELECT id, email, two_factor_enabled FROM users WHERE normalized_email = upper('<e-mail do operador>');
+-- desliga a 2FA, troca o carimbo de segurança (tíquetes e sessões abertas caem) e tira o bloqueio
+UPDATE users SET two_factor_enabled = false, security_stamp = gen_random_uuid()::text,
+       access_failed_count = 0, lockout_end = NULL
+ WHERE normalized_email = upper('<e-mail do operador>');
+-- apaga a chave do autenticador, os códigos de recuperação e o último código usado
+DELETE FROM user_tokens
+ WHERE user_id = (SELECT id FROM users WHERE normalized_email = upper('<e-mail do operador>'))
+   AND login_provider IN ('[AspNetUserStore]', '[CompraFacilTotp]');
+-- derruba as sessões abertas da conta
+UPDATE refresh_tokens SET revoked_at = now(), revocation_reason = 'MfaRequired'
+ WHERE user_id = (SELECT id FROM users WHERE normalized_email = upper('<e-mail do operador>'))
+   AND revoked_at IS NULL;
+COMMIT;
+```
+
+Confira que o `SELECT` achou uma conta só antes do `COMMIT`. Quem tem acesso ao VPS tem acesso ao
+banco: este caminho não abre uma porta nova, mas fica registrado só no histórico do shell. Anote quando e
+por que foi usado.
 
 ## Fotos dos produtos
 

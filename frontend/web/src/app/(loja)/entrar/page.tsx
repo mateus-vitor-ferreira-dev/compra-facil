@@ -11,8 +11,9 @@ export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-// por que o login com o Google não terminou (?erro= do callback)
+// por que o login não terminou (?erro= do callback do Google e da verificação em duas etapas)
 const GOOGLE_ERRORS: Record<string, string> = {
+  "verificacao-expirada": "A verificação em duas etapas venceu ou já foi usada. Entre de novo com a senha.",
   "google-cancelado": "O login com o Google foi cancelado. Tente de novo ou entre com e-mail e senha.",
   "google-expirado": "O login com o Google expirou. Comece de novo.",
   "muitas-tentativas": "Muitas tentativas em pouco tempo. Espere um pouco e tente de novo.",
