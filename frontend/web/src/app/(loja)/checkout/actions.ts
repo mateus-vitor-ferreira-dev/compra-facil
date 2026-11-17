@@ -147,7 +147,8 @@ async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutSt
     if (invalid) return failed("Confira o e-mail.", invalid);
     const guest = await startGuest(email, values.name, key.data);
     if (!guest.ok) {
-      if (guest.status === 422) return failed("Confira o e-mail.", "Confira o e-mail digitado.");
+      if (guest.status === 422)
+        return failed("Confira o nome de quem recebe e o e-mail.", "Confira o e-mail digitado.");
       return failed(
         guest.status === 429
           ? "Muitas tentativas seguidas. Espere alguns minutos e confirme de novo."

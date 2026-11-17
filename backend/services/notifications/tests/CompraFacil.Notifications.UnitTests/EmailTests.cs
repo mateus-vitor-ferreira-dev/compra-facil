@@ -228,6 +228,67 @@ public sealed class EmailTests
                 new PasswordResetRequestedData(Guid.NewGuid(), "ana@exemplo.com", "Ana", new Uri(url), s_now.AddHours(1)), s_now));
 
     [Theory]
+    [InlineData("Ana Maria", "Ana")]
+    [InlineData("  João d'Ávila ", "João")]
+    [InlineData("Maria-Clara Souza", "Maria-Clara")]
+    [InlineData("J. R. Silva", "J.")]
+    [InlineData("D’Ávila", "D’Ávila")]
+    public void FirstName_KeepsRealNames(string name, string expected) =>
+        Assert.Equal(expected, EmailComposer.FirstName(name));
+
+    [Theory]
+    [InlineData("https://embrulhado-seguranca.com/verificar")]
+    [InlineData("embrulhado-seguranca.com/verificar Ana")]
+    [InlineData("evil.com")]
+    [InlineData("Evil.COM.br")]
+    [InlineData("www.x")]
+    [InlineData("ana@exemplo.com")]
+    [InlineData("pix:123")]
+    [InlineData("a/b")]
+    [InlineData("Ana2")]
+    [InlineData("<b>Ana</b>")]
+    [InlineData("...")]
+    [InlineData("Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")] // 31 letras
+    [InlineData("   ")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void FirstName_WhatDoesNotLookLikeAName_IsLeftOut(string? name) =>
+        Assert.Null(EmailComposer.FirstName(name));
+
+    public static TheoryData<string> Greetings => ["confirm-email", "guest-access", "reset-password"];
+
+    [Theory]
+    [MemberData(nameof(Greetings))]
+    public async Task Greeting_WithALinkAsName_SaysOnlyOla_InHtmlAndText(string template)
+    {
+        const string name = "https://embrulhado-seguranca.com/verificar";
+        var url = new Uri("http://localhost:3000/abrir?token=abc");
+        var email = template switch
+        {
+            "confirm-email" => await EmailComposer.ConfirmEmailAsync(Confirmation(url.AbsoluteUri, name), s_now),
+            "guest-access" => await EmailComposer.GuestAccessAsync(
+                new GuestAccessRequestedData(Guid.NewGuid(), "bia@exemplo.com", name, url, s_now.AddDays(1)), s_now),
+            _ => await EmailComposer.ResetPasswordAsync(
+                new PasswordResetRequestedData(Guid.NewGuid(), "ana@exemplo.com", name, url, s_now.AddHours(1)), s_now),
+        };
+
+        foreach (var body in new[] { email.HtmlBody, email.TextBody })
+        {
+            Assert.DoesNotContain("embrulhado-seguranca", body, StringComparison.Ordinal);
+            Assert.Contains("Olá!", body, StringComparison.Ordinal);
+            Assert.DoesNotContain("Olá,", body, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task Greeting_WithARealName_KeepsIt()
+    {
+        var email = await EmailComposer.ConfirmEmailAsync(Confirmation("http://localhost:3000/c?t=1", "João d'Ávila"), s_now);
+
+        Assert.Contains("Olá, João!", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData(0.9, "1 hora")]
     [InlineData(24, "24 horas")]
     [InlineData(72, "3 dias")]

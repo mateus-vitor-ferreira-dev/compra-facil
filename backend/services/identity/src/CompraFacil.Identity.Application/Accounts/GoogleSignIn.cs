@@ -60,7 +60,8 @@ public sealed class GoogleSignIn(
                 "já existe uma conta com este e-mail; confirme a senha dela para entrar também com o Google");
         }
 
-        var user = User.Create(google.Email, google.Name, clock.GetUtcNow());
+        // o nome do Google não passa pela validação do cadastro: o que não servir vira um nome seguro
+        var user = User.Create(google.Email, PersonName.Sanitize(google.Name, google.Email), clock.GetUtcNow());
         user.EmailConfirmed = true; // o Google verificou o e-mail (email_verified)
         await transaction.RunAsync(async () =>
         {

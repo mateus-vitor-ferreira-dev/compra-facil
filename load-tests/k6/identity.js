@@ -24,7 +24,9 @@ export function login(identityUrl, email, password) {
 export function newCustomer(identityUrl, label, tag) {
   const email = `${label}-${suffix()}${tag ? `+${tag}` : ''}@exemplo.com`;
   const password = `senha-${suffix()}`;
-  const res = http.post(`${identityUrl}/v1/accounts`, JSON.stringify({ email, password, name: `Cliente ${label}` }),
+  // o nome aceita só letras, espaços, apóstrofo, hífen e ponto: os dígitos do label ficam fora
+  const name = `Cliente ${label.replace(/[^A-Za-z-]+/g, ' ')}`.replace(/\s+/g, ' ').trim();
+  const res = http.post(`${identityUrl}/v1/accounts`, JSON.stringify({ email, password, name }),
     { headers: json, tags: { name: 'register' }, responseCallback: http.expectedStatuses(201) });
   if (res.status !== 201) fail(`cadastro de ${email}: ${res.status} ${res.body}`);
   return { email, token: login(identityUrl, email, password) };

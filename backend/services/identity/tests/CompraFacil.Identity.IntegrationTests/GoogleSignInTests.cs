@@ -44,6 +44,20 @@ public sealed class GoogleSignInTests(IdentityFixture fx) : IClassFixture<Identi
         Assert.Equal(account.GetProperty("id").GetString(), (await MeOf(again)).GetProperty("id").GetString());
     }
 
+    // o nome vem do Google e não passa pela validação do cadastro: um link nele não derruba o login, só não é guardado
+    [Theory]
+    [InlineData("https://embrulhado-seguranca.com/verificar", "joao.silva", "joao silva")]
+    [InlineData("evil.com", "12345", "Cliente")]
+    public async Task GoogleNameThatIsALink_StillSignsIn_WithASafeName(string googleName, string localPart, string expected)
+    {
+        var (sub, email) = (NewSub(), $"{localPart}@{Guid.NewGuid():N}.exemplo.com");
+
+        using var response = await _api.GoogleAsync(fx.Google.IdToken(sub, email, "n-1", name: googleName), "n-1");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expected, (await MeOf(response)).GetProperty("name").GetString());
+    }
+
     [Fact]
     public async Task EmailWithPassword_NeedsThePasswordToLink_ThenGoogleAlone()
     {

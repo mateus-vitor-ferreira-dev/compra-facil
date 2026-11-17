@@ -3,6 +3,8 @@
  * (para conferir antes de mandar o cartão ao provedor) e na server action (que vale sem JavaScript).
  */
 
+import { isPersonName, PERSON_NAME_MESSAGE } from "./person-name";
+
 export const STATES = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA",
   "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
@@ -101,6 +103,8 @@ export function checkDelivery(input: DeliveryInput): DeliveryErrors {
   const name = clean(input.name);
   if (name.length < 3 || !name.includes(" ")) errors.name = "Digite o nome e o sobrenome de quem recebe.";
   else if (name.length > MAX) errors.name = `Use até ${MAX} caracteres.`;
+  // quem compra sem conta: este é o nome que o identity guarda e põe na saudação dos e-mails
+  else if (!isPersonName(name)) errors.name = PERSON_NAME_MESSAGE;
   if (!isValidCpf(input.cpf))
     errors.cpf =
       digits(input.cpf).length === 11

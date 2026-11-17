@@ -53,7 +53,7 @@ public sealed class User : IdentityUser<Guid>
             Id = Guid.CreateVersion7(),
             UserName = normalized,
             Email = normalized,
-            Name = name.Trim(),
+            Name = PersonName.Normalize(name),
             CreatedAt = now,
         };
     }
@@ -74,7 +74,7 @@ public sealed class User : IdentityUser<Guid>
             GuestEmail = email.Trim(),
             NormalizedGuestEmail = normalizedEmail,
             GuestCheckoutKey = checkoutKey,
-            Name = name.Trim(),
+            Name = PersonName.Normalize(name),
             CreatedAt = now,
         };
     }

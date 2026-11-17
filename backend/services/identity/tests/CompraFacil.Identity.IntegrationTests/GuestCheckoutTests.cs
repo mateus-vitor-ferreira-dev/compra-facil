@@ -55,6 +55,38 @@ public sealed class GuestCheckoutTests(IdentityFixture fx) : IClassFixture<Ident
         Assert.Contains(await Outbox.OfAsync(fx, Guid.Parse(id)), m => m.EventType == "GuestAccessRequested");
     }
 
+    [Theory]
+    [InlineData("Ana Maria")]
+    [InlineData("João d'Ávila")]
+    [InlineData("Maria-Clara")]
+    [InlineData("J. R. Silva")]
+    public async Task Start_RealNames_AreAccepted(string name)
+    {
+        using var response = await StartAsync($"{Guid.NewGuid():N}@exemplo.com", name: name);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // o golpe: comprar sem conta com o e-mail da vítima e um link no nome, que iria na saudação do e-mail
+    [Theory]
+    [InlineData("https://embrulhado-seguranca.com/verificar")]
+    [InlineData("ana@exemplo.com")]
+    [InlineData("evil.com")]
+    [InlineData("www.x")]
+    public async Task Start_LinkAsName_Is422_AndSendsNothing(string name)
+    {
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+
+        using var response = await StartAsync(email, name: name);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await IdentityClient.JsonOf(response);
+        ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/ValidationProblem", body.GetRawText());
+        var error = Assert.Single(body.GetProperty("errors").EnumerateArray());
+        Assert.Equal("name", error.GetProperty("field").GetString());
+        Assert.Equal("use só letras, espaços, apóstrofo, hífen e ponto", error.GetProperty("message").GetString());
+    }
+
     [Fact]
     public async Task Start_SameForm_IsTheSamePurchase_WithTheSameLinkEmail()
     {
