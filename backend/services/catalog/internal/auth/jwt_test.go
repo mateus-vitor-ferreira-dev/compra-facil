@@ -30,6 +30,14 @@ func TestVerify(t *testing.T) {
 		assert.Equal(t, "ana@exemplo.com", claims.Email)
 		assert.True(t, claims.HasRole(auth.RoleAdmin))
 		assert.False(t, claims.HasRole(auth.RoleCustomer))
+		assert.True(t, claims.HasMFA(), "o amr do segundo fator chega nas claims")
+	})
+
+	t.Run("token sem amr não tem o segundo fator", func(t *testing.T) {
+		claims, err := v.Verify(identity.Token(t, []string{auth.RoleCustomer}))
+
+		require.NoError(t, err)
+		assert.False(t, claims.HasMFA())
 	})
 
 	other := authtest.New(t) // outra chave com o mesmo formato: um identity falso

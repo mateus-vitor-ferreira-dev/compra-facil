@@ -22,6 +22,9 @@ import (
 const (
 	RoleAdmin    = "admin"
 	RoleCustomer = "customer"
+
+	// MethodMFA vai no claim amr (RFC 8176) só do token da sessão que passou pelo segundo fator.
+	MethodMFA = "mfa"
 )
 
 var ErrInvalidToken = errors.New("token inválido")
@@ -30,10 +33,15 @@ var ErrInvalidToken = errors.New("token inválido")
 type Claims struct {
 	Roles []string `json:"roles"`
 	Email string   `json:"email"`
+	// AMR são os métodos de autenticação do login (RFC 8176); "mfa" quando passou pelo segundo fator.
+	AMR []string `json:"amr,omitempty"`
 	jwt.RegisteredClaims
 }
 
 func (c Claims) HasRole(role string) bool { return slices.Contains(c.Roles, role) }
+
+// HasMFA diz se o login passou pelo segundo fator (código do autenticador ou de recuperação).
+func (c Claims) HasMFA() bool { return slices.Contains(c.AMR, MethodMFA) }
 
 type Options struct {
 	// Authority é o endereço do identity (ex.: http://identity:8006); o JWKS fica em /.well-known/jwks.json.

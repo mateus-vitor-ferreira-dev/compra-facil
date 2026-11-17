@@ -123,6 +123,26 @@ public sealed class JwtAuthTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, auditorOnAdmin.StatusCode);
     }
 
+    [Fact]
+    public async Task AdminWithoutMfa_IsRefusedOnEveryAdminRoute_TheAuditorBotStillReads()
+    {
+        // senha do operador vazada: sem o segundo fator, nem leitura nem ação (ameaça T8)
+        using var acts = await CallAsync("/v1/admin/x", _identity.AdminTokenWithoutMfa());
+        using var reads = await SendAsync(HttpMethod.Get, "/v1/admin/lista", _identity.AdminTokenWithoutMfa());
+        using var both = await SendAsync(HttpMethod.Post, "/v1/admin/lista/acao", _identity.AdminTokenWithoutMfa());
+        using var otherMethod = await CallAsync("/v1/admin/x", _identity.Token(["admin"], amr: ["pwd"]));
+        // o auditor é um robô que só lê: entra com senha, sem amr
+        using var auditor = await SendAsync(HttpMethod.Get, "/v1/admin/lista", _identity.AuditorToken());
+
+        Assert.Equal(HttpStatusCode.Forbidden, acts.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, reads.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, both.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, otherMethod.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, auditor.StatusCode);
+        var problem = JsonDocument.Parse(await acts.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+        Assert.Equal("Sem permissão", problem.GetProperty("title").GetString());
+    }
+
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string token)
     {
         using var request = new HttpRequestMessage(method, path);

@@ -16,7 +16,9 @@ type tokenVerifier interface {
 	Verify(raw string) (auth.Claims, error)
 }
 
-// RequireRole exige um Bearer JWT válido (401) que tenha a role pedida (403).
+// RequireRole exige um Bearer JWT válido (401) que tenha a role pedida (403). A role admin vale só com o
+// segundo fator no login (amr com "mfa"): senha de operador vazada sozinha não muda preço nem campanha
+// (ameaça T8).
 func RequireRole(v tokenVerifier, role string, log *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw, ok := bearerToken(c.GetHeader("Authorization"))
@@ -35,6 +37,10 @@ func RequireRole(v tokenVerifier, role string, log *slog.Logger) gin.HandlerFunc
 		}
 		if !claims.HasRole(role) {
 			WriteProblem(c, http.StatusForbidden, "Acesso negado", "é preciso a role "+role)
+			return
+		}
+		if role == auth.RoleAdmin && !claims.HasMFA() {
+			WriteProblem(c, http.StatusForbidden, "Acesso negado", "a role admin exige o segundo fator no login")
 			return
 		}
 		c.Set(ctxSubject, claims.Subject)

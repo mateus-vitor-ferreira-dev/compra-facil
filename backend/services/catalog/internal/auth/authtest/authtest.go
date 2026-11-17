@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"slices"
 	"testing"
 	"time"
 
@@ -75,13 +76,19 @@ func (i *Identity) Verifier(t testing.TB) *auth.Verifier {
 	return v
 }
 
-// Token assina um access token; edit muda as claims antes (outro emissor, já vencido...).
+// Token assina um access token; edit muda as claims antes (outro emissor, já vencido...). O de admin sai
+// com amr = ["mfa"], como o do identity depois do segundo fator; tirar o amr no edit simula a senha sozinha.
 func (i *Identity) Token(t testing.TB, roles []string, edit ...func(*auth.Claims)) string {
 	t.Helper()
 	now := time.Now()
+	var amr []string
+	if slices.Contains(roles, auth.RoleAdmin) {
+		amr = []string{auth.MethodMFA}
+	}
 	claims := auth.Claims{
 		Roles: roles,
 		Email: "ana@exemplo.com",
+		AMR:   amr,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   "0199f6a0-0000-7000-8000-000000000a1a",
 			Issuer:    Options.Issuer,

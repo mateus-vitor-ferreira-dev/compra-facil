@@ -37,17 +37,28 @@ public sealed class JwtAuthOptions
 /// vêm do JWKS do identity, guardadas em memória: renovadas de hora em hora e na chegada de um token com
 /// <c>kid</c> desconhecido (rotação), no máximo a cada <see cref="JwtAuthOptions.KeyRefreshInterval"/>. O identity fora do ar não derruba o serviço;
 /// só as rotas protegidas respondem 401 até as chaves chegarem.
-/// Sem token: 401; token sem o papel: 403 — ambos em ProblemDetails.
+/// Sem token: 401; token sem o papel: 403 — ambos em ProblemDetails. O papel de operador só vale com a
+/// prova do segundo fator no token (<c>amr</c> com <c>mfa</c>, RFC 8176): senha vazada sozinha não estorna
+/// pagamento, não muda preço nem lê dados de cliente (ameaça T8).
 /// </summary>
 public static class JwtAuth
 {
-    /// <summary>Operador: rotas /v1/admin/*.</summary>
+    /// <summary>Operador: rotas /v1/admin/*. Exige o papel admin e o segundo fator no login (<see cref="MfaClaim"/>).</summary>
     public const string AdminPolicy = "admin";
 
     /// <summary>
-    /// Leitura da operação: as rotas GET de /v1/admin que um vigia pode ler (#403). Aceita o operador e o papel
-    /// auditor, que não muda nada. A classe do controller pede esta; cada ação que muda algo pede também
-    /// <see cref="AdminPolicy"/>, e as duas juntas só deixam o operador passar.
+    /// O claim dos métodos de autenticação (RFC 8176): o identity põe <see cref="MfaMethod"/> só no token da
+    /// sessão que passou pelo código do autenticador (ou de recuperação).
+    /// </summary>
+    public const string MfaClaim = "amr";
+
+    public const string MfaMethod = "mfa";
+
+    /// <summary>
+    /// Leitura da operação: as rotas GET de /v1/admin que um vigia pode ler (#403). Aceita o operador (com o
+    /// segundo fator, como em <see cref="AdminPolicy"/>) e o papel auditor, que não muda nada e é de um robô, sem
+    /// 2FA. A classe do controller pede esta; cada ação que muda algo pede também <see cref="AdminPolicy"/>, e as
+    /// duas juntas só deixam o operador passar.
     /// </summary>
     public const string AdminReadPolicy = "admin-read";
 
@@ -90,8 +101,9 @@ public static class JwtAuth
             o.RefreshInterval = options.KeyRefreshInterval;
         });
         builder.Services.AddAuthorizationBuilder()
-            .AddPolicy(AdminPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireRole("admin"))
-            .AddPolicy(AdminReadPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireRole("admin", "auditor"))
+            .AddPolicy(AdminPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireRole("admin").RequireClaim(MfaClaim, MfaMethod))
+            .AddPolicy(AdminReadPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireAssertion(c =>
+                c.User.IsInRole("auditor") || (c.User.IsInRole("admin") && c.User.HasClaim(MfaClaim, MfaMethod))))
             .AddPolicy(CustomerPolicy, p => p.RequireAuthenticatedUser().RequireClaim("sub").RequireRole("customer"));
         return builder;
     }
