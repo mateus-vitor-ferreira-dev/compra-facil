@@ -280,7 +280,7 @@ direto (portas 8001–8007 e gRPC 9001), use `task up:debug`.
 | Redis 8 | `localhost:6379` (`REDIS_PORT`) | cache do catálogo |
 | Redpanda (Kafka) | `localhost:19092` · console http://localhost:8080 | eventos |
 | Mailpit | SMTP `localhost:1025` · UI http://localhost:8025 | e-mails do `notifications` |
-| Fornecedor simulado | http://127.0.0.1:8091 (`/sim/orders`) | o fornecedor de dropshipping do `fulfillment` ([`supplier-sim`](backend/services/supplier-sim/README.md)) |
+| Fornecedor simulado | http://127.0.0.1:8091 (`/sim/orders`, com `X-Sim-Admin-Token: sim-admin`) | o fornecedor de dropshipping do `fulfillment` ([`supplier-sim`](backend/services/supplier-sim/README.md)) |
 | Grafana | http://127.0.0.1:3001 | dashboards e Explore (Tempo, Loki, Prometheus) |
 | Prometheus | http://127.0.0.1:9090 | |
 | OTLP | `127.0.0.1:4317` (gRPC), `:4318` (HTTP) | para serviços rodando fora do compose |

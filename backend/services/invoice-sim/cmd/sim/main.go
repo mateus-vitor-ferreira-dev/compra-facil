@@ -4,6 +4,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -68,6 +70,7 @@ func run() error {
 		Addr: fmt.Sprintf(":%d", cfg.Port),
 		Handler: handler.NewRouter(issuer, handler.Credentials{
 			ClientID: cfg.ClientID, ClientSecret: cfg.ClientSecret, TokenTTL: cfg.TokenTTL,
+			AdminToken: adminToken(cfg.AdminToken, log),
 		}, log),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -104,4 +107,18 @@ func parseLevel(s string) slog.Level {
 		return slog.LevelError
 	}
 	return slog.LevelInfo
+}
+
+// adminToken é o SIM_ADMIN_TOKEN ou, sem ele, um aleatório que ninguém conhece: as rotas /sim ficam fechadas. O
+// token gerado não vai para o log.
+func adminToken(configured string, log *slog.Logger) string {
+	if configured != "" {
+		return configured
+	}
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	log.Info("SIM_ADMIN_TOKEN vazio: as rotas /sim ficam fechadas")
+	return hex.EncodeToString(b)
 }

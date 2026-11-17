@@ -6,6 +6,7 @@ package efi
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -128,7 +129,10 @@ func (p *Provider) PayeeCode() string { return p.opts.PayeeCode }
 
 // Authorize troca client_id e client_secret por um access_token (POST /v1/authorize e /oauth/token).
 func (p *Provider) Authorize(clientID, secret string, ttl time.Duration) (string, error) {
-	if clientID != p.opts.ClientID || secret != p.opts.ClientSecret {
+	// tempo constante: o /oauth/token é público na demonstração, e a comparação com != revelaria o segredo pelo tempo
+	idOK := subtle.ConstantTimeCompare([]byte(clientID), []byte(p.opts.ClientID)) == 1
+	secretOK := subtle.ConstantTimeCompare([]byte(secret), []byte(p.opts.ClientSecret)) == 1
+	if !idOK || !secretOK {
 		return "", ErrUnauthorized
 	}
 	p.mu.Lock()

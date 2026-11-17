@@ -15,7 +15,10 @@ type Config struct {
 
 	Email    string
 	Password string
-	TokenTTL time.Duration
+	// AdminToken abre as rotas /sim (depuração e demonstração); vazio, o simulador gera um aleatório ao subir, e
+	// elas ficam fechadas: os pedidos têm nome, endereço, telefone e CPF de quem comprou
+	AdminToken string
+	TokenTTL   time.Duration
 
 	// OutOfStock lista vids que respondem estoque 0 (para forçar a recusa por falta de estoque).
 	OutOfStock map[string]bool
@@ -42,6 +45,7 @@ func load(getenv func(string) string) (Config, error) {
 		LogLevel:        str(getenv, "LOG_LEVEL", "info"),
 		Email:           str(getenv, "SIM_EMAIL", "sim@comprafacil.local"),
 		Password:        str(getenv, "SIM_PASSWORD", "sim"),
+		AdminToken:      strings.TrimSpace(getenv("SIM_ADMIN_TOKEN")),
 		TokenTTL:        15 * 24 * time.Hour,
 		OutOfStock:      list(getenv("SIM_OUT_OF_STOCK_VIDS")),
 		WebhookURL:      strings.TrimSpace(getenv("SIM_WEBHOOK_URL")),

@@ -50,6 +50,8 @@ const PAYMENT_SIM = __ENV.PAYMENT_SIM_URL || 'http://payment-sim:8090';
 const EFI_PAYEE_CODE = __ENV.EFI_PAYEE_CODE || '0123456789abcdef0123456789abcdef';
 // as rotas /sim de operação do payment-sim pedem o token de administração (#280)
 const PAYMENT_SIM_ADMIN_TOKEN = __ENV.PAYMENT_SIM_ADMIN_TOKEN || 'sim-admin';
+// as rotas /sim do fornecedor simulado pedem o token de operação (o mesmo padrão do pagamento)
+const SUPPLIER_SIM_ADMIN = { 'X-Sim-Admin-Token': __ENV.SUPPLIER_SIM_ADMIN_TOKEN || 'sim-admin' };
 const SAGA_TIMEOUT_S = 60;
 
 export const options = {
@@ -270,7 +272,7 @@ export default function (products) {
     // a devolução ao fornecedor: o cliente recebe o código, e o fornecedor (simulado) aprova
     check(eventually('e-mail das instruções', () => emailsTo(customer.email, 'Como devolver')), { 'e-mail das instruções de devolução': (n) => n >= 1 });
     const dispute = eventually('devolução aprovada no fornecedor', () => {
-      const res = http.get(`${SUPPLIER_SIM}/sim/disputes`, { tags: { name: 'sim-disputes' } });
+      const res = http.get(`${SUPPLIER_SIM}/sim/disputes`, { headers: SUPPLIER_SIM_ADMIN, tags: { name: 'sim-disputes' } });
       return (res.json('data') ?? []).find((d) => d.orderNumber === orderId && d.status === 'APPROVED');
     });
     check(dispute, { 'devolução aberta com código': (d) => !!d.returnCode });
@@ -340,7 +342,7 @@ export default function (products) {
   group('5. acabou no fornecedor', () => {
     const product = products.fromSupplier;
     const set = (n) => http.put(`${SUPPLIER_SIM}/sim/products/${SUPPLIER_VID}/stock`, json({ stock: n }), {
-      headers: { 'Content-Type': 'application/json' }, tags: { name: 'sim-stock' },
+      headers: { 'Content-Type': 'application/json', ...SUPPLIER_SIM_ADMIN }, tags: { name: 'sim-stock' },
     });
     check(eventually('espelho com estoque', () => {
       const s = stockOf(product);
@@ -425,7 +427,7 @@ export default function (products) {
       { 'e-mail do cancelamento pela loja': (n) => n >= 1 });
     // capturado, volta por estorno; ainda só autorizado, a autorização é cancelada
     check(paymentOf(orderId, 'refunded', 'voided'), { 'nada fica cobrado': (p) => p.status === 'voided' || p.refunded_cents === p.amount.amount_cents });
-    const sim = http.get(`${SUPPLIER_SIM}/sim/orders`, { tags: { name: 'sim-orders' } }).json('data');
+    const sim = http.get(`${SUPPLIER_SIM}/sim/orders`, { headers: SUPPLIER_SIM_ADMIN, tags: { name: 'sim-orders' } }).json('data');
     check(sim.find((o) => o.orderNumber === orderId), { 'cancelado no fornecedor': (o) => o.orderStatus === 'CANCELLED' });
   });
   group('9. devolução recusada na abertura', () => {

@@ -168,3 +168,27 @@ func TestCEP_CodigoIBGEComToken(t *testing.T) {
 	assert.Equal(t, "3550308", decode(t, rec)["codigo_ibge"])
 	assert.Equal(t, http.StatusNotFound, e.do(http.MethodGet, "/cep/00000000", nil).Code)
 }
+
+func TestSimRoutesNeedTheAdminToken(t *testing.T) {
+	open := NewRouter(nfe.NewIssuer(nfe.Options{}),
+		Credentials{ClientID: "cli", ClientSecret: "seg", TokenTTL: time.Hour, AdminToken: "token-de-operacao"},
+		slog.New(slog.DiscardHandler))
+	closed := NewRouter(nfe.NewIssuer(nfe.Options{}), Credentials{ClientID: "cli", ClientSecret: "seg", TokenTTL: time.Hour},
+		slog.New(slog.DiscardHandler))
+	call := func(router http.Handler, method, path, token string) int {
+		req := httptest.NewRequestWithContext(t.Context(), method, path, nil)
+		if token != "" {
+			req.Header.Set("X-Sim-Admin-Token", token)
+		}
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	assert.Equal(t, http.StatusUnauthorized, call(open, http.MethodGet, "/sim/notas", ""))
+	assert.Equal(t, http.StatusUnauthorized, call(open, http.MethodPost, "/sim/reset", "errado"))
+	assert.Equal(t, http.StatusOK, call(open, http.MethodGet, "/sim/notas", "token-de-operacao"))
+	assert.Equal(t, http.StatusNoContent, call(open, http.MethodPost, "/sim/reset", "token-de-operacao"))
+	// sem token configurado, as rotas ficam fechadas até para quem manda o cabeçalho vazio
+	assert.Equal(t, http.StatusUnauthorized, call(closed, http.MethodGet, "/sim/notas", ""))
+}
