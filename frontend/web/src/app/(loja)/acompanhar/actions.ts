@@ -20,9 +20,20 @@ export async function requestGuestLink(_: ResendState, form: FormData): Promise<
   return { email, sent: true };
 }
 
-/** Abre a sessão pelo link do e-mail, no clique: abrir o link sozinho (um antivírus de e-mail) não entra. */
+/**
+ * Abre a sessão pelo link do e-mail, no clique: abrir o link sozinho (um antivírus de e-mail) não entra. Com
+ * outra sessão no navegador, volta à página do link para o comprador confirmar a troca (`trocar`).
+ */
 export async function openGuestLink(form: FormData): Promise<void> {
   const token = z.string().min(1).max(128).safeParse(form.get("token"));
-  const opened = token.success && (await openGuestAccess(token.data));
-  redirect(opened ? "/conta" : "/acompanhar?erro=link");
+  if (!token.success) redirect("/acompanhar?erro=link");
+  const result = await openGuestAccess(token.data, form.get("trocar") === "1");
+  if (result.ok) redirect("/conta");
+  if (result.reason === "invalid") redirect("/acompanhar?erro=link");
+  const query = new URLSearchParams({
+    token: token.data,
+    outra: result.current === "account" ? "conta" : "convidado",
+    email: result.email,
+  });
+  redirect(`/acompanhar/abrir?${query}`);
 }
