@@ -98,7 +98,10 @@ public sealed class OverdueOrdersTests(OverdueFixture fx) : IClassFixture<Overdu
         var json = await response.Content.ReadAsStringAsync(Ct);
         ContractAssert.AssertSchema("fulfillment.v1.yaml",
             "/paths/~1v1~1admin~1supplier-orders~1overdue/get/responses/200/content/application~1json/schema", json);
-        var data = JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().ToList();
+        // só os pedidos deste teste: os outros da classe dividem o banco e deixam atrasados próprios
+        Guid[] mine = [stuckLong.Id, accepted.Id, lost.Id, onTime.Id, travelling.Id, delivered.Id, failed.Id, promisedLate.Id, promisedLater.Id];
+        var data = JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray()
+            .Where(o => mine.Contains(o.GetProperty("order_id").GetGuid())).ToList();
         Assert.Equal([stuckLong.Id, lost.Id, promisedLate.Id, accepted.Id], data.Select(o => o.GetProperty("order_id").GetGuid()));
         Assert.Equal(["shipping", "delivery", "delivery", "shipping"], data.Select(o => o.GetProperty("stage").GetString()));
         Assert.Equal("BR1", data[1].GetProperty("tracking").GetProperty("number").GetString());
