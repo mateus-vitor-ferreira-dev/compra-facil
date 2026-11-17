@@ -204,3 +204,30 @@ public sealed class ManualSupplierOrderTests(ManualSupplierFixture fx) : IClassF
         }
     }
 }
+
+/// <summary>No fornecedor manual ninguém manda webhook: a rota não existe, nem com a assinatura do simulador.</summary>
+public sealed class ManualSupplierWebhookTests(ManualSupplierFixture fx) : IClassFixture<ManualSupplierFixture>
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Webhook_IsNotFound_EvenSignedWithTheSimulatorSecret()
+    {
+        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            messageId = $"m-{Guid.NewGuid():N}",
+            type = "ORDER",
+            @params = new { orderNumber = Guid.NewGuid().ToString(), orderStatus = "CANCELLED" },
+        });
+        var signature = "sha256=" + Convert.ToHexStringLower(
+            System.Security.Cryptography.HMACSHA256.HashData(Encoding.UTF8.GetBytes("sim-secret"), body));
+        using var client = fx.Factory.CreateClient();
+        using var content = new ByteArrayContent(body);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        content.Headers.Add("X-Sim-Signature", signature);
+
+        using var response = await client.PostAsync(new Uri("/v1/webhooks/supplier", UriKind.Relative), content, Ct);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+}
