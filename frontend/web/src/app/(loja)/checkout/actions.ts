@@ -149,6 +149,11 @@ async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutSt
     if (!guest.ok) {
       if (guest.status === 422)
         return failed("Confira o nome de quem recebe e o e-mail.", "Confira o e-mail digitado.");
+      // o formulário já foi enviado (com outro e-mail, ou há mais de 30 minutos): a compra se abre pelo link
+      if (guest.status === 409)
+        return failed(
+          "Este pedido já foi enviado. Para acompanhar a compra, use o link de acesso que mandamos para o e-mail dela.",
+        );
       return failed(
         guest.status === 429
           ? "Muitas tentativas seguidas. Espere alguns minutos e confirme de novo."
