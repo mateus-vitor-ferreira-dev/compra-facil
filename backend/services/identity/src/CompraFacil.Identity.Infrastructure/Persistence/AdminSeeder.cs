@@ -18,12 +18,8 @@ public sealed class AdminSeedOptions
 }
 
 /// <summary>
-/// Garante que o operador configurado existe e tem o papel <c>admin</c>. Conta já existente mantém a
-/// senha: trocar a configuração não sobrescreve uma senha alterada depois.
-/// </summary>
-/// <summary>
-/// A conta só de leitura da operação (#403), para o vigia do agentes-hub: entra com e-mail e senha como o
-/// operador, mas só tem o papel <see cref="Roles.Auditor"/>, que abre as listas de /v1/admin e nada que mude algo.
+/// A conta só de leitura da operação, para o vigia do agentes-hub: entra com e-mail e senha como o operador, mas
+/// só tem o papel <see cref="Roles.Auditor"/>, que abre as listas de /v1/admin e nada que mude algo.
 /// </summary>
 public sealed class AuditorSeedOptions
 {
@@ -34,6 +30,12 @@ public sealed class AuditorSeedOptions
     public string Name { get; set; } = "Agentes (leitura)";
 }
 
+/// <summary>
+/// Garante que o operador e o auditor configurados existem com o seu papel. A conta criada por aqui mantém a senha
+/// depois (trocar a configuração não sobrescreve uma senha alterada). Uma conta que já existia sem o papel não é
+/// promovida: o cadastro é público, e quem registrasse antes o e-mail configurado (um auditor ligado depois, um
+/// e-mail de operador trocado) ganharia o papel com a própria senha.
+/// </summary>
 public sealed partial class AdminSeeder(
     UserManager<User> users, IOptions<AdminSeedOptions> options, IOptions<AuditorSeedOptions> auditor, TimeProvider clock,
     ILogger<AdminSeeder> logger)
@@ -54,17 +56,20 @@ public sealed partial class AdminSeeder(
         }
 
         var user = await users.FindByEmailAsync(email);
-        if (user is null)
+        if (user is not null)
         {
-            user = User.Create(email, name, clock.GetUtcNow());
-            user.EmailConfirmed = true; // o e-mail veio da configuração: a conta entra mesmo com a confirmação exigida
-            Check(await users.CreateAsync(user, password));
-            LogCreated(logger, email, role);
+            if (!await users.IsInRoleAsync(user, role))
+            {
+                LogNotPromoted(logger, email, role);
+            }
+            return;
         }
-        if (!await users.IsInRoleAsync(user, role))
-        {
-            Check(await users.AddToRoleAsync(user, role));
-        }
+
+        user = User.Create(email, name, clock.GetUtcNow());
+        user.EmailConfirmed = true; // o e-mail veio da configuração: a conta entra mesmo com a confirmação exigida
+        Check(await users.CreateAsync(user, password));
+        Check(await users.AddToRoleAsync(user, role));
+        LogCreated(logger, email, role);
     }
 
     private static void Check(IdentityResult result)
@@ -78,6 +83,11 @@ public sealed partial class AdminSeeder(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "conta inicial {Email} criada com o papel {Role}")]
     private static partial void LogCreated(ILogger logger, string email, string role);
+
+    [LoggerMessage(Level = LogLevel.Error, Message =
+        "{Email} já tinha conta sem o papel {Role} e não foi promovida: confira quem criou a conta e dê o papel à mão, " +
+        "ou configure outro e-mail")]
+    private static partial void LogNotPromoted(ILogger logger, string email, string role);
 }
 
 public static class AdminSeederExtensions

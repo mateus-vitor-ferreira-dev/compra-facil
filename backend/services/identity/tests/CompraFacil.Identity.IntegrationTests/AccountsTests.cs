@@ -1,5 +1,11 @@
 using System.Net;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Identity.Domain;
+using CompraFacil.Identity.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace CompraFacil.Identity.IntegrationTests;
 
@@ -23,6 +29,29 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         Assert.Equal("Ana Souza", body.GetProperty("name").GetString());
         Assert.Equal(["customer"], body.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
         Assert.False(body.TryGetProperty("password", out _));
+    }
+
+    [Fact]
+    public async Task Seeder_DoesNotPromoteAnAccountThatSomeoneRegisteredWithTheConfiguredEmail()
+    {
+        // o cadastro é público: quem registra antes o e-mail de um auditor ligado depois não pode virar auditor
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+        using (var registered = await _api.RegisterAsync(email))
+        {
+            Assert.Equal(HttpStatusCode.Created, registered.StatusCode);
+        }
+
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var seeder = new AdminSeeder(users, Options.Create(new AdminSeedOptions()),
+            Options.Create(new AuditorSeedOptions { Email = email, Password = "senha-da-configuracao" }), fx.Clock,
+            NullLogger<AdminSeeder>.Instance);
+        await seeder.SeedAsync();
+
+        var user = await users.FindByEmailAsync(email);
+        Assert.NotNull(user);
+        Assert.False(await users.IsInRoleAsync(user, Roles.Auditor));
+        Assert.False(await users.CheckPasswordAsync(user, "senha-da-configuracao"));
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using System.Text.Json;
 using CompraFacil.BuildingBlocks.Web;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -223,6 +224,8 @@ public sealed class ServiceDefaultsTests : IAsyncLifetime
     }
 }
 
+// uma rota pública de propósito: estes testes olham o formato dos erros, sem token
+[AllowAnonymous]
 [ApiController]
 [Route("test")]
 public sealed class TestController : ControllerBase

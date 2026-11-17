@@ -9,7 +9,8 @@ export interface paths {
         };
         /**
          * Pagamentos de um pedido
-         * @description Normalmente um por pedido; mais de um só se houver nova tentativa após falha.
+         * @description Normalmente um por pedido; mais de um só se houver nova tentativa após falha. Só o operador e o auditor
+         *     (o painel): a resposta traz o PIX copia e cola, o final do cartão e a taxa da loja.
          */
         get: operations["listPayments"];
         put?: never;
@@ -27,7 +28,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Detalhe de um pagamento */
+        /**
+         * Detalhe de um pagamento
+         * @description Só o operador e o auditor (o painel).
+         */
         get: operations["getPayment"];
         put?: never;
         post?: never;
@@ -322,6 +326,24 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Token ausente, inválido ou expirado. */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Token válido, mas sem a permissão necessária. */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Corpo bem formado, mas com campos inválidos. */
         UnprocessableEntity: {
             headers: {
@@ -342,24 +364,6 @@ export interface components {
         };
         /** @description Recurso não encontrado. */
         NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Token ausente, inválido ou expirado. */
-        Unauthorized: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Token válido, mas sem a permissão necessária. */
-        Forbidden: {
             headers: {
                 [name: string]: unknown;
             };
@@ -424,6 +428,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             422: components["responses"]["UnprocessableEntity"];
             500: components["responses"]["InternalError"];
         };
@@ -448,6 +454,8 @@ export interface operations {
                     "application/json": components["schemas"]["Payment"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
         };

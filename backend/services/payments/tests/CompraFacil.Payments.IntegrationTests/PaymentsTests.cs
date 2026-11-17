@@ -655,6 +655,18 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         await PlacedAndReservedAsync(order, 4990, payment: null);
         using var http = fx.Factory.CreateClient();
 
+        // sem token, nem o cliente: o pagamento tem o PIX copia e cola, o final do cartão e a taxa da loja
+        using (var anonymous = await http.GetAsync(new Uri($"/v1/payments?order_id={order}", UriKind.Relative), Ct))
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        }
+        http.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.CustomerToken());
+        using (var customer = await http.GetAsync(new Uri($"/v1/payments?order_id={order}", UriKind.Relative), Ct))
+        {
+            Assert.Equal(HttpStatusCode.Forbidden, customer.StatusCode);
+        }
+        http.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.AuditorToken());
+
         using var list = await http.GetAsync(new Uri($"/v1/payments?order_id={order}", UriKind.Relative), Ct);
         var listJson = await list.Content.ReadAsStringAsync(Ct);
         ContractAssert.AssertSchema("payments.v1.yaml", "/paths/~1v1~1payments/get/responses/200/content/application~1json/schema", listJson);

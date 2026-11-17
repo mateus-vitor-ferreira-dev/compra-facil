@@ -1,4 +1,5 @@
 using CompraFacil.Identity.Application.Accounts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CompraFacil.Identity.Api.Controllers;
@@ -7,6 +8,8 @@ namespace CompraFacil.Identity.Api.Controllers;
 /// Sessões: login, refresh e logout (contracts/openapi/identity.v1.yaml). Respostas com token não vão
 /// para cache (Cache-Control: no-store, como no OAuth 2.0).
 /// </summary>
+// login, refresh, Google e convidado: quem chama ainda não tem token (cada ação confere o que recebe)
+[AllowAnonymous]
 [ApiController]
 [Route("v1/sessions")]
 [Produces("application/json")]
