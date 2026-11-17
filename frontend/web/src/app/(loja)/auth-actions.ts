@@ -5,6 +5,7 @@ import { z } from "zod";
 import { api } from "@/lib/api/client";
 import { signIn, signOut } from "@/lib/auth/flows";
 import { safeReturnTo } from "@/lib/auth/return-to";
+import { isPersonName, normalizePersonName, PERSON_NAME_MESSAGE } from "@/lib/person-name";
 
 /**
  * Entrar, criar conta, sair e confirmar o e-mail. Server actions chamadas por formulários comuns
@@ -61,7 +62,16 @@ export type RegisterState = {
 };
 
 const registerSchema = z.object({
-  name: z.string().trim().min(2, "Escreva seu nome.").max(120, "Use até 120 caracteres."),
+  name: z
+    .string()
+    .transform(normalizePersonName)
+    .pipe(
+      z
+        .string()
+        .min(2, "Escreva seu nome.")
+        .max(120, "Use até 120 caracteres.")
+        .refine(isPersonName, PERSON_NAME_MESSAGE),
+    ),
   email: z
     .string()
     .min(1, "Escreva seu e-mail.")
@@ -75,7 +85,7 @@ const registerSchema = z.object({
 
 // os textos do identity são em inglês: o front fala com o cliente em português, campo a campo
 const serverFieldMessage: Record<string, string> = {
-  name: "Confira o nome.",
+  name: `Confira o nome. ${PERSON_NAME_MESSAGE}`,
   email: "Confira o e-mail.",
   password: "Escolha outra senha: de 8 a 128 caracteres, com pelo menos 4 diferentes.",
 };

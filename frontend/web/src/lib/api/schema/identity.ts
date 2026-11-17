@@ -356,11 +356,21 @@ export interface components {
          * @example ana@exemplo.com
          */
         Email: string;
+        /**
+         * @description Nome de quem compra; vai na saudação dos e-mails da loja. Só letras (com acento), espaços,
+         *     apóstrofo, hífen e ponto. Nada de link, e-mail ou domínio: `://`, `www.`, `@`, `/`, `:` e
+         *     palavras como `exemplo.com` dão 422 ("use só letras, espaços, apóstrofo, hífen e ponto").
+         *     Espaços nas pontas saem e os repetidos viram um só.
+         * @example Ana Souza
+         * @example João d'Ávila
+         * @example Maria-Clara
+         * @example J. R. Silva
+         */
+        PersonName: string;
         RegisterRequest: {
             email: components["schemas"]["Email"];
             password: string;
-            /** @example Ana Souza */
-            name: string;
+            name: components["schemas"]["PersonName"];
         };
         ResetPasswordRequest: {
             /** Format: uuid */
@@ -408,7 +418,7 @@ export interface components {
         };
         GuestSessionRequest: {
             email: components["schemas"]["Email"];
-            name: string;
+            name: components["schemas"]["PersonName"];
             /**
              * Format: uuid
              * @description Nasce com o formulário do checkout e é a mesma em cada reenvio dele.

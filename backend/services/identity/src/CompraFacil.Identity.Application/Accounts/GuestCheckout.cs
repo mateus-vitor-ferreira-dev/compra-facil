@@ -32,7 +32,8 @@ public sealed class StartGuestValidator : AbstractValidator<StartGuestCommand>
     public StartGuestValidator()
     {
         RuleFor(c => c.Email).NotEmpty().EmailAddress().MaximumLength(User.MaxEmailLength);
-        RuleFor(c => c.Name).NotEmpty().MaximumLength(User.MaxNameLength);
+        RuleFor(c => c.Name).Cascade(CascadeMode.Stop).NotEmpty().MaximumLength(User.MaxNameLength)
+            .Must(PersonName.IsValid).WithMessage(PersonName.InvalidMessage);
         RuleFor(c => c.CheckoutKey).NotEmpty();
     }
 }

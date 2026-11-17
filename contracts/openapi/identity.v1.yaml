@@ -520,6 +520,19 @@ components:
       maxLength: 254
       examples: ["ana@exemplo.com"]
 
+    PersonName:
+      type: string
+      minLength: 1
+      maxLength: 120
+      # o pattern só barra o grosso; a regra inteira (letras, espaço, apóstrofo, hífen e ponto) é do servidor
+      pattern: "^[^0-9/:@<>]+$"
+      description: |
+        Nome de quem compra; vai na saudação dos e-mails da loja. Só letras (com acento), espaços,
+        apóstrofo, hífen e ponto. Nada de link, e-mail ou domínio: `://`, `www.`, `@`, `/`, `:` e
+        palavras como `exemplo.com` dão 422 ("use só letras, espaços, apóstrofo, hífen e ponto").
+        Espaços nas pontas saem e os repetidos viram um só.
+      examples: ["Ana Souza", "João d'Ávila", "Maria-Clara", "J. R. Silva"]
+
     RegisterRequest:
       type: object
       required: [email, password, name]
@@ -532,10 +545,7 @@ components:
           maxLength: 128
           writeOnly: true
         name:
-          type: string
-          minLength: 1
-          maxLength: 120
-          examples: ["Ana Souza"]
+          $ref: "#/components/schemas/PersonName"
 
     ResetPasswordRequest:
       type: object
@@ -638,8 +648,7 @@ components:
         email:
           $ref: "#/components/schemas/Email"
         name:
-          type: string
-          maxLength: 120
+          $ref: "#/components/schemas/PersonName"
         checkout_key:
           type: string
           format: uuid
