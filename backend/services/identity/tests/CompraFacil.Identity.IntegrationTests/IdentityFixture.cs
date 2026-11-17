@@ -1,7 +1,11 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Identity.Application.Accounts;
+using CompraFacil.Identity.Domain;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,6 +59,32 @@ public class IdentityFixture : IAsyncLifetime
         using var _ = Factory.CreateClient(); // sobe: migrations, primeira chave e admin
     }
 
+    /// <summary>Dá um papel a uma conta já cadastrada (o operador nasce da configuração; os testes criam outros).</summary>
+    public async Task AddRoleAsync(string email, string role)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException($"{email} não existe");
+        Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
+    }
+
+    /// <summary>A conta como está no banco agora.</summary>
+    public async Task<T> WithUserAsync<T>(string email, Func<UserManager<User>, User, Task<T>> read)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var user = await users.FindByEmailAsync(email) ?? throw new InvalidOperationException($"{email} não existe");
+        return await read(users, user);
+    }
+
+    /// <summary>O código que o app autenticador mostraria agora (ou <paramref name="steps"/> passos antes/depois).</summary>
+    public string CodeFor(string sharedKey, int steps = 0) =>
+        Totp.Code(Totp.FromBase32(sharedKey), Totp.StepAt(Clock.GetUtcNow()) + steps);
+
+    /// <summary>Espera o próximo código do autenticador (o mesmo código não vale duas vezes).</summary>
+    public void NextCode() => Clock.Advance(TimeSpan.FromSeconds(Totp.StepSeconds));
+
     public async ValueTask DisposeAsync()
     {
         await Factory.DisposeAsync();
@@ -82,6 +112,68 @@ public sealed class IdentityClient(HttpClient http)
 
     public Task<HttpResponseMessage> LinkGoogleAsync(string idToken, string nonce, string password) =>
         http.PostAsJsonAsync("/v1/sessions/google/link", new { id_token = idToken, nonce, password }, Ct);
+
+    public Task<HttpResponseMessage> MfaAsync(string ticket, string? code = null, string? recoveryCode = null) =>
+        http.PostAsJsonAsync("/v1/sessions/mfa", new { ticket, code, recovery_code = recoveryCode }, Ct);
+
+    public Task<HttpResponseMessage> MfaSetupAsync(string ticket) =>
+        http.PostAsJsonAsync("/v1/sessions/mfa/setup", new { ticket }, Ct);
+
+    public Task<HttpResponseMessage> MfaConfirmAsync(string ticket, string code) =>
+        http.PostAsJsonAsync("/v1/sessions/mfa/setup/confirm", new { ticket, code }, Ct);
+
+    public async Task<HttpResponseMessage> RegenerateRecoveryCodesAsync(string accessToken, string code)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/me/two-factor/recovery-codes")
+        {
+            Content = JsonContent.Create(new { code }),
+        };
+        request.Headers.Authorization = new("Bearer", accessToken);
+        return await http.SendAsync(request, Ct);
+    }
+
+    /// <summary>O tíquete do 202 do login (senha ou Google), conferindo para que ele serve.</summary>
+    public static async Task<string> TicketOf(HttpResponseMessage response, string status) =>
+        (await ChallengeOf(response, status)).GetProperty("mfa_ticket").GetString()!;
+
+    /// <summary>O corpo do 202 do login, conferido contra o contrato.</summary>
+    public static async Task<JsonElement> ChallengeOf(HttpResponseMessage response, string status)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoStore);
+        var body = await JsonOf(response);
+        ContractAssert.AssertSchema("identity.v1.yaml", "/components/schemas/MfaChallenge", body.GetRawText());
+        Assert.Equal(status, body.GetProperty("status").GetString());
+        Assert.False(body.TryGetProperty("access_token", out _));
+        return body;
+    }
+
+    /// <summary>
+    /// Cadastra uma conta, dá o papel de operador e faz o cadastro do autenticador pelo login: (e-mail, chave,
+    /// tokens da sessão com amr, códigos de recuperação).
+    /// </summary>
+    public async Task<EnrolledAdmin> NewEnrolledAdminAsync(IdentityFixture fx)
+    {
+        ArgumentNullException.ThrowIfNull(fx);
+        var email = $"operador-{Guid.NewGuid():N}@exemplo.com";
+        using (var registered = await RegisterAsync(email))
+        {
+            registered.EnsureSuccessStatusCode();
+        }
+        await fx.AddRoleAsync(email, Roles.Admin);
+        using var login = await LoginAsync(email);
+        var ticket = await TicketOf(login, "mfa_setup_required");
+        using var setup = await MfaSetupAsync(ticket);
+        Assert.Equal(HttpStatusCode.OK, setup.StatusCode);
+        var key = (await JsonOf(setup)).GetProperty("shared_key").GetString()!;
+        using var confirmed = await MfaConfirmAsync(ticket, fx.CodeFor(key));
+        Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+        var body = await JsonOf(confirmed);
+        fx.NextCode(); // o código do cadastro já foi usado
+        return new EnrolledAdmin(email, key, Tokens(body),
+            [.. body.GetProperty("recovery_codes").EnumerateArray().Select(c => c.GetString()!)]);
+    }
 
     public Task<HttpResponseMessage> RefreshAsync(string refreshToken) =>
         http.PostAsJsonAsync("/v1/sessions/refresh", new { refresh_token = refreshToken }, Ct);
@@ -118,3 +210,6 @@ public sealed class IdentityClient(HttpClient http)
     public static async Task<JsonElement> JsonOf(HttpResponseMessage response) =>
         await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
 }
+
+/// <summary>Um operador com a 2FA ativa: a chave do autenticador, a sessão do cadastro e os códigos de recuperação.</summary>
+public sealed record EnrolledAdmin(string Email, string SharedKey, (string Access, string Refresh) Session, IReadOnlyList<string> RecoveryCodes);

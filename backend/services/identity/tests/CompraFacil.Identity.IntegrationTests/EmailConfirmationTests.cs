@@ -212,6 +212,7 @@ public sealed class RequiredConfirmationTests(RequiredConfirmationFixture fx) : 
     {
         using var login = await _api.LoginAsync(IdentityFixture.AdminEmail, IdentityFixture.AdminPassword);
 
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        // a senha passa sem o e-mail confirmado; a sessão depende do cadastro do autenticador
+        await IdentityClient.TicketOf(login, "mfa_setup_required");
     }
 }

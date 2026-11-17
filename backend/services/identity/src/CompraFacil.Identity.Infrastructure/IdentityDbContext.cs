@@ -9,13 +9,14 @@ namespace CompraFacil.Identity.Infrastructure;
 
 /// <summary>
 /// Banco do identity (database-per-service): as tabelas do ASP.NET Core Identity com nomes curtos,
-/// refresh tokens, chaves de assinatura, o anel de chaves do Data Protection e o outbox dos eventos de
+/// refresh tokens, tíquetes do segundo fator, chaves de assinatura, o anel de chaves do Data Protection e o outbox dos eventos de
 /// conta.
 /// </summary>
 public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> options)
     : IdentityDbContext<User, Role, Guid>(options), IDataProtectionKeyContext
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<MfaTicket> MfaTickets => Set<MfaTicket>();
     public DbSet<GuestAccessLink> GuestAccessLinks => Set<GuestAccessLink>();
     public DbSet<SigningKey> SigningKeys => Set<SigningKey>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
