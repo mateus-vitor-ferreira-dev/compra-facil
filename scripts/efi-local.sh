@@ -25,7 +25,10 @@ export EFI_PIX_CERTIFICATE_BASE64
 compose=(docker compose -f compose.yaml -f infra/compose/compose.efi.yaml)
 
 # 1. o endereço público: o de um túnel que você já abriu (EFI_PUBLIC_URL=https://… scripts/efi-local.sh, por
-# exemplo o do localhost.run quando a rede bloqueia a porta 7844), ou o do túnel do Cloudflare que sobe aqui
+# exemplo o do localhost.run quando a rede bloqueia a porta 7844), ou o do túnel do Cloudflare que sobe aqui.
+# Os dois apontam para o efi-webhooks, que só deixa passar os avisos da Efí: o túnel à mão é
+#   ssh -R 80:localhost:8099 nokey@localhost.run
+# e nunca para a porta 80 (o gateway inteiro, com o login de admin e a senha padrão, ficaria na internet)
 up_extra=()
 if [ -n "${EFI_PUBLIC_URL:-}" ]; then
   EFI_PUBLIC_URL=${EFI_PUBLIC_URL%/}
@@ -58,6 +61,7 @@ fi
 "${compose[@]}" up -d --build --wait "${up_extra[@]}"
 echo
 echo "Efí (homologação) no payments; avisos em $EFI_PUBLIC_URL/payments/v1/webhooks/efi/{pix,charges}"
+echo "O túnel só publica esses avisos (efi-webhooks, 127.0.0.1:${EFI_WEBHOOKS_PORT:-8099}); o resto responde 404."
 echo "O webhook do PIX: ${compose[*]} logs payments | grep -i webhook"
 echo
 echo "O front, em outro terminal:"

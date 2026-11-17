@@ -15,8 +15,32 @@ services:
       Payments__Efi__ChargeNotificationUrl: ${EFI_PUBLIC_URL:?o endereço do túnel}/payments/v1/webhooks/efi/charges
       Payments__Efi__PixWebhookUrl: ${EFI_PUBLIC_URL:?o endereço do túnel}/payments/v1/webhooks/efi/pix
 
+  # o que o túnel publica: só os avisos da Efí. O resto do gateway (o painel, o login de admin com a senha padrão
+  # do ambiente local) fica fora da internet; qualquer outro caminho responde 404
+  efi-webhooks:
+    image: caddy:2.11.6-alpine
+    configs:
+      - source: efi-webhooks
+        target: /etc/caddy/Caddyfile
+    depends_on: [gateway]
+    # para um túnel aberto à mão (ssh -R 80:localhost:8099 nokey@localhost.run): só na máquina local
+    ports: ["127.0.0.1:${EFI_WEBHOOKS_PORT:-8099}:8080"]
+
   # túnel rápido (trycloudflare.com, sem conta): o endereço muda a cada subida, e o script recria o payments com ele
   efi-tunnel:
     image: cloudflare/cloudflared:2026.10.6
-    command: ["tunnel", "--no-autoupdate", "--url", "http://gateway:80"]
-    depends_on: [gateway]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://efi-webhooks:8080"]
+    depends_on: [efi-webhooks]
+
+configs:
+  efi-webhooks:
+    content: |
+      :8080 {
+        @efi path /payments/v1/webhooks/efi/*
+        handle @efi {
+          reverse_proxy gateway:80
+        }
+        handle {
+          respond 404
+        }
+      }
