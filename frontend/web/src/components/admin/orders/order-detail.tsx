@@ -76,6 +76,40 @@ function RefundFailed({ order: o, notice }: { order: AdminOrderDetail; notice?: 
   );
 }
 
+/**
+ * O pagamento já aprovado deixou de valer: o cartão que a operadora não confirmou (não pago, cancelado) ou a
+ * contestação do cliente (chargeback). Antes do fornecedor, o pedido foi cancelado sozinho; depois, a equipe
+ * precisa agir: cancelar no fornecedor e, na contestação, responder no painel da Efí.
+ */
+function PaymentReversed({ order: o }: { order: AdminOrderDetail }) {
+  if (!o.payment_reversed_at) return null;
+  const disputed = o.payment_reversal === "disputed";
+  const stopped = o.status === "cancelled" && o.cancellation_reason === "payment_failed";
+  return (
+    <section
+      aria-labelledby="pagamento-revertido"
+      className="border-danger/40 bg-danger/5 space-y-3 rounded-md border p-4"
+    >
+      <h2 id="pagamento-revertido" className="flex items-center gap-2 font-semibold">
+        <TriangleAlert aria-hidden="true" className="text-danger size-5 shrink-0" />
+        {disputed ? "O cliente contestou o pagamento" : "O pagamento não se confirmou"}
+      </h2>
+      <p className="max-w-prose">
+        Em {fmt(o.payment_reversed_at)},{" "}
+        {disputed
+          ? "o cliente contestou o cartão na operadora (chargeback), e o valor está em disputa."
+          : "a operadora não confirmou o cartão que tinha aprovado, e o valor não vai entrar."}{" "}
+        {stopped
+          ? "O pedido foi cancelado antes de ir ao fornecedor. Confira em Pedidos no fornecedor se ele não chegou a ser feito lá."
+          : o.status === "cancelled" || o.status === "returned"
+            ? "O pedido já tinha terminado: no fornecedor, não há o que fazer."
+            : "O pedido já estava com o fornecedor: cancele lá, se ainda der, em Pedidos no fornecedor."}{" "}
+        {disputed && "Responda a contestação no painel da Efí, dentro do prazo dela."}
+      </p>
+    </section>
+  );
+}
+
 export type RefundNotice = "pedido" | "erro";
 
 /**
@@ -104,6 +138,8 @@ export function OrderDetail({
         </div>
         <p className="text-ink-soft">Feito em {fmt(o.created_at)}.</p>
       </header>
+
+      <PaymentReversed order={o} />
 
       <RefundFailed order={o} notice={refundNotice} />
 
