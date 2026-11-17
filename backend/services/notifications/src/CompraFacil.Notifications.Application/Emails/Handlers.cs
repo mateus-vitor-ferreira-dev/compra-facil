@@ -230,3 +230,20 @@ public sealed class OnEmailConfirmationRequested(INotificationRepository notific
             data.Email, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
     }
 }
+
+/// <summary>Registra o e-mail com o link para criar uma senha nova.</summary>
+public sealed class OnPasswordResetRequested(INotificationRepository notifications, TimeProvider clock) : IHandleEvent<PasswordResetRequestedData>
+{
+    public async Task HandleAsync(PasswordResetRequestedData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(context);
+        if (await notifications.ExistsAsync(context.EventId, ct))
+        {
+            return;
+        }
+        var email = await EmailComposer.ResetPasswordAsync(data, clock.GetUtcNow());
+        notifications.Add(Notification.Create(context.EventId, data.AccountId, NotificationEvents.PasswordResetRequested,
+            data.Email, email.Subject, email.HtmlBody, email.TextBody, clock.GetUtcNow()));
+    }
+}

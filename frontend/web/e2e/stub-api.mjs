@@ -9,6 +9,7 @@ const accessTokens = new Map(); // access token -> email
 const stats = { refresh: 0, revoke: 0, ordersPlaced: 0, ordersByKey: {} };
 let seq = 0;
 const accounts = new Map(); // email -> { password, name }, das contas criadas no teste
+const usedResetTokens = new Set(); // os links de "esqueci minha senha" já usados
 const guests = new Map(); // email -> nome, de quem comprou sem conta
 const guestKeys = new Map(); // chave do formulário -> email
 
@@ -1682,6 +1683,30 @@ createServer(async (req, res) => {
     case "POST /identity/v1/accounts/confirm-email/resend":
       res.writeHead(202).end();
       return;
+    case "POST /identity/v1/accounts/password-reset":
+      res.writeHead(202).end();
+      return;
+    case "POST /identity/v1/accounts/password-reset/confirm": {
+      // "token-bom..." vale uma vez só, como o do identity; a senha nova passa a valer no login de quem pediu
+      const { token, password } = await json(req);
+      if (!token?.startsWith("token-bom") || usedResetTokens.has(token)) {
+        return send(
+          res,
+          422,
+          {
+            type: "about:blank",
+            title: "Dados inválidos",
+            status: 422,
+            errors: [{ field: "token", message: "link de redefinição inválido ou vencido" }],
+          },
+          "application/problem+json",
+        );
+      }
+      usedResetTokens.add(token);
+      accounts.set("redefinir@exemplo.com", { password, name: "Rita Dias" });
+      res.writeHead(204).end();
+      return;
+    }
     case "POST /identity/v1/accounts/confirm-email": {
       const { token } = await json(req);
       if (token !== "token-bom") return problem(res, 422, "Dados inválidos");

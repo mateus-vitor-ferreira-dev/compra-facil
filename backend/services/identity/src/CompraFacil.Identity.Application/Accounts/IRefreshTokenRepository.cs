@@ -23,6 +23,9 @@ public interface IRefreshTokenRepository
     /// </summary>
     Task RevokeFamilyAsync(Guid familyId, DateTimeOffset now, RevocationReason reason, CancellationToken ct, Guid? except = null);
 
+    /// <summary>Revoga, direto no banco, todos os tokens ainda válidos da conta: todas as sessões caem.</summary>
+    Task RevokeAllOfUserAsync(Guid userId, DateTimeOffset now, RevocationReason reason, CancellationToken ct);
+
     /// <summary>A sessão continua aberta: algum token da família não foi revogado nem venceu.</summary>
     Task<bool> FamilyIsActiveAsync(Guid familyId, DateTimeOffset now, CancellationToken ct);
 

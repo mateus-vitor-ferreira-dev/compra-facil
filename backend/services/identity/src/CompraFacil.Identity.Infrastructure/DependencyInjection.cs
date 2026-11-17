@@ -27,6 +27,7 @@ public static class DependencyInjection
         var confirmation = builder.Configuration.GetSection(EmailConfirmationOptions.Section);
         builder.Services.Configure<EmailConfirmationOptions>(confirmation);
         var confirmationOptions = confirmation.Get<EmailConfirmationOptions>() ?? new EmailConfirmationOptions();
+        builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection(PasswordResetOptions.Section));
         builder.Services.AddIdentityCore<User>(o =>
             {
                 o.SignIn.RequireConfirmedEmail = confirmationOptions.Required;
@@ -42,11 +43,13 @@ public static class DependencyInjection
                 o.Lockout.AllowedForNewUsers = true;
                 o.Lockout.MaxFailedAccessAttempts = 5;
                 o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                o.Tokens.PasswordResetTokenProvider = PasswordResetOptions.TokenProvider; // 1 hora, não o 1 dia da confirmação
             })
             .AddRoles<Role>()
             .AddEntityFrameworkStores<IdentityDbContext>()
             .AddSignInManager()
             .AddDefaultTokenProviders() // token do link de confirmação (Data Protection)
+            .AddTokenProvider<PasswordResetTokenProvider<User>>(PasswordResetOptions.TokenProvider)
             .AddErrorDescriber<PortugueseIdentityErrorDescriber>();
         builder.Services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = confirmationOptions.TokenLifetime);
 

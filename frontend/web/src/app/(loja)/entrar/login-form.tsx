@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 import { ResendConfirmation } from "@/components/account/resend-confirmation";
 import { PasswordField, TextField } from "@/components/ui/field";
@@ -32,14 +33,22 @@ export function LoginForm({ returnTo }: { returnTo: string }) {
           aria-invalid={state.error ? true : undefined}
           aria-describedby={state.error ? "login-erro" : undefined}
         />
-        <PasswordField
-          label="Senha"
-          name="password"
-          autoComplete="current-password"
-          required
-          aria-invalid={state.error ? true : undefined}
-          aria-describedby={state.error ? "login-erro" : undefined}
-        />
+        <div>
+          <PasswordField
+            label="Senha"
+            name="password"
+            autoComplete="current-password"
+            required
+            aria-invalid={state.error ? true : undefined}
+            aria-describedby={state.error ? "login-erro" : undefined}
+          />
+          <Link
+            href="/conta/esqueci-a-senha"
+            className="text-ink-soft hover:text-ink inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4"
+          >
+            Esqueci minha senha
+          </Link>
+        </div>
         {state.error && (
           <p id="login-erro" role="alert" className="text-danger font-medium">
             {state.error}

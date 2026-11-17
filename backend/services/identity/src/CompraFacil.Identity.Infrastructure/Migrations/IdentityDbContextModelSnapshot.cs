@@ -333,6 +333,10 @@ namespace CompraFacil.Identity.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password_hash");
 
+                    b.Property<DateTimeOffset?>("PasswordResetRequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("password_reset_requested_at");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text")
                         .HasColumnName("phone_number");

@@ -25,8 +25,25 @@ public sealed class User : IdentityUser<Guid>
 
     public bool IsGuest => GuestEmail is not null;
 
+    /// <summary>Quando saiu o último link de "esqueci minha senha": o limite de pedidos por conta.</summary>
+    public DateTimeOffset? PasswordResetRequestedAt { get; private set; }
+
     /// <summary>Para onde vão os avisos: nos convidados, o e-mail do campo <c>Email</c> é só um marcador.</summary>
     public string ContactEmail => GuestEmail ?? Email!;
+
+    /// <summary>
+    /// Registra um pedido de senha nova, se o último foi há pelo menos <paramref name="interval"/>; senão,
+    /// nada muda e o pedido não manda outro e-mail.
+    /// </summary>
+    public bool RequestPasswordReset(DateTimeOffset now, TimeSpan interval)
+    {
+        if (PasswordResetRequestedAt is { } last && now - last < interval)
+        {
+            return false;
+        }
+        PasswordResetRequestedAt = now;
+        return true;
+    }
 
     public static User Create(string email, string name, DateTimeOffset now)
     {

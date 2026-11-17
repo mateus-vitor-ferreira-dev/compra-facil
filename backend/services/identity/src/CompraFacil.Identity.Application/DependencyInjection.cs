@@ -16,6 +16,8 @@ public static class DependencyInjection
         services.AddScoped<EmailConfirmationRequests>();
         services.AddScoped<ConfirmEmail>();
         services.AddScoped<ResendConfirmation>();
+        services.AddScoped<RequestPasswordReset>();
+        services.AddScoped<ResetPassword>();
         services.AddScoped<Sessions>();
         services.AddScoped<GoogleSignIn>();
         services.AddScoped<GuestCheckout>();

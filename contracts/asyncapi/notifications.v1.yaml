@@ -6,7 +6,7 @@ info:
     O serviço **notifications** (time de Processamento de compras, ASP.NET Core) só consome eventos:
     envia o e-mail de pedido confirmado ou cancelado, o de enviado (com o rastreio) e o de entregue (com o
     prazo de arrependimento), o da devolução e o do estorno, o da nota fiscal emitida (com o link do pedido, onde
-    fica o DANFE), o das instruções para devolver o produto e o de confirmação de e-mail da conta (Mailpit em dev). Não publica nada.
+    fica o DANFE), o das instruções para devolver o produto, o de confirmação de e-mail da conta e o de redefinição de senha (Mailpit em dev). Não publica nada.
 
     O e-mail de um mesmo `event_id` sai no máximo uma vez.
 defaultContentType: application/json
@@ -128,6 +128,20 @@ operations:
     summary: Manda o e-mail com o link de confirmação.
     messages:
       - $ref: "#/channels/accountEvents/messages/EmailConfirmationRequested"
+    bindings:
+      kafka:
+        bindingVersion: 0.5.0
+        groupId:
+          type: string
+          const: notifications
+
+  onPasswordResetRequested:
+    action: receive
+    channel:
+      $ref: "#/channels/accountEvents"
+    summary: Manda o e-mail com o link para criar uma senha nova.
+    messages:
+      - $ref: "#/channels/accountEvents/messages/PasswordResetRequested"
     bindings:
       kafka:
         bindingVersion: 0.5.0

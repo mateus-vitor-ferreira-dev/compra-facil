@@ -29,7 +29,7 @@ public static class DependencyInjection
 
         builder.Services.Configure<StoreOptions>(builder.Configuration.GetSection(StoreOptions.Section));
 
-        // contracts/asyncapi/notifications.v1.yaml: consome o resultado do pedido, a nota fiscal e a confirmação de e-mail
+        // contracts/asyncapi/notifications.v1.yaml: consome o resultado do pedido, a nota fiscal, a confirmação de e-mail e a redefinição de senha
         builder.AddMessaging<NotificationsDbContext>("notifications", m => m
             .Handle<OrderConfirmedData, OnOrderConfirmed>(NotificationEvents.OrdersTopic, NotificationEvents.OrderConfirmed)
             .Handle<OrderCancelledData, OnOrderCancelled>(NotificationEvents.OrdersTopic, NotificationEvents.OrderCancelled)
@@ -46,7 +46,9 @@ public static class DependencyInjection
             .Handle<GuestAccessRequestedData, OnGuestAccessRequested>(
                 NotificationEvents.AccountsTopic, NotificationEvents.GuestAccessRequested)
             .Handle<EmailConfirmationRequestedData, OnEmailConfirmationRequested>(
-                NotificationEvents.AccountsTopic, NotificationEvents.EmailConfirmationRequested));
+                NotificationEvents.AccountsTopic, NotificationEvents.EmailConfirmationRequested)
+            .Handle<PasswordResetRequestedData, OnPasswordResetRequested>(
+                NotificationEvents.AccountsTopic, NotificationEvents.PasswordResetRequested));
         return builder;
     }
 }
