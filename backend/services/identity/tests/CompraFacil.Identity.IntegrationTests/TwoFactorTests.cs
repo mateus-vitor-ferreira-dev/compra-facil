@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Identity.Application;
 using CompraFacil.Identity.Application.Accounts;
 using CompraFacil.Identity.Domain;
 using CompraFacil.Identity.Infrastructure;
@@ -48,8 +49,11 @@ public sealed class TwoFactorTests(IdentityFixture fx) : IClassFixture<IdentityF
     {
         var email = await NewAdminWithoutTwoFactorAsync();
 
+        using var logins = new MetricRecorder(IdentityMetrics.MeterName, "compra_facil.identity.logins");
         using var login = await _api.LoginAsync(email);
 
+        // a senha certa sem sessão não conta como login bem-sucedido
+        Assert.True(logins.Total(("result", "mfa_setup_required")) >= 1);
         var challenge = await IdentityClient.ChallengeOf(login, "mfa_setup_required");
         var ticket = challenge.GetProperty("mfa_ticket").GetString()!;
         Assert.Equal(900, challenge.GetProperty("expires_in").GetInt32());
@@ -126,7 +130,10 @@ public sealed class TwoFactorTests(IdentityFixture fx) : IClassFixture<IdentityF
     {
         var admin = await _api.NewEnrolledAdminAsync(fx);
 
+        using var logins = new MetricRecorder(IdentityMetrics.MeterName, "compra_facil.identity.logins");
+        using var verifications = new MetricRecorder(IdentityMetrics.MeterName, "compra_facil.identity.mfa_verifications");
         using var login = await _api.LoginAsync(admin.Email);
+        Assert.True(logins.Total(("result", "mfa_required")) >= 1);
         var challenge = await IdentityClient.ChallengeOf(login, "mfa_required");
         var ticket = challenge.GetProperty("mfa_ticket").GetString()!;
         Assert.Equal(300, challenge.GetProperty("expires_in").GetInt32());
@@ -148,6 +155,9 @@ public sealed class TwoFactorTests(IdentityFixture fx) : IClassFixture<IdentityF
         // o tíquete vale uma vez
         using var reused = await _api.MfaAsync(ticket, right);
         Assert.Equal(HttpStatusCode.Unauthorized, reused.StatusCode);
+        Assert.True(verifications.Total(("method", "totp"), ("result", "invalid_code")) >= 1);
+        Assert.True(verifications.Total(("method", "totp"), ("result", "succeeded")) >= 1);
+        Assert.True(verifications.Total(("method", "totp"), ("result", "invalid_ticket")) >= 1);
 
         // e o código também: outro login, no mesmo passo de 30 s, não entra com ele
         using var second = await _api.LoginAsync(admin.Email);

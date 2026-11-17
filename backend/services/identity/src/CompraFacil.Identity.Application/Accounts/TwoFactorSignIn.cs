@@ -35,6 +35,12 @@ public sealed class TwoFactorSignIn(
         {
             throw new ValidationException([new ValidationFailure("Code", "envie code ou recovery_code (um dos dois)")]);
         }
+        return await CountedAsync(string.IsNullOrWhiteSpace(code) ? "recovery_code" : "totp",
+            () => VerifyCoreAsync(ticket, code, recoveryCode, ct));
+    }
+
+    private async Task<IssuedSession> VerifyCoreAsync(string ticket, string? code, string? recoveryCode, CancellationToken ct)
+    {
         var (found, user) = await tickets.FindAsync(ticket, MfaTicketPurpose.Login, ct);
         if (!user.TwoFactorEnabled)
         {
@@ -81,7 +87,10 @@ public sealed class TwoFactorSignIn(
     /// Cadastro, passo 2: o primeiro código certo liga a 2FA, gera os códigos de recuperação e abre a sessão
     /// (com <c>amr</c>). Ligar a 2FA troca o carimbo de segurança: sessões antigas da conta caem.
     /// </summary>
-    public async Task<EnabledTwoFactor> ConfirmSetupAsync(string ticket, string code, CancellationToken ct)
+    public Task<EnabledTwoFactor> ConfirmSetupAsync(string ticket, string code, CancellationToken ct) =>
+        CountedAsync("setup", () => ConfirmSetupCoreAsync(ticket, code, ct));
+
+    private async Task<EnabledTwoFactor> ConfirmSetupCoreAsync(string ticket, string code, CancellationToken ct)
     {
         var (found, user) = await tickets.FindAsync(ticket, MfaTicketPurpose.Setup, ct);
         if (user.TwoFactorEnabled || await users.GetAuthenticatorKeyAsync(user) is null)
@@ -119,6 +128,32 @@ public sealed class TwoFactorSignIn(
         }
         await users.ResetAccessFailedCountAsync(user);
         return await ReplaceRecoveryCodesAsync(user, ct);
+    }
+
+    // o resultado do segundo passo nas métricas (IdentityMetrics.MfaVerification)
+    private static async Task<T> CountedAsync<T>(string method, Func<Task<T>> step)
+    {
+        try
+        {
+            var result = await step();
+            IdentityMetrics.MfaVerification(method, "succeeded");
+            return result;
+        }
+        catch (ValidationException)
+        {
+            IdentityMetrics.MfaVerification(method, "invalid_code");
+            throw;
+        }
+        catch (AccountLockedException)
+        {
+            IdentityMetrics.MfaVerification(method, "locked_out");
+            throw;
+        }
+        catch (UnauthorizedException)
+        {
+            IdentityMetrics.MfaVerification(method, "invalid_ticket");
+            throw;
+        }
     }
 
     private async Task<bool> VerifyTotpAsync(User user, string code) =>

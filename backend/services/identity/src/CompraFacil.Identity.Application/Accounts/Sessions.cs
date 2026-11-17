@@ -57,9 +57,11 @@ public sealed class Sessions(
         await validator.ValidateAndThrowAsync(command, ct);
         try
         {
-            var session = await CheckAndStartAsync(command, ct);
-            IdentityMetrics.Login("succeeded");
-            return session;
+            var outcome = await CheckAndStartAsync(command, ct);
+            // a senha conferiu: sessão aberta (succeeded) ou o segundo fator pendente (mfa_required,
+            // mfa_setup_required). O segundo passo conta em IdentityMetrics.MfaVerification
+            IdentityMetrics.Login(outcome.Challenge?.Status ?? "succeeded");
+            return outcome;
         }
         catch (UnauthorizedException)
         {
@@ -79,7 +81,7 @@ public sealed class Sessions(
     }
 
     /// <summary>O login em si; quem chama conta o resultado (IdentityMetrics).</summary>
-    private async Task<IssuedSession> CheckAndStartAsync(LoginCommand command, CancellationToken ct)
+    private async Task<SignInOutcome> CheckAndStartAsync(LoginCommand command, CancellationToken ct)
     {
         var user = await users.FindByEmailAsync(command.Email.Trim());
         if (user is null)
