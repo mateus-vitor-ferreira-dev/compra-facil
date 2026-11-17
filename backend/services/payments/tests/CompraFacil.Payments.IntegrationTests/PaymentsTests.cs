@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Payments.Application;
 using CompraFacil.Payments.Application.Payments;
 using CompraFacil.Payments.Domain;
 using CompraFacil.Payments.Infrastructure;
@@ -500,6 +501,7 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         var refunded = await PaymentOfAsync(order);
         Assert.Equal(PaymentStatus.Refunded, refunded.Status);
 
+        using var failedRefunds = new MetricRecorder(PaymentsMetrics.MeterName, "compra_facil.payments.refunds_failed");
         fx.Provider.FailRefund(payment.ProviderReference!, refunded.Refunds[0].Reference);
         Assert.Equal(NotificationResult.Applied, await NotifyAsync(payment.ProviderReference!));
         Assert.Equal(NotificationResult.Ignored, await NotifyAsync(payment.ProviderReference!)); // repetida
@@ -510,6 +512,7 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         var failed = await LastAsync<PaymentRefundFailedData>(order, PaymentEvents.PaymentRefundFailed);
         Assert.Equal((5000L, 0L, refunded.Refunds[0].Reference), (failed.Amount.AmountCents, failed.TotalRefundedCents, failed.RefundReference));
         Assert.Single(await EventsOfAsync(order), e => e.EventType == PaymentEvents.PaymentRefundFailed);
+        Assert.Equal(1, failedRefunds.Total()); // o alerta "Estorno não realizado"
 
         // a equipe estorna de novo pelo painel, quando houver saldo
         using var again = await RefundAsync(back.Id, "de-novo", null);
@@ -527,9 +530,11 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         await PlacedAndReservedAsync(order, 6490, Card("APRO"));
         var reference = (await PaymentOfAsync(order)).ProviderReference!;
 
+        using var reversals = new MetricRecorder(PaymentsMetrics.MeterName, "compra_facil.payments.reversals");
         fx.Provider.Set(reference, status, reason);
         Assert.Equal(NotificationResult.Applied, await NotifyAsync(reference));
         Assert.Equal(NotificationResult.Ignored, await NotifyAsync(reference)); // repetida
+        Assert.Equal(1, reversals.Total(("status", expected.ToString()))); // o alerta "Cartão aprovado não confirmado"
 
         var payment = await PaymentOfAsync(order);
         Assert.Equal((expected, expected == PaymentStatus.Failed ? reason : null), (payment.Status, payment.FailureReason));
@@ -552,9 +557,11 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         }
         var payment = await PaymentOfAsync(order);
 
+        using var disputes = new MetricRecorder(PaymentsMetrics.MeterName, "compra_facil.payments.disputes");
         fx.Provider.Set(payment.ProviderReference!, ProviderStatus.Disputed);
         Assert.Equal(NotificationResult.Applied, await NotifyAsync(payment.ProviderReference!));
         Assert.Equal(NotificationResult.Ignored, await NotifyAsync(payment.ProviderReference!)); // repetida
+        Assert.Equal(1, disputes.Total()); // o alerta "Pagamento contestado"
 
         Assert.Equal(PaymentStatus.Disputed, (await PaymentOfAsync(order)).Status);
         Assert.Equal([PaymentEvents.PaymentApproved, PaymentEvents.PaymentReversed], await TypesOfAsync(order));
@@ -689,11 +696,13 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
             http.PostAsync(new Uri($"/v1/webhooks/efi/pix?hmac={secret}&ignorar=/pix", UriKind.Relative), JsonContent.Create(body), Ct);
         var pix = new { pix = new[] { new { endToEndId = "E1234567890123456789012345678901", txid = reference, valor = "50.00" } } };
 
+        using var rejected = new MetricRecorder(PaymentsMetrics.MeterName, "compra_facil.payments.webhooks_rejected");
         using var forged = await PostAsync("falso", pix);
         using var test = await PostAsync("segredo", new { evento = "teste" }); // o aviso de teste do cadastro
         using var signed = await PostAsync("segredo", pix);
 
         Assert.Equal(HttpStatusCode.Unauthorized, forged.StatusCode);
+        Assert.Equal((1L, 1L), (rejected.Total(), rejected.Total(("webhook", "pix"), ("reason", "secret"))));
         Assert.Equal(HttpStatusCode.OK, test.StatusCode);
         Assert.Equal(HttpStatusCode.OK, signed.StatusCode);
         var json = await signed.Content.ReadAsStringAsync(Ct);
@@ -714,6 +723,7 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         Task<HttpResponseMessage> PostAsync(string token) => http.PostAsync(new Uri("/v1/webhooks/efi/charges", UriKind.Relative),
             new FormUrlEncodedContent(new Dictionary<string, string> { ["notification"] = token }), Ct);
 
+        using var rejected = new MetricRecorder(PaymentsMetrics.MeterName, "compra_facil.payments.webhooks_rejected");
         using var known = await PostAsync("tok-1");
         using var unknown = await PostAsync("tok-falso");
         using var empty = await PostAsync("");
@@ -721,6 +731,8 @@ public sealed class PaymentsTests(PaymentsFixture fx) : IClassFixture<PaymentsFi
         Assert.Equal("applied", JsonDocument.Parse(await known.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("result").GetString());
         Assert.Equal("unknown_payment", JsonDocument.Parse(await unknown.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("result").GetString());
         Assert.Equal(HttpStatusCode.UnprocessableEntity, empty.StatusCode);
+        Assert.Equal((2L, 1L, 1L), (rejected.Total(("webhook", "charges")),
+            rejected.Total(("reason", "unknown_token")), rejected.Total(("reason", "invalid"))));
         Assert.Equal(PaymentStatus.Approved, (await PaymentOfAsync(order)).Status);
     }
 

@@ -5,7 +5,8 @@ namespace CompraFacil.Payments.Application;
 /// <summary>Métricas de negócio do payments (meter CompraFacil.Payments).</summary>
 public static class PaymentsMetrics
 {
-    private static readonly Meter s_meter = new("CompraFacil.Payments");
+    public const string MeterName = "CompraFacil.Payments";
+    private static readonly Meter s_meter = new(MeterName);
 
     /// <summary>Cobranças por resultado (approved, failed) e motivo da recusa.</summary>
     public static readonly Counter<long> Charges = s_meter.CreateCounter<long>(
@@ -32,4 +33,15 @@ public static class PaymentsMetrics
     /// <summary>Pagamentos contestados pelo cliente (reclamação ou chargeback), que a equipe responde no provedor.</summary>
     public static readonly Counter<long> Disputes = s_meter.CreateCounter<long>(
         "compra_facil.payments.disputes", unit: "{dispute}", description: "Pagamentos contestados (reclamação ou chargeback).");
+
+    /// <summary>
+    /// Avisos da Efí recusados ou que não são desta loja, por webhook (pix, charges) e motivo: secret (o segredo do
+    /// PIX errado), invalid (sem o token) e unknown_token (token que a Efí não conhece). Rajada é alguém forjando
+    /// avisos, ou a URL cadastrada na Efí desatualizada.
+    /// </summary>
+    private static readonly Counter<long> s_webhooksRejected = s_meter.CreateCounter<long>(
+        "compra_facil.payments.webhooks_rejected", unit: "{request}", description: "Avisos da Efí recusados, por webhook e motivo.");
+
+    public static void WebhookRejected(string webhook, string reason) =>
+        s_webhooksRejected.Add(1, new KeyValuePair<string, object?>("webhook", webhook), new KeyValuePair<string, object?>("reason", reason));
 }

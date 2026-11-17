@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Fulfillment.Application;
 using CompraFacil.Fulfillment.Application.Invoices;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Domain;
@@ -509,10 +510,15 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     {
         var id = Guid.NewGuid();
         await ConfirmedAsync(id);
+        using var rejected = new MetricRecorder(FulfillmentMetrics.MeterName, "compra_facil.fulfillment.webhooks_rejected");
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await WebhookAsync(Update(id, "SHIPPED", "BR1"), secret: "outro")).Status);
         Assert.Equal(HttpStatusCode.Unauthorized, (await WebhookAsync(Update(id, "SHIPPED", "BR1"), secret: null)).Status);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await WebhookAsync(new { type = "ORDER" })).Status); // assinado, sem messageId
         Assert.Equal(SupplierOrderStatus.Pending, (await OrderAsync(id)).Status);
+        // o alerta "Webhook recusado em rajada"; pelo menos, porque outras classes de teste também mandam webhooks
+        Assert.True(rejected.Total(("reason", "signature")) >= 2);
+        Assert.True(rejected.Total(("reason", "invalid")) >= 1);
     }
 
     [Fact]
