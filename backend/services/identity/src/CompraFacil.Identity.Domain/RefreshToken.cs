@@ -13,6 +13,12 @@ public enum RevocationReason
 
     /// <summary>A senha foi trocada pelo link de "esqueci minha senha": todas as sessões da conta caem.</summary>
     PasswordReset,
+
+    /// <summary>
+    /// O carimbo de segurança da conta mudou depois do login (senha trocada): o refresh achou a sessão
+    /// velha e a derrubou.
+    /// </summary>
+    StampChanged,
 }
 
 /// <summary>
@@ -20,7 +26,8 @@ public enum RevocationReason
 /// família); apresentar um token já trocado revoga a família toda, porque só quem o copiou o teria.
 /// A exceção é o intervalo de reuso: logo depois da troca, o mesmo token ainda dá um irmão na família
 /// (requisições paralelas do mesmo navegador). Só o hash (SHA-256) é guardado: o banco vazado não dá
-/// sessões.
+/// sessões. A família guarda o carimbo de segurança da conta no login: trocou a senha, o carimbo muda e
+/// nenhum token da família troca mais, nem o que um refresh criou no meio da troca de senha.
 /// </summary>
 public sealed class RefreshToken
 {
@@ -34,6 +41,9 @@ public sealed class RefreshToken
     public RevocationReason? RevocationReason { get; private set; }
     public Guid? ReplacedById { get; private set; }
 
+    /// <summary>O carimbo de segurança da conta quando a família começou (login); passa de token a token.</summary>
+    public string SecurityStamp { get; private set; } = "";
+
     /// <summary>Concorrência otimista (xmin): dois refresh simultâneos com o mesmo token não trocam os dois.</summary>
     public uint Version { get; private set; }
 
@@ -41,9 +51,15 @@ public sealed class RefreshToken
     {
     }
 
-    /// <summary>Primeiro token de uma família (login).</summary>
-    public static RefreshToken Issue(Guid userId, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime) =>
-        New(userId, Guid.CreateVersion7(), tokenHash, now, lifetime);
+    /// <summary>Primeiro token de uma família (login), com o carimbo de segurança atual da conta.</summary>
+    public static RefreshToken Issue(Guid userId, string? securityStamp, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime) =>
+        New(userId, Guid.CreateVersion7(), securityStamp ?? "", tokenHash, now, lifetime);
+
+    /// <summary>
+    /// A família começou com o carimbo que a conta tem agora. Se não, a senha mudou depois do login e a
+    /// sessão não vale mais.
+    /// </summary>
+    public bool MatchesStamp(string? currentStamp) => string.Equals(SecurityStamp, currentStamp ?? "", StringComparison.Ordinal);
 
     public bool IsActive(DateTimeOffset now) => RevokedAt is null && now < ExpiresAt;
 
@@ -67,7 +83,7 @@ public sealed class RefreshToken
         {
             throw new InvalidOperationException("só um token trocado há pouco tem irmão; fora do intervalo é reuso");
         }
-        return New(UserId, FamilyId, tokenHash, now, lifetime);
+        return New(UserId, FamilyId, SecurityStamp, tokenHash, now, lifetime);
     }
 
     /// <summary>Troca este token pelo próximo da família, que vale <paramref name="lifetime"/> a partir de agora.</summary>
@@ -77,7 +93,7 @@ public sealed class RefreshToken
         {
             throw new InvalidOperationException("refresh token inativo não pode ser trocado");
         }
-        var next = New(UserId, FamilyId, nextTokenHash, now, lifetime);
+        var next = New(UserId, FamilyId, SecurityStamp, nextTokenHash, now, lifetime);
         Revoke(now, Domain.RevocationReason.Rotated);
         ReplacedById = next.Id;
         return next;
@@ -94,11 +110,12 @@ public sealed class RefreshToken
         RevocationReason = reason;
     }
 
-    private static RefreshToken New(Guid userId, Guid familyId, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime) => new()
+    private static RefreshToken New(Guid userId, Guid familyId, string securityStamp, byte[] tokenHash, DateTimeOffset now, TimeSpan lifetime) => new()
     {
         Id = Guid.CreateVersion7(),
         UserId = userId,
         FamilyId = familyId,
+        SecurityStamp = securityStamp,
         TokenHash = tokenHash,
         CreatedAt = now,
         ExpiresAt = now + lifetime,
