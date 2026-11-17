@@ -29,6 +29,13 @@ public static class PaymentsMetrics
     public static readonly Counter<long> RefundsFailed = s_meter.CreateCounter<long>(
         "compra_facil.payments.refunds_failed", unit: "{refund}", description: "Estornos aceitos pelo provedor e não realizados.");
 
+    /// <summary>
+    /// Cartões aprovados pela operadora que não se confirmaram antes da liquidação (failed: não pago; voided:
+    /// cancelado): o dinheiro não vem, e o pedido é parado ou vai para a equipe.
+    /// </summary>
+    public static readonly Counter<long> Reversals = s_meter.CreateCounter<long>(
+        "compra_facil.payments.reversals", unit: "{payment}", description: "Cartões aprovados que a operadora não confirmou, por status.");
+
     /// <summary>Pagamentos contestados pelo cliente (reclamação ou chargeback), que a equipe responde no provedor.</summary>
     public static readonly Counter<long> Disputes = s_meter.CreateCounter<long>(
         "compra_facil.payments.disputes", unit: "{dispute}", description: "Pagamentos contestados (reclamação ou chargeback).");

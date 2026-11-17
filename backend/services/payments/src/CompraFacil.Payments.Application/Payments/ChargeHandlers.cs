@@ -80,10 +80,48 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
             case ProviderStatus.Expired when payment.IsOpen:
                 Failed(payment, FailureReason.PixExpired, result.Reference, now);
                 return true;
+            // o cartão aprovado (o pedido já confirmado) que a operadora não confirmou (unpaid) ou cancelou antes de
+            // liquidar: o dinheiro não vem
+            case ProviderStatus.Rejected when payment.Status == PaymentStatus.Authorized:
+                Reversed(payment, now, () => payment.Fail(result.FailureReason ?? FailureReason.CardDeclined, null, now));
+                return true;
+            case ProviderStatus.Cancelled when payment.Status == PaymentStatus.Authorized:
+                Reversed(payment, now, () => payment.Void(now));
+                return true;
+            case ProviderStatus.Disputed when payment.Status is PaymentStatus.Authorized or PaymentStatus.Approved:
+                payment.Dispute(now);
+                ReversedEvent(payment, now);
+                PaymentsMetrics.Disputes.Add(1);
+                return true;
             default:
                 return false; // em análise, ou o que já foi aplicado
         }
     }
+
+    /// <summary>
+    /// O cartão aprovado não se confirmou. Com o pedido ainda de pé, sai PaymentReversed (o orders o para, ou o marca
+    /// para a equipe). Se a devolução já esperava a liquidação (o pedido foi cancelado antes), não há mais o que
+    /// devolver: sai PaymentRefunded void, como no cancelamento da cobrança, e o orders fecha o estorno do pedido.
+    /// </summary>
+    private void Reversed(Payment payment, DateTimeOffset now, Action revert)
+    {
+        var deferred = payment.PendingReversal;
+        revert();
+        if (deferred is null)
+        {
+            ReversedEvent(payment, now);
+        }
+        else
+        {
+            payment.ClearPendingReversal(now);
+            Refunded(payment, payment.Amount.AmountCents, RefundKind.Void, deferred);
+        }
+        PaymentsMetrics.Reversals.Add(1, new KeyValuePair<string, object?>("status", payment.Status.ToString()));
+    }
+
+    private void ReversedEvent(Payment p, DateTimeOffset now) =>
+        outbox.Add(PaymentEvents.Topic, Key(p), PaymentEvents.PaymentReversed,
+            new PaymentReversedData(p.OrderId, p.Id, p.Amount, p.Provider, p.ProviderReference, p.Status, p.FailureReason, now));
 
     /// <summary>Recusado sem chegar a ter uma cobrança no provedor.</summary>
     public void Reject(Payment payment, FailureReason reason)
@@ -106,7 +144,7 @@ public sealed class PaymentOutcome(IOutbox outbox, IOptions<FeeOptions> fees, Ti
     public void Refunded(Payment p, long amountCents, RefundKind kind, string? reason = null) =>
         outbox.Add(PaymentEvents.Topic, Key(p), PaymentEvents.PaymentRefunded,
             new PaymentRefundedData(p.OrderId, p.Id, new Money(amountCents, p.Amount.Currency), p.RefundedCents, p.Provider,
-                p.RefundReference, p.RefundedAt!.Value, kind, kind == RefundKind.Void || p.Status == PaymentStatus.Refunded, reason));
+                p.RefundReference, p.RefundedAt ?? clock.GetUtcNow(), kind, kind == RefundKind.Void || p.Status == PaymentStatus.Refunded, reason));
 
     private static string Key(Payment p) => p.OrderId.ToString();
 }

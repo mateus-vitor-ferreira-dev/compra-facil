@@ -19,6 +19,7 @@ const FAILURE: Record<FailedOrder["reason"], string> = {
   supplier_unavailable: "O fornecedor não respondeu em nenhuma tentativa",
   invoice_rejected: "A SEFAZ rejeitou a nota",
   store_cancelled: "Cancelado pela equipe",
+  order_cancelled: "O pagamento aprovado não se confirmou",
 };
 
 /** O que a página conta depois de uma ação (a query que a ação deixou). */
@@ -193,8 +194,9 @@ export default async function OverdueOrders({ searchParams }: Props) {
                 </span>
               </h2>
               <p className="text-ink-soft text-sm">
-                Dos últimos 30 dias. O cliente já foi estornado, então o pedido não pode ser reenviado: se ele
-                ainda quiser o produto, faz uma nova compra.
+                Dos últimos 30 dias. O cliente já foi estornado (ou, quando o pagamento não se confirmou, nada
+                foi cobrado), então o pedido não pode ser reenviado: se ele ainda quiser o produto, faz uma
+                nova compra.
               </p>
             </div>
             <ul className="divide-line border-line divide-y rounded-md border">

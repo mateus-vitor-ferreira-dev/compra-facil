@@ -15,7 +15,7 @@ public enum ProviderStatus
     Approved,
     Rejected,
 
-    /// <summary>Autorização ou PIX cancelado (por nós).</summary>
+    /// <summary>Autorização ou PIX cancelado (por nós, ou o cartão aprovado que o provedor cancelou antes de liquidar).</summary>
     Cancelled,
 
     /// <summary>PIX que passou da validade sem pagamento.</summary>
@@ -24,8 +24,9 @@ public enum ProviderStatus
     Refunded,
 
     /// <summary>
-    /// Pago, mas o cliente contestou: reclamação aberta (in_mediation) ou chargeback no cartão (charged_back). Não
-    /// muda o pedido sozinho; a equipe acompanha no painel do provedor.
+    /// Aprovado, mas o cliente contestou o cartão na operadora (o chargeback; na Efí, contested). O pagamento fica
+    /// disputed e sai PaymentReversed: o pedido que não foi ao fornecedor para, e a equipe responde no painel do
+    /// provedor.
     /// </summary>
     Disputed,
 }
