@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Web;
+using CompraFacil.Fulfillment.Application.ManualSupplier;
 using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Infrastructure.Supplier;
@@ -23,13 +24,22 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 [Route("v1/webhooks/supplier")]
 [Produces("application/json")]
 public sealed class SupplierWebhookController(
-    SupplierUpdates updates, SupplierStock stock, SupplierReturnUpdates returns, IOptions<SupplierOptions> options) : ControllerBase
+    SupplierUpdates updates,
+    SupplierStock stock,
+    SupplierReturnUpdates returns,
+    IOptions<SupplierOptions> options,
+    ManualSupplierMode manualMode) : ControllerBase
 {
     private const int MaxBody = 64 * 1024;
 
     [HttpPost]
     public async Task<ActionResult<SupplierWebhookAck>> Receive(CancellationToken ct)
     {
+        // no fornecedor manual (#412) a equipe faz tudo pelo painel: não há quem mande webhook, e a rota não existe
+        if (manualMode.Enabled)
+        {
+            return NotFound();
+        }
         using var buffer = new MemoryStream();
         await Request.Body.CopyToAsync(buffer, ct);
         if (buffer.Length is 0 or > MaxBody)

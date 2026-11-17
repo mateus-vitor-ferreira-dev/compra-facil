@@ -42,6 +42,14 @@ public static class DependencyInjection
         // o fornecedor (ADR 0007): pela API (o CJ, ou o simulador dele) ou manual, pela equipe no painel (#412)
         var manual = string.Equals(supplier.GetValue<string>("Mode"), "manual", StringComparison.OrdinalIgnoreCase);
         builder.Services.AddSingleton(new ManualSupplierMode(manual));
+        if (!manual && builder.Environment.IsProduction()
+            && supplier.GetValue<string>("WebhookSecret") is null or "" or SupplierOptions.SimulatorWebhookSecret)
+        {
+            // o segredo do simulador está no repositório: com ele, qualquer um assina um webhook que cancela pedido
+            // (e estorna) ou muda o estoque
+            throw new InvalidOperationException(
+                "Supplier:WebhookSecret é obrigatório em produção com o fornecedor pela API, e não pode ser o do simulador");
+        }
         builder.Services.Configure<ManualSupplierOptions>(builder.Configuration.GetSection(ManualSupplierOptions.Section));
         builder.Services.AddScoped<IManualCatalogRepository, ManualCatalogRepository>();
         if (manual)
