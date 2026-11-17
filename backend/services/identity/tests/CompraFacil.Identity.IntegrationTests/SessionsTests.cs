@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using CompraFacil.BuildingBlocks.Testing;
 using Microsoft.IdentityModel.JsonWebTokens;
 
@@ -208,5 +209,40 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, unknown.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, refreshAfter.StatusCode);
+    }
+
+    // o rate limit de senha do gateway só vale para o caminho em minúsculas: variações de caixa não podem
+    // chegar ao login (o ASP.NET, sozinho, casaria todas com /v1/sessions)
+    [Theory]
+    [InlineData("/v1/Sessions")]
+    [InlineData("/v1/SESSIONS")]
+    [InlineData("/V1/sessions")]
+    [InlineData("/v1/%C5%BFessions")] // ſ (s longo), que sem diferenciar maiúsculas vira S
+    public async Task Login_ByACaseVariantPath_404_WithoutReachingTheLogin(string path)
+    {
+        var email = NewEmail();
+        using (await _api.RegisterAsync(email))
+        {
+        }
+
+        for (var i = 0; i < 5; i++) // pelo caminho certo, a 5ª senha errada bloquearia a conta
+        {
+            using var variant = await _api.Http.PostAsJsonAsync(path, new { email, password = "senha-errada-1" },
+                TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.NotFound, variant.StatusCode);
+            Assert.Equal("application/problem+json", variant.Content.Headers.ContentType?.MediaType);
+        }
+        using var right = await _api.LoginAsync(email);
+
+        Assert.Equal(HttpStatusCode.OK, right.StatusCode);
+    }
+
+    [Fact]
+    public async Task PasswordReset_ByACaseVariantPath_404()
+    {
+        using var response = await _api.Http.PostAsJsonAsync("/v1/Accounts/password-reset",
+            new { email = NewEmail() }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
