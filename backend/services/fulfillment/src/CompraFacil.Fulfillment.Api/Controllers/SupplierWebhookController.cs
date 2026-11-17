@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Web;
+using CompraFacil.Fulfillment.Application;
 using CompraFacil.Fulfillment.Application.ManualSupplier;
 using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
@@ -38,6 +39,7 @@ public sealed class SupplierWebhookController(
         // no fornecedor manual (#412) a equipe faz tudo pelo painel: não há quem mande webhook, e a rota não existe
         if (manualMode.Enabled)
         {
+            FulfillmentMetrics.WebhookRejected("manual_mode");
             return NotFound();
         }
         using var buffer = new MemoryStream();
@@ -49,6 +51,7 @@ public sealed class SupplierWebhookController(
         var body = buffer.ToArray();
         if (!SignatureValid(body, Request.Headers[options.Value.SignatureHeader].ToString(), options.Value.WebhookSecret))
         {
+            FulfillmentMetrics.WebhookRejected("signature");
             throw new UnauthorizedException("assinatura do webhook inválida");
         }
 
@@ -110,7 +113,11 @@ public sealed class SupplierWebhookController(
         });
     }
 
-    private static ValidationException Invalid(string message) => new([new ValidationFailure("body", message)]);
+    private static ValidationException Invalid(string message)
+    {
+        FulfillmentMetrics.WebhookRejected("invalid");
+        return new([new ValidationFailure("body", message)]);
+    }
 
     /// <summary>"sha256=&lt;hex&gt;" igual ao HMAC do corpo, em tempo constante.</summary>
     internal static bool SignatureValid(byte[] body, string header, string secret)

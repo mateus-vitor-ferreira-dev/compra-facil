@@ -226,8 +226,11 @@ public sealed class ManualSupplierWebhookTests(ManualSupplierFixture fx) : IClas
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         content.Headers.Add("X-Sim-Signature", signature);
 
+        using var rejected = new MetricRecorder(FulfillmentMetrics.MeterName, "compra_facil.fulfillment.webhooks_rejected");
+
         using var response = await client.PostAsync(new Uri("/v1/webhooks/supplier", UriKind.Relative), content, Ct);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.True(rejected.Total(("reason", "manual_mode")) >= 1); // o alerta "Webhook recusado em rajada"
     }
 }

@@ -23,6 +23,25 @@ No painel, os alertas aparecem travados: a mudança é aqui, por PR.
 | Mensagem na DLT | uma mensagem foi para a DLT nos últimos 10 min | alta |
 | Backup atrasado | o último backup inteiro tem mais de 26 h, ou não há backup em 3 dias | alta |
 | Backup falhou | a última rodada do `pg-backup` terminou com erro | alta |
+| Cartão aprovado não se confirmou | a Efí não pagou ou cancelou um cartão já aprovado, nos últimos 5 min | crítica |
+| Pagamento contestado | um cliente contestou um pagamento (chargeback), nos últimos 10 min | crítica |
+| Estorno não realizado | a Efí aceitou um estorno e não o fez, nos últimos 10 min | alta |
+| Webhook recusado em rajada | 5 avisos com segredo ou assinatura errados (Efí, fornecedor) ou ao webhook do fornecedor manual, ou 10 tokens de cartão desconhecidos, em 10 min | alta |
+| Tentativas de login em massa | 30 senhas erradas, 3 contas bloqueadas ou 20 respostas 429 nas rotas de credencial, em 10 min | alta |
+
+As métricas por trás dos últimos, com labels sem dado pessoal (nem e-mail, nem id):
+
+| Métrica (OTel) | Serviço | Labels |
+|---|---|---|
+| `compra_facil.payments.reversals` | payments | `status` (Failed, Voided) |
+| `compra_facil.payments.disputes` | payments | nenhuma |
+| `compra_facil.payments.refunds_failed` | payments | nenhuma |
+| `compra_facil.payments.webhooks_rejected` | payments | `webhook` (pix, charges), `reason` (secret, invalid, unknown_token) |
+| `compra_facil.fulfillment.webhooks_rejected` | fulfillment | `reason` (signature, invalid, manual_mode) |
+| `compra_facil.identity.logins` | identity | `result` (succeeded, invalid_credentials, locked_out, not_confirmed) |
+
+No Prometheus do Grafana Cloud o ponto vira `_` e o contador ganha `_total`
+(`compra_facil_payments_disputes_total`). O 429 vem da métrica do gateway (`traefik_router_requests_total`).
 
 Cada alerta vai direto para o contato `compra-facil-email` (sem mexer na árvore de notificação do
 stack), agrupado por alerta, e repete a cada 4 h enquanto durar. Quando resolve, chega um e-mail de

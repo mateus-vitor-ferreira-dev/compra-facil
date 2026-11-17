@@ -47,7 +47,32 @@ public sealed class Sessions(
     {
         ArgumentNullException.ThrowIfNull(command);
         await validator.ValidateAndThrowAsync(command, ct);
+        try
+        {
+            var session = await CheckAndStartAsync(command, ct);
+            IdentityMetrics.Login("succeeded");
+            return session;
+        }
+        catch (UnauthorizedException)
+        {
+            IdentityMetrics.Login("invalid_credentials");
+            throw;
+        }
+        catch (AccountLockedException)
+        {
+            IdentityMetrics.Login("locked_out");
+            throw;
+        }
+        catch (ForbiddenException)
+        {
+            IdentityMetrics.Login("not_confirmed");
+            throw;
+        }
+    }
 
+    /// <summary>O login em si; quem chama conta o resultado (IdentityMetrics).</summary>
+    private async Task<IssuedSession> CheckAndStartAsync(LoginCommand command, CancellationToken ct)
+    {
         var user = await users.FindByEmailAsync(command.Email.Trim());
         if (user is null)
         {
