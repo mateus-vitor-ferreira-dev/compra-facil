@@ -5,7 +5,7 @@ import { SupplierOrderActions } from "@/components/admin/supplier-order-actions"
 import { StateMessage } from "@/components/ui/state";
 import { failedOrders, overdueOrders, type FailedOrder, type OverdueOrder } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
-import { orderNumber } from "@/lib/order-status";
+import { orderNumber, trackingHref } from "@/lib/order-status";
 import { lateBy } from "@/lib/overdue";
 
 export const metadata: Metadata = { title: "Pedidos no fornecedor" };
@@ -257,9 +257,9 @@ function OverdueItem({ order: o, now }: { order: OverdueOrder; now: number }) {
           {o.customer_email}
         </a>
         {o.tracking &&
-          (o.tracking.url ? (
+          (trackingHref(o.tracking.url) ? (
             <a
-              href={o.tracking.url}
+              href={trackingHref(o.tracking.url) ?? undefined}
               target="_blank"
               rel="noreferrer"
               className="inline-flex min-h-6 items-center font-medium underline underline-offset-4 pointer-coarse:min-h-11"
