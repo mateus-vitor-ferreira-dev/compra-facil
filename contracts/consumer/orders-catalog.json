@@ -240,6 +240,76 @@
           "sku": "<string>"
         }
       ]
+    },
+    {
+      "description": "personalização: o texto volta normalizado; faltando quando obrigatória, ou no produto sem ela, INVALID_PERSONALIZATION",
+      "given": {
+        "p1": {
+          "status": "active",
+          "price_cents": 1990,
+          "personalization": {
+            "label": "Nome",
+            "max_length": 12,
+            "required": true,
+            "template": "nome-classico:mae"
+          }
+        },
+        "p2": {
+          "status": "active",
+          "price_cents": 1990,
+          "personalization": {
+            "label": "Nome",
+            "max_length": 12,
+            "required": true,
+            "template": "nome-classico"
+          }
+        },
+        "p3": {
+          "status": "active",
+          "price_cents": 1990
+        }
+      },
+      "request": [
+        {
+          "product": "p1",
+          "quantity": 1,
+          "personalization": "Ana Maria"
+        },
+        {
+          "product": "p2",
+          "quantity": 1
+        },
+        {
+          "product": "p3",
+          "quantity": 1,
+          "personalization": "Ana"
+        }
+      ],
+      "response": [
+        {
+          "product": "p1",
+          "status": "ITEM_STATUS_OK",
+          "quantity": 1,
+          "sku": "<string>",
+          "name": "<string>",
+          "unit_price": {
+            "amount_cents": 1990,
+            "currency": "BRL"
+          },
+          "campaign_id": "",
+          "personalization": "Ana Maria"
+        },
+        {
+          "product": "p2",
+          "status": "ITEM_STATUS_INVALID_PERSONALIZATION",
+          "sku": "<string>"
+        },
+        {
+          "product": "p3",
+          "status": "ITEM_STATUS_INVALID_PERSONALIZATION",
+          "sku": "<string>"
+        }
+      ]
     }
   ]
 }

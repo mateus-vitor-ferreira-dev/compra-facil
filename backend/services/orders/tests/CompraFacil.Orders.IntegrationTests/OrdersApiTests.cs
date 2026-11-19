@@ -351,6 +351,58 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     }
 
     [Fact]
+    public async Task Place_TheSameProductWithTwoNames_IsTwoItems_WithTheNormalizedText()
+    {
+        var camiseta = fx.Catalog.Add(new CatalogProduct("CAM-NOME", "Camiseta Mãe", 7990, Sizes: ["M"],
+            PersonalizationMaxLength: 20, PersonalizationRequired: true));
+        var customer = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(customer,
+            new { product_id = camiseta, quantity = 1, size = "M", personalization = "  Ana   Maria " },
+            new { product_id = camiseta, quantity = 1, size = "M", personalization = "João" }));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        var items = JsonDocument.Parse(json).RootElement.GetProperty("items");
+        Assert.Equal(["Ana Maria", "João"], items.EnumerateArray().Select(i => i.GetProperty("personalization").GetString()));
+
+        var outbox = Assert.Single(await OutboxForAsync(JsonDocument.Parse(json).RootElement.GetProperty("id").GetGuid()));
+        ContractAssert.AssertEvent("orders.v1.yaml", "OrderPlaced", outbox.Payload);
+        var placed = EventEnvelope.TryParse(outbox.Payload)!.Data.GetProperty("items");
+        Assert.Equal(["Ana Maria", "João"], placed.EnumerateArray().Select(i => i.GetProperty("personalization").GetString()));
+    }
+
+    [Theory]
+    [InlineData(null, "escreva a personalização")]
+    [InlineData("Bia 🎄", "não serve para o produto")]
+    public async Task Place_WithoutTheTextOrWithOneTheArtCannotPrint_Is409(string? text, string detail)
+    {
+        var camiseta = fx.Catalog.Add(new CatalogProduct("CAM-NOME-2", "Camiseta Pai", 7990,
+            PersonalizationMaxLength: 20, PersonalizationRequired: true));
+        var customer = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(customer, new { product_id = camiseta, quantity = 1, personalization = text }));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(detail, (await JsonOf(response)).GetProperty("detail").GetString(), StringComparison.Ordinal);
+        Assert.Equal(0, await OrdersOfAsync(customer));
+    }
+
+    [Fact]
+    public async Task Place_TheSameProductTwiceWithTheSameText_Is422()
+    {
+        var camiseta = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(Guid.NewGuid(),
+            new { product_id = camiseta, quantity = 1, personalization = "Ana" },
+            new { product_id = camiseta, quantity = 1, personalization = " Ana " }));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains((await JsonOf(response)).GetProperty("errors").EnumerateArray(), e => e.GetProperty("field").GetString() == "items");
+    }
+
+    [Fact]
     public async Task Place_SameKeyAndBody_ReturnsTheSameOrder()
     {
         var product = fx.Catalog.Add(new CatalogProduct("SKU-IDEM", "Produto", 1000));

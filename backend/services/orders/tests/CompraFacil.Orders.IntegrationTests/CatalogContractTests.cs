@@ -24,16 +24,22 @@ namespace CompraFacil.Orders.IntegrationTests;
 // ---------------------------------------------------------------------------------------------
 
 /// <summary>Produto que o provedor precisa ter antes da interação (estado do provedor).</summary>
-public sealed record GivenProduct(string Status, long PriceCents, int? CampaignDiscountPercent = null, IReadOnlyList<string>? Sizes = null);
+public sealed record GivenProduct(
+    string Status, long PriceCents, int? CampaignDiscountPercent = null, IReadOnlyList<string>? Sizes = null,
+    GivenPersonalization? Personalization = null);
 
-public sealed record ContractRequestItem(string Product, int Quantity, long? ExpectedUnitPriceCents = null, string? Size = null);
+/// <summary>A personalização do produto no estado do provedor.</summary>
+public sealed record GivenPersonalization(string Label, int MaxLength, bool Required, string Template);
+
+public sealed record ContractRequestItem(
+    string Product, int Quantity, long? ExpectedUnitPriceCents = null, string? Size = null, string? Personalization = null);
 
 public sealed record ContractMoney(long AmountCents, string Currency);
 
 /// <summary>Item esperado na resposta; "&lt;string&gt;" e "&lt;uuid&gt;" casam com qualquer valor do tipo.</summary>
 public sealed record ContractResponseItem(
     string Product, string Status, int? Quantity = null, string? Sku = null, string? Name = null,
-    ContractMoney? UnitPrice = null, string? CampaignId = null, string? Size = null);
+    ContractMoney? UnitPrice = null, string? CampaignId = null, string? Size = null, string? Personalization = null);
 
 public sealed record ContractInteraction(
     string Description,
@@ -100,6 +106,19 @@ public static class OrdersCatalogContract
                     new("p1", "ITEM_STATUS_OK", 1, AnyString, AnyString, new(1990, "BRL"), "", Size: "G"),
                     new("p2", "ITEM_STATUS_INVALID_SIZE", Sku: AnyString),
                 ]),
+            new("personalização: o texto volta normalizado; faltando quando obrigatória, ou no produto sem ela, INVALID_PERSONALIZATION",
+                new Dictionary<string, GivenProduct>
+                {
+                    ["p1"] = s_active with { Personalization = new("Nome", 12, true, "nome-classico:mae") },
+                    ["p2"] = s_active with { Personalization = new("Nome", 12, true, "nome-classico") },
+                    ["p3"] = s_active,
+                },
+                [new("p1", 1, Personalization: "Ana Maria"), new("p2", 1), new("p3", 1, Personalization: "Ana")],
+                [
+                    new("p1", "ITEM_STATUS_OK", 1, AnyString, AnyString, new(1990, "BRL"), "", Personalization: "Ana Maria"),
+                    new("p2", "ITEM_STATUS_INVALID_PERSONALIZATION", Sku: AnyString),
+                    new("p3", "ITEM_STATUS_INVALID_PERSONALIZATION", Sku: AnyString),
+                ]),
         ]);
 
     public static readonly JsonSerializerOptions Json = new()
@@ -125,8 +144,10 @@ public sealed class ContractCatalog : CatalogService.CatalogServiceBase
     public override Task<ValidateItemsResponse> ValidateItems(ValidateItemsRequest request, ServerCallContext context)
     {
         var interaction = Current ?? throw new RpcException(new Status(StatusCode.FailedPrecondition, "sem interação"));
-        var expected = interaction.Request.Select(i => (Ids[i.Product].ToString(), i.Quantity, i.ExpectedUnitPriceCents, i.Size ?? "")).ToList();
-        var actual = request.Items.Select(i => (i.ProductId, i.Quantity, i.HasExpectedUnitPriceCents ? i.ExpectedUnitPriceCents : (long?)null, i.Size)).ToList();
+        var expected = interaction.Request
+            .Select(i => (Ids[i.Product].ToString(), i.Quantity, i.ExpectedUnitPriceCents, i.Size ?? "", i.Personalization ?? "")).ToList();
+        var actual = request.Items
+            .Select(i => (i.ProductId, i.Quantity, i.HasExpectedUnitPriceCents ? i.ExpectedUnitPriceCents : (long?)null, i.Size, i.Personalization)).ToList();
         if (!expected.SequenceEqual(actual))
         {
             Mismatches.Add($"{interaction.Description}: request {string.Join(", ", actual)} ≠ contrato {string.Join(", ", expected)}");
@@ -144,6 +165,7 @@ public sealed class ContractCatalog : CatalogService.CatalogServiceBase
                 Name = Example(item.Name),
                 CampaignId = Example(item.CampaignId),
                 Size = Example(item.Size),
+                Personalization = Example(item.Personalization),
             };
             if (item.UnitPrice is { } price)
             {
@@ -220,7 +242,7 @@ public sealed class CatalogContractTests(CatalogContractFixture fx) : IClassFixt
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var pricing = scope.ServiceProvider.GetRequiredService<ICatalogPricing>();
         var priced = await pricing.PriceAsync(
-            [.. interaction.Request.Select(r => new ItemToPrice(ids[r.Product], r.Quantity, r.ExpectedUnitPriceCents, r.Size))], Ct);
+            [.. interaction.Request.Select(r => new ItemToPrice(ids[r.Product], r.Quantity, r.ExpectedUnitPriceCents, r.Size, r.Personalization))], Ct);
 
         Assert.Empty(fx.Catalog.Mismatches); // o orders pediu o que o contrato diz
         Assert.Equal(interaction.Response.Count, priced.Count);
@@ -248,6 +270,10 @@ public sealed class CatalogContractTests(CatalogContractFixture fx) : IClassFixt
             if (expected.Size is not null)
             {
                 Assert.Equal(expected.Size, item.Size);
+            }
+            if (expected.Personalization is not null)
+            {
+                Assert.Equal(expected.Personalization, item.Personalization);
             }
         }
     }
@@ -278,6 +304,7 @@ public sealed class CatalogContractTests(CatalogContractFixture fx) : IClassFixt
         "ITEM_STATUS_PRICE_CHANGED" => PricedItemStatus.PriceChanged,
         "ITEM_STATUS_INVALID_QUANTITY" => PricedItemStatus.InvalidQuantity,
         "ITEM_STATUS_INVALID_SIZE" => PricedItemStatus.InvalidSize,
+        "ITEM_STATUS_INVALID_PERSONALIZATION" => PricedItemStatus.InvalidPersonalization,
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, "status fora do contrato"),
     };
 

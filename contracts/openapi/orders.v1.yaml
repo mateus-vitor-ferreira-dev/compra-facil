@@ -880,8 +880,8 @@ components:
           minItems: 1
           maxItems: 50
           description: |
-            Um item por produto e tamanho: o mesmo `product_id` pode vir em mais de um item, cada um com um
-            `size` diferente.
+            Um item por produto, tamanho e personalização: o mesmo `product_id` pode vir em mais de um item, cada um
+            com um `size` ou uma `personalization` diferente.
           items:
             $ref: "#/components/schemas/PlaceOrderItem"
 
@@ -953,6 +953,15 @@ components:
             O tamanho escolhido, um dos `sizes` do produto no catálogo (sem diferenciar maiúsculas). Obrigatório
             no produto com tamanho e ausente no sem tamanho; senão, 409.
           examples: ["G"]
+        personalization:
+          type: [string, "null"]
+          maxLength: 40
+          description: |
+            O texto do cliente para a arte (ex.: o nome na estampa), quando o produto tem `personalization` no
+            catálogo. Normalizado (sem espaços nas pontas nem repetidos); aceita letras do alfabeto latino (com
+            acento), algarismos, espaço e `. , ' - & ! ? /`, até o `max_length` do produto. Faltando quando é
+            obrigatória, inválido, ou presente no produto sem personalização: 409.
+          examples: ["Ana Maria"]
 
     Order:
       type: object
@@ -1088,6 +1097,10 @@ components:
           type: [string, "null"]
           description: O tamanho escolhido, como está no catálogo; nulo no produto sem tamanho.
           examples: ["G"]
+        personalization:
+          type: [string, "null"]
+          description: O texto do cliente para a arte, normalizado; nulo no produto sem personalização.
+          examples: ["Ana Maria"]
 
   securitySchemes:
     bearerAuth:

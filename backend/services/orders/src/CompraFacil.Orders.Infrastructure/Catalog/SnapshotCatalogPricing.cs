@@ -49,13 +49,16 @@ internal sealed class SnapshotCatalogPricing(OrdersDbContext db, TimeProvider cl
             // o tamanho como está no catálogo; sem tamanhos, só vale o pedido sem tamanho
             var size = product.Sizes.FirstOrDefault(s => string.Equals(s, item.Size, StringComparison.OrdinalIgnoreCase));
             var sizeOk = product.Sizes.Count == 0 ? item.Size is null : size is not null;
+            var text = Personalization.Normalize(item.Personalization);
+            var textOk = Personalization.Accepts(text, product.PersonalizationMaxLength, product.PersonalizationRequired);
             var status = product.Status != ActiveStatus ? PricedItemStatus.NotActive
                 : item.Quantity is < OrderItem.MinQuantity or > OrderItem.MaxQuantity ? PricedItemStatus.InvalidQuantity
                 : !sizeOk ? PricedItemStatus.InvalidSize
+                : !textOk ? PricedItemStatus.InvalidPersonalization
                 : item.ExpectedUnitPriceCents is { } expected && expected != cents ? PricedItemStatus.PriceChanged
                 : PricedItemStatus.Ok;
             return new PricedItem(item.ProductId, status, item.Quantity, product.Sku, product.Name,
-                new Money(cents, product.Currency), campaign?.CampaignId, size ?? item.Size);
+                new Money(cents, product.Currency), campaign?.CampaignId, size ?? item.Size, text);
         })];
     }
 }

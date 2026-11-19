@@ -525,6 +525,14 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<int?>("PersonalizationMaxLength")
+                        .HasColumnType("integer")
+                        .HasColumnName("personalization_max_length");
+
+                    b.Property<bool>("PersonalizationRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("personalization_required");
+
                     b.Property<long>("PriceCents")
                         .HasColumnType("bigint")
                         .HasColumnName("price_cents");
