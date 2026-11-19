@@ -25,7 +25,7 @@ test.describe("tema", () => {
     await page.reload();
     await expect(html(page)).toHaveClass(/\bdark\b/);
     const bodyColor = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(bodyColor).toBe("rgb(29, 13, 16)"); // o papel do escuro, #1d0d10
+    expect(bodyColor).toBe("rgb(18, 20, 42)"); // o papel do escuro, #12142a
     await page.unroute(/\/_next\/static\/chunks\/.*\.js(\?|$)/);
 
     await page.reload();
