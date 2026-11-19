@@ -26,18 +26,20 @@
 // Cada cenário compra com um cliente novo, cadastrado e logado no identity: o pedido sai do token, o
 // cliente o vê em "Meus pedidos" e outro cliente não o vê.
 //
-// Rodar: task e2e. No CI: .github/workflows/e2e.yml. O admin entra pelo identity, como o painel faria.
-// Variáveis: GATEWAY_URL (http://gateway), MAILPIT_URL (http://mailpit:8025), ADMIN_EMAIL e
-// ADMIN_PASSWORD (o operador inicial do compose).
+// Rodar: task e2e. No CI: .github/workflows/e2e.yml. O admin entra pelo identity, como o painel faria: senha e
+// código do app autenticador (calculado da chave fixa do compose, ADMIN_TOTP_KEY).
+// Variáveis: GATEWAY_URL (http://gateway), MAILPIT_URL (http://mailpit:8025), ADMIN_EMAIL,
+// ADMIN_PASSWORD e ADMIN_TOTP_KEY (o operador inicial do compose).
 import http from 'k6/http';
 import { check, fail, group, sleep } from 'k6';
-import { login, newCustomer } from './identity.js';
+import { adminLogin, newCustomer, refreshSession } from './identity.js';
 import { DELIVERY } from './delivery.js';
 
 const GATEWAY = __ENV.GATEWAY_URL || 'http://gateway';
 const MAILPIT = __ENV.MAILPIT_URL || 'http://mailpit:8025';
 const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@comprafacil.local';
 const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || 'admin-compra-facil';
+const ADMIN_TOTP_KEY = __ENV.ADMIN_TOTP_KEY || 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 
 const IDENTITY = `${GATEWAY}/identity`;
 // o fornecedor simulado, pela rede do compose (as rotas /sim não passam pelo gateway)
@@ -50,6 +52,8 @@ const PAYMENT_SIM = __ENV.PAYMENT_SIM_URL || 'http://payment-sim:8090';
 const EFI_PAYEE_CODE = __ENV.EFI_PAYEE_CODE || '0123456789abcdef0123456789abcdef';
 // as rotas /sim de operação do payment-sim pedem o token de administração (#280)
 const PAYMENT_SIM_ADMIN_TOKEN = __ENV.PAYMENT_SIM_ADMIN_TOKEN || 'sim-admin';
+// as rotas /sim do fornecedor simulado pedem o token de operação (o mesmo padrão do pagamento)
+const SUPPLIER_SIM_ADMIN = { 'X-Sim-Admin-Token': __ENV.SUPPLIER_SIM_ADMIN_TOKEN || 'sim-admin' };
 const SAGA_TIMEOUT_S = 60;
 
 export const options = {
@@ -100,9 +104,23 @@ function createProduct(token, categoryId, label, priceCents = 1990) {
   return id;
 }
 
+// a sessão do operador: um login com o segundo fator no setup; depois, o refresh (o mesmo código TOTP não
+// vale duas vezes, e o access token vence em 15 min)
+let adminSession = null;
+let adminSessionAt = 0;
+
+function adminToken() {
+  if (Date.now() - adminSessionAt > 5 * 60 * 1000) {
+    adminSession = refreshSession(IDENTITY, adminSession.refresh);
+    adminSessionAt = Date.now();
+  }
+  return adminSession.access;
+}
+
 export function setup() {
-  // o operador entra pelo identity, como o painel faria
-  const token = login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD);
+  // o operador entra pelo identity, como o painel faria (senha e código do app autenticador)
+  const session = adminLogin(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_TOTP_KEY);
+  const token = session.access;
   const cats = http.get(`${GATEWAY}/catalog/v1/categories`);
   if (cats.status !== 200 || cats.json('data').length === 0) fail('sem categorias no catálogo: rode o seed antes');
   const categoryId = cats.json('data')[0].id;
@@ -131,7 +149,8 @@ export function setup() {
       { headers: { ...auth(token), 'Idempotency-Key': uuid() } });
     if (adj.status !== 200) fail(`zerar estoque: ${adj.status} ${adj.body}`);
   }
-  return products;
+  // a sessão segue para os cenários pelo refresh token (o setup e as iterações não dividem variáveis)
+  return { ...products, adminRefresh: session.refresh };
 }
 
 // cartões que passam no Luhn: na homologação da Efí (e no simulado), o último dígito decide
@@ -172,10 +191,17 @@ function orderReaching(orderId, customer, status) {
   });
 }
 
+// a consulta de pagamentos é do painel (leitura da operação, #440): o teste entra como o operador, uma vez por VU
+let operatorToken = null;
+function operator() {
+  if (!operatorToken) operatorToken = login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD);
+  return operatorToken;
+}
+
 // o pagamento do pedido, esperando chegar a um dos status (sem status: qualquer desfecho)
 function paymentOf(orderId, ...statuses) {
   return eventually(`pagamento do pedido ${orderId} ${statuses.join('/')}`, () => {
-    const res = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { tags: { name: 'payments' } });
+    const res = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { headers: auth(operator()), tags: { name: 'payments' } });
     const data = res.status === 200 ? res.json('data') : [];
     const p = data.length > 0 ? data[0] : null;
     if (!p || p.status === 'processing') return null;
@@ -184,7 +210,7 @@ function paymentOf(orderId, ...statuses) {
 }
 
 function reservationOf(orderId) {
-  const res = http.get(`${GATEWAY}/inventory/v1/reservations/${orderId}`, { tags: { name: 'reservation' } });
+  const res = http.get(`${GATEWAY}/inventory/v1/reservations/${orderId}`, { headers: auth(operator()), tags: { name: 'reservation' } });
   return res.status === 200 ? res.json() : null;
 }
 
@@ -197,6 +223,8 @@ function emailsTo(address, subject, text) {
 }
 
 export default function (products) {
+  adminSession = refreshSession(IDENTITY, products.adminRefresh);
+  adminSessionAt = Date.now();
   group('1. compra confirmada', () => {
     const customer = newCustomer(IDENTITY, 'e2e-ok');
     const orderId = placeOrder(products.happy, customer);
@@ -239,11 +267,11 @@ export default function (products) {
     check(peek, { 'outro cliente não vê o pedido (404)': (r) => r.status === 404 });
 
     // a integração (#225): o fornecedor simulado responde, e a resposta não traz segredo
-    const integration = http.get(`${GATEWAY}/fulfillment/v1/admin/supplier/status`, { headers: auth(login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD)), tags: { name: 'supplier-status' } });
+    const integration = http.get(`${GATEWAY}/fulfillment/v1/admin/supplier/status`, { headers: auth(adminToken()), tags: { name: 'supplier-status' } });
     check(integration, { 'fornecedor respondendo': (r) => r.status === 200 && r.json('reachable') === true && !r.body.includes('sim-secret') });
 
     // a margem (#225): o produto do cenário não veio do fornecedor, então a conta fica sem custo, mas com a taxa
-    const margins = http.get(`${GATEWAY}/fulfillment/v1/admin/order-margins?limit=200`, { headers: auth(login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD)), tags: { name: 'order-margins' } });
+    const margins = http.get(`${GATEWAY}/fulfillment/v1/admin/order-margins?limit=200`, { headers: auth(adminToken()), tags: { name: 'order-margins' } });
     check(margins.json('data').find((m) => m.order_id === orderId), {
       'margem com o que foi pago e a taxa': (m) => m.revenue_cents > 0 && m.fee_cents > 0 && m.margin_cents === null,
     });
@@ -270,7 +298,7 @@ export default function (products) {
     // a devolução ao fornecedor: o cliente recebe o código, e o fornecedor (simulado) aprova
     check(eventually('e-mail das instruções', () => emailsTo(customer.email, 'Como devolver')), { 'e-mail das instruções de devolução': (n) => n >= 1 });
     const dispute = eventually('devolução aprovada no fornecedor', () => {
-      const res = http.get(`${SUPPLIER_SIM}/sim/disputes`, { tags: { name: 'sim-disputes' } });
+      const res = http.get(`${SUPPLIER_SIM}/sim/disputes`, { headers: SUPPLIER_SIM_ADMIN, tags: { name: 'sim-disputes' } });
       return (res.json('data') ?? []).find((d) => d.orderNumber === orderId && d.status === 'APPROVED');
     });
     check(dispute, { 'devolução aberta com código': (d) => !!d.returnCode });
@@ -286,7 +314,7 @@ export default function (products) {
       'pedido cancelled': (o) => o.status === 'cancelled',
       'motivo out_of_stock': (o) => o.cancellation_reason === 'out_of_stock',
     });
-    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`).json('data');
+    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { headers: auth(operator()) }).json('data');
     check(charges, { 'nenhuma cobrança': (d) => d.length === 0 });
   });
 
@@ -340,7 +368,7 @@ export default function (products) {
   group('5. acabou no fornecedor', () => {
     const product = products.fromSupplier;
     const set = (n) => http.put(`${SUPPLIER_SIM}/sim/products/${SUPPLIER_VID}/stock`, json({ stock: n }), {
-      headers: { 'Content-Type': 'application/json' }, tags: { name: 'sim-stock' },
+      headers: { 'Content-Type': 'application/json', ...SUPPLIER_SIM_ADMIN }, tags: { name: 'sim-stock' },
     });
     check(eventually('espelho com estoque', () => {
       const s = stockOf(product);
@@ -360,7 +388,7 @@ export default function (products) {
       'pedido cancelled': (o) => o.status === 'cancelled',
       'motivo out_of_stock': (o) => o.cancellation_reason === 'out_of_stock',
     });
-    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`).json('data');
+    const charges = http.get(`${GATEWAY}/payments/v1/payments?order_id=${orderId}`, { headers: auth(operator()) }).json('data');
     check(charges, { 'recusado antes de cobrar': (d) => d.length === 0 });
     set(50); // devolve o estoque para a próxima rodada
   });
@@ -410,7 +438,7 @@ export default function (products) {
       const res = http.get(`${GATEWAY}/orders/v1/orders/${orderId}`, { headers: auth(customer.token), tags: { name: 'order-status' } });
       return res.status === 200 && res.json('sent_to_supplier_at') ? res.json() : null;
     }), { 'parado no fornecedor': (o) => o.status === 'confirmed' });
-    const admin = login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const admin = adminToken();
     const cancel = http.post(`${GATEWAY}/fulfillment/v1/admin/supplier-orders/${orderId}/cancel`, null, { headers: auth(admin), tags: { name: 'order-cancel' } });
     check(cancel, { 'cancelamento aceito': (r) => r.status === 204 });
     check(eventually('pedido cancelado e estornado', () => {
@@ -425,7 +453,7 @@ export default function (products) {
       { 'e-mail do cancelamento pela loja': (n) => n >= 1 });
     // capturado, volta por estorno; ainda só autorizado, a autorização é cancelada
     check(paymentOf(orderId, 'refunded', 'voided'), { 'nada fica cobrado': (p) => p.status === 'voided' || p.refunded_cents === p.amount.amount_cents });
-    const sim = http.get(`${SUPPLIER_SIM}/sim/orders`, { tags: { name: 'sim-orders' } }).json('data');
+    const sim = http.get(`${SUPPLIER_SIM}/sim/orders`, { headers: SUPPLIER_SIM_ADMIN, tags: { name: 'sim-orders' } }).json('data');
     check(sim.find((o) => o.orderNumber === orderId), { 'cancelado no fornecedor': (o) => o.orderStatus === 'CANCELLED' });
   });
   group('9. devolução recusada na abertura', () => {
@@ -438,7 +466,7 @@ export default function (products) {
     check(eventually('aviso de que as instruções vêm da loja', () => emailsTo(customer.email, 'as instruções vêm da loja')),
       { 'cliente avisado da recusa': (n) => n >= 1 });
 
-    const admin = login(IDENTITY, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const admin = adminToken();
     const pending = eventually('devolução esperando a instrução no painel', () => {
       const res = http.get(`${GATEWAY}/fulfillment/v1/admin/supplier-returns?limit=200`, { headers: auth(admin), tags: { name: 'supplier-returns' } });
       return res.status === 200 ? (res.json('data') ?? []).find((r) => r.order_id === orderId && r.awaiting_customer_instruction) : null;

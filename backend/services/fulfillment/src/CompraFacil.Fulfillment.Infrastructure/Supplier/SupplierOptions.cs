@@ -24,8 +24,14 @@ public sealed class SupplierOptions
     public string Password { get; set; } = "sim";
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
 
-    /// <summary>Segredo do HMAC dos webhooks (o mesmo configurado no fornecedor).</summary>
-    public string WebhookSecret { get; set; } = "sim-secret";
+    /// <summary>
+    /// Segredo do HMAC dos webhooks (o mesmo configurado no fornecedor). Sem padrão: vazio, nenhuma assinatura
+    /// vale. O "sim-secret" do simulador vem só do compose local e do e2e.
+    /// </summary>
+    public string WebhookSecret { get; set; } = "";
+
+    /// <summary>O segredo do simulador, que está no repositório: a produção com fornecedor de verdade recusa subir com ele.</summary>
+    public const string SimulatorWebhookSecret = "sim-secret";
 
     /// <summary>Cabeçalho com a assinatura do webhook ("sha256=&lt;hex&gt;").</summary>
     public string SignatureHeader { get; set; } = "X-Sim-Signature";

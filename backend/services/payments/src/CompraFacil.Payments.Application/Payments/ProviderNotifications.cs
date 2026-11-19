@@ -14,7 +14,8 @@ public enum NotificationResult
 /// <summary>
 /// As notificações do provedor (o webhook do PIX, o token do cartão) só dizem qual cobrança mudou: a verdade vem
 /// da consulta a ele. Repetida ou atrasada não muda nada. Depois de aplicar, a devolução que esperava a
-/// liquidação do cartão sai.
+/// liquidação do cartão sai. O cartão aprovado que não se confirmou e o contestado ficam no log de erro, para a
+/// equipe.
 /// </summary>
 public sealed partial class ProviderNotifications(
     IPaymentRepository payments, IPaymentProvider provider, PaymentOutcome outcome, PaymentReversal reversal, ILogger<ProviderNotifications> logger)
@@ -29,13 +30,17 @@ public sealed partial class ProviderNotifications(
                 return NotificationResult.UnknownPayment;
             }
             var result = await provider.GetAsync(reference, ct);
-            if (result.Status == ProviderStatus.Disputed)
+            var before = payment.Status;
+            var changed = outcome.Apply(payment, result);
+            if (before == PaymentStatus.Authorized && payment.Status is PaymentStatus.Failed or PaymentStatus.Voided)
+            {
+                LogReversed(logger, payment.OrderId, reference, payment.Status);
+            }
+            if (before != PaymentStatus.Disputed && payment.Status == PaymentStatus.Disputed)
             {
                 // o dinheiro está em disputa: quem responde é a equipe, no painel do provedor, dentro do prazo dele
                 LogDisputed(logger, payment.OrderId, reference);
-                PaymentsMetrics.Disputes.Add(1);
             }
-            var changed = outcome.Apply(payment, result);
             var kind = await reversal.ResumeAsync(payment, ct);
             await payments.SaveChangesAsync(ct);
             if (kind is not null)
@@ -60,6 +65,9 @@ public sealed partial class ProviderNotifications(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "notificação do provedor para uma cobrança desconhecida {Reference}")]
     private static partial void LogUnknown(ILogger logger, string reference);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "cartão aprovado do pedido {OrderId} não se confirmou no provedor ({Reference}): {Status}")]
+    private static partial void LogReversed(ILogger logger, Guid orderId, string reference, PaymentStatus status);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "pagamento do pedido {OrderId} contestado no provedor ({Reference}): responder no painel do provedor")]
     private static partial void LogDisputed(ILogger logger, Guid orderId, string reference);
@@ -115,12 +123,14 @@ public sealed class PixExpiry(IPaymentRepository payments, IPaymentProvider prov
 
 /// <summary>
 /// Estorno pelo painel (#220): parte ou o resto de um pagamento aprovado, idempotente pela chave da
-/// requisição (a mesma devolve o mesmo estorno). Publica PaymentRefunded.
+/// requisição (a mesma devolve o mesmo estorno, e o pedido ao provedor sai uma vez só). Publica PaymentRefunded.
 /// </summary>
-public sealed class RefundPayment(IPaymentRepository payments, IPaymentProvider provider, PaymentOutcome outcome, TimeProvider clock)
+public sealed class RefundPayment(IPaymentRepository payments, ProviderRefunds refunds)
 {
     /// <exception cref="BuildingBlocks.Web.NotFoundException">Pagamento inexistente.</exception>
-    /// <exception cref="DomainException">Não está aprovado, ou o valor passa do que falta devolver.</exception>
+    /// <exception cref="DomainException">
+    /// Não está aprovado, o valor passa do que falta devolver, ou há um estorno pedido ao provedor sem confirmação.
+    /// </exception>
     public Task<Payment> HandleAsync(Guid paymentId, long? amountCents, string idempotencyKey, CancellationToken ct) =>
         OptimisticConcurrency.RetryAsync(payments.Reset, async () =>
         {
@@ -133,19 +143,23 @@ public sealed class RefundPayment(IPaymentRepository payments, IPaymentProvider 
             }
             var left = payment.Amount.AmountCents - payment.RefundedCents;
             var amount = amountCents ?? left;
-            if (payment.Status != PaymentStatus.Approved || amount <= 0 || amount > left)
+            if (payment.PendingRefund?.Key != key && (payment.Status != PaymentStatus.Approved || amount <= 0 || amount > left))
             {
                 throw new DomainException(payment.Status switch
                 {
                     PaymentStatus.Authorized => "o cartão ainda não foi liquidado pelo provedor: o estorno fica disponível depois da liquidação",
+                    PaymentStatus.Disputed => "o cliente contestou o cartão na operadora: a devolução é a da contestação, respondida no painel do provedor",
                     not PaymentStatus.Approved => $"o pagamento está {payment.Status}: só o aprovado se estorna",
                     _ => $"o estorno vai de 1 a {left} centavos",
                 });
             }
-            var refund = await provider.RefundAsync(payment.ProviderReference!, amount, key, ct);
-            if (payment.Refund(refund.AmountCents, key, refund.Reference, clock.GetUtcNow()))
+            var result = await refunds.RefundAsync(payment, amount, key, reason: null, ct);
+            if (result == RefundResult.Unconfirmed)
             {
-                outcome.Refunded(payment, refund.AmountCents, RefundKind.Refund);
+                throw new DomainException("o estorno foi pedido ao provedor e ainda não se confirmou: confira no painel do provedor");
+            }
+            if (result == RefundResult.Applied)
+            {
                 PaymentsMetrics.Refunds.Add(1, new KeyValuePair<string, object?>("kind", "partial"));
             }
             await payments.SaveChangesAsync(ct);

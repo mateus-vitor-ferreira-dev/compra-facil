@@ -30,6 +30,12 @@ public enum PaymentStatus
 
     /// <summary>Todo o valor voltou ao cliente.</summary>
     Refunded,
+
+    /// <summary>
+    /// O cliente contestou o cartão na operadora (chargeback; na Efí, contested): o dinheiro está em disputa, e quem
+    /// responde é a equipe, no painel do provedor. Não se estorna pelo painel da loja (a contestação já devolve).
+    /// </summary>
+    Disputed,
 }
 
 /// <summary>Motivo da recusa (contrato FailureReason).</summary>
@@ -50,14 +56,22 @@ public enum FailureReason
 /// </summary>
 public sealed record RefundEntry(string Key, string Reference, long AmountCents, DateTimeOffset At, DateTimeOffset? FailedAt = null);
 
+/// <summary>
+/// Um estorno pedido ao provedor e ainda sem resposta guardada: a chave, o valor, o motivo (o da devolução do
+/// pedido; nulo, o do painel) e quando foi pedido. Gravado antes de chamar o provedor, para a nova tentativa não
+/// pedir de novo o estorno do cartão, que na Efí não tem chave de idempotência.
+/// </summary>
+public sealed record PendingRefund(string Key, long AmountCents, string? Reason, DateTimeOffset RequestedAt);
+
 /// <summary>O PIX: o copia-e-cola, o QR em PNG (base64), a página de pagamento e a validade.</summary>
 public sealed record PixCharge(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
 
 /// <summary>
 /// Uma cobrança no provedor (#220, #379). PIX: nasce processing, fica pending com o QR e termina approved (pago)
 /// ou failed (expirou). Cartão: processing até o provedor decidir, authorized (aprovado pela operadora) e approved
-/// na liquidação; recusado é failed. O aprovado pode ser estornado em partes até o total. A devolução pedida
-/// antes da liquidação fica em <see cref="PendingReversal"/> e sai quando ela chega.
+/// na liquidação; recusado é failed. O aprovado pela operadora ainda pode não se confirmar (failed, voided), e o
+/// cartão autorizado ou liquidado pode ser contestado (disputed). O aprovado pode ser estornado em partes até o
+/// total. A devolução pedida antes da liquidação fica em <see cref="PendingReversal"/> e sai quando ela chega.
 /// </summary>
 public sealed class Payment
 {
@@ -102,6 +116,14 @@ public sealed class Payment
     /// a Efí não cancela nem estorna nessa janela). Sai na liquidação; nulo, nada esperando.
     /// </summary>
     public string? PendingReversal { get; private set; }
+
+    /// <summary>
+    /// O estorno pedido ao provedor e ainda não aplicado (um de cada vez). Nulo, nenhum. Fica se a resposta do
+    /// provedor não chegou (caiu no meio, ou ele não respondeu): a nova tentativa confere no provedor em vez de
+    /// pedir de novo.
+    /// </summary>
+    public PendingRefund? PendingRefund { get; private set; }
+
     public DateTimeOffset? CapturedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -191,9 +213,13 @@ public sealed class Payment
         UpdatedAt = now;
     }
 
+    /// <summary>
+    /// Recusado: a cobrança ainda aberta, ou o cartão aprovado que a operadora não confirmou antes da liquidação (na
+    /// Efí, de approved para unpaid): o dinheiro não vem.
+    /// </summary>
     public void Fail(FailureReason reason, string? providerReference, DateTimeOffset now)
     {
-        if (!IsOpen)
+        if (!IsOpen && Status != PaymentStatus.Authorized)
         {
             throw new DomainException($"pagamento {Id} já está {Status}");
         }
@@ -203,7 +229,10 @@ public sealed class Payment
         UpdatedAt = now;
     }
 
-    /// <summary>Cancela a cobrança antes do dinheiro sair (o PIX não pago, o cartão em análise): o cliente não é cobrado.</summary>
+    /// <summary>
+    /// Cancela a cobrança antes do dinheiro sair (o PIX não pago, o cartão em análise, ou o aprovado que a operadora
+    /// cancelou antes de liquidar): o cliente não é cobrado.
+    /// </summary>
     public void Void(DateTimeOffset now)
     {
         if (Status is not (PaymentStatus.Processing or PaymentStatus.Authorized or PaymentStatus.Pending))
@@ -214,6 +243,25 @@ public sealed class Payment
         Status = PaymentStatus.Voided;
         RefundedAt = now;
         UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// O cliente contestou o cartão autorizado ou liquidado (chargeback). False se já estava contestado (a
+    /// notificação repetida).
+    /// </summary>
+    public bool Dispute(DateTimeOffset now)
+    {
+        if (Status == PaymentStatus.Disputed)
+        {
+            return false;
+        }
+        if (Status is not (PaymentStatus.Authorized or PaymentStatus.Approved))
+        {
+            throw new DomainException($"pagamento {Id} está {Status}: só o cartão aprovado se contesta");
+        }
+        Status = PaymentStatus.Disputed;
+        UpdatedAt = now;
+        return true;
     }
 
     /// <summary>
@@ -275,6 +323,37 @@ public sealed class Payment
     }
 
     /// <summary>
+    /// Grava o estorno que vai ser pedido ao provedor, antes de pedir. Só um de cada vez: com outro ainda sem
+    /// resposta, recusa (a equipe confere no painel do provedor).
+    /// </summary>
+    public void RequestRefund(string key, long amountCents, string? reason, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (PendingRefund is { } pending)
+        {
+            throw new DomainException($"pagamento {Id}: o estorno {pending.Key} foi pedido ao provedor e ainda não se confirmou");
+        }
+        Ensure(PaymentStatus.Approved);
+        if (amountCents <= 0 || amountCents > Amount.AmountCents - RefundedCents)
+        {
+            throw new DomainException($"pagamento {Id}: estorno de {amountCents} com {Amount.AmountCents - RefundedCents} a devolver");
+        }
+        PendingRefund = new PendingRefund(key, amountCents, reason, now);
+        UpdatedAt = now;
+    }
+
+    /// <summary>O provedor recusou o estorno pedido: nada foi devolvido, e o pagamento pode ser estornado de novo.</summary>
+    public void DropPendingRefund(DateTimeOffset now)
+    {
+        if (PendingRefund is null)
+        {
+            return;
+        }
+        PendingRefund = null;
+        UpdatedAt = now;
+    }
+
+    /// <summary>
     /// Devolve <paramref name="amountCents"/> do que foi pago; o total vira Refunded. False se o estorno desta
     /// chave (ou desta referência no provedor) já foi aplicado.
     /// </summary>
@@ -283,6 +362,11 @@ public sealed class Payment
         // a chave de um estorno que falhou pode ser usada de novo; a referência no provedor, não
         if (_refunds.Any(r => (r.Key == key && r.FailedAt is null) || r.Reference == refundReference))
         {
+            if (PendingRefund?.Key == key)
+            {
+                PendingRefund = null; // o pedido que ficou sem resposta era este, já aplicado
+                UpdatedAt = now;
+            }
             return false;
         }
         Ensure(PaymentStatus.Approved);
@@ -292,6 +376,10 @@ public sealed class Payment
         }
         RefundedCents += amountCents;
         _refunds.Add(new RefundEntry(key, refundReference, amountCents, now));
+        if (PendingRefund?.Key == key)
+        {
+            PendingRefund = null;
+        }
         RefundReference = refundReference;
         RefundedAt = now;
         if (RefundedCents == Amount.AmountCents)

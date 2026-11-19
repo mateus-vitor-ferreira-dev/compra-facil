@@ -7,7 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace CompraFacil.Orders.Api.Controllers;
 
 /// <summary>O contato de quem comprou, para atender: sem CPF nem endereço (LGPD, só o necessário).</summary>
-public sealed record AdminCustomerResponse(string Email, string? Name, string? Phone);
+/// <summary>O contato de quem comprou; vazio para o auditor, que vê a operação sem os dados do cliente.</summary>
+public sealed record AdminCustomerResponse(string? Email, string? Name, string? Phone)
+{
+    public static readonly AdminCustomerResponse Hidden = new(null, null, null);
+}
 
 public sealed record AdminOrderDestinationResponse(string City, string State);
 
@@ -17,12 +21,14 @@ public sealed record AdminOrderSummaryResponse(
     Guid Id, OrderStatus Status, CancellationReason? CancellationReason, DateTimeOffset CreatedAt, Money Total, int ItemsCount,
     AdminOrderPaymentResponse Payment, AdminCustomerResponse Customer, AdminOrderDestinationResponse? Destination)
 {
-    public static AdminOrderSummaryResponse From(Order o)
+    /// <param name="o">O pedido.</param>
+    /// <param name="operatorView">O operador vê o contato do cliente; o auditor, não.</param>
+    public static AdminOrderSummaryResponse From(Order o, bool operatorView)
     {
         ArgumentNullException.ThrowIfNull(o);
         return new(o.Id, o.Status, o.CancellationReason, o.CreatedAt, o.Total, o.Items.Sum(i => i.Quantity),
             new AdminOrderPaymentResponse(o.PaymentMethod, o.Installments),
-            new AdminCustomerResponse(o.CustomerEmail, o.Recipient?.Name, o.Recipient?.Phone),
+            operatorView ? new AdminCustomerResponse(o.CustomerEmail, o.Recipient?.Name, o.Recipient?.Phone) : AdminCustomerResponse.Hidden,
             o.ShippingAddress is { } a ? new AdminOrderDestinationResponse(a.City, a.State) : null);
     }
 }
@@ -33,15 +39,18 @@ public sealed record AdminOrderDetailResponse(
     IReadOnlyList<OrderItemData> Items, Money ItemsTotal, OrderShippingResponse? Shipping, Tracking? Tracking,
     string? PaymentFailureReason, int? InvoiceNumber, DateTimeOffset? StockReservedAt, DateTimeOffset? SentToSupplierAt,
     DateTimeOffset? ShippedAt, DateTimeOffset? DeliveredAt, DateTimeOffset? ReturnRequestedAt, DateTimeOffset? RefundedAt,
-    DateTimeOffset? RefundFailedAt, DateTimeOffset UpdatedAt)
+    DateTimeOffset? RefundFailedAt, DateTimeOffset? PaymentReversedAt, string? PaymentReversal, DateTimeOffset UpdatedAt)
 {
-    public static AdminOrderDetailResponse From(Order o)
+    /// <param name="o">O pedido.</param>
+    /// <param name="operatorView">O operador vê o contato do cliente; o auditor, não.</param>
+    public static AdminOrderDetailResponse From(Order o, bool operatorView)
     {
-        var s = AdminOrderSummaryResponse.From(o);
+        var s = AdminOrderSummaryResponse.From(o, operatorView);
         return new(s.Id, s.Status, s.CancellationReason, s.CreatedAt, s.Total, s.ItemsCount, s.Payment, s.Customer, s.Destination,
             [.. o.Items.Select(OrderItemData.From)], o.Items.Aggregate(Money.Zero(o.Total.Currency), (sum, i) => sum.Plus(i.LineTotal)),
             OrderShippingResponse.From(o.Shipping), o.Tracking, o.PaymentFailureReason, o.Invoice?.Number, o.StockReservedAt,
-            o.SentToSupplierAt, o.ShippedAt, o.DeliveredAt, o.ReturnRequestedAt, o.RefundedAt, o.RefundFailedAt, o.UpdatedAt);
+            o.SentToSupplierAt, o.ShippedAt, o.DeliveredAt, o.ReturnRequestedAt, o.RefundedAt, o.RefundFailedAt,
+            o.PaymentReversedAt, o.PaymentReversal, o.UpdatedAt);
     }
 }
 
@@ -80,7 +89,7 @@ public sealed class AdminOrdersController(AdminOrders admin) : ControllerBase
 {
     /// <summary>listAdminOrders: do mais recente para o mais antigo, com filtro, busca e período.</summary>
     [HttpGet("v1/admin/orders")]
-    public async Task<AdminOrderListResponse> List(
+    public async Task<ActionResult<AdminOrderListResponse>> List(
         [FromQuery(Name = "status")] OrderStatus? status,
         [FromQuery(Name = "q")] string? search,
         [FromQuery(Name = "from")] DateTimeOffset? from,
@@ -89,16 +98,23 @@ public sealed class AdminOrdersController(AdminOrders admin) : ControllerBase
         [FromQuery(Name = "limit")] int? limit,
         CancellationToken ct)
     {
+        // a busca é por e-mail, nome ou número: para o auditor, que não vê o cliente, ela diria quem comprou
+        if (!string.IsNullOrWhiteSpace(search) && !IsOperator)
+        {
+            return Forbid();
+        }
         var page = await admin.ListAsync(
             new AdminOrdersQuery(new AdminOrderFilter(status, search, from, to), cursor, limit ?? AdminOrdersQuery.DefaultLimit), ct);
         return new AdminOrderListResponse(
-            [.. page.Items.Select(AdminOrderSummaryResponse.From)], new PageInfo(page.NextCursor, HasMore: page.NextCursor is not null));
+            [.. page.Items.Select(o => AdminOrderSummaryResponse.From(o, IsOperator))], new PageInfo(page.NextCursor, HasMore: page.NextCursor is not null));
     }
 
     /// <summary>getAdminOrder: o pedido com itens, entrega, rastreio e as datas de cada etapa.</summary>
     [HttpGet("v1/admin/orders/{order_id:guid}")]
     public async Task<AdminOrderDetailResponse> Get([FromRoute(Name = "order_id")] Guid orderId, CancellationToken ct) =>
-        AdminOrderDetailResponse.From(await admin.GetAsync(orderId, ct));
+        AdminOrderDetailResponse.From(await admin.GetAsync(orderId, ct), IsOperator);
+
+    private bool IsOperator => User.IsInRole("admin");
 
     /// <summary>getSalesSummary: pagos, estornados, por dia, por meio de pagamento e os mais vendidos.</summary>
     [HttpGet("v1/admin/sales-summary")]

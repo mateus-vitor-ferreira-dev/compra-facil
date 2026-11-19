@@ -16,7 +16,8 @@ public sealed class RegisterValidator : AbstractValidator<RegisterCommand>
     public RegisterValidator()
     {
         RuleFor(c => c.Email).NotEmpty().EmailAddress().MaximumLength(User.MaxEmailLength);
-        RuleFor(c => c.Name).NotEmpty().MaximumLength(User.MaxNameLength);
+        RuleFor(c => c.Name).Cascade(CascadeMode.Stop).NotEmpty().MaximumLength(User.MaxNameLength)
+            .Must(PersonName.IsValid).WithMessage(PersonName.InvalidMessage);
         // o tamanho mínimo e a variedade de caracteres ficam na política do Identity (IdentitySetup)
         RuleFor(c => c.Password).NotEmpty().MaximumLength(MaxPasswordLength);
     }

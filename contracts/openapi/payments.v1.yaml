@@ -31,7 +31,11 @@ paths:
       tags: [payments]
       operationId: listPayments
       summary: Pagamentos de um pedido
-      description: Normalmente um por pedido; mais de um só se houver nova tentativa após falha.
+      description: |
+        Normalmente um por pedido; mais de um só se houver nova tentativa após falha. Só o operador e o auditor
+        (o painel): a resposta traz o PIX copia e cola, o final do cartão e a taxa da loja.
+      security:
+        - bearerAuth: []
       parameters:
         - name: order_id
           in: query
@@ -54,6 +58,10 @@ paths:
                       $ref: "#/components/schemas/Payment"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
         "422":
           $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
         "500":
@@ -64,6 +72,9 @@ paths:
       tags: [payments]
       operationId: getPayment
       summary: Detalhe de um pagamento
+      description: Só o operador e o auditor (o painel).
+      security:
+        - bearerAuth: []
       parameters:
         - name: payment_id
           in: path
@@ -78,6 +89,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Payment"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
         "404":
           $ref: "./common/v1/common.yaml#/components/responses/NotFound"
         "500":
@@ -285,9 +300,11 @@ components:
       description: |
         `processing`: enviado ao provedor (ou o cartão em análise) · `pending`: PIX esperando o pagamento ·
         `authorized`: cartão com o valor garantido, a captura vem quando o fornecedor aceita · `approved`:
-        pago ou capturado (pode ter estorno parcial, `refunded_cents`) · `failed` · `voided`: autorização
-        cancelada, nada cobrado · `refunded`: tudo devolvido.
-      enum: [processing, pending, authorized, approved, failed, voided, refunded]
+        pago ou capturado (pode ter estorno parcial, `refunded_cents`) · `failed`: recusado (também o cartão
+        aprovado que a operadora não confirmou) · `voided`: autorização cancelada, nada cobrado · `refunded`: tudo
+        devolvido · `disputed`: o cliente contestou o cartão na operadora (chargeback); a equipe responde no
+        painel do provedor, e o painel da loja não estorna.
+      enum: [processing, pending, authorized, approved, failed, voided, refunded, disputed]
 
     PaymentMethod:
       type: string

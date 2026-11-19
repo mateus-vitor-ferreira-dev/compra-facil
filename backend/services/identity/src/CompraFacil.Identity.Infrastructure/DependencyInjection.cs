@@ -22,6 +22,7 @@ public static class DependencyInjection
         builder.AddPostgres<IdentityDbContext>();
         builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         builder.Services.AddScoped<IGuestRepository, GuestRepository>();
+        builder.Services.AddScoped<IMfaTicketRepository, MfaTicketRepository>();
         builder.Services.AddScoped<IAccountTransaction, AccountTransaction>();
 
         var confirmation = builder.Configuration.GetSection(EmailConfirmationOptions.Section);
@@ -44,12 +45,14 @@ public static class DependencyInjection
                 o.Lockout.MaxFailedAccessAttempts = 5;
                 o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
                 o.Tokens.PasswordResetTokenProvider = PasswordResetOptions.TokenProvider; // 1 hora, não o 1 dia da confirmação
+                o.Tokens.AuthenticatorTokenProvider = TotpTokenProvider<User>.Name; // ±1 passo e sem reuso do código
             })
             .AddRoles<Role>()
             .AddEntityFrameworkStores<IdentityDbContext>()
             .AddSignInManager()
             .AddDefaultTokenProviders() // token do link de confirmação (Data Protection)
             .AddTokenProvider<PasswordResetTokenProvider<User>>(PasswordResetOptions.TokenProvider)
+            .AddTokenProvider<TotpTokenProvider<User>>(TotpTokenProvider<User>.Name)
             .AddErrorDescriber<PortugueseIdentityErrorDescriber>();
         builder.Services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = confirmationOptions.TokenLifetime);
 

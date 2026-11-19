@@ -75,8 +75,15 @@ public sealed class StockApiTests(InventoryFixture fx) : IClassFixture<Inventory
         var order = Guid.NewGuid();
         await fx.HandleAsync<OrderPlacedData, ReserveStock>(new OrderPlacedData(order, [new OrderLine(product, 2)]));
 
-        using var response = await _http.GetAsync(new Uri($"/v1/reservations/{order}", UriKind.Relative), Ct);
-        using var missing = await _http.GetAsync(new Uri($"/v1/reservations/{Guid.NewGuid()}", UriKind.Relative), Ct);
+        // os itens de um pedido não são da vitrine: sem token, 401
+        using (var anonymous = await _http.GetAsync(new Uri($"/v1/reservations/{order}", UriKind.Relative), Ct))
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        }
+        using var auditor = fx.Factory.CreateClient();
+        auditor.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.AuditorToken());
+        using var response = await auditor.GetAsync(new Uri($"/v1/reservations/{order}", UriKind.Relative), Ct);
+        using var missing = await auditor.GetAsync(new Uri($"/v1/reservations/{Guid.NewGuid()}", UriKind.Relative), Ct);
 
         var json = await response.Content.ReadAsStringAsync(Ct);
         ContractAssert.AssertSchema("inventory.v1.yaml", "/components/schemas/Reservation", json);

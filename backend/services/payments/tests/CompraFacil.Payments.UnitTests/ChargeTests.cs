@@ -126,6 +126,27 @@ public sealed class ChargeTests
     }
 
     [Fact]
+    public void RefundRequest_IsOneAtATime_AndLeavesWhenApplied()
+    {
+        var p = Start();
+        p.Authorize("c", null, 0, s_now);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k1", 1000, null, s_now)); // não liquidado
+        p.Capture(s_now);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k1", s_amount.AmountCents + 1, null, s_now));
+
+        p.RequestRefund("k1", 1000, "cancel", s_now);
+        Assert.Equal(new PendingRefund("k1", 1000, "cancel", s_now), p.PendingRefund);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k2", 1000, null, s_now)); // outro sem resposta
+        Assert.True(p.Refund(1000, "k1", "r1", s_now));
+        Assert.Null(p.PendingRefund);
+
+        p.RequestRefund("k2", 500, null, s_now);
+        p.DropPendingRefund(s_now); // o provedor recusou
+        Assert.Null(p.PendingRefund);
+        Assert.Equal(1000L, p.RefundedCents);
+    }
+
+    [Fact]
     public void RefundNotRealized_LeavesTheAmountToRefundAgain()
     {
         var p = Start(PaymentMethod.Pix);
@@ -141,6 +162,26 @@ public sealed class ChargeTests
         Assert.Null(p.RefundOf("k1"));
         Assert.True(p.Refund(s_amount.AmountCents, "k1", "D2", s_now)); // a mesma chave, outra devolução
         Assert.False(p.Refund(1, "k9", "D1", s_now)); // a referência que falhou não volta
+    }
+
+    [Fact]
+    public void ApprovedCard_CanStillFail_OrBeDisputed()
+    {
+        // a operadora não confirmou o aprovado (unpaid): falha, mesmo depois de autorizado
+        var unpaid = Start(PaymentMethod.Card);
+        unpaid.Authorize("c1", "5682", 0, s_now);
+        unpaid.Fail(FailureReason.FraudSuspected, null, s_now);
+        Assert.Equal((PaymentStatus.Failed, FailureReason.FraudSuspected), (unpaid.Status, unpaid.FailureReason));
+
+        // a contestação: do autorizado ou do liquidado; repetida não muda nada
+        var disputed = Start(PaymentMethod.Card);
+        disputed.Authorize("c2", "5682", 0, s_now);
+        disputed.Capture(s_now);
+        Assert.True(disputed.Dispute(s_now));
+        Assert.False(disputed.Dispute(s_now));
+        Assert.Equal(PaymentStatus.Disputed, disputed.Status);
+        Assert.Throws<DomainException>(() => disputed.Refund(100, "k", "r", s_now)); // a contestação já devolve
+        Assert.Throws<DomainException>(() => unpaid.Dispute(s_now)); // o que não foi pago não se contesta
     }
 
     [Fact]

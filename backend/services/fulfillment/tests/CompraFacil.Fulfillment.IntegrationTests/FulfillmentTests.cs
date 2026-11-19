@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Fulfillment.Application;
 using CompraFacil.Fulfillment.Application.Invoices;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using CompraFacil.Fulfillment.Domain;
@@ -393,6 +394,63 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
         Assert.Empty(await EventsOfAsync(id));
     }
 
+    private async Task CancelledAsync(Guid id, string reason = "payment_failed")
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var handler = ActivatorUtilities.CreateInstance<OnOrderCancelled>(scope.ServiceProvider);
+        await handler.HandleAsync(new OrderCancelledData(id, reason),
+            new EventContext(Guid.NewGuid(), FulfillmentEvents.OrderCancelled, FulfillmentEvents.OrdersTopic, "req", DateTimeOffset.UtcNow), Ct);
+        await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().SaveChangesAsync(Ct);
+    }
+
+    [Fact]
+    public async Task Pedido_cancelado_na_fila_pelo_pagamento_revertido_nao_vai_ao_fornecedor_e_a_nota_e_cancelada()
+    {
+        // o fornecedor estava fora: o pedido voltou para a fila com a nota já autorizada, e o pagamento deixou de valer
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        fx.Supplier.Respond = r => r.OrderNumber == id
+            ? throw new SupplierUnavailableException("fornecedor respondeu 503")
+            : new SupplierPlacement.Accepted("CJ1");
+        await DispatchAsync();
+        var invoice = (await InvoiceAsync(id))!;
+        Assert.Equal(InvoiceStatus.Authorized, invoice.Status);
+
+        await CancelledAsync(id);
+        await CancelledAsync(id); // repetido
+
+        var order = await OrderAsync(id);
+        Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.OrderCancelled), (order.Status, order.FailureReason));
+        Assert.Equal([FulfillmentEvents.SupplierOrderFailed], await EventsOfAsync(id));
+        await CancelInvoicesAsync();
+        Assert.Equal(InvoiceStatus.Cancelled, (await InvoiceAsync(id))!.Status);
+        Assert.Single(fx.Issuer.Cancelled, p => p == invoice.ProviderId);
+
+        // a próxima volta do despachante não o leva mais ao fornecedor
+        fx.Supplier.Respond = _ => new SupplierPlacement.Accepted("CJ1");
+        await DispatchAsync();
+        Assert.Single(fx.Supplier.Calls, c => c.OrderNumber == id);
+        Assert.Equal(SupplierOrderStatus.Failed, (await OrderAsync(id)).Status);
+    }
+
+    [Fact]
+    public async Task Pedido_cancelado_ja_com_o_fornecedor_fica_para_a_equipe_sem_mudar()
+    {
+        var id = Guid.NewGuid();
+        await ConfirmedAsync(id);
+        await DispatchAsync();
+        Assert.Equal(SupplierOrderStatus.Placed, (await OrderAsync(id)).Status);
+
+        await CancelledAsync(id);
+
+        Assert.Equal(SupplierOrderStatus.Placed, (await OrderAsync(id)).Status); // a equipe cancela pelo painel
+        Assert.Equal([FulfillmentEvents.SupplierOrderPlaced], await EventsOfAsync(id));
+        Assert.Equal(InvoiceStatus.Authorized, (await InvoiceAsync(id))!.Status);
+
+        // o cancelamento de antes de pago nunca chegou aqui, e o de uma falha daqui não muda nada
+        await CancelledAsync(Guid.NewGuid(), "out_of_stock");
+    }
+
     [Fact]
     public async Task Retencao_da_demonstracao_mascara_o_destino_do_pedido_e_da_nota_uma_vez()
     {
@@ -452,10 +510,15 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     {
         var id = Guid.NewGuid();
         await ConfirmedAsync(id);
+        using var rejected = new MetricRecorder(FulfillmentMetrics.MeterName, "compra_facil.fulfillment.webhooks_rejected");
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await WebhookAsync(Update(id, "SHIPPED", "BR1"), secret: "outro")).Status);
         Assert.Equal(HttpStatusCode.Unauthorized, (await WebhookAsync(Update(id, "SHIPPED", "BR1"), secret: null)).Status);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await WebhookAsync(new { type = "ORDER" })).Status); // assinado, sem messageId
         Assert.Equal(SupplierOrderStatus.Pending, (await OrderAsync(id)).Status);
+        // o alerta "Webhook recusado em rajada"; pelo menos, porque outras classes de teste também mandam webhooks
+        Assert.True(rejected.Total(("reason", "signature")) >= 2);
+        Assert.True(rejected.Total(("reason", "invalid")) >= 1);
     }
 
     [Fact]
@@ -720,6 +783,9 @@ public sealed class FulfillmentTests(FulfillmentFixture fx) : IClassFixture<Fulf
     {
         var id = Guid.NewGuid();
         await ConfirmedAsync(id);
+        // um número só deste pedido: outros testes deixam o falso respondendo "CJ1" para todos, e a contagem de
+        // cancelamentos misturaria pedidos
+        fx.Supplier.Respond = r => new SupplierPlacement.Accepted($"CJ-{r.OrderNumber:N}");
         await DispatchAsync();
         var supplierOrderId = (await OrderAsync(id)).SupplierOrderId!;
 

@@ -3,6 +3,7 @@ using CompraFacil.Fulfillment.Application.SupplierCatalog;
 using CompraFacil.Fulfillment.Application.SupplierOrders;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CompraFacil.Fulfillment.Api.Controllers;
@@ -12,6 +13,8 @@ namespace CompraFacil.Fulfillment.Api.Controllers;
 /// reservar e cobrar, as variantes de um pedido (#218). Rota interna: o gateway não a expõe, só a rede dos
 /// serviços chega nela.
 /// </summary>
+// chamada entre serviços pela rede interna, sem token; o gateway não roteia /v1/internal
+[AllowAnonymous]
 [ApiController]
 [Produces("application/json")]
 public sealed class InternalStockController(SupplierStock stock) : ControllerBase

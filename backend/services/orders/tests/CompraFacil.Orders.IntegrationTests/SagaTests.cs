@@ -344,6 +344,69 @@ public sealed class SagaTests(OrdersFixture fx) : IClassFixture<OrdersFixture>
         Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled, OrderEvents.OrderRefunded], await EventTypesAsync(order));
     }
 
+    private async Task<JsonElement> AdminOrderAsync(Guid order)
+    {
+        using var admin = fx.Factory.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new("Bearer", fx.Identity.AdminToken());
+        var json = await admin.GetFromJsonAsync<JsonElement>($"/v1/admin/orders/{order}", Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/AdminOrderDetail", json.GetRawText());
+        return json;
+    }
+
+    // o cartão aprovado que a operadora não confirmou (unpaid, canceled) ou o cliente contestou, antes de o pedido ir
+    // ao fornecedor: o pedido para, sem estorno (o dinheiro não veio)
+    [Theory]
+    [InlineData("failed", "fraud_suspected")]
+    [InlineData("voided", null)]
+    [InlineData("disputed", null)]
+    public async Task PaymentReversed_BeforeTheSupplier_CancelsTheOrder_Once(string status, string? failureReason)
+    {
+        var order = await PaidOrderAsync();
+
+        await HandleAsync<PaymentReversedData, OnPaymentReversed>(new PaymentReversedData(order, Guid.NewGuid(), status, failureReason));
+        await HandleAsync<PaymentReversedData, OnPaymentReversed>(new PaymentReversedData(order, Guid.NewGuid(), status, failureReason)); // repetido
+
+        var cancelled = await GetOrderAsync(order);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", cancelled.GetRawText());
+        Assert.Equal(("cancelled", "payment_failed"), (cancelled.GetProperty("status").GetString(), cancelled.GetProperty("cancellation_reason").GetString()));
+        Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled], await EventTypesAsync(order));
+        var e = EventEnvelope.TryParse((await OutcomeEventsAsync(order)).Single(m => m.EventType == OrderEvents.OrderCancelled).Payload)!;
+        Assert.Equal("payment_failed", e.Data.GetProperty("reason").GetString());
+        Assert.Equal(failureReason, e.Data.GetProperty("payment_failure_reason").GetString());
+
+        var admin = await AdminOrderAsync(order);
+        Assert.Equal(status, admin.GetProperty("payment_reversal").GetString());
+        Assert.Equal(JsonValueKind.String, admin.GetProperty("payment_reversed_at").ValueKind);
+
+        // o fulfillment tira o pedido da fila: a falha que volta dele não muda mais nada
+        await HandleAsync<SupplierOrderFailedData, OnSupplierOrderFailed>(new SupplierOrderFailedData(order, "order_cancelled"));
+        Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled], await EventTypesAsync(order));
+    }
+
+    [Fact]
+    public async Task PaymentReversed_AfterTheSupplier_OnlyFlagsTheOrder()
+    {
+        // já com o fornecedor: o pedido segue, marcado para a equipe cancelar lá ou responder a contestação
+        var order = await PaidOrderAsync();
+        await HandleAsync<SupplierOrderPlacedData, OnSupplierOrderPlaced>(new SupplierOrderPlacedData(order));
+
+        await HandleAsync<PaymentReversedData, OnPaymentReversed>(new PaymentReversedData(order, Guid.NewGuid(), "disputed", null));
+        await HandleAsync<PaymentReversedData, OnPaymentReversed>(new PaymentReversedData(order, Guid.NewGuid(), "disputed", null)); // repetido
+
+        Assert.Equal("confirmed", (await GetOrderAsync(order)).GetProperty("status").GetString());
+        Assert.Equal([OrderEvents.OrderConfirmed], await EventTypesAsync(order));
+        var admin = await AdminOrderAsync(order);
+        Assert.Equal(("disputed", JsonValueKind.String), (admin.GetProperty("payment_reversal").GetString(), admin.GetProperty("payment_reversed_at").ValueKind));
+
+        // a equipe cancela no fornecedor: não há estorno a esperar (o dinheiro voltou pela contestação)
+        await HandleAsync<SupplierOrderFailedData, OnSupplierOrderFailed>(new SupplierOrderFailedData(order, "store_cancelled"));
+        var cancelled = await GetOrderAsync(order);
+        Assert.Equal(("cancelled", "store_cancelled"), (cancelled.GetProperty("status").GetString(), cancelled.GetProperty("cancellation_reason").GetString()));
+        Assert.Equal([OrderEvents.OrderConfirmed, OrderEvents.OrderCancelled], await EventTypesAsync(order));
+        await HandleAsync<PaymentRefundedData, OnPaymentRefunded>(new PaymentRefundedData(order, Guid.NewGuid(), true));
+        Assert.Equal(JsonValueKind.Null, (await GetOrderAsync(order)).GetProperty("refunded_at").ValueKind);
+    }
+
     [Fact]
     public async Task SupplierEvents_OnlyMoveForward()
     {

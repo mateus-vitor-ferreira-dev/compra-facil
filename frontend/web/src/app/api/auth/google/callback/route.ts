@@ -9,13 +9,16 @@ import {
   exchangeCode,
   readPending,
 } from "@/lib/auth/google";
+import { mfaPath, pendingMfaCookie, type MfaChallenge } from "@/lib/auth/mfa";
+import { safeReturnTo } from "@/lib/auth/return-to";
 import { sessionCookies, type Tokens } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 
 /**
  * A volta do Google: confere o state (o callback é deste navegador, deste login), troca o código pelo
  * ID token e o entrega ao identity com o nonce. Sessão aberta: cookies e de volta para onde a pessoa
- * estava. E-mail que já tem conta com senha: a tela de vínculo pede a senha.
+ * estava. E-mail que já tem conta com senha: a tela de vínculo pede a senha. Conta com 2FA (operador): o
+ * Google é só o primeiro fator, e a pessoa segue para a tela do código.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const params = request.nextUrl.searchParams;
@@ -42,8 +45,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return fail("google");
   }
 
+  if (response.status === 202) {
+    const challenge = (await response.json()) as MfaChallenge;
+    const redirect = clearPending(to(mfaPath(challenge)));
+    const c = pendingMfaCookie(challenge, pending.back);
+    redirect.cookies.set(c.name, c.value, c.options);
+    return redirect;
+  }
   if (response.ok) {
-    const redirect = clearPending(to(pending.back));
+    // o destino passou por um cookie: confere de novo antes de redirecionar
+    const redirect = clearPending(to(safeReturnTo(pending.back)));
     for (const c of sessionCookies((await response.json()) as Tokens))
       redirect.cookies.set(c.name, c.value, c.options);
     return redirect;
@@ -52,7 +63,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const redirect = clearPending(to("/entrar/vincular"));
     redirect.cookies.set(
       GOOGLE_LINK_COOKIE,
-      encodeCookie({ idToken, nonce: pending.nonce, email: emailOf(idToken), back: pending.back }),
+      encodeCookie({
+        idToken,
+        nonce: pending.nonce,
+        email: emailOf(idToken),
+        back: safeReturnTo(pending.back),
+      }),
       {
         httpOnly: true,
         secure: env.NODE_ENV === "production",

@@ -18,6 +18,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(16);
         builder.Property(o => o.CancellationReason).HasConversion<string>().HasMaxLength(32);
         builder.Property(o => o.PaymentFailureReason).HasMaxLength(32);
+        builder.Property(o => o.PaymentReversal).HasMaxLength(16);
         builder.Property(o => o.PaymentMethod).HasConversion<string>().HasMaxLength(8);
         // o PIX a pagar: só existe depois que o payments o gera
         builder.ComplexProperty(o => o.Pix, pix =>

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { api } from "@/lib/api/client";
 import { signIn, signOut } from "@/lib/auth/flows";
 import { safeReturnTo } from "@/lib/auth/return-to";
+import { isPersonName, normalizePersonName, PERSON_NAME_MESSAGE } from "@/lib/person-name";
 
 /**
  * Entrar, criar conta, sair e confirmar o e-mail. Server actions chamadas por formulários comuns
@@ -25,7 +26,8 @@ export async function login(_: LoginState, form: FormData): Promise<LoginState> 
   const password = String(form.get("password") ?? "");
   if (!email || !password) return { email, error: "Preencha o e-mail e a senha." };
 
-  const result = await signIn(email, password);
+  const result = await signIn(email, password, form.get("voltar"));
+  if (result.ok === "mfa") redirect(result.path);
   if (result.ok) redirect(safeReturnTo(form.get("voltar")));
   switch (result.status) {
     case 401:
@@ -61,7 +63,16 @@ export type RegisterState = {
 };
 
 const registerSchema = z.object({
-  name: z.string().trim().min(2, "Escreva seu nome.").max(120, "Use até 120 caracteres."),
+  name: z
+    .string()
+    .transform(normalizePersonName)
+    .pipe(
+      z
+        .string()
+        .min(2, "Escreva seu nome.")
+        .max(120, "Use até 120 caracteres.")
+        .refine(isPersonName, PERSON_NAME_MESSAGE),
+    ),
   email: z
     .string()
     .min(1, "Escreva seu e-mail.")
@@ -75,7 +86,7 @@ const registerSchema = z.object({
 
 // os textos do identity são em inglês: o front fala com o cliente em português, campo a campo
 const serverFieldMessage: Record<string, string> = {
-  name: "Confira o nome.",
+  name: `Confira o nome. ${PERSON_NAME_MESSAGE}`,
   email: "Confira o e-mail.",
   password: "Escolha outra senha: de 8 a 128 caracteres, com pelo menos 4 diferentes.",
 };
@@ -125,7 +136,8 @@ export async function register(_: RegisterState, form: FormData): Promise<Regist
     return { values, error: "A conta não foi criada: a loja não respondeu. Tente de novo em instantes." };
   }
 
-  const session = await signIn(parsed.data.email, parsed.data.password);
+  const session = await signIn(parsed.data.email, parsed.data.password, form.get("voltar"));
+  if (session.ok === "mfa") redirect(session.path);
   if (session.ok) redirect(safeReturnTo(form.get("voltar")));
   if (session.status === 403) return { confirmTo: parsed.data.email };
   // a conta existe; só o login automático falhou

@@ -23,6 +23,12 @@ public sealed class GuestAccessOptions
 
     /// <summary>Quantas compras recentes do mesmo e-mail recebem o link num reenvio.</summary>
     public int MaxPurchasesPerResend { get; set; } = 5;
+
+    /// <summary>
+    /// Até quando, depois de a compra começar, o mesmo formulário (a mesma chave e o mesmo e-mail) reabre a sessão
+    /// dela: o clique duplo e a nova tentativa do checkout. Depois, o acesso é só pelo link do e-mail (F-010).
+    /// </summary>
+    public TimeSpan CheckoutKeyWindow { get; set; } = TimeSpan.FromMinutes(30);
 }
 
 public sealed record StartGuestCommand(string Email, string Name, Guid CheckoutKey);
@@ -32,7 +38,8 @@ public sealed class StartGuestValidator : AbstractValidator<StartGuestCommand>
     public StartGuestValidator()
     {
         RuleFor(c => c.Email).NotEmpty().EmailAddress().MaximumLength(User.MaxEmailLength);
-        RuleFor(c => c.Name).NotEmpty().MaximumLength(User.MaxNameLength);
+        RuleFor(c => c.Name).Cascade(CascadeMode.Stop).NotEmpty().MaximumLength(User.MaxNameLength)
+            .Must(PersonName.IsValid).WithMessage(PersonName.InvalidMessage);
         RuleFor(c => c.CheckoutKey).NotEmpty();
     }
 }
@@ -54,7 +61,8 @@ public interface IGuestRepository
 /// <summary>
 /// Comprar sem cadastro. Cada compra ganha uma conta própria e sem senha, com o papel <c>customer</c>, e o
 /// pedido, a desistência e a nota funcionam como para qualquer cliente. Digitar um e-mail nunca dá acesso a
-/// nada que já exista com ele: só a chave do mesmo formulário ou o link recebido naquele e-mail reabrem a compra.
+/// nada que já exista com ele: só a chave do mesmo formulário (logo depois de começar, <see
+/// cref="GuestAccessOptions.CheckoutKeyWindow"/>) ou o link recebido naquele e-mail reabrem a compra.
 /// </summary>
 public sealed class GuestCheckout(
     IValidator<StartGuestCommand> validator,
@@ -77,10 +85,16 @@ public sealed class GuestCheckout(
         var existing = await guests.FindByCheckoutKeyAsync(command.CheckoutKey, ct);
         if (existing is not null)
         {
-            // o mesmo formulário de novo (clique duplo, nova tentativa): a mesma compra, e um pedido só
-            return existing.NormalizedGuestEmail == normalized
+            // o mesmo formulário de novo (clique duplo, nova tentativa): a mesma compra, e um pedido só. Só logo
+            // depois de começar: a chave não é segredo para sempre (fica no navegador, em log, no histórico), e com
+            // ela e o e-mail a sessão da compra abria a qualquer tempo. Depois, só o link mandado ao e-mail
+            if (existing.NormalizedGuestEmail != normalized)
+            {
+                throw new ConflictException("Compra já iniciada", "este formulário já foi enviado com outro e-mail");
+            }
+            return clock.GetUtcNow() - existing.CreatedAt <= options.Value.CheckoutKeyWindow
                 ? await sessions.StartAsync(existing, ct)
-                : throw new ConflictException("Compra já iniciada", "este formulário já foi enviado com outro e-mail");
+                : throw new ConflictException("Compra já iniciada", "esta compra já foi feita; o acesso a ela é pelo link enviado ao e-mail");
         }
 
         var user = User.CreateGuest(command.Email, normalized, command.Name, command.CheckoutKey, clock.GetUtcNow());

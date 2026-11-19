@@ -19,11 +19,22 @@ info:
     - **Google** (`createGoogleSession`, `linkGoogleSession`): login e cadastro com o ID token do Google;
       a conta é a do `sub` do Google, e um e-mail que já tem conta com senha só é vinculado com a senha.
     - **Esqueci minha senha** (`requestPasswordReset`, `resetPassword`): o link vai por e-mail (pelo
-      notifications), vale 1 hora e uma vez só; trocar a senha derruba todas as sessões da conta.
+      notifications), vale 1 hora e uma vez só; trocar a senha derruba todas as sessões da conta. A
+      autenticação em duas etapas continua ativa depois da troca.
+    - **Segundo fator** (TOTP, obrigatório para o papel `admin`): a senha (ou o Google) de uma conta com 2FA
+      responde `202` com um `mfa_ticket` (5 min, uso único), nunca tokens; a sessão sai de `verifySessionMfa`,
+      com o código do app autenticador ou um código de recuperação. O operador que ainda não tem 2FA recebe
+      um tíquete de cadastro (`mfa_setup_required`, 15 min): `startMfaSetup` dá a chave e o QR code,
+      `confirmMfaSetup` liga a 2FA com o primeiro código e devolve a sessão e 10 códigos de recuperação,
+      mostrados só uma vez. Código errado conta como senha errada (o quinto bloqueia a conta, `423`). O
+      papel `auditor` (robô só de leitura) entra só com a senha.
 
     O access token vai em `Authorization: Bearer <token>` nas outras APIs, que o validam sozinhas com as
     chaves públicas de `/.well-known/jwks.json` (cache de 5 min). Claims: `sub` (id da conta), `email`,
-    `name`, `roles` (`customer`, `admin`), `iss` = `compra-facil-identity`, `aud` = `compra-facil`, `exp`.
+    `name`, `roles` (`customer`, `admin`, `auditor`), `iss` = `compra-facil-identity`, `aud` = `compra-facil`,
+    `exp` e, só na sessão que passou pelo segundo fator, `amr` = `["mfa"]` (RFC 8176). As rotas de operador
+    dos serviços exigem `amr` com `mfa` junto do papel `admin`; o refresh repete o `amr` só na sessão que
+    nasceu do segundo fator.
 
     A chave de assinatura muda a cada 30 dias; a próxima aparece no JWKS um dia antes de assinar, e a
     anterior fica até o último token dela vencer. O `kid` do header do JWT diz qual chave usar.
@@ -223,6 +234,66 @@ paths:
         "500":
           $ref: "./common/v1/common.yaml#/components/responses/InternalError"
 
+  /v1/me/two-factor/recovery-codes:
+    post:
+      tags: [accounts]
+      operationId: regenerateRecoveryCodes
+      summary: Gera códigos de recuperação novos
+      description: |
+        Para a conta com 2FA ativa, numa sessão que passou pelo segundo fator (`amr` com `mfa`; sem ele,
+        `403`), com um código atual do app autenticador. Os 10 códigos novos aparecem só nesta resposta e os
+        anteriores deixam de valer. Código errado dá `422` e conta como senha errada.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoveryCodesRequest"
+      responses:
+        "200":
+          description: Os códigos novos.
+          headers:
+            Cache-Control:
+              description: "`no-store`: resposta com credencial não vai para cache."
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryCodes"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          description: A sessão não passou pelo segundo fator.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "409":
+          description: A conta não tem a 2FA ativa.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "423":
+          description: Conta bloqueada temporariamente por tentativas erradas.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
   /v1/sessions:
     post:
       tags: [sessions]
@@ -233,6 +304,8 @@ paths:
         quinta senha errada seguida, a conta fica bloqueada para login por 15 minutos (`423`, com
         `Retry-After`); sessões já abertas continuam valendo. Como o cadastro (`409`), o `423` revela que
         a conta existe: o rate limit do gateway é o que limita quem tenta descobrir.
+
+        Conta com 2FA, ou com o papel `admin`, responde `202` com o tíquete do segundo fator, nunca tokens.
       requestBody:
         required: true
         content:
@@ -242,6 +315,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Tokens"
+        "202":
+          $ref: "#/components/responses/MfaChallenge"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
@@ -275,8 +350,9 @@ paths:
       summary: Compra sem conta
       description: |
         Cria uma conta própria para esta compra, sem senha e com o papel `customer`, e abre a sessão. A
-        mesma `checkout_key` com o mesmo e-mail devolve a mesma conta: o reenvio do formulário não duplica o
-        pedido. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
+        mesma `checkout_key` com o mesmo e-mail devolve a mesma conta nos 30 minutos depois de a compra
+        começar: o reenvio do formulário não duplica o pedido. Depois, dá `409`, e a compra se abre só pelo
+        link enviado ao e-mail. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
       requestBody:
         required: true
         content:
@@ -289,7 +365,9 @@ paths:
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "409":
-          description: A mesma `checkout_key` já foi usada com outro e-mail, ou chegou ao mesmo tempo que outra.
+          description: |
+            A mesma `checkout_key` já foi usada com outro e-mail, chegou ao mesmo tempo que outra, ou começou
+            a compra há mais de 30 minutos (o acesso a ela é pelo link do e-mail).
           content:
             application/problem+json:
               schema:
@@ -361,6 +439,9 @@ paths:
         conta. Sem conta, cria uma já confirmada (sem senha), com o papel `customer`. Se o e-mail já tem
         conta com senha, responde `409` (título "Conta já existe"): o vínculo é por `linkGoogleSession`,
         com a senha, para que um Google com o mesmo e-mail não entre na conta de outra pessoa.
+
+        O Google é só o primeiro fator: conta com 2FA, ou com o papel `admin`, recebe `202` com o tíquete,
+        como no login com senha.
       requestBody:
         required: true
         content:
@@ -370,6 +451,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Tokens"
+        "202":
+          $ref: "#/components/responses/MfaChallenge"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
@@ -393,7 +476,7 @@ paths:
       description: |
         Valida o ID token como `createGoogleSession`, confere a senha da conta do mesmo e-mail (com o
         bloqueio por tentativas do login) e liga o `sub` do Google a ela. Daí em diante, o Google sozinho
-        entra nela.
+        entra nela (menos na conta com 2FA ou de operador, que recebe `202` com o tíquete do segundo fator).
       requestBody:
         required: true
         content:
@@ -403,12 +486,150 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/Tokens"
+        "202":
+          $ref: "#/components/responses/MfaChallenge"
         "400":
           $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "423":
           description: Conta bloqueada temporariamente por senhas erradas.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/mfa:
+    post:
+      tags: [sessions]
+      operationId: verifySessionMfa
+      summary: Segundo passo do login (código do autenticador ou de recuperação)
+      description: |
+        Recebe o `mfa_ticket` do `202` do login e **um** dos dois: `code`, os 6 dígitos do app autenticador
+        (o passo de 30 s atual, o anterior ou o seguinte; um código já usado não vale de novo), ou
+        `recovery_code`, um dos códigos de recuperação (cada um vale uma vez). O código certo gasta o tíquete
+        e abre a sessão, com `amr` = `["mfa"]` no access token.
+
+        Tíquete desconhecido, vencido, já usado ou de antes de uma troca de senha dá `401`: volte ao login.
+        Código errado dá `422` e conta como senha errada; o quinto erro seguido bloqueia a conta (`423`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaVerifyRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Tokens"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "423":
+          description: Conta bloqueada temporariamente por códigos (ou senhas) errados.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/mfa/setup:
+    post:
+      tags: [sessions]
+      operationId: startMfaSetup
+      summary: Chave e QR code para cadastrar o app autenticador
+      description: |
+        Com o tíquete `mfa_setup_required` do login do operador sem 2FA. Cada chamada gera uma chave nova
+        (a anterior deixa de servir); ela só passa a valer com o primeiro código certo em `confirmMfaSetup`.
+        O tíquete não é gasto aqui.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaTicketRequest"
+      responses:
+        "200":
+          description: A chave e o URI do QR code.
+          headers:
+            Cache-Control:
+              description: "`no-store`: resposta com segredo não vai para cache."
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaSetup"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "423":
+          description: Conta bloqueada temporariamente por tentativas erradas.
+          headers:
+            Retry-After:
+              $ref: "#/components/headers/RetryAfter"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./common/v1/common.yaml#/components/schemas/Problem"
+        "429":
+          $ref: "./common/v1/common.yaml#/components/responses/TooManyRequests"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+
+  /v1/sessions/mfa/setup/confirm:
+    post:
+      tags: [sessions]
+      operationId: confirmMfaSetup
+      summary: Liga a 2FA com o primeiro código e abre a sessão
+      description: |
+        O primeiro código certo do app liga a 2FA, gasta o tíquete e devolve a sessão (com `amr`) e 10
+        códigos de recuperação de uso único. Os códigos aparecem só nesta resposta: o identity guarda só o
+        hash deles. Código errado dá `422` e conta como senha errada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MfaConfirmRequest"
+      responses:
+        "200":
+          description: 2FA ativa; a sessão e os códigos de recuperação.
+          headers:
+            Cache-Control:
+              description: "`no-store`: resposta com credencial não vai para cache."
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaEnabled"
+        "400":
+          $ref: "./common/v1/common.yaml#/components/responses/BadRequest"
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "423":
+          description: Conta bloqueada temporariamente por tentativas erradas.
           headers:
             Retry-After:
               $ref: "#/components/headers/RetryAfter"
@@ -432,6 +653,9 @@ paths:
         dentro do intervalo de reuso (`Identity:Tokens:RefreshReuseInterval`, 10 s): logo depois da troca,
         ele ainda dá um par novo da mesma sessão (dois refresh simultâneos com o mesmo token passam). A
         próxima troca normal invalida os pares que sobraram.
+
+        A sessão aberta sem o segundo fator de uma conta que agora o exige (2FA ligada depois, ou a conta
+        virou operador) não renova: `401`, e a pessoa entra de novo com o código.
       requestBody:
         required: true
         content:
@@ -520,6 +744,19 @@ components:
       maxLength: 254
       examples: ["ana@exemplo.com"]
 
+    PersonName:
+      type: string
+      minLength: 1
+      maxLength: 120
+      # o pattern só barra o grosso; a regra inteira (letras, espaço, apóstrofo, hífen e ponto) é do servidor
+      pattern: "^[^0-9/:@<>]+$"
+      description: |
+        Nome de quem compra; vai na saudação dos e-mails da loja. Só letras (com acento), espaços,
+        apóstrofo, hífen e ponto. Nada de link, e-mail ou domínio: `://`, `www.`, `@`, `/`, `:` e
+        palavras como `exemplo.com` dão 422 ("use só letras, espaços, apóstrofo, hífen e ponto").
+        Espaços nas pontas saem e os repetidos viram um só.
+      examples: ["Ana Souza", "João d'Ávila", "Maria-Clara", "J. R. Silva"]
+
     RegisterRequest:
       type: object
       required: [email, password, name]
@@ -532,10 +769,7 @@ components:
           maxLength: 128
           writeOnly: true
         name:
-          type: string
-          minLength: 1
-          maxLength: 120
-          examples: ["Ana Souza"]
+          $ref: "#/components/schemas/PersonName"
 
     ResetPasswordRequest:
       type: object
@@ -603,8 +837,8 @@ components:
 
     Role:
       type: string
-      description: "`customer`: compra · `admin`: rotas `/v1/admin/*` e painel administrativo."
-      enum: [customer, admin]
+      description: "`customer`: compra · `admin`: rotas `/v1/admin/*` e painel administrativo (com 2FA) · `auditor`: leitura da operação (robô)."
+      enum: [customer, admin, auditor]
 
     Account:
       type: object
@@ -630,6 +864,12 @@ components:
         is_guest:
           type: boolean
           description: Comprou sem conta; o acesso é pelo link enviado por e-mail, sem senha.
+        two_factor_enabled:
+          type: boolean
+          description: A autenticação em duas etapas (app autenticador) está ativa.
+        recovery_codes_left:
+          type: ["integer", "null"]
+          description: Quantos códigos de recuperação ainda valem; nulo sem 2FA.
 
     GuestSessionRequest:
       type: object
@@ -638,8 +878,7 @@ components:
         email:
           $ref: "#/components/schemas/Email"
         name:
-          type: string
-          maxLength: 120
+          $ref: "#/components/schemas/PersonName"
         checkout_key:
           type: string
           format: uuid
@@ -682,6 +921,106 @@ components:
           type: integer
           description: Segundos até o refresh token vencer, se não for usado antes.
           examples: [2592000]
+
+    MfaChallenge:
+      type: object
+      description: A senha (ou o Google) conferiu; a sessão depende do segundo fator.
+      required: [status, mfa_ticket, expires_in]
+      properties:
+        status:
+          type: string
+          enum: [mfa_required, mfa_setup_required]
+          description: |
+            `mfa_required`: mande o código em `verifySessionMfa`. `mfa_setup_required`: operador sem 2FA;
+            cadastre o app autenticador (`startMfaSetup`, `confirmMfaSetup`).
+        mfa_ticket:
+          type: string
+          description: Opaco, de uso único. Não é token de API nem refresh token.
+        expires_in:
+          type: integer
+          description: Segundos até o tíquete vencer.
+          examples: [300]
+
+    MfaTicketRequest:
+      type: object
+      required: [ticket]
+      properties:
+        ticket:
+          type: string
+          maxLength: 128
+
+    MfaVerifyRequest:
+      type: object
+      required: [ticket]
+      description: "`ticket` e um dos dois: `code` ou `recovery_code`."
+      properties:
+        ticket:
+          type: string
+          maxLength: 128
+        code:
+          type: string
+          maxLength: 16
+          description: Os 6 dígitos do app autenticador.
+          examples: ["123456"]
+        recovery_code:
+          type: string
+          maxLength: 32
+          examples: ["k7m2p-9xq4r"]
+
+    MfaConfirmRequest:
+      type: object
+      required: [ticket, code]
+      properties:
+        ticket:
+          type: string
+          maxLength: 128
+        code:
+          type: string
+          maxLength: 16
+
+    MfaSetup:
+      type: object
+      required: [shared_key, authenticator_uri]
+      properties:
+        shared_key:
+          type: string
+          description: A chave em Base32, em grupos de 4, para digitar no app sem o QR code.
+        authenticator_uri:
+          type: string
+          description: "O conteúdo do QR code: `otpauth://totp/Embrulhado:<e-mail>?secret=...&issuer=Embrulhado`."
+
+    MfaEnabled:
+      allOf:
+        - $ref: "#/components/schemas/Tokens"
+        - type: object
+          required: [recovery_codes]
+          properties:
+            recovery_codes:
+              $ref: "#/components/schemas/RecoveryCodeList"
+
+    RecoveryCodesRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          maxLength: 16
+
+    RecoveryCodes:
+      type: object
+      required: [recovery_codes]
+      properties:
+        recovery_codes:
+          $ref: "#/components/schemas/RecoveryCodeList"
+
+    RecoveryCodeList:
+      type: array
+      description: Códigos de uso único; aparecem só uma vez (o identity guarda só o hash).
+      minItems: 10
+      maxItems: 10
+      items:
+        type: string
+        pattern: "^[0-9a-z]{5}-[0-9a-z]{5}$"
 
     Jwk:
       type: object
@@ -756,6 +1095,19 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Tokens"
+
+    MfaChallenge:
+      description: Falta o segundo fator; nenhum token.
+      headers:
+        Cache-Control:
+          description: "`no-store`: resposta com credencial não vai para cache."
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MfaChallenge"
 
   securitySchemes:
     bearerAuth:

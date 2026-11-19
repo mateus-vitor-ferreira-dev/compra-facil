@@ -84,8 +84,8 @@ public sealed class InventoryFixture : IAsyncLifetime
         InDbAsync(db => db.Set<OutboxMessage>().Where(m => m.MessageKey == orderId.ToString()).OrderBy(m => m.Id)
             .ToListAsync(TestContext.Current.CancellationToken));
 
-    /// <summary>Token de operador do identity (de teste); outros papéis para testar o 403.</summary>
-    public string AdminToken(string[]? roles = null) => Identity.Token(roles ?? ["admin"]);
+    /// <summary>Token de operador do identity (de teste, com o segundo fator); outros papéis para testar o 403.</summary>
+    public string AdminToken(string[]? roles = null) => Identity.Token(roles ?? ["admin"], amr: ["mfa"]);
 }
 
 /// <summary>O fornecedor da conferência ao vivo: o estoque por vid que ele tem agora (nulo: não respondeu).</summary>

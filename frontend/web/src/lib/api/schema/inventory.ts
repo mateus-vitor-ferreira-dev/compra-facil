@@ -45,7 +45,7 @@ export interface paths {
         };
         /**
          * Reserva de um pedido
-         * @description Útil para depurar a SAGA.
+         * @description Útil para depurar a SAGA. Só o operador e o auditor; os itens de um pedido não são da vitrine.
          */
         get: operations["getReservation"];
         put?: never;
@@ -401,6 +401,8 @@ export interface operations {
                     "application/json": components["schemas"]["Reservation"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
         };

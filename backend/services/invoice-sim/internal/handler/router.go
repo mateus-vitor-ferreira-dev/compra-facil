@@ -23,6 +23,8 @@ type Credentials struct {
 	ClientID     string
 	ClientSecret string
 	TokenTTL     time.Duration
+	// AdminToken abre as rotas /sim (X-Sim-Admin-Token); vazio, ficam fechadas
+	AdminToken string
 }
 
 type API struct {
@@ -54,7 +56,8 @@ func NewRouter(issuer *nfe.Issuer, creds Credentials, log *slog.Logger) *gin.Eng
 	notas.GET("/:id/pdf", a.pdf)
 	r.GET("/cep/:cep", a.requireToken, a.cep)
 
-	sim := r.Group("/sim")
+	// as notas e o reset só com o X-Sim-Admin-Token: as notas trazem o destinatário
+	sim := r.Group("/sim", a.requireAdminToken)
 	sim.GET("/notas", func(c *gin.Context) { c.JSON(http.StatusOK, a.issuer.List()) })
 	sim.POST("/reset", func(c *gin.Context) { a.issuer.Reset(); c.Status(http.StatusNoContent) })
 	return r
@@ -227,4 +230,13 @@ func (a *API) fail(c *gin.Context, err error) {
 		a.log.Error("erro inesperado", "err", err)
 		apiError(c, http.StatusInternalServerError, "InternalError", "erro inesperado")
 	}
+}
+
+func (a *API) requireAdminToken(c *gin.Context) {
+	got := c.GetHeader("X-Sim-Admin-Token")
+	if a.creds.AdminToken == "" || subtle.ConstantTimeCompare([]byte(got), []byte(a.creds.AdminToken)) != 1 {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "message": "missing or invalid X-Sim-Admin-Token"})
+		return
+	}
+	c.Next()
 }

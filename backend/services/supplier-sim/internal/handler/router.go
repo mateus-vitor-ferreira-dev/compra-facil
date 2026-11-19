@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -29,23 +30,35 @@ type API struct {
 	orders *order.Simulator
 	notify StockNotifier
 	log    *slog.Logger
+	// adminToken abre as rotas /sim; vazio, ficam fechadas
+	adminToken string
 }
 
-func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, notify StockNotifier, log *slog.Logger) *gin.Engine {
+func (a *API) requireAdminToken(c *gin.Context) {
+	got := c.GetHeader("X-Sim-Admin-Token")
+	if a.adminToken == "" || subtle.ConstantTimeCompare([]byte(got), []byte(a.adminToken)) != 1 {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized", "message": "missing or invalid X-Sim-Admin-Token"})
+		return
+	}
+	c.Next()
+}
+
+func NewRouter(tokens *Tokens, stock *catalog.Stock, orders *order.Simulator, notify StockNotifier, log *slog.Logger, adminToken string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
-	a := &API{tokens: tokens, stock: stock, orders: orders, notify: notify, log: log}
+	a := &API{tokens: tokens, stock: stock, orders: orders, notify: notify, log: log, adminToken: adminToken}
 
 	r := gin.New()
 	r.Use(gin.Recovery(), a.accessLog)
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
-	// depuração, sem token: ver o estado de todos os pedidos de uma vez
-	r.GET("/sim/orders", func(c *gin.Context) { ok(c, a.orders.List()) })
-	r.GET("/sim/disputes", func(c *gin.Context) { ok(c, a.orders.Disputes()) })
-	// demonstração e testes, sem token: o fornecedor reajusta um custo ou deixa de vender um produto
-	r.PUT("/sim/products/:vid/cost", a.setCost)
-	r.DELETE("/sim/products/:vid", a.removeProduct)
-	r.PUT("/sim/products/:vid/stock", a.setStock)
-	r.POST("/sim/catalog/reset", func(c *gin.Context) { catalog.Reset(); stock.ResetStock(); ok(c, nil) })
+	// depuração e demonstração, com o X-Sim-Admin-Token: os pedidos têm o nome, o endereço, o telefone e o CPF de
+	// quem comprou, e o custo e o estoque daqui viram o preço e a disponibilidade da loja
+	sim := r.Group("/sim", a.requireAdminToken)
+	sim.GET("/orders", func(c *gin.Context) { ok(c, a.orders.List()) })
+	sim.GET("/disputes", func(c *gin.Context) { ok(c, a.orders.Disputes()) })
+	sim.PUT("/products/:vid/cost", a.setCost)
+	sim.DELETE("/products/:vid", a.removeProduct)
+	sim.PUT("/products/:vid/stock", a.setStock)
+	sim.POST("/catalog/reset", func(c *gin.Context) { catalog.Reset(); stock.ResetStock(); ok(c, nil) })
 
 	v1 := r.Group("/api2.0/v1")
 	v1.POST("/authentication/getAccessToken", tokens.getAccessToken)

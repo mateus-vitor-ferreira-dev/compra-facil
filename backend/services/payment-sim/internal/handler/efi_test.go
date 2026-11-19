@@ -124,6 +124,14 @@ func TestEfi_Auth_IsRequired_AndBadCredentialsArePlainText(t *testing.T) {
 	e.router.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	assert.Equal(t, "unauthorized", rec.Body.String())
+	// o id errado com qualquer segredo, e o segredo vazio, também não entram (a comparação é em tempo constante)
+	for _, creds := range [][2]string{{"outro-id", "errado"}, {"", ""}} {
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/oauth/token", strings.NewReader(`{"grant_type":"client_credentials"}`))
+		req.SetBasicAuth(creds[0], creds[1])
+		rec = httptest.NewRecorder()
+		e.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code, creds[0])
+	}
 
 	// o token da API Pix também abre as rotas (a Efí separa por host; o simulador é um só)
 	status, _ = e.do(http.MethodGet, "/v2/cob/naoexiste0000000000000000000", nil, e.token("/oauth/token"))

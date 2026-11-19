@@ -42,6 +42,18 @@ public static class DependencyInjection
         // o fornecedor (ADR 0007): pela API (o CJ, ou o simulador dele) ou manual, pela equipe no painel (#412)
         var manual = string.Equals(supplier.GetValue<string>("Mode"), "manual", StringComparison.OrdinalIgnoreCase);
         builder.Services.AddSingleton(new ManualSupplierMode(manual));
+        // fornecedor de verdade = a conta não é a do simulador (o mesmo critério do painel de status). O compose
+        // local e o e2e rodam como Production com o simulador e o segredo dele, e continuam subindo
+        var realSupplier = !string.Equals(
+            supplier.GetValue<string>("Email") ?? SupplierOptions.SimulatorEmail, SupplierOptions.SimulatorEmail, StringComparison.OrdinalIgnoreCase);
+        if (!manual && realSupplier && builder.Environment.IsProduction()
+            && supplier.GetValue<string>("WebhookSecret") is null or "" or SupplierOptions.SimulatorWebhookSecret)
+        {
+            // o segredo do simulador está no repositório: com ele, qualquer um assina um webhook que cancela pedido
+            // (e estorna) ou muda o estoque
+            throw new InvalidOperationException(
+                "Supplier:WebhookSecret é obrigatório em produção com o fornecedor pela API, e não pode ser o do simulador");
+        }
         builder.Services.Configure<ManualSupplierOptions>(builder.Configuration.GetSection(ManualSupplierOptions.Section));
         builder.Services.AddScoped<IManualCatalogRepository, ManualCatalogRepository>();
         if (manual)
@@ -118,6 +130,7 @@ public static class DependencyInjection
             .Produces(SupplierCatalogEvents.Topic)
             .Produces(InvoiceEvents.Topic)
             .Handle<OrderConfirmedData, OnOrderConfirmed>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderConfirmed)
+            .Handle<OrderCancelledData, OnOrderCancelled>(FulfillmentEvents.OrdersTopic, FulfillmentEvents.OrderCancelled)
             .Handle<PaymentRefundedData, OnPaymentRefunded>(InvoiceEvents.PaymentsTopic, InvoiceEvents.PaymentRefunded)
             .Handle<PaymentApprovedData, OnPaymentApproved>(InvoiceEvents.PaymentsTopic, "PaymentApproved")
             .Handle<OrderReturnedData, OnOrderReturned>(FulfillmentEvents.OrdersTopic, InvoiceEvents.OrderReturned));

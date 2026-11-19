@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 /**
  * Os pedidos do painel (#382): a lista com o contato de quem comprou, o filtro na URL e o detalhe. Em telas
@@ -10,6 +11,7 @@ async function signIn(page: Page, path: string) {
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page).not.toHaveURL(/\/entrar/);
 }
 

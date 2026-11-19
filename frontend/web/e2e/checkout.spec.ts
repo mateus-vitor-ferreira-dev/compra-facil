@@ -496,6 +496,73 @@ test("o token do link não vai para outros sites: o referrer fica na própria lo
   await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "same-origin");
 });
 
+test("link do e-mail com a conta aberta: não troca a sessão sem o comprador sair", async ({ page }) => {
+  await page.goto("/entrar");
+  await signIn(page, "ana@exemplo.com");
+  await page.goto("/acompanhar/abrir?token=link-bom");
+  await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Este link é de outra compra");
+
+  // continuar: a conta segue a mesma
+  await page.getByRole("link", { name: "Continuar na minha conta" }).click();
+  await expect(page).toHaveURL(/\/conta$/);
+  await expect(page.getByText("Você comprou sem conta.")).toHaveCount(0);
+
+  // sair e abrir: aí a compra do link abre
+  await page.goto("/acompanhar/abrir?token=link-bom");
+  await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+  await page.getByRole("button", { name: "Sair e abrir o link" }).click();
+  await expect(page).toHaveURL(/\/conta$/);
+  await expect(page.getByText("Você comprou sem conta.")).toBeVisible();
+});
+
+test("compra sem conta aberta: o pagamento mostra de quem é, e o link de outra pede confirmação", async ({
+  page,
+}) => {
+  const email = `sem-conta-${crypto.randomUUID()}@exemplo.com`;
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await page.getByLabel("E-mail", { exact: true }).fill(email);
+  await fillDelivery(page);
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]+\?novo=1$/);
+
+  // a próxima compra neste navegador diz para quem vai, e deixa trocar
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  const guest = page.getByRole("region", { name: "Compra sem conta" });
+  await expect(guest).toContainText(email);
+  await expect(page.getByLabel("E-mail", { exact: true })).toHaveCount(0);
+
+  // o link de outra compra: a troca mostra de qual e-mail, mascarado
+  await page.goto("/acompanhar/abrir?token=link-bom");
+  await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Abrir outra compra?");
+  await page.getByRole("link", { name: "Manter a compra aberta" }).click();
+  await page.goto("/checkout");
+  await expect(page.getByRole("region", { name: "Compra sem conta" })).toContainText(email);
+
+  await page.getByRole("button", { name: "Não é você? Comprar com outro e-mail" }).click();
+  await expect(page.getByRole("region", { name: "Compra sem conta" })).toHaveCount(0);
+  await expect(page.getByLabel("E-mail", { exact: true })).toHaveValue("");
+});
+
+test("o link de outra compra sem conta abre depois de confirmado", async ({ page }) => {
+  await addToCart(page, TV);
+  await page.goto("/checkout");
+  await page.getByLabel("E-mail", { exact: true }).fill(`sem-conta-${crypto.randomUUID()}@exemplo.com`);
+  await fillDelivery(page);
+  await page.getByRole("button", { name: /^Fazer o pedido/ }).click();
+  await expect(page).toHaveURL(/\/conta\/pedidos\/[0-9a-f-]+\?novo=1$/);
+
+  await page.goto("/acompanhar/abrir?token=link-bom");
+  await page.getByRole("button", { name: "Abrir meus pedidos" }).click();
+  await expect(page.getByText("Este link abre as compras de co***@exemplo.com.")).toBeVisible();
+  await page.getByRole("button", { name: "Abrir as compras de co***@exemplo.com" }).click();
+  await expect(page).toHaveURL(/\/conta$/);
+  await expect(page.getByTestId("account-email")).toContainText("convidada@exemplo.com");
+});
+
 /** Põe a quantidade na página do produto e adiciona. */
 async function addQuantity(page: Page, path: string, qty: number) {
   await page.goto(path);

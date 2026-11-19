@@ -9,3 +9,17 @@ export function checkGuestEmail(email: string): string | undefined {
   }
   return undefined;
 }
+
+/**
+ * O e-mail mascarado, para mostrar de quem é uma compra sem expô-lo inteiro: as duas primeiras letras e o
+ * domínio (`co***@exemplo.com`). O tamanho do resto não aparece.
+ */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return "***";
+  const local = email.slice(0, at);
+  return `${local.slice(0, local.length > 2 ? 2 : 1)}***${email.slice(at)}`;
+}
+
+/** O formato do {@link maskEmail}: a página só mostra o e-mail da URL se ele já vier mascarado. */
+export const MASKED_EMAIL = /^[^\s@*]{1,2}\*\*\*@[^\s@]+$/;

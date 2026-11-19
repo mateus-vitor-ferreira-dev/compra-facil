@@ -23,7 +23,11 @@ info:
     9. `SupplierOrderFailed` → `cancelled` (`supplier_failed`; `invoice_failed` quando a SEFAZ
        rejeitou a nota; `store_cancelled` quando a equipe cancelou pelo painel) → `OrderCancelled`, que faz o payments estornar o cliente (compensação);
        `PaymentRefunded` → `refunded_at`; `PaymentRefundFailed` (o provedor não realizou o estorno, #396) →
-       `refunded_at` volta a nulo e `refund_failed_at`, sem publicar.
+       `refunded_at` volta a nulo e `refund_failed_at`, sem publicar;
+    10. `PaymentReversed` (o cartão aprovado que a operadora não confirmou, ou a contestação do cliente) →
+       `payment_reversed_at`; o pedido `confirmed` que ainda não foi ao fornecedor vira `cancelled`
+       (`payment_failed`, sem estorno: o dinheiro não veio) → `OrderCancelled`, que faz o fulfillment tirá-lo
+       da fila; o que já foi ao fornecedor só fica marcado, para a equipe.
 
     A nota fiscal (`fulfillment.invoice.v1`, #221): `InvoiceIssued` grava a nota no pedido,
     `InvoiceCancelled`, o cancelamento dela, e `InvoiceReturnIssued`, a nota de devolução; nenhum publica.
@@ -110,13 +114,16 @@ operations:
     action: receive
     channel:
       $ref: "#/channels/paymentEvents"
-    summary: Confirma (aprovado) ou cancela (recusado) o pedido; marca o estorno do cancelado depois de pago.
+    summary: |
+      Confirma (aprovado) ou cancela (recusado) o pedido; marca o estorno do cancelado depois de pago; para (ou
+      marca para a equipe) o pedido cujo pagamento aprovado deixou de valer.
     messages:
       - $ref: "#/channels/paymentEvents/messages/PaymentPending"
       - $ref: "#/channels/paymentEvents/messages/PaymentApproved"
       - $ref: "#/channels/paymentEvents/messages/PaymentFailed"
       - $ref: "#/channels/paymentEvents/messages/PaymentRefunded"
       - $ref: "#/channels/paymentEvents/messages/PaymentRefundFailed"
+      - $ref: "#/channels/paymentEvents/messages/PaymentReversed"
     bindings:
       $ref: "#/components/operationBindings/OrdersGroup"
 
@@ -330,7 +337,8 @@ components:
       summary: |
         Fim da SAGA com compensação. O inventory libera a reserva, se houver (com `out_of_stock` não
         há; com `supplier_failed`, `invoice_failed` ou `store_cancelled` ela já virou baixa), o payments descarta a cobrança
-        pendente ou estorna o que foi pago, e o notifications avisa o cliente.
+        pendente ou estorna o que foi pago, e o notifications avisa o cliente. O pedido confirmado cancelado pelo
+        `PaymentReversed` (`payment_failed`) faz o fulfillment tirá-lo da fila do fornecedor e cancelar a nota.
       traits:
         - $ref: "./common/v1/common.yaml#/components/messageTraits/KafkaEvent"
       bindings:
@@ -359,7 +367,9 @@ components:
                   reason:
                     $ref: "../openapi/orders.v1.yaml#/components/schemas/CancellationReason"
                   payment_failure_reason:
-                    description: Repassado do `PaymentFailed`; `null` nos outros motivos.
+                    description: |
+                      Repassado do `PaymentFailed` (ou do `PaymentReversed` com `status: failed`); `null` nos outros
+                      motivos e no pagamento aprovado que foi cancelado ou contestado.
                     oneOf:
                       - $ref: "../openapi/payments.v1.yaml#/components/schemas/FailureReason"
                       - type: "null"

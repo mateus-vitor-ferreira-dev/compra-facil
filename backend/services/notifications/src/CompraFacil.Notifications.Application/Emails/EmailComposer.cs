@@ -230,7 +230,23 @@ public static partial class EmailComposer
         _ => $"{Math.Round(left.TotalDays):0} dias",
     };
 
-    internal static string FirstName(string name) => name.Trim().Split(' ', 2)[0] is { Length: > 0 } first ? first : "olá";
+    /// <summary>
+    /// O primeiro nome para a saudação, ou nada (o template diz só "Olá!"). O nome é digitado por quem se
+    /// cadastra ou compra, inclusive com o e-mail de outra pessoa: um "evil.com/verificar" na saudação
+    /// viraria link clicável num e-mail assinado pela loja. Só passa o que parece nome: letras, apóstrofo,
+    /// hífen e ponto, sem cara de domínio e com no máximo <see cref="MaxGreetingLength"/> caracteres.
+    /// </summary>
+    internal static string? FirstName(string? name)
+    {
+        var first = (name ?? "").Trim().Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return first is { Length: > 0 and <= MaxGreetingLength }
+            && GreetingName().IsMatch(first)
+            && !DomainLike().IsMatch(first)
+                ? first
+                : null;
+    }
+
+    internal const int MaxGreetingLength = 30;
 
     /// <summary>Motivo em linguagem de cliente (sem detalhes internos como fraude).</summary>
     internal static (string Reason, string Advice) Explain(string reason, string? paymentFailure) => (reason, paymentFailure) switch
@@ -309,4 +325,12 @@ public static partial class EmailComposer
 
     [GeneratedRegex("[ \\r]+")]
     private static partial Regex Spaces();
+
+    // letras (com acento), apóstrofo, hífen e ponto, e pelo menos uma letra; nada de /, :, @ ou dígitos
+    [GeneratedRegex(@"^(?=.*\p{L})[\p{L}\p{M}'’.\-]+$")]
+    private static partial Regex GreetingName();
+
+    // cara de domínio: "evil.com" (letra, ponto e 2+ letras) ou "www."; uma inicial como "J." passa
+    [GeneratedRegex(@"\p{L}\.\p{L}{2,}|^www\.", RegexOptions.IgnoreCase)]
+    private static partial Regex DomainLike();
 }

@@ -3,6 +3,11 @@ using System.Net.Http.Json;
 using System.Web;
 using CompraFacil.BuildingBlocks.Messaging;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Identity.Application.Accounts;
+using CompraFacil.Identity.Domain;
+using CompraFacil.Identity.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CompraFacil.Identity.IntegrationTests;
 
@@ -132,6 +137,76 @@ public sealed class PasswordResetTests(IdentityFixture fx) : IClassFixture<Ident
         Assert.Equal(HttpStatusCode.OK, login.StatusCode); // e o bloqueio também
         using var me = await _api.MeAsync(IdentityClient.Tokens(await IdentityClient.JsonOf(login)).Access);
         Assert.True((await IdentityClient.JsonOf(me)).GetProperty("email_confirmed").GetBoolean());
+    }
+
+    /// <summary>
+    /// Desfaz a revogação de um token, como se ele tivesse sido criado por um refresh no meio da troca de
+    /// senha: o UPDATE da troca (READ COMMITTED) não vê a linha que outra transação ainda não gravou.
+    /// </summary>
+    private async Task SurviveTheResetAsync(string refreshToken)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var hash = RefreshTokenValue.Hash(refreshToken);
+        var updated = await scope.ServiceProvider.GetRequiredService<IdentityDbContext>().RefreshTokens
+            .Where(t => t.TokenHash == hash)
+            .ExecuteUpdateAsync(u => u.SetProperty(t => t.RevokedAt, (DateTimeOffset?)null).SetProperty(t => t.RevocationReason, (RevocationReason?)null), Ct);
+        Assert.Equal(1, updated);
+    }
+
+    private async Task<List<RefreshToken>> FamilyAsync(string refreshToken)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        var hash = RefreshTokenValue.Hash(refreshToken);
+        var family = await db.RefreshTokens.Where(t => t.TokenHash == hash).Select(t => t.FamilyId).SingleAsync(Ct);
+        return await db.RefreshTokens.AsNoTracking().Where(t => t.FamilyId == family).ToListAsync(Ct);
+    }
+
+    private async Task<(string Email, string Refresh, string Rotated)> SessionThenResetAsync()
+    {
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+        var account = await RegisterAsync(email);
+        using var login = await _api.LoginAsync(email);
+        var (_, first) = IdentityClient.Tokens(await IdentityClient.JsonOf(login));
+        using var refresh = await _api.RefreshAsync(first); // o refresh "no meio" da troca de senha
+        var (_, next) = IdentityClient.Tokens(await IdentityClient.JsonOf(refresh));
+        using (await RequestAsync(email))
+        {
+        }
+        var (id, token) = await LastLinkAsync(account);
+        using var reset = await ResetAsync(id, token);
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+        await SurviveTheResetAsync(next);
+        return (email, next, first);
+    }
+
+    [Fact]
+    public async Task Reset_ATokenTheRevocationDidNotSee_NoLongerRefreshes_AndTheSessionEnds()
+    {
+        var (email, survivor, _) = await SessionThenResetAsync();
+
+        using var refresh = await _api.RefreshAsync(survivor);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, refresh.StatusCode); // o mesmo 401 do refresh inválido
+        Assert.All(await FamilyAsync(survivor), t => Assert.NotNull(t.RevokedAt));
+        Assert.Contains(await FamilyAsync(survivor), t => t.RevocationReason == RevocationReason.StampChanged);
+        // a sessão aberta com a senha nova troca normalmente
+        using var login = await _api.LoginAsync(email, NewPassword);
+        using var fresh = await _api.RefreshAsync(IdentityClient.Tokens(await IdentityClient.JsonOf(login)).Refresh);
+        Assert.Equal(HttpStatusCode.OK, fresh.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reset_TheRotatedTokenInsideTheReuseInterval_DoesNotGetASibling()
+    {
+        var (_, survivor, rotated) = await SessionThenResetAsync();
+
+        // a família ainda tem um token ativo (o que sobreviveu) e o trocado está no intervalo de reuso
+        using var refresh = await _api.RefreshAsync(rotated);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, refresh.StatusCode);
+        using var again = await _api.RefreshAsync(survivor);
+        Assert.Equal(HttpStatusCode.Unauthorized, again.StatusCode); // a família inteira caiu
     }
 
     [Fact]

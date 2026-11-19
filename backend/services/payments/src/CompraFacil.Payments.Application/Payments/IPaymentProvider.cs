@@ -15,7 +15,7 @@ public enum ProviderStatus
     Approved,
     Rejected,
 
-    /// <summary>Autorização ou PIX cancelado (por nós).</summary>
+    /// <summary>Autorização ou PIX cancelado (por nós, ou o cartão aprovado que o provedor cancelou antes de liquidar).</summary>
     Cancelled,
 
     /// <summary>PIX que passou da validade sem pagamento.</summary>
@@ -24,8 +24,9 @@ public enum ProviderStatus
     Refunded,
 
     /// <summary>
-    /// Pago, mas o cliente contestou: reclamação aberta (in_mediation) ou chargeback no cartão (charged_back). Não
-    /// muda o pedido sozinho; a equipe acompanha no painel do provedor.
+    /// Aprovado, mas o cliente contestou o cartão na operadora (o chargeback; na Efí, contested). O pagamento fica
+    /// disputed e sai PaymentReversed: o pedido que não foi ao fornecedor para, e a equipe responde no painel do
+    /// provedor.
     /// </summary>
     Disputed,
 }
@@ -83,6 +84,14 @@ public interface IPaymentProvider
 
     /// <summary>Devolve <paramref name="amountCents"/> (nulo: o que falta) do que foi pago (liquidado).</summary>
     Task<ProviderRefund> RefundAsync(string reference, long? amountCents, string idempotencyKey, CancellationToken ct);
+
+    /// <summary>
+    /// O estorno pedido em <paramref name="requestedAt"/> cuja resposta não chegou (o payments caiu no meio, ou o
+    /// provedor não respondeu). Devolve o estorno se o provedor o confirma, sem pedir de novo o que poderia sair duas
+    /// vezes; nulo se ainda não dá para saber (a equipe confere no painel do provedor).
+    /// </summary>
+    /// <exception cref="PaymentProviderRejectedException">O provedor recusou: nada foi devolvido.</exception>
+    Task<ProviderRefund?> ResumeRefundAsync(string reference, long amountCents, string idempotencyKey, DateTimeOffset requestedAt, CancellationToken ct);
 
     /// <summary>
     /// A notificação do cartão traz só um token: o provedor diz quais cobranças mudaram. A verdade de cada uma

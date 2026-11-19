@@ -70,6 +70,45 @@ public sealed partial class OnOrderConfirmed(
 }
 
 /// <summary>
+/// OrderCancelled → o pedido confirmado foi cancelado sem passar pelo fornecedor (o pagamento já aprovado deixou de
+/// valer, PaymentReversed no orders). Se ele ainda está na fila (do despachante ou "Pedidos a fazer"), sai dela como
+/// falha (order_cancelled, na lista de falhas do painel) e a nota autorizada é cancelada: o pedido não vai ao
+/// fornecedor. Se o despachante já o está enviando, ou o fornecedor já o tem, não dá para tirar daqui: fica no log de
+/// erro, para a equipe cancelar no fornecedor pelo painel. Os outros cancelamentos (antes de pago, ou o que já
+/// falhou aqui) não têm pedido de fornecedor a parar.
+/// </summary>
+public sealed partial class OnOrderCancelled(
+    ISupplierOrderRepository orders, IInvoiceRepository invoices, IOutbox outbox, TimeProvider clock, ILogger<OnOrderCancelled> logger)
+    : IHandleEvent<OrderCancelledData>
+{
+    public const string Detail = "o pedido foi cancelado antes de ir ao fornecedor: o pagamento aprovado deixou de valer";
+
+    public async Task HandleAsync(OrderCancelledData data, EventContext context, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        if (await orders.GetAsync(data.OrderId, ct) is not { } order || order.Status == SupplierOrderStatus.Failed)
+        {
+            return; // cancelado antes de pago (nunca veio para cá), ou a falha foi daqui (o evento de volta)
+        }
+        if (order.Status is not (SupplierOrderStatus.Pending or SupplierOrderStatus.AwaitingStaff))
+        {
+            LogAlreadyAtSupplier(logger, order.Id, order.Status, data.Reason);
+            return;
+        }
+        var now = clock.GetUtcNow();
+        outbox.Publish(order, order.Fail(SupplierFailureReasons.OrderCancelled, Detail, now));
+        if (await invoices.GetAsync(data.OrderId, ct) is { } invoice)
+        {
+            invoice.RequestCancel(now); // a venda não aconteceu: a nota autorizada sai (a pendente nunca será emitida)
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "pedido {OrderId} cancelado ({Reason}) com o pedido do fornecedor {Status}: cancelar no fornecedor pelo painel")]
+    private static partial void LogAlreadyAtSupplier(ILogger logger, Guid orderId, SupplierOrderStatus status, string reason);
+}
+
+/// <summary>
 /// Leva um pedido reservado pelo despachante ao fornecedor e publica o que aconteceu. Com nota (#221), emite
 /// antes: autorizada, o pedido vai com a chave e o XML; rejeitada, o pedido não vai (falha com
 /// invoice_rejected, e o orders cancela e estorna); emissor fora do ar, o pedido volta para a fila.

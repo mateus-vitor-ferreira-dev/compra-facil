@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using CompraFacil.Identity.Application.Tokens;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -10,6 +11,8 @@ namespace CompraFacil.Identity.Api.Controllers;
 /// Descoberta (OpenID Connect Discovery, só o que a validação usa) e as chaves públicas (JWKS, RFC 7517).
 /// Os outros serviços validam o JWT sozinhos com elas, sem chamar o identity a cada requisição.
 /// </summary>
+// descoberta e JWKS: públicos por definição, os outros serviços validam tokens com eles
+[AllowAnonymous]
 [ApiController]
 [Route(".well-known")]
 [Produces("application/json")]

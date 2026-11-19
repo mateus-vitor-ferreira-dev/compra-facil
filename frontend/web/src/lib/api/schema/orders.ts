@@ -238,10 +238,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description O contato de quem comprou. Sem CPF nem endereço. */
+        /** @description O contato de quem comprou. Sem CPF nem endereço. Para o auditor, os três vêm nulos. */
         AdminCustomer: {
             /** Format: email */
-            email: string;
+            email: string | null;
             /** @description Quem recebe; nulo nos pedidos de antes do */
             name: string | null;
             /** @description Só os dígitos, com o DDD. */
@@ -293,6 +293,18 @@ export interface components {
              * @description A última vez que o provedor aceitou o estorno e não o realizou (#396); com `refunded_at` nulo, falta estornar de novo.
              */
             refund_failed_at?: string | null;
+            /**
+             * Format: date-time
+             * @description Quando o pagamento já aprovado deixou de valer (o cartão que a operadora não confirmou, ou a contestação
+             *     do cliente). Com o pedido ainda fora do fornecedor, ele foi cancelado (`payment_failed`); senão, a
+             *     equipe precisa agir: cancelar no fornecedor, ou responder a contestação no painel do provedor.
+             */
+            payment_reversed_at?: string | null;
+            /**
+             * @description Como o pagamento deixou de valer: `failed` (não pago), `voided` (cancelado) ou `disputed` (contestado).
+             * @enum {string|null}
+             */
+            payment_reversal?: "failed" | "voided" | "disputed" | null;
             /** Format: date-time */
             updated_at: string;
         };
@@ -991,6 +1003,7 @@ export interface operations {
                 /** @description Itens por página. */
                 limit?: components["parameters"]["Limit"];
                 status?: components["schemas"]["OrderStatus"];
+                /** @description Busca por e-mail, nome ou número. Só para o operador; o auditor recebe 403. */
                 q?: string;
                 /** @description Criados a partir de (inclusive). */
                 from?: string;

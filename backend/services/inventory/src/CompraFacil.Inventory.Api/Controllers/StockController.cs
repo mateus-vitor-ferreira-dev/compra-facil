@@ -15,6 +15,7 @@ public sealed class StockController(StockQueries queries, AdjustStock adjustStoc
 {
     /// <summary>listStock: saldo de vários produtos; sem registro aparece zerado.</summary>
     [HttpGet("v1/stock")]
+    [AllowAnonymous]
     public async Task<StockListResponse> List([FromQuery(Name = "product_ids")] string? productIds, CancellationToken ct)
     {
         var ids = new List<Guid>();
@@ -29,6 +30,7 @@ public sealed class StockController(StockQueries queries, AdjustStock adjustStoc
 
     /// <summary>getStock: saldo de um produto, com ETag da versão.</summary>
     [HttpGet("v1/stock/{product_id:guid}")]
+    [AllowAnonymous]
     public async Task<StockLevel> Get([FromRoute(Name = "product_id")] Guid productId, CancellationToken ct)
     {
         var level = await queries.GetAsync(productId, ct);
@@ -38,6 +40,8 @@ public sealed class StockController(StockQueries queries, AdjustStock adjustStoc
 
     /// <summary>getReservation: a reserva de um pedido (depuração da SAGA).</summary>
     [HttpGet("v1/reservations/{order_id:guid}")]
+    // depuração da SAGA: os itens de um pedido não são da vitrine
+    [Authorize(Policy = JwtAuth.AdminReadPolicy)]
     public async Task<ReservationResponse> GetReservation([FromRoute(Name = "order_id")] Guid orderId, CancellationToken ct) =>
         ReservationResponse.From(await queries.GetReservationAsync(orderId, ct));
 

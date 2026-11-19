@@ -1,5 +1,11 @@
 using System.Net;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Identity.Domain;
+using CompraFacil.Identity.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace CompraFacil.Identity.IntegrationTests;
 
@@ -23,6 +29,29 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         Assert.Equal("Ana Souza", body.GetProperty("name").GetString());
         Assert.Equal(["customer"], body.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
         Assert.False(body.TryGetProperty("password", out _));
+    }
+
+    [Fact]
+    public async Task Seeder_DoesNotPromoteAnAccountThatSomeoneRegisteredWithTheConfiguredEmail()
+    {
+        // o cadastro é público: quem registra antes o e-mail de um auditor ligado depois não pode virar auditor
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+        using (var registered = await _api.RegisterAsync(email))
+        {
+            Assert.Equal(HttpStatusCode.Created, registered.StatusCode);
+        }
+
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var seeder = new AdminSeeder(users, scope.ServiceProvider.GetRequiredService<IUserStore<User>>(), Options.Create(new AdminSeedOptions()),
+            Options.Create(new AuditorSeedOptions { Email = email, Password = "senha-da-configuracao" }), fx.Clock,
+            NullLogger<AdminSeeder>.Instance);
+        await seeder.SeedAsync();
+
+        var user = await users.FindByEmailAsync(email);
+        Assert.NotNull(user);
+        Assert.False(await users.IsInRoleAsync(user, Roles.Auditor));
+        Assert.False(await users.CheckPasswordAsync(user, "senha-da-configuracao"));
     }
 
     [Fact]
@@ -74,6 +103,36 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         Assert.Contains(body.GetProperty("errors").EnumerateArray(), e => e.GetProperty("field").GetString() == field);
     }
 
+    [Theory]
+    [InlineData("Ana Maria")]
+    [InlineData("João d'Ávila")]
+    [InlineData("Maria-Clara")]
+    [InlineData("J. R. Silva")]
+    public async Task Register_RealNames_AreAccepted(string name)
+    {
+        using var response = await _api.RegisterAsync($"{Guid.NewGuid():N}@exemplo.com", name: name);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    // o golpe: cadastrar com o e-mail da vítima e um link no nome, que iria na saudação do e-mail da loja
+    [Theory]
+    [InlineData("https://embrulhado-seguranca.com/verificar")]
+    [InlineData("ana@exemplo.com")]
+    [InlineData("evil.com")]
+    [InlineData("www.x")]
+    public async Task Register_LinkAsName_Is422OnTheName(string name)
+    {
+        using var response = await _api.RegisterAsync($"{Guid.NewGuid():N}@exemplo.com", name: name);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await IdentityClient.JsonOf(response);
+        ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/ValidationProblem", body.GetRawText());
+        var error = Assert.Single(body.GetProperty("errors").EnumerateArray());
+        Assert.Equal("name", error.GetProperty("field").GetString());
+        Assert.Equal("use só letras, espaços, apóstrofo, hífen e ponto", error.GetProperty("message").GetString());
+    }
+
     [Fact]
     public async Task Me_ReturnsTheAccountOfTheToken()
     {
@@ -100,8 +159,13 @@ public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFi
     [Fact]
     public async Task Admin_FromConfiguration_HasTheAdminRole()
     {
+        // o operador entra a primeira vez cadastrando o autenticador (ameaça T8)
         using var login = await _api.LoginAsync(IdentityFixture.AdminEmail, IdentityFixture.AdminPassword);
-        var (access, _) = IdentityClient.Tokens(await IdentityClient.JsonOf(login));
+        var ticket = await IdentityClient.TicketOf(login, "mfa_setup_required");
+        using var setup = await _api.MfaSetupAsync(ticket);
+        var key = (await IdentityClient.JsonOf(setup)).GetProperty("shared_key").GetString()!;
+        using var enabled = await _api.MfaConfirmAsync(ticket, fx.CodeFor(key));
+        var (access, _) = IdentityClient.Tokens(await IdentityClient.JsonOf(enabled));
 
         using var me = await _api.MeAsync(access);
 

@@ -177,7 +177,8 @@ O identificador de conta (32 caracteres) vai no Worker da loja, em `PAYMENT_PAYE
 **Homologação na máquina local**, antes de ligar a venda: as credenciais e o `.p12` de homologação num
 `~/.efi/homologacao.env` (fora do repositório, chmod 600, com os nomes da tabela acima, mais `EFI_P12` com o caminho
 do certificado e `PAYMENT_PAYEE_CODE`). O `task efi:homologacao` sobe o ambiente com a Efí no lugar do payment-sim
-(`infra/compose/compose.efi.yaml`) e um túnel do Cloudflare para os avisos dela chegarem, e mostra o comando do front
+(`infra/compose/compose.efi.yaml`) e um túnel do Cloudflare para os avisos dela chegarem (o túnel só publica
+`/payments/v1/webhooks/efi/*`, por um proxy na frente do gateway; à mão, `ssh -R 80:localhost:8099 nokey@localhost.run`), e mostra o comando do front
 com `PAYMENT_PROVIDER=sandbox`. Só a homologação: com a produção, o payments local cadastraria o webhook do PIX da
 conta de verdade apontando para esta máquina. O `scripts/efi-conferir.sh homologacao|producao` pede o token nas duas
 APIs e mostra só o status e os escopos, e o `scripts/efi-cofre.sh guardar|restaurar` leva o `~/.efi` para o
@@ -212,7 +213,7 @@ biblioteca da Efí e o identificador de conta (vai no Worker da loja).
 | `BFF_GATEWAY_KEY` | o segredo do BFF |
 | `POSTGRES_PASSWORD` | a do superusuário |
 | `PG_CATALOG_PASSWORD`, `PG_ORDERS_PASSWORD`, `PG_INVENTORY_PASSWORD`, `PG_PAYMENTS_PASSWORD`, `PG_NOTIFICATIONS_PASSWORD`, `PG_IDENTITY_PASSWORD` | uma por serviço |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | o operador inicial do painel. Troque a senha pelo painel depois: a variável não sobrescreve |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | o operador inicial do painel. Troque a senha pelo painel depois: a variável não sobrescreve. O primeiro login cadastra o app autenticador ([Verificação em duas etapas](#verificação-em-duas-etapas-do-painel)) |
 | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | `smtp.resend.com`, `resend`, a chave da API, `nao-responda@<domínio>` |
 | `BACKUP_S3_ENDPOINT`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | do R2 |
 | `GRAFANA_CLOUD_OTLP_ENDPOINT`, `GRAFANA_CLOUD_OTLP_AUTH` | do Grafana Cloud |
@@ -252,6 +253,61 @@ docker run --rm --network <rede da stack> \
 ```
 
 Depois disso, os deploys são do CI.
+
+## Verificação em duas etapas do painel
+
+O papel `admin` só abre o painel (e as rotas `/v1/admin` dos serviços) com a senha **e** o código de um
+app autenticador (TOTP). Uma senha vazada sozinha não estorna pagamento, não muda preço nem lê dados de
+cliente. O papel `auditor`, do robô que só lê, continua entrando só com a senha.
+
+**Primeiro login depois do deploy.** As sessões de operador abertas antes deixam de valer (o painel pede o
+login de novo). Na loja, entre com `ADMIN_EMAIL` e a senha: em vez do painel, aparece "Ative a
+verificação em duas etapas".
+
+1. Instale um app autenticador no celular (Google Authenticator, Microsoft Authenticator, 1Password…).
+2. Clique em **Gerar o QR code** e leia com o app (ou digite a chave que aparece embaixo). A conta aparece
+   no app como "Embrulhado".
+3. Digite o código de 6 números e clique em **Ativar e entrar**.
+4. A tela seguinte mostra **10 códigos de recuperação, uma única vez**. Baixe o `.txt` ou copie para um
+   gerenciador de senhas, fora do celular. Cada código entra uma vez sem o app.
+
+Faça isso logo depois do deploy: até o cadastro, quem tivesse a senha poderia cadastrar o próprio celular.
+
+**Daí em diante**, o login pede a senha e o código do app. Sem o celular, o link "Usar um código de
+recuperação" na tela do código. Em **Painel → Segurança da conta** aparecem quantos códigos ainda valem e
+dá para gerar 10 novos (os anteriores deixam de valer) com um código atual do app. Cinco códigos errados
+seguidos bloqueiam o login por 15 minutos, como a senha errada. Trocar a senha pelo "esqueci minha senha"
+**não** desliga a verificação.
+
+**Perdeu o celular e os códigos de recuperação.** Desligue a verificação da conta pelo banco, no VPS. A
+conta volta ao primeiro login: a próxima entrada pede o cadastro de um app novo.
+
+```bash
+docker exec -it postgres-<uuid> psql -U postgres -d identity
+```
+
+```sql
+BEGIN;
+-- a conta (o e-mail em maiúsculas é o normalizado do Identity)
+SELECT id, email, two_factor_enabled FROM users WHERE normalized_email = upper('<e-mail do operador>');
+-- desliga a 2FA, troca o carimbo de segurança (tíquetes e sessões abertas caem) e tira o bloqueio
+UPDATE users SET two_factor_enabled = false, security_stamp = gen_random_uuid()::text,
+       access_failed_count = 0, lockout_end = NULL
+ WHERE normalized_email = upper('<e-mail do operador>');
+-- apaga a chave do autenticador, os códigos de recuperação e o último código usado
+DELETE FROM user_tokens
+ WHERE user_id = (SELECT id FROM users WHERE normalized_email = upper('<e-mail do operador>'))
+   AND login_provider IN ('[AspNetUserStore]', '[CompraFacilTotp]');
+-- derruba as sessões abertas da conta
+UPDATE refresh_tokens SET revoked_at = now(), revocation_reason = 'MfaRequired'
+ WHERE user_id = (SELECT id FROM users WHERE normalized_email = upper('<e-mail do operador>'))
+   AND revoked_at IS NULL;
+COMMIT;
+```
+
+Confira que o `SELECT` achou uma conta só antes do `COMMIT`. Quem tem acesso ao VPS tem acesso ao
+banco: este caminho não abre uma porta nova, mas fica registrado só no histórico do shell. Anote quando e
+por que foi usado.
 
 ## Fotos dos produtos
 
@@ -361,12 +417,17 @@ antecedência) e um aviso opcional. A loja mostra a faixa antes e durante a jane
 ## Backup e restauração
 
 O `pg-backup` roda às 6h UTC (3h em Brasília). Cada dia fica em `postgres/<AAAA-MM-DD>/` no bucket, com
-um `.dump` por banco e os papéis em `globals.sql`. Os dias além de 14 são apagados. A cada rodada ele
+um `.dump.age` por banco e os papéis em `globals.sql.age`, **cifrados com o age** para a chave pública
+`BACKUP_AGE_RECIPIENT` (no compose). A chave privada não fica no servidor: fica com o dono, no Bitwarden
+(item "Embrulhado: chave do backup (age)"). Sem ela, ninguém restaura, nem quem lê o bucket ou invade o
+VPS. Sem a chave pública, o backup não roda (e o alerta de backup atrasado dispara). Os dias além de 14 são apagados. A cada rodada ele
 manda ao Grafana Cloud as métricas `compra_facil_backup_last_success_seconds` (o horário do último
 backup inteiro) e `compra_facil_backup_last_run_ok_ratio`, para o alerta de backup atrasado (#162).
 
 Os comandos abaixo rodam no VPS, no contêiner do backup. O nome dele aparece em `docker ps`
-(`pg-backup-<uuid>`).
+(`pg-backup-<uuid>`). A restauração recebe a chave privada pela entrada padrão (`-i` no `docker exec`), de
+um arquivo que está na sua máquina: ela passa pelo SSH e fica só num diretório temporário do contêiner,
+apagado no fim. Com a chave salva em `~/embrulhado-backup.key` (tire do Bitwarden e apague depois):
 
 **Um backup agora**, antes de uma mudança arriscada:
 
@@ -377,7 +438,7 @@ docker exec -e BACKUP_NOW=1 pg-backup-<uuid> backup.sh
 **Um dado sumiu** (o banco está de pé). Restaure ao lado, em `<banco>_restaurado`, e copie o que falta:
 
 ```bash
-docker exec -e RESTORE_SUFFIX=_restaurado pg-backup-<uuid> restore.sh 2026-10-27 orders
+ssh vps "docker exec -i -e RESTORE_SUFFIX=_restaurado pg-backup-<uuid> restore.sh 2026-10-27 orders" < ~/embrulhado-backup.key
 docker exec postgres-<uuid> psql -U postgres -d orders_restaurado   # compare e copie
 docker exec postgres-<uuid> psql -U postgres -c 'DROP DATABASE orders_restaurado'
 ```
@@ -385,13 +446,15 @@ docker exec postgres-<uuid> psql -U postgres -c 'DROP DATABASE orders_restaurado
 **O banco se perdeu.** Pare no painel os serviços que usam os bancos, restaure no lugar e suba de novo:
 
 ```bash
-docker exec pg-backup-<uuid> restore.sh 2026-10-27 catalog orders inventory payments notifications identity
+ssh vps "docker exec -i pg-backup-<uuid> restore.sh 2026-10-27 catalog orders inventory payments notifications identity fulfillment" < ~/embrulhado-backup.key
 ```
 
 O `restore.sh` apaga e recria os objetos de cada banco a partir do dump daquele dia (`--clean`, numa
 transação só). O que foi escrito depois do backup se perde: é o custo do backup diário (ADR 0006).
 
-Os dois casos foram ensaiados com este compose, com um S3 local no lugar do R2.
+Os dois casos foram ensaiados com este compose, com um S3 local no lugar do R2. A cifra foi ensaiada em
+17/11: o arquivo no bucket começa com `age-encryption.org/v1`, a restauração sem a chave recusa, e com a
+chave devolve o banco.
 
 ## Quando algo dá errado
 

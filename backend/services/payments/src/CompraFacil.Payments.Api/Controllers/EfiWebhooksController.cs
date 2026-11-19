@@ -2,8 +2,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CompraFacil.BuildingBlocks.Web;
+using CompraFacil.Payments.Application;
 using CompraFacil.Payments.Application.Payments;
 using CompraFacil.Payments.Infrastructure.Provider;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -14,6 +16,8 @@ namespace CompraFacil.Payments.Api.Controllers;
 /// só um token, e a cobrança é consultada na Efí. Cobrança desconhecida também responde 200, para a Efí não
 /// insistir.
 /// </summary>
+// a Efí não manda token: o PIX confere o segredo da URL, o cartão só traz uma referência que é reconsultada na Efí
+[AllowAnonymous]
 [ApiController]
 [Route("v1/webhooks/efi")]
 [Produces("application/json")]
@@ -31,6 +35,7 @@ public sealed partial class EfiWebhooksController(
         if (string.IsNullOrEmpty(secret) || hmac is null
             || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(hmac), Encoding.UTF8.GetBytes(secret)))
         {
+            PaymentsMetrics.WebhookRejected("pix", "secret");
             throw new UnauthorizedException("segredo do webhook do PIX inválido");
         }
         JsonDocument body;
@@ -68,6 +73,7 @@ public sealed partial class EfiWebhooksController(
     {
         if (string.IsNullOrWhiteSpace(notification) || notification.Length > 64)
         {
+            PaymentsMetrics.WebhookRejected("charges", "invalid");
             return Problem(statusCode: StatusCodes.Status422UnprocessableEntity, title: "Dados inválidos", detail: "notification é obrigatório");
         }
         try
@@ -76,6 +82,7 @@ public sealed partial class EfiWebhooksController(
         }
         catch (PaymentProviderRejectedException)
         {
+            PaymentsMetrics.WebhookRejected("charges", "unknown_token");
             return Ack(NotificationResult.UnknownPayment); // token que a Efí não conhece: não é desta loja
         }
     }

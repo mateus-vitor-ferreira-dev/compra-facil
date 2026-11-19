@@ -205,6 +205,8 @@ func TestAdmin_Auth(t *testing.T) {
 		c.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-time.Minute))
 	})
 	forged := authtest.New(t).Token(t, []string{auth.RoleAdmin}) // outra chave, mesmo formato
+	// senha do operador sem o segundo fator: o identity não emite, mas a rota recusa mesmo assim (ameaça T8)
+	passwordOnly := testIdentity.Token(t, []string{auth.RoleAdmin}, func(c *auth.Claims) { c.AMR = nil })
 
 	tests := []struct {
 		name       string
@@ -218,6 +220,7 @@ func TestAdmin_Auth(t *testing.T) {
 		{"token vencido", "Bearer " + expired, http.StatusUnauthorized},
 		{"assinado por outra chave", "Bearer " + forged, http.StatusUnauthorized},
 		{"cliente (sem a role admin)", "Bearer " + token(t, auth.RoleCustomer), http.StatusForbidden},
+		{"admin sem o segundo fator (sem amr)", "Bearer " + passwordOnly, http.StatusForbidden},
 		{"admin", "Bearer " + token(t, auth.RoleAdmin), http.StatusOK},
 		{"esquema sem diferenciar maiúsculas", "bearer " + token(t, auth.RoleAdmin), http.StatusOK},
 	}

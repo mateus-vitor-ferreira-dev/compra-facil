@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -50,7 +51,7 @@ func newEnv(t *testing.T, delays order.Delays, outOfStock ...string) *env {
 	t.Cleanup(orders.Close)
 	notifier := &fakeStockNotifier{sent: map[string]int{}}
 	e := &env{t: t, orders: orders, stock: notifier,
-		router: NewRouter(NewTokens("sim@comprafacil.local", "sim", time.Hour), stock, orders, notifier, slog.New(slog.DiscardHandler))}
+		router: NewRouter(NewTokens("sim@comprafacil.local", "sim", time.Hour), stock, orders, notifier, slog.New(slog.DiscardHandler), testAdminToken)}
 	rec, body := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@comprafacil.local", "password": "sim"}, false)
 	require.Equal(t, http.StatusOK, rec.Code)
 	var data tokenResponse
@@ -71,6 +72,9 @@ func (e *env) do(method, path string, payload any, auth bool) (*httptest.Respons
 	req.Header.Set("Content-Type", "application/json")
 	if auth {
 		req.Header.Set(TokenHeader, e.token)
+	}
+	if strings.HasPrefix(path, "/sim/") {
+		req.Header.Set("X-Sim-Admin-Token", testAdminToken)
 	}
 	rec := httptest.NewRecorder()
 	e.router.ServeHTTP(rec, req)
@@ -170,6 +174,36 @@ func TestProductsAndStock(t *testing.T) {
 	_, env = e.do(http.MethodGet, "/api2.0/v1/product/stock/queryByVid?vid=ESGOTADO", nil, true)
 	decodeData(t, env, &stock)
 	assert.Zero(t, stock[0].StorageNum)
+}
+
+const testAdminToken = "token-de-operacao"
+
+func TestSimRoutesNeedTheAdminToken(t *testing.T) {
+	e := newEnv(t, slow)
+	for _, tc := range []struct{ method, path, token string }{
+		{http.MethodGet, "/sim/orders", ""},
+		{http.MethodGet, "/sim/orders", "errado"},
+		{http.MethodPut, "/sim/products/SIM-V-002/cost", ""},
+		{http.MethodPost, "/sim/catalog/reset", ""},
+	} {
+		req := httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, strings.NewReader(`{"sellPrice":"0.01"}`))
+		if tc.token != "" {
+			req.Header.Set("X-Sim-Admin-Token", tc.token)
+		}
+		rec := httptest.NewRecorder()
+		e.router.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code, "%s %s", tc.method, tc.path)
+	}
+}
+
+func TestSimRoutesStayClosedWithoutAConfiguredToken(t *testing.T) {
+	router := NewRouter(NewTokens("sim@comprafacil.local", "sim", time.Hour), catalog.NewStock(nil), nil, nil,
+		slog.New(slog.DiscardHandler), "")
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/sim/orders", nil)
+	req.Header.Set("X-Sim-Admin-Token", "")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
 func TestSimChangesTheFeed(t *testing.T) {

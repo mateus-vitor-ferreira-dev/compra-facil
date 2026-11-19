@@ -128,6 +128,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/two-factor/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gera códigos de recuperação novos
+         * @description Para a conta com 2FA ativa, numa sessão que passou pelo segundo fator (`amr` com `mfa`; sem ele,
+         *     `403`), com um código atual do app autenticador. Os 10 códigos novos aparecem só nesta resposta e os
+         *     anteriores deixam de valer. Código errado dá `422` e conta como senha errada.
+         */
+        post: operations["regenerateRecoveryCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions": {
         parameters: {
             query?: never;
@@ -143,6 +165,8 @@ export interface paths {
          *     quinta senha errada seguida, a conta fica bloqueada para login por 15 minutos (`423`, com
          *     `Retry-After`); sessões já abertas continuam valendo. Como o cadastro (`409`), o `423` revela que
          *     a conta existe: o rate limit do gateway é o que limita quem tenta descobrir.
+         *
+         *     Conta com 2FA, ou com o papel `admin`, responde `202` com o tíquete do segundo fator, nunca tokens.
          */
         post: operations["createSession"];
         delete?: never;
@@ -163,8 +187,9 @@ export interface paths {
         /**
          * Compra sem conta
          * @description Cria uma conta própria para esta compra, sem senha e com o papel `customer`, e abre a sessão. A
-         *     mesma `checkout_key` com o mesmo e-mail devolve a mesma conta: o reenvio do formulário não duplica o
-         *     pedido. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
+         *     mesma `checkout_key` com o mesmo e-mail devolve a mesma conta nos 30 minutos depois de a compra
+         *     começar: o reenvio do formulário não duplica o pedido. Depois, dá `409`, e a compra se abre só pelo
+         *     link enviado ao e-mail. O e-mail digitado não é verificado e não dá acesso a nada que já exista com ele.
          */
         post: operations["createGuestSession"];
         delete?: never;
@@ -232,6 +257,9 @@ export interface paths {
          *     conta. Sem conta, cria uma já confirmada (sem senha), com o papel `customer`. Se o e-mail já tem
          *     conta com senha, responde `409` (título "Conta já existe"): o vínculo é por `linkGoogleSession`,
          *     com a senha, para que um Google com o mesmo e-mail não entre na conta de outra pessoa.
+         *
+         *     O Google é só o primeiro fator: conta com 2FA, ou com o papel `admin`, recebe `202` com o tíquete,
+         *     como no login com senha.
          */
         post: operations["createGoogleSession"];
         delete?: never;
@@ -253,9 +281,79 @@ export interface paths {
          * Vincula o Google à conta do mesmo e-mail, com a senha dela
          * @description Valida o ID token como `createGoogleSession`, confere a senha da conta do mesmo e-mail (com o
          *     bloqueio por tentativas do login) e liga o `sub` do Google a ela. Daí em diante, o Google sozinho
-         *     entra nela.
+         *     entra nela (menos na conta com 2FA ou de operador, que recebe `202` com o tíquete do segundo fator).
          */
         post: operations["linkGoogleSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Segundo passo do login (código do autenticador ou de recuperação)
+         * @description Recebe o `mfa_ticket` do `202` do login e **um** dos dois: `code`, os 6 dígitos do app autenticador
+         *     (o passo de 30 s atual, o anterior ou o seguinte; um código já usado não vale de novo), ou
+         *     `recovery_code`, um dos códigos de recuperação (cada um vale uma vez). O código certo gasta o tíquete
+         *     e abre a sessão, com `amr` = `["mfa"]` no access token.
+         *
+         *     Tíquete desconhecido, vencido, já usado ou de antes de uma troca de senha dá `401`: volte ao login.
+         *     Código errado dá `422` e conta como senha errada; o quinto erro seguido bloqueia a conta (`423`).
+         */
+        post: operations["verifySessionMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/mfa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chave e QR code para cadastrar o app autenticador
+         * @description Com o tíquete `mfa_setup_required` do login do operador sem 2FA. Cada chamada gera uma chave nova
+         *     (a anterior deixa de servir); ela só passa a valer com o primeiro código certo em `confirmMfaSetup`.
+         *     O tíquete não é gasto aqui.
+         */
+        post: operations["startMfaSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/mfa/setup/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Liga a 2FA com o primeiro código e abre a sessão
+         * @description O primeiro código certo do app liga a 2FA, gasta o tíquete e devolve a sessão (com `amr`) e 10
+         *     códigos de recuperação de uso único. Os códigos aparecem só nesta resposta: o identity guarda só o
+         *     hash deles. Código errado dá `422` e conta como senha errada.
+         */
+        post: operations["confirmMfaSetup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -278,6 +376,9 @@ export interface paths {
          *     dentro do intervalo de reuso (`Identity:Tokens:RefreshReuseInterval`, 10 s): logo depois da troca,
          *     ele ainda dá um par novo da mesma sessão (dois refresh simultâneos com o mesmo token passam). A
          *     próxima troca normal invalida os pares que sobraram.
+         *
+         *     A sessão aberta sem o segundo fator de uma conta que agora o exige (2FA ligada depois, ou a conta
+         *     virou operador) não renova: `401`, e a pessoa entra de novo com o código.
          */
         post: operations["refreshSession"];
         delete?: never;
@@ -356,11 +457,21 @@ export interface components {
          * @example ana@exemplo.com
          */
         Email: string;
+        /**
+         * @description Nome de quem compra; vai na saudação dos e-mails da loja. Só letras (com acento), espaços,
+         *     apóstrofo, hífen e ponto. Nada de link, e-mail ou domínio: `://`, `www.`, `@`, `/`, `:` e
+         *     palavras como `exemplo.com` dão 422 ("use só letras, espaços, apóstrofo, hífen e ponto").
+         *     Espaços nas pontas saem e os repetidos viram um só.
+         * @example Ana Souza
+         * @example João d'Ávila
+         * @example Maria-Clara
+         * @example J. R. Silva
+         */
+        PersonName: string;
         RegisterRequest: {
             email: components["schemas"]["Email"];
             password: string;
-            /** @example Ana Souza */
-            name: string;
+            name: components["schemas"]["PersonName"];
         };
         ResetPasswordRequest: {
             /** Format: uuid */
@@ -387,10 +498,10 @@ export interface components {
             refresh_token: string;
         };
         /**
-         * @description `customer`: compra · `admin`: rotas `/v1/admin/*` e painel administrativo.
+         * @description `customer`: compra · `admin`: rotas `/v1/admin/*` e painel administrativo (com 2FA) · `auditor`: leitura da operação (robô).
          * @enum {string}
          */
-        Role: "customer" | "admin";
+        Role: "customer" | "admin" | "auditor";
         Account: {
             /**
              * Format: uuid
@@ -405,10 +516,14 @@ export interface components {
             created_at: string;
             /** @description Comprou sem conta; o acesso é pelo link enviado por e-mail, sem senha. */
             is_guest?: boolean;
+            /** @description A autenticação em duas etapas (app autenticador) está ativa. */
+            two_factor_enabled?: boolean;
+            /** @description Quantos códigos de recuperação ainda valem; nulo sem 2FA. */
+            recovery_codes_left?: number | null;
         };
         GuestSessionRequest: {
             email: components["schemas"]["Email"];
-            name: string;
+            name: components["schemas"]["PersonName"];
             /**
              * Format: uuid
              * @description Nasce com o formulário do checkout e é a mesma em cada reenvio dele.
@@ -440,6 +555,57 @@ export interface components {
              */
             refresh_expires_in: number;
         };
+        /** @description A senha (ou o Google) conferiu; a sessão depende do segundo fator. */
+        MfaChallenge: {
+            /**
+             * @description `mfa_required`: mande o código em `verifySessionMfa`. `mfa_setup_required`: operador sem 2FA;
+             *     cadastre o app autenticador (`startMfaSetup`, `confirmMfaSetup`).
+             * @enum {string}
+             */
+            status: "mfa_required" | "mfa_setup_required";
+            /** @description Opaco, de uso único. Não é token de API nem refresh token. */
+            mfa_ticket: string;
+            /**
+             * @description Segundos até o tíquete vencer.
+             * @example 300
+             */
+            expires_in: number;
+        };
+        MfaTicketRequest: {
+            ticket: string;
+        };
+        /** @description `ticket` e um dos dois: `code` ou `recovery_code`. */
+        MfaVerifyRequest: {
+            ticket: string;
+            /**
+             * @description Os 6 dígitos do app autenticador.
+             * @example 123456
+             */
+            code?: string;
+            /** @example k7m2p-9xq4r */
+            recovery_code?: string;
+        };
+        MfaConfirmRequest: {
+            ticket: string;
+            code: string;
+        };
+        MfaSetup: {
+            /** @description A chave em Base32, em grupos de 4, para digitar no app sem o QR code. */
+            shared_key: string;
+            /** @description O conteúdo do QR code: `otpauth://totp/Embrulhado:<e-mail>?secret=...&issuer=Embrulhado`. */
+            authenticator_uri: string;
+        };
+        MfaEnabled: components["schemas"]["Tokens"] & {
+            recovery_codes: components["schemas"]["RecoveryCodeList"];
+        };
+        RecoveryCodesRequest: {
+            code: string;
+        };
+        RecoveryCodes: {
+            recovery_codes: components["schemas"]["RecoveryCodeList"];
+        };
+        /** @description Códigos de uso único; aparecem só uma vez (o identity guarda só o hash). */
+        RecoveryCodeList: string[];
         Jwk: {
             /** @constant */
             kty: "RSA";
@@ -515,6 +681,17 @@ export interface components {
             };
             content: {
                 "application/json": components["schemas"]["Tokens"];
+            };
+        };
+        /** @description Falta o segundo fator; nenhum token. */
+        MfaChallenge: {
+            headers: {
+                /** @description `no-store`: resposta com credencial não vai para cache. */
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["MfaChallenge"];
             };
         };
         /** @description Requisição malformada (JSON inválido, parâmetro com tipo errado). */
@@ -760,6 +937,64 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    regenerateRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryCodesRequest"];
+            };
+        };
+        responses: {
+            /** @description Os códigos novos. */
+            200: {
+                headers: {
+                    /** @description `no-store`: resposta com credencial não vai para cache. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodes"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description A sessão não passou pelo segundo fator. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A conta não tem a 2FA ativa. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["UnprocessableEntity"];
+            /** @description Conta bloqueada temporariamente por tentativas erradas. */
+            423: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
     createSession: {
         parameters: {
             query?: never;
@@ -774,6 +1009,7 @@ export interface operations {
         };
         responses: {
             200: components["responses"]["Tokens"];
+            202: components["responses"]["MfaChallenge"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description Senha certa, mas o e-mail ainda não foi confirmado (só com a confirmação exigida). */
@@ -815,7 +1051,10 @@ export interface operations {
         responses: {
             200: components["responses"]["Tokens"];
             400: components["responses"]["BadRequest"];
-            /** @description A mesma `checkout_key` já foi usada com outro e-mail, ou chegou ao mesmo tempo que outra. */
+            /**
+             * @description A mesma `checkout_key` já foi usada com outro e-mail, chegou ao mesmo tempo que outra, ou começou
+             *     a compra há mais de 30 minutos (o acesso a ela é pelo link do e-mail).
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -888,6 +1127,7 @@ export interface operations {
         };
         responses: {
             200: components["responses"]["Tokens"];
+            202: components["responses"]["MfaChallenge"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description O e-mail já tem conta com senha; vincule com `linkGoogleSession`. */
@@ -917,9 +1157,122 @@ export interface operations {
         };
         responses: {
             200: components["responses"]["Tokens"];
+            202: components["responses"]["MfaChallenge"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /** @description Conta bloqueada temporariamente por senhas erradas. */
+            423: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    verifySessionMfa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaVerifyRequest"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Tokens"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["UnprocessableEntity"];
+            /** @description Conta bloqueada temporariamente por códigos (ou senhas) errados. */
+            423: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    startMfaSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaTicketRequest"];
+            };
+        };
+        responses: {
+            /** @description A chave e o URI do QR code. */
+            200: {
+                headers: {
+                    /** @description `no-store`: resposta com segredo não vai para cache. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaSetup"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Conta bloqueada temporariamente por tentativas erradas. */
+            423: {
+                headers: {
+                    "Retry-After": components["headers"]["RetryAfter"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    confirmMfaSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description 2FA ativa; a sessão e os códigos de recuperação. */
+            200: {
+                headers: {
+                    /** @description `no-store`: resposta com credencial não vai para cache. */
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaEnabled"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["UnprocessableEntity"];
+            /** @description Conta bloqueada temporariamente por tentativas erradas. */
             423: {
                 headers: {
                     "Retry-After": components["headers"]["RetryAfter"];

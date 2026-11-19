@@ -36,8 +36,31 @@ public sealed class JwtAuthTests : IAsyncLifetime
         // como um controller com AdminReadPolicy na classe e AdminPolicy na ação que muda algo
         _app.MapPost("/v1/admin/lista/acao", () => Results.NoContent())
             .RequireAuthorization(JwtAuth.AdminReadPolicy).RequireAuthorization(JwtAuth.AdminPolicy);
+        _app.MapControllers();
         await _app.StartAsync();
         _http = _app.GetTestClient();
+    }
+
+    [Fact]
+    public async Task RouteWithoutAttribute_IsClosedByDefault_ExplicitAnonymousStaysOpen()
+    {
+        using (var anonymous = await CallAsync("/v1/esquecida", null))
+        {
+            Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        }
+        using (var customer = await CallAsync("/v1/esquecida", _identity.CustomerToken()))
+        {
+            Assert.Equal(HttpStatusCode.OK, customer.StatusCode);
+        }
+        using (var open = await CallAsync("/v1/publica", null))
+        {
+            Assert.Equal(HttpStatusCode.OK, open.StatusCode);
+        }
+        // health continua aberto (o Docker chama sem token) e rota que não existe continua 404, não 401
+        using var health = await _http.GetAsync("/health", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+        using var missing = await CallAsync("/v1/nao-existe", null);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
     }
 
     public async ValueTask DisposeAsync()
@@ -56,6 +79,7 @@ public sealed class JwtAuthTests : IAsyncLifetime
             builder.Configuration[key] = value;
         }
         builder.AddServiceDefaults(new ServiceInfo("inventory"));
+        builder.Services.AddControllers().AddApplicationPart(typeof(JwtAuthTests).Assembly);
         builder.AddJwtAuth();
         var app = builder.Build();
         app.UseServiceDefaults();
@@ -97,6 +121,26 @@ public sealed class JwtAuthTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, auditorActs.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, adminActs.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, auditorOnAdmin.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminWithoutMfa_IsRefusedOnEveryAdminRoute_TheAuditorBotStillReads()
+    {
+        // senha do operador vazada: sem o segundo fator, nem leitura nem ação (ameaça T8)
+        using var acts = await CallAsync("/v1/admin/x", _identity.AdminTokenWithoutMfa());
+        using var reads = await SendAsync(HttpMethod.Get, "/v1/admin/lista", _identity.AdminTokenWithoutMfa());
+        using var both = await SendAsync(HttpMethod.Post, "/v1/admin/lista/acao", _identity.AdminTokenWithoutMfa());
+        using var otherMethod = await CallAsync("/v1/admin/x", _identity.Token(["admin"], amr: ["pwd"]));
+        // o auditor é um robô que só lê: entra com senha, sem amr
+        using var auditor = await SendAsync(HttpMethod.Get, "/v1/admin/lista", _identity.AuditorToken());
+
+        Assert.Equal(HttpStatusCode.Forbidden, acts.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, reads.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, both.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, otherMethod.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, auditor.StatusCode);
+        var problem = JsonDocument.Parse(await acts.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).RootElement;
+        Assert.Equal("Sem permissão", problem.GetProperty("title").GetString());
     }
 
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, string token)
@@ -267,4 +311,16 @@ public sealed class JwtAuthDiscoveryTests : IAsyncLifetime
         }
         Assert.Equal(HttpStatusCode.OK, status);
     }
+}
+
+/// <summary>Um controller de serviço qualquer: uma ação esquecida sem atributo e uma pública de propósito.</summary>
+[Microsoft.AspNetCore.Mvc.ApiController]
+public sealed class DefaultDenyController : Microsoft.AspNetCore.Mvc.ControllerBase
+{
+    [Microsoft.AspNetCore.Mvc.HttpPost("v1/esquecida")]
+    public Microsoft.AspNetCore.Mvc.IActionResult Forgotten() => Ok();
+
+    [Microsoft.AspNetCore.Mvc.HttpPost("v1/publica")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    public Microsoft.AspNetCore.Mvc.IActionResult Public() => Ok();
 }

@@ -33,6 +33,16 @@ public static class FulfillmentMetrics
     private static readonly Counter<long> s_cancelRefused = s_meter.CreateCounter<long>(
         "compra_facil.fulfillment.invoice_cancel_refused", unit: "{invoice}", description: "Cancelamentos de nota recusados pelo emissor.");
 
+    /// <summary>
+    /// Webhooks do fornecedor recusados, pelo motivo: signature (assinatura errada, o 401), invalid (corpo vazio,
+    /// grande demais ou fora do formato) e manual_mode (o 404 do fornecedor manual, que não tem quem mande
+    /// webhook). Rajada de signature ou manual_mode é alguém forjando avisos, ou o segredo trocado de um lado só.
+    /// </summary>
+    private static readonly Counter<long> s_webhooksRejected = s_meter.CreateCounter<long>(
+        "compra_facil.fulfillment.webhooks_rejected", unit: "{request}", description: "Webhooks do fornecedor recusados, por motivo.");
+
+    public static void WebhookRejected(string reason) => s_webhooksRejected.Add(1, new KeyValuePair<string, object?>("reason", reason));
+
     public static void SkippedBeforeCutoff() => s_skipped.Add(1);
 
     public static void Invoice(string result) => s_invoices.Add(1, new KeyValuePair<string, object?>("result", result));

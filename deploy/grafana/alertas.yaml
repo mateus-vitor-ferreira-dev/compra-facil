@@ -119,3 +119,131 @@ regras:
     descricao: >-
       A última rodada do pg-backup terminou com erro (o backup do dia anterior continua no bucket). Ver
       os logs do contêiner pg-backup.
+
+  # Pagamentos e segurança (ameaças T1 e T5): ninguém olha o painel da Efí todo dia, então o que foge do
+  # caminho feliz do dinheiro e as rajadas contra webhooks e login avisam por e-mail.
+  #
+  # Os contadores destas regras são raros e nascem no primeiro caso de cada processo, e o increase não vê
+  # o primeiro valor de uma série nova: a que nasceu dentro da janela (o "unless ... offset") entra com o
+  # valor inteiro, e a que já existia, com o increase. O "* 1" tira o nome da métrica, para o "or" casar as
+  # duas metades pelas mesmas labels.
+
+  - uid: cf-pagamento-revertido
+    titulo: Cartão aprovado não se confirmou
+    severidade: critica
+    para: 0s
+    # a Efí aprovou o cartão (o pedido já foi confirmado) e depois não pagou (Failed) ou cancelou (Voided)
+    expr: |
+      sum by (status) (
+        ((compra_facil_payments_reversals_total unless compra_facil_payments_reversals_total offset 5m) * 1)
+        or increase(compra_facil_payments_reversals_total[5m])
+      )
+    resumo: "Um cartão aprovado não se confirmou na Efí ({{ $labels.status }})"
+    descricao: >-
+      A operadora aprovou o cartão de um pedido já confirmado e depois não o pagou (Failed) ou o cancelou
+      (Voided): o dinheiro não vem. Achar o pedido nos logs do payments ({service_name="payments"} |=
+      "não se confirmou", no Loki), abrir o detalhe dele no painel da loja (/admin/pedidos/<id>), que diz
+      se o pedido parou sozinho ou se é preciso cancelar no fornecedor, e conferir a cobrança no painel da
+      Efí.
+
+  - uid: cf-pagamento-contestado
+    titulo: Pagamento contestado
+    severidade: critica
+    para: 0s
+    # contestação ou chargeback: tem prazo na Efí, e quem não responde perde o valor
+    expr: |
+      sum(
+        ((compra_facil_payments_disputes_total unless compra_facil_payments_disputes_total offset 10m) * 1)
+        or increase(compra_facil_payments_disputes_total[10m])
+      )
+    resumo: "URGENTE: um cliente contestou um pagamento; responda no painel da Efí dentro do prazo"
+    descricao: >-
+      Um pagamento aprovado foi contestado pelo cliente (reclamação ou chargeback) e está em disputa.
+      Responda no painel da Efí dentro do prazo, com a nota fiscal, o rastreio e a confirmação da
+      entrega: sem resposta, o valor volta ao cliente. O pedido está nos logs do payments
+      ({service_name="payments"} |= "contestado", no Loki), e o detalhe dele no painel da loja
+      (/admin/pedidos/<id>) diz se é preciso cancelar no fornecedor. Não estorne pelo painel: a
+      contestação já devolve.
+
+  - uid: cf-estorno-falhou
+    titulo: Estorno não realizado
+    severidade: alta
+    para: 0s
+    # a Efí aceitou a devolução e depois não a fez (o PIX sem saldo na conta, #396): o cliente não recebeu
+    expr: |
+      sum(
+        ((compra_facil_payments_refunds_failed_total unless compra_facil_payments_refunds_failed_total offset 10m) * 1)
+        or increase(compra_facil_payments_refunds_failed_total[10m])
+      )
+    resumo: Um estorno aceito pela Efí não foi realizado
+    descricao: >-
+      A Efí aceitou devolver o dinheiro de um pedido e não devolveu (em geral, falta de saldo na conta):
+      o pedido voltou a esperar o estorno. Conferir o saldo no painel da Efí e estornar de novo pelo
+      painel da loja, no detalhe do pedido (/admin/pedidos/<id>). O pedido está nos logs do payments
+      ({service_name="payments"} |= "devolução", no Loki).
+
+  - uid: cf-webhook-recusado
+    titulo: Webhook recusado em rajada
+    severidade: alta
+    para: 0s
+    # quem manda de verdade (Efí, fornecedor) não erra o segredo nem a assinatura, e com o fornecedor manual
+    # ninguém manda webhook (o 404, manual_mode): 5 recusas em 10 minutos
+    # já não são um robô qualquer da internet de passagem, e sim alguém tentando forjar o "pago" ou o
+    # "enviado", ou o segredo trocado de um lado só (os avisos verdadeiros se perdendo). O token de cartão
+    # desconhecido tem limiar maior (10): a conta da Efí pode ter outros projetos, e cada token custa uma
+    # consulta à Efí
+    expr: |
+      (sum by (service_name, webhook, reason) (
+        ((compra_facil_payments_webhooks_rejected_total{reason="secret"} unless compra_facil_payments_webhooks_rejected_total{reason="secret"} offset 10m) * 1)
+        or increase(compra_facil_payments_webhooks_rejected_total{reason="secret"}[10m])
+      ) >= 5)
+      or
+      (sum by (service_name, webhook, reason) (
+        ((compra_facil_payments_webhooks_rejected_total{reason="unknown_token"} unless compra_facil_payments_webhooks_rejected_total{reason="unknown_token"} offset 10m) * 1)
+        or increase(compra_facil_payments_webhooks_rejected_total{reason="unknown_token"}[10m])
+      ) >= 10)
+      or
+      (sum by (service_name, reason) (
+        ((compra_facil_fulfillment_webhooks_rejected_total{reason=~"signature|manual_mode"} unless compra_facil_fulfillment_webhooks_rejected_total{reason=~"signature|manual_mode"} offset 10m) * 1)
+        or increase(compra_facil_fulfillment_webhooks_rejected_total{reason=~"signature|manual_mode"}[10m])
+      ) >= 5)
+    resumo: "{{ $labels.service_name }}: {{ $values.A }} avisos recusados ({{ $labels.reason }}) em 10 minutos"
+    descricao: >-
+      O {{ $labels.service_name }} recusou avisos em rajada, pelo motivo {{ $labels.reason }}: secret é o
+      segredo errado no webhook do PIX, unknown_token é o aviso de cartão com um token que a Efí não
+      conhece, signature é a assinatura errada no webhook do fornecedor, manual_mode é o webhook do
+      fornecedor chamado com o fornecedor manual ligado (ninguém deveria mandar). Ou alguém tenta forjar um
+      pagamento ou um envio, ou o segredo mudou de um lado só e os avisos verdadeiros estão se perdendo.
+      Ver de onde vêm nos logs do contêiner gateway, no Coolify, e conferir o segredo cadastrado no
+      painel da Efí (ou do fornecedor) contra o das variáveis do Coolify.
+
+  - uid: cf-login-em-massa
+    titulo: Tentativas de login em massa
+    severidade: alta
+    para: 0s
+    # 30 senhas erradas, 3 contas bloqueadas (5 erros cada) ou 20 respostas 429 do rate limit das rotas de
+    # credencial, em 10 minutos. Uma loja pequena erra a senha poucas vezes por hora, e o rate limit (5/s
+    # por IP, rajada de 20) não pega quem digita: passar disso é robô testando senhas. O label "sinal" diz
+    # qual dos três disparou
+    expr: |
+      label_replace(sum(
+        ((compra_facil_identity_logins_total{result=~"invalid_credentials|locked_out"} unless compra_facil_identity_logins_total{result=~"invalid_credentials|locked_out"} offset 10m) * 1)
+        or increase(compra_facil_identity_logins_total{result=~"invalid_credentials|locked_out"}[10m])
+      ) >= 30, "sinal", "senhas erradas", "", "")
+      or
+      label_replace(sum(
+        ((compra_facil_identity_logins_total{result="locked_out"} unless compra_facil_identity_logins_total{result="locked_out"} offset 10m) * 1)
+        or increase(compra_facil_identity_logins_total{result="locked_out"}[10m])
+      ) >= 3, "sinal", "contas bloqueadas", "", "")
+      or
+      label_replace(sum(
+        increase(traefik_router_requests_total{router=~"identity-credentials(-bff)?@file", code="429"}[10m])
+      ) >= 20, "sinal", "429 do rate limit", "", "")
+    resumo: "Login em massa: {{ $values.A }} ({{ $labels.sinal }}) em 10 minutos"
+    descricao: >-
+      O login recebeu tentativas demais ({{ $labels.sinal }}): robô testando senhas vazadas (credential
+      stuffing) ou forçando uma conta. O bloqueio (5 erros, 15 minutos) e o rate limit do gateway já
+      seguram; ver de onde vem nos logs do contêiner gateway, no Coolify (as requisições a
+      /identity/v1/sessions, com o IP no X-Forwarded-For), e, se for de poucos IPs, bloqueá-los na
+      Cloudflare. A métrica não diz quais contas (sem e-mail nas labels): no banco do identity, as com
+      lockout_end no futuro são as bloqueadas, e vale avisar os donos para trocarem a senha.

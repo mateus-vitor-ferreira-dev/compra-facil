@@ -97,3 +97,17 @@ http:
         status: ["429"]
         service: identity
         query: /problems/{status}
+
+    # a rota que só o BFF usa (identity-google, F-009), chamada sem o segredo dele: 404, como caminho que não
+    # existe. O ipAllowList não aceita nenhum IP de origem (0.0.0.0 não chega por TCP) e recusa com 404; o corpo
+    # em ProblemDetails vem do identity, como no 429
+    only-bff:
+      ipAllowList:
+        sourceRange: ["0.0.0.0/32"]
+        rejectStatusCode: 404
+
+    identity-problem-404:
+      errors:
+        status: ["404"]
+        service: identity
+        query: /problems/404

@@ -61,6 +61,16 @@ describe("checkDelivery", () => {
     expect(checkDelivery({ ...good, cpf: "529" }).cpf).toContain("11 dígitos");
   });
 
+  it("o nome de quem recebe não pode ser um link: ele vai na saudação do e-mail", () => {
+    expect(checkDelivery({ ...good, name: "João d'Ávila" }).name).toBeUndefined();
+    expect(checkDelivery({ ...good, name: "https://evil.com/verificar agora" }).name).toBe(
+      "Use só letras, espaços, apóstrofo, hífen e ponto.",
+    );
+    expect(checkDelivery({ ...good, name: "Ana evil.com" }).name).toBe(
+      "Use só letras, espaços, apóstrofo, hífen e ponto.",
+    );
+  });
+
   it("CPF pelos dígitos verificadores", () => {
     expect(isValidCpf("52998224725")).toBe(true);
     expect(isValidCpf("11111111111")).toBe(false);

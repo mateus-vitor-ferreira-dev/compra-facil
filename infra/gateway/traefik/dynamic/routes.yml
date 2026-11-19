@@ -76,9 +76,13 @@ http:
       service: media
       middlewares: [security-headers, strip-service-prefix]
 {{- end }}
-    # login, refresh, logout, cadastro e confirmação de e-mail: as rotas que aceitam senha ou token, com rate limit
+    # login, refresh, logout, cadastro e confirmação de e-mail: as rotas que aceitam senha ou token, com rate limit.
+    # Depois de /identity/, sem diferenciar maiúsculas: o ASP.NET casa as rotas assim, e com PathPrefix (que
+    # diferencia) um POST /identity/v1/Sessions caía na rota identity, sem limite nenhum. O /identity fica
+    # exato como na rota identity (e no strip-service-prefix). A regra continua mais longa que a da rota
+    # identity, então tem prioridade sobre ela.
     identity-credentials:
-      rule: PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)
+      rule: PathRegexp(`^/identity/(?i:v1/(?:sessions|accounts))`)
       entryPoints: [web]
       service: identity
       middlewares: [cors, security-headers, strip-bff-key, identity-problem-429, identity-rate-limit, strip-service-prefix]
@@ -93,10 +97,28 @@ http:
       service: catalog
       middlewares: [cors, security-headers, strip-bff-key, catalog-problem-429, catalog-rate-limit-bff, strip-service-prefix]
     identity-credentials-bff:
-      rule: (PathPrefix(`/identity/v1/sessions`) || PathPrefix(`/identity/v1/accounts`)) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
+      rule: PathRegexp(`^/identity/(?i:v1/(?:sessions|accounts))`) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
       entryPoints: [web]
       service: identity
       middlewares: [cors, security-headers, strip-bff-key, identity-problem-429, identity-rate-limit-bff, strip-service-prefix]
+    # O login e o vínculo com o Google (/v1/sessions/google e /google/link) só pelo BFF (F-009). O identity confere
+    # o nonce que chega junto com o ID token, mas quem chama direto manda o nonce de dentro do próprio token: um ID
+    # token do Google para a loja que vazasse (log, extensão do navegador, proxy) abriria a sessão da conta. O BFF
+    # só entrega o ID token que ele mesmo trocou com o Google (o código, com PKCE e o client secret) e o nonce que
+    # guardou no início do login. Sem o segredo do BFF, a rota identity-google responde 404, como caminho que não
+    # existe. As prioridades fixas ficam acima das outras rotas do identity, cuja prioridade é o tamanho da regra.
+    identity-google-bff:
+      rule: PathRegexp(`^/identity/(?i:v1/sessions/google)`) && Header(`X-Bff-Key`, `{{ env "BFF_GATEWAY_KEY" }}`)
+      priority: 10001
+      entryPoints: [web]
+      service: identity
+      middlewares: [cors, security-headers, strip-bff-key, identity-problem-429, identity-rate-limit-bff, strip-service-prefix]
+    identity-google:
+      rule: PathRegexp(`^/identity/(?i:v1/sessions/google)`)
+      priority: 10000
+      entryPoints: [web]
+      service: identity
+      middlewares: [cors, security-headers, identity-problem-404, only-bff]
 {{- end }}
 
   services:

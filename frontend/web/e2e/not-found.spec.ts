@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 /**
  * A página que não existe: na loja, com o cabeçalho, o rodapé e as saídas de volta à compra (no lugar da 404
@@ -35,6 +36,7 @@ test("no painel, a 404 fica dentro do painel, com as seções", async ({ page })
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page).toHaveURL(/\/admin$/);
   const response = await page.goto("/admin/pedidos/01a18d66-0000-7000-8000-00000000dead");
   expect(response?.status()).toBe(404);

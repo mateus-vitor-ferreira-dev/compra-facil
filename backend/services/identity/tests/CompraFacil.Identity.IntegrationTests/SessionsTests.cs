@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http.Json;
 using CompraFacil.BuildingBlocks.Testing;
+using CompraFacil.Identity.Application;
 using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace CompraFacil.Identity.IntegrationTests;
@@ -19,9 +21,11 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         {
         }
 
+        using var logins = new MetricRecorder(IdentityMetrics.MeterName, "compra_facil.identity.logins");
         using var response = await _api.LoginAsync(email.ToUpperInvariant()); // e-mail sem diferenciar caixa
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(logins.Total(("result", "succeeded")) >= 1);
         Assert.True(response.Headers.CacheControl?.NoStore);
         var body = await IdentityClient.JsonOf(response);
         ContractAssert.AssertSchema("identity.v1.yaml", "/components/schemas/Tokens", body.GetRawText());
@@ -46,6 +50,7 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         {
         }
 
+        using var logins = new MetricRecorder(IdentityMetrics.MeterName, "compra_facil.identity.logins");
         using var unknown = await _api.LoginAsync(NewEmail());
         using var wrong = await _api.LoginAsync(email, "senha-errada-1");
 
@@ -54,6 +59,8 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         var a = await IdentityClient.JsonOf(unknown);
         var b = await IdentityClient.JsonOf(wrong);
         Assert.Equal(a.GetProperty("detail").GetString(), b.GetProperty("detail").GetString());
+        // o alerta "Login em massa"; pelo menos, porque outras classes de teste também fazem login
+        Assert.True(logins.Total(("result", "invalid_credentials")) >= 2);
     }
 
     [Fact]
@@ -63,6 +70,7 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         using (await _api.RegisterAsync(email))
         {
         }
+        using var logins = new MetricRecorder(IdentityMetrics.MeterName, "compra_facil.identity.logins");
         for (var i = 0; i < 4; i++)
         {
             using var wrong = await _api.LoginAsync(email, "senha-errada-1");
@@ -78,6 +86,7 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         Assert.NotNull(retryAfter);
         // o fim do bloqueio vem do relógio do sistema (Identity), não do relógio falso do teste: folga de 1 min
         Assert.InRange(retryAfter.Value, TimeSpan.FromMinutes(14), TimeSpan.FromMinutes(16));
+        Assert.True(logins.Total(("result", "locked_out")) >= 2); // a quinta errada e a certa
         ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/Problem", (await IdentityClient.JsonOf(right)).GetRawText());
     }
 
@@ -208,5 +217,40 @@ public sealed class SessionsTests(IdentityFixture fx) : IClassFixture<IdentityFi
         Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, unknown.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, refreshAfter.StatusCode);
+    }
+
+    // o rate limit de senha do gateway só vale para o caminho em minúsculas: variações de caixa não podem
+    // chegar ao login (o ASP.NET, sozinho, casaria todas com /v1/sessions)
+    [Theory]
+    [InlineData("/v1/Sessions")]
+    [InlineData("/v1/SESSIONS")]
+    [InlineData("/V1/sessions")]
+    [InlineData("/v1/%C5%BFessions")] // ſ (s longo), que sem diferenciar maiúsculas vira S
+    public async Task Login_ByACaseVariantPath_404_WithoutReachingTheLogin(string path)
+    {
+        var email = NewEmail();
+        using (await _api.RegisterAsync(email))
+        {
+        }
+
+        for (var i = 0; i < 5; i++) // pelo caminho certo, a 5ª senha errada bloquearia a conta
+        {
+            using var variant = await _api.Http.PostAsJsonAsync(path, new { email, password = "senha-errada-1" },
+                TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.NotFound, variant.StatusCode);
+            Assert.Equal("application/problem+json", variant.Content.Headers.ContentType?.MediaType);
+        }
+        using var right = await _api.LoginAsync(email);
+
+        Assert.Equal(HttpStatusCode.OK, right.StatusCode);
+    }
+
+    [Fact]
+    public async Task PasswordReset_ByACaseVariantPath_404()
+    {
+        using var response = await _api.Http.PostAsJsonAsync("/v1/Accounts/password-reset",
+            new { email = NewEmail() }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

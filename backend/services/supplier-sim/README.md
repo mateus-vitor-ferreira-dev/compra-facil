@@ -44,7 +44,9 @@ Sucesso é `code 200, result true, message "Success"`. Erros de negócio voltam 
 | `GET /shopping/order/getOrderDetail?orderId=` | |
 | `DELETE /shopping/order/deleteOrder?orderId=` | Cancela em CREATED/UNSHIPPED; repetir num cancelado devolve sucesso. |
 
-Fora do prefixo e sem token: `GET /health`, `GET /sim/orders` (depuração: todos os pedidos) e as rotas que
+Fora do prefixo: `GET /health`, sem token, e as rotas `/sim`, com o cabeçalho `X-Sim-Admin-Token` igual a
+`SIM_ADMIN_TOKEN` (vazio, o simulador gera um aleatório e elas ficam fechadas: os pedidos têm o CPF, o endereço e o
+telefone de quem comprou). São `GET /sim/orders` (depuração: todos os pedidos), `GET /sim/disputes` e as rotas que
 mudam o feed, para demonstrar e testar a importação do catálogo:
 
 | Método e rota | Efeito |

@@ -20,6 +20,7 @@ builder.AddOwnTokenValidation(); // GET /v1/me: o identity valida os próprios t
 
 var app = builder.Build();
 app.UseServiceDefaults();
+app.UseLowercaseApiPaths(); // /v1/Sessions não escapa do rate limit do gateway
 app.MapControllers();
 app.MapGatewayProblems(); // corpo do 429 do rate limit do gateway
 

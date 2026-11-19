@@ -152,6 +152,11 @@ public sealed record PaymentRefundedData(Guid OrderId, Guid PaymentId, bool? Ful
 /// <summary>O provedor aceitou o estorno e não o realizou (#396).</summary>
 public sealed record PaymentRefundFailedData(Guid OrderId, Guid PaymentId);
 
+/// <summary>
+/// O pagamento já aprovado deixou de valer: status failed (com o motivo), voided ou disputed (a contestação).
+/// </summary>
+public sealed record PaymentReversedData(Guid OrderId, Guid PaymentId, string Status, string? FailureReason);
+
 public sealed record PixData(string QrCode, string QrCodeBase64, string? TicketUrl, DateTimeOffset ExpiresAt);
 
 public sealed record PaymentPendingData(Guid OrderId, Guid PaymentId, PixData Pix);

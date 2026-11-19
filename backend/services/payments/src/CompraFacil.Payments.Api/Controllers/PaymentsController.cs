@@ -1,7 +1,9 @@
+using CompraFacil.BuildingBlocks.Web;
 using CompraFacil.Payments.Application.Payments;
 using CompraFacil.Payments.Domain;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CompraFacil.Payments.Api.Controllers;
@@ -10,6 +12,8 @@ namespace CompraFacil.Payments.Api.Controllers;
 /// Consulta de pagamentos (contracts/openapi/payments.v1.yaml). A cobrança não começa por HTTP: vem
 /// da SAGA (OrderPlaced + StockReserved).
 /// </summary>
+// só o painel lê o pagamento de um pedido: a resposta tem o PIX copia e cola, o final do cartão e a taxa da loja
+[Authorize(Policy = JwtAuth.AdminReadPolicy)]
 [ApiController]
 [Route("v1/payments")]
 [Produces("application/json")]

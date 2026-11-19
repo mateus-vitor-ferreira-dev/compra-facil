@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { passTwoFactor } from "./two-factor";
 
 /**
  * A visão geral do painel (#382): a entrada do painel, com o extrato do período (a soma fecha no que sobrou),
@@ -10,6 +11,7 @@ async function signIn(page: Page, path: string) {
   await page.getByLabel("E-mail").fill("admin@exemplo.com");
   await page.getByLabel("Senha", { exact: true }).fill("senha-boa-123");
   await page.getByRole("button", { name: "Entrar" }).click();
+  await passTwoFactor(page);
   await expect(page).not.toHaveURL(/\/entrar/);
 }
 

@@ -81,7 +81,9 @@ public sealed class ResetPasswordValidator : AbstractValidator<ResetPasswordComm
 /// Cria a senha nova pelo link. O Identity troca o carimbo de segurança junto com a senha, então o token
 /// vale uma vez só (e os outros links pendentes da conta também caem). O link prova que a pessoa lê o
 /// e-mail: a conta fica confirmada e desbloqueada. Todas as sessões abertas caem (refresh tokens
-/// revogados): quem pede a senha nova pode estar tirando alguém da conta.
+/// revogados): quem pede a senha nova pode estar tirando alguém da conta. A revogação não trava as
+/// famílias, e um refresh no meio dela ainda cria um token que o UPDATE não vê; esse token não troca mais,
+/// porque nasceu com o carimbo antigo (<see cref="RefreshToken.MatchesStamp"/>).
 /// </summary>
 public sealed class ResetPassword(
     IValidator<ResetPasswordCommand> validator,
