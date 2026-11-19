@@ -44,8 +44,8 @@ type contractMoney struct {
 type contractInteraction struct {
 	Description string `json:"description"`
 	Given       map[string]struct {
-		Status                  string `json:"status"`
-		PriceCents              int64  `json:"price_cents"`
+		Status                  string   `json:"status"`
+		PriceCents              int64    `json:"price_cents"`
 		CampaignDiscountPercent *int     `json:"campaign_discount_percent"`
 		Sizes                   []string `json:"sizes"`
 	} `json:"given"`
