@@ -18,7 +18,7 @@ namespace CompraFacil.Orders.IntegrationTests;
 /// <summary>Produto do catalog falso.</summary>
 public sealed record CatalogProduct(
     string Sku, string Name, long PriceCents, bool Active = true, Guid? CampaignId = null, IReadOnlyList<string>? Sizes = null,
-    int? PersonalizationMaxLength = null, bool PersonalizationRequired = false);
+    int? PersonalizationMaxLength = null, bool PersonalizationRequired = false, IReadOnlyList<string>? Colors = null);
 
 /// <summary>
 /// Catalog falso, servindo o mesmo contrato gRPC (contracts/proto/catalog/v1) que o catalog em Go,
@@ -67,11 +67,16 @@ public sealed class FakeCatalog : CatalogService.CatalogServiceBase
                 var size = sizes.FirstOrDefault(s => string.Equals(s, item.Size, StringComparison.OrdinalIgnoreCase));
                 validated.Size = size ?? item.Size;
                 var sizeOk = sizes.Count == 0 ? item.Size.Length == 0 : size is not null;
+                var colors = p.Colors ?? [];
+                var color = colors.FirstOrDefault(c => string.Equals(c, item.Color, StringComparison.OrdinalIgnoreCase));
+                validated.Color = color ?? item.Color;
+                var colorOk = colors.Count == 0 ? item.Color.Length == 0 : color is not null;
                 var text = CompraFacil.Orders.Domain.Personalization.Normalize(item.Personalization);
                 validated.Personalization = text ?? "";
                 var textOk = CompraFacil.Orders.Domain.Personalization.Accepts(text, p.PersonalizationMaxLength, p.PersonalizationRequired);
                 validated.Status = !p.Active ? ItemStatus.NotActive
                     : !sizeOk ? ItemStatus.InvalidSize
+                    : !colorOk ? ItemStatus.InvalidColor
                     : !textOk ? ItemStatus.InvalidPersonalization
                     : item.HasExpectedUnitPriceCents && item.ExpectedUnitPriceCents != p.PriceCents ? ItemStatus.PriceChanged
                     : ItemStatus.Ok;

@@ -136,7 +136,7 @@ func (s *Server) ValidateItems(ctx context.Context, req *catalogv1.ValidateItems
 			return nil, err
 		}
 		items[i] = service.ItemToValidate{ProductID: id, Quantity: int(it.GetQuantity()), Size: it.GetSize(),
-			Personalization: it.GetPersonalization()}
+			Personalization: it.GetPersonalization(), Color: it.GetColor()}
 		if it.ExpectedUnitPriceCents != nil {
 			expected := it.GetExpectedUnitPriceCents()
 			items[i].ExpectedUnitPriceCents = &expected

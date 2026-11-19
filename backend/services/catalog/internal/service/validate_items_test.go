@@ -128,6 +128,41 @@ func TestProductService_ValidateItems_Personalization(t *testing.T) {
 	})
 }
 
+func TestProductService_ValidateItems_Colors(t *testing.T) {
+	camiseta := domain.Product{ID: uuid.New(), SKU: "CAM-COR", PriceCents: 7990, Currency: "BRL", Status: domain.ProductActive,
+		Sizes: []string{"M"}, Colors: []string{"Branco", "Preto"}}
+	caneca := domain.Product{ID: uuid.New(), SKU: "CAN-1", PriceCents: 5990, Currency: "BRL", Status: domain.ProductActive}
+
+	svc, products, _ := newProductService()
+	products.On("GetByIDs", anyArg, anyArg, fixedNow).Return([]domain.Product{camiseta, caneca}, nil)
+
+	t.Run("o mesmo produto e tamanho em duas cores, cada uma no seu item", func(t *testing.T) {
+		got, err := svc.ValidateItems(ctx, []ItemToValidate{
+			{ProductID: camiseta.ID, Quantity: 1, Size: "M", Color: "preto"},
+			{ProductID: camiseta.ID, Quantity: 1, Size: "M", Color: "Branco"},
+			{ProductID: caneca.ID, Quantity: 1},
+		})
+		require.NoError(t, err)
+		assert.True(t, got.Valid)
+		assert.Equal(t, "Preto", got.Items[0].Color, "volta como está no cadastro")
+		assert.Equal(t, "Branco", got.Items[1].Color)
+		assert.Empty(t, got.Items[2].Color)
+	})
+
+	t.Run("cor que o produto não tem, faltando ou sobrando", func(t *testing.T) {
+		got, err := svc.ValidateItems(ctx, []ItemToValidate{
+			{ProductID: camiseta.ID, Quantity: 1, Size: "M", Color: "Vinho"},
+			{ProductID: camiseta.ID, Quantity: 1, Size: "M"},
+			{ProductID: caneca.ID, Quantity: 1, Color: "Preto"},
+		})
+		require.NoError(t, err)
+		assert.False(t, got.Valid)
+		for i, it := range got.Items {
+			assert.Equal(t, ItemInvalidColor, it.Status, "item %d", i)
+		}
+	})
+}
+
 func TestProductService_ValidateItems_BadRequest(t *testing.T) {
 	a := uuid.New()
 	tests := []struct {
@@ -141,6 +176,8 @@ func TestProductService_ValidateItems_BadRequest(t *testing.T) {
 		{"repetido", []ItemToValidate{{ProductID: a, Quantity: 1}, {ProductID: a, Quantity: 2}}, "items[1].product_id"},
 		{"repetido no mesmo tamanho", []ItemToValidate{{ProductID: a, Quantity: 1, Size: "G"}, {ProductID: a, Quantity: 2, Size: "g"}}, "items[1].product_id"},
 		{"mesmo texto depois de normalizar", []ItemToValidate{{ProductID: a, Quantity: 1, Personalization: "Ana"}, {ProductID: a, Quantity: 1, Personalization: " Ana "}}, "items[1].product_id"},
+		{"mesma cor sem diferenciar maiúsculas", []ItemToValidate{{ProductID: a, Quantity: 1, Color: "Preto"}, {ProductID: a, Quantity: 1, Color: "PRETO"}}, "items[1].product_id"},
+		{"cor longa", []ItemToValidate{{ProductID: a, Quantity: 1, Color: strings.Repeat("x", domain.MaxColorLength+1)}}, "items[0].color"},
 		{"texto enorme", []ItemToValidate{{ProductID: a, Quantity: 1, Personalization: strings.Repeat("a", domain.MaxPersonalizationInput+1)}}, "items[0].personalization"},
 		{"tamanho longo", []ItemToValidate{{ProductID: a, Quantity: 1, Size: "XXXXXXXXXXL"}}, "items[0].size"},
 	}

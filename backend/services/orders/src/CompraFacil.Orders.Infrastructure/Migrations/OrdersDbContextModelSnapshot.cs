@@ -510,6 +510,11 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
 
+                    b.PrimitiveCollection<List<string>>("Colors")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("colors");
+
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasMaxLength(3)

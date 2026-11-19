@@ -181,6 +181,28 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
     }
 
     [Fact]
+    public async Task CatalogDown_TheSnapshotChecksTheColor()
+    {
+        var camiseta = await SnapshotProductAsync(7990, []);
+        await using (var scope = fx.Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OrdersDbContext>();
+            var row = await db.ProductSnapshots.SingleAsync(p => p.ProductId == camiseta, Ct);
+            row.Colors = ["Branco", "Preto"];
+            await db.SaveChangesAsync(Ct);
+        }
+        fx.Catalog.Down = true;
+
+        using var ok = await PlaceItemsAsync(new { product_id = camiseta, quantity = 1, color = "preto" });
+        Assert.Equal(HttpStatusCode.Accepted, ok.StatusCode);
+        var items = (await ok.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("items");
+        Assert.Equal(["Preto"], items.EnumerateArray().Select(i => i.GetProperty("color").GetString()));
+
+        using var missing = await PlaceItemsAsync(new { product_id = camiseta, quantity = 1 });
+        Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
+    }
+
+    [Fact]
     public async Task CatalogDown_ProductNotInTheSnapshot_Is503()
     {
         fx.Catalog.Down = true;

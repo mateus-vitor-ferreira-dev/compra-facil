@@ -7,7 +7,8 @@ namespace CompraFacil.Orders.Application.Catalog;
 /// nulo no produto sem personalização).
 /// </summary>
 public sealed record ItemToPrice(
-    Guid ProductId, int Quantity, long? ExpectedUnitPriceCents, string? Size = null, string? Personalization = null);
+    Guid ProductId, int Quantity, long? ExpectedUnitPriceCents, string? Size = null, string? Personalization = null,
+    string? Color = null);
 
 public enum PricedItemStatus
 {
@@ -20,6 +21,8 @@ public enum PricedItemStatus
     InvalidSize,
     /// <summary>Texto que o produto não aceita: faltando, longo, com caractere que a arte não imprime, ou sobrando.</summary>
     InvalidPersonalization,
+    /// <summary>Cor que o produto não tem, ou faltando no produto com cor à escolha.</summary>
+    InvalidColor,
 }
 
 /// <summary>
@@ -35,7 +38,8 @@ public sealed record PricedItem(
     Money? UnitPrice,
     Guid? CampaignId,
     string? Size = null,
-    string? Personalization = null);
+    string? Personalization = null,
+    string? Color = null);
 
 /// <summary>
 /// Validação e preço efetivo (com campanha) dos itens no catálogo: gRPC ValidateItems.

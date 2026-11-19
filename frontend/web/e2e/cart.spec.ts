@@ -6,6 +6,7 @@ const SOLD_OUT = "/produto/0199f6a0-0000-7000-8000-000000000032";
 const FONE = "/produto/0199f6a0-0000-7000-8000-000000000001";
 const COM_TAMANHO = "/produto/0199f6a0-0000-7000-8000-000000000010"; // P, M e G no stub
 const COM_NOME = "/produto/0199f6a0-0000-7000-8000-000000000011"; // o nome do cliente na arte, até 12
+const COM_COR = "/produto/0199f6a0-0000-7000-8000-000000000012"; // Branco, Preto e Vinho no stub
 
 /** Põe o produto da página no carrinho, com o formulário já hidratado. */
 async function add(page: Page, path: string) {
@@ -235,4 +236,30 @@ test("o produto personalizado pede o texto, e cada texto é uma linha do carrinh
   await page.getByRole("button", { name: /^Remover .*, "João" do carrinho$/ }).click();
   await expect(list.getByRole("listitem")).toHaveCount(1);
   await expect(list).toContainText("Ana Maria");
+});
+
+test("o produto com cor pede a escolha, e cada cor é uma linha do carrinho", async ({ page }) => {
+  await page.goto(COM_COR);
+  await page.locator("form[action] input[name=quantity]").waitFor();
+  const colors = page.getByRole("group", { name: /^Cor/ });
+  await expect(colors.getByRole("radio")).toHaveCount(3);
+
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toHaveCount(0);
+
+  await colors.getByRole("radio", { name: "Preto" }).check({ force: true });
+  await expect(colors).toHaveAccessibleName("Cor: Preto");
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "cor Preto" })).toBeVisible();
+  await colors.getByRole("radio", { name: "Vinho" }).check({ force: true });
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "cor Vinho" })).toBeVisible();
+
+  await page.goto("/carrinho");
+  const list = page.getByRole("list", { name: "Produtos no carrinho" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list).toContainText("Cor Preto");
+  await page.getByRole("button", { name: /^Remover .*, cor Vinho do carrinho$/ }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list).toContainText("Cor Preto");
 });

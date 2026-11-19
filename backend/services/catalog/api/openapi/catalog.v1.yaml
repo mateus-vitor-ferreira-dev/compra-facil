@@ -966,7 +966,7 @@ components:
     Product:
       type: object
       description: Produto como o cliente vê.
-      required: [id, sku, name, category, sizes, personalization, price, effective_price, created_at, updated_at]
+      required: [id, sku, name, category, sizes, colors, personalization, price, effective_price, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1000,6 +1000,8 @@ components:
             $ref: "#/components/schemas/ProductImage"
         sizes:
           $ref: "#/components/schemas/ProductSizes"
+        colors:
+          $ref: "#/components/schemas/ProductColors"
         personalization:
           description: "O texto que o cliente escreve na compra (ex.: o nome na estampa); nulo, o produto não tem."
           oneOf:
@@ -1207,6 +1209,12 @@ components:
           description: |
             Os tamanhos que o cliente escolhe na compra, na ordem de exibição, sem repetir (maiúsculas e minúsculas
             contam como o mesmo). Ausente, mantém os que estão gravados; vazia, o produto deixa de ter tamanho.
+        colors:
+          allOf:
+            - $ref: "#/components/schemas/ProductColors"
+          description: |
+            As cores que o cliente escolhe na compra, na ordem de exibição, sem repetir (maiúsculas e minúsculas
+            contam como a mesma). Ausente, mantém as que estão gravadas; vazia, o produto deixa de ter cor à escolha.
         personalization:
           description: |
             O texto que o cliente escreve na compra. Ausente ou null, mantém a gravada; objeto vazio (`{}`), o produto
@@ -1263,6 +1271,18 @@ components:
           pattern: "^[a-z0-9]+(-[a-z0-9]+)*(:[a-z0-9]+(-[a-z0-9]+)*)?$"
           description: Id da arte que recebe o texto; depois do `:`, a variante (ex. o kicker "MÃE DE").
           examples: ["nome-classico:mae"]
+
+    ProductColors:
+      type: array
+      description: |
+        As cores que o cliente escolhe na compra (ex.: Branco, Preto), na ordem de exibição. Vazio, o produto não
+        tem cor à escolha. Preço e estoque são do produto, iguais em todas as cores.
+      maxItems: 12
+      items:
+        type: string
+        minLength: 1
+        maxLength: 20
+      examples: [["Branco", "Preto", "Vinho"]]
 
     ProductSort:
       type: string

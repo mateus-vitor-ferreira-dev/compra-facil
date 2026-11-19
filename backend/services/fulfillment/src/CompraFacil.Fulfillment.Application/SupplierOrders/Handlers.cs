@@ -33,7 +33,7 @@ public sealed partial class OnOrderConfirmed(
             return; // o mesmo pedido de novo (evento repetido)
         }
         var now = clock.GetUtcNow();
-        var items = data.Items.Select(i => new SupplierOrderItem(i.Sku, i.Name, i.Quantity, i.Size, i.Personalization)).ToList();
+        var items = data.Items.Select(i => new SupplierOrderItem(i.Sku, i.Name, i.Quantity, i.Size, i.Personalization, i.Color)).ToList();
         var order = SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, now, data.ShipTo, data.Shipping?.PromisedBy);
         // o SKU da loja é o vid do fornecedor: dele saem o custo e o NCM
         var supplied = (await products.GetManyAsync(supplier.Name, [.. data.Items.Select(i => i.Sku).Distinct()], ct)).ToDictionary(p => p.Vid);

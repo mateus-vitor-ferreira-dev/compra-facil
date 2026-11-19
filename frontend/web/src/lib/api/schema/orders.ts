@@ -464,8 +464,8 @@ export interface components {
             shipping_address: components["schemas"]["ShippingAddress"];
             payment: components["schemas"]["PlaceOrderPayment"];
             /**
-             * @description Um item por produto, tamanho e personalização: o mesmo `product_id` pode vir em mais de um item, cada um
-             *     com um `size` ou uma `personalization` diferente.
+             * @description Um item por produto, tamanho, cor e personalização: o mesmo `product_id` pode vir em mais de um item,
+             *     cada um com um `size`, uma `color` ou uma `personalization` diferente.
              */
             items: components["schemas"]["PlaceOrderItem"][];
         };
@@ -516,6 +516,12 @@ export interface components {
              * @example Ana Maria
              */
             personalization?: string | null;
+            /**
+             * @description A cor escolhida, uma das `colors` do produto no catálogo (sem diferenciar maiúsculas). Obrigatória no
+             *     produto com cor à escolha e ausente no sem; senão, 409.
+             * @example Preto
+             */
+            color?: string | null;
         };
         Order: {
             /** Format: uuid */
@@ -612,6 +618,11 @@ export interface components {
              * @example Ana Maria
              */
             personalization?: string | null;
+            /**
+             * @description A cor escolhida, como está no catálogo; nula no produto sem cor à escolha.
+             * @example Preto
+             */
+            color?: string | null;
         };
         /** @enum {string} */
         PaymentMethod: "pix" | "card";

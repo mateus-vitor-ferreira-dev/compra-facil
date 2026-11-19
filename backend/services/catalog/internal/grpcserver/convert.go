@@ -22,6 +22,7 @@ var itemStatus = map[service.ItemStatus]catalogv1.ItemStatus{
 	service.ItemInvalidQuantity:        catalogv1.ItemStatus_ITEM_STATUS_INVALID_QUANTITY,
 	service.ItemInvalidSize:            catalogv1.ItemStatus_ITEM_STATUS_INVALID_SIZE,
 	service.ItemInvalidPersonalization: catalogv1.ItemStatus_ITEM_STATUS_INVALID_PERSONALIZATION,
+	service.ItemInvalidColor:           catalogv1.ItemStatus_ITEM_STATUS_INVALID_COLOR,
 }
 
 func money(cents int64, currency string) *catalogv1.Money {
@@ -40,6 +41,7 @@ func toProto(p domain.Product) *catalogv1.Product {
 		UpdatedAt:      timestamppb.New(p.UpdatedAt),
 		CategoryId:     p.CategoryID.String(),
 		Sizes:          p.Sizes,
+		Colors:         p.Colors,
 	}
 	if c := p.Personalization; c != nil && !c.IsZero() {
 		out.Personalization = &catalogv1.Personalization{
@@ -69,6 +71,7 @@ func toValidateResponse(v service.ItemsValidation) *catalogv1.ValidateItemsRespo
 			Quantity:        int32(it.Quantity), //nolint:gosec // veio de um int32 do request
 			Size:            it.Size,
 			Personalization: it.Personalization,
+			Color:           it.Color,
 		}
 		if p := it.Product; p != nil {
 			item.Sku, item.Name = p.SKU, p.Name

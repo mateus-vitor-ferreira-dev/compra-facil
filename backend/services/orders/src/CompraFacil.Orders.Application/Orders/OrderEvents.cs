@@ -27,10 +27,10 @@ public static class OrderEvents
 /// </summary>
 public sealed record OrderItemData(
     Guid ProductId, string Sku, string Name, int Quantity, Money UnitPrice, Money LineTotal, Guid? CampaignId,
-    string? Size = null, string? Personalization = null)
+    string? Size = null, string? Personalization = null, string? Color = null)
 {
     public static OrderItemData From(OrderItem i) =>
-        new(i.ProductId, i.Sku, i.Name, i.Quantity, i.UnitPrice, i.LineTotal, i.CampaignId, i.Size, i.Personalization);
+        new(i.ProductId, i.Sku, i.Name, i.Quantity, i.UnitPrice, i.LineTotal, i.CampaignId, i.Size, i.Personalization, i.Color);
 }
 
 /// <summary>Como pagar, para o payments: o token do cartão (de uso único) só passa por aqui, não fica no pedido.</summary>

@@ -216,13 +216,14 @@ export function OrderDetail({
           <ul>
             {o.items.map((i) => (
               <li
-                key={`${i.product_id}-${i.sku}-${i.size ?? ""}-${i.personalization ?? ""}`}
+                key={`${i.product_id}-${i.sku}-${i.size ?? ""}-${i.color ?? ""}-${i.personalization ?? ""}`}
                 className="border-line flex items-baseline justify-between gap-4 border-b px-4 py-3"
               >
                 <span className="min-w-0">
                   <span className="block font-medium">
                     {i.name}
                     {i.size && <span className="text-ink-soft font-normal"> · tamanho {i.size}</span>}
+                    {i.color && <span className="text-ink-soft font-normal"> · cor {i.color}</span>}
                   </span>
                   <span className="text-ink-soft block text-sm break-all">
                     {i.quantity} × {formatMoney(i.unit_price)}, SKU {i.sku}
@@ -237,6 +238,7 @@ export function OrderDetail({
                         itemName={i.name}
                         text={i.personalization}
                         template={templates[i.sku]}
+                        color={i.color ?? undefined}
                       />
                     </span>
                   )}

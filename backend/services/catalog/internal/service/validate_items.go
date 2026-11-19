@@ -29,6 +29,7 @@ const (
 	ItemInvalidQuantity
 	ItemInvalidSize
 	ItemInvalidPersonalization
+	ItemInvalidColor
 )
 
 type ItemToValidate struct {
@@ -40,6 +41,8 @@ type ItemToValidate struct {
 	Size string
 	// Personalization é o texto do cliente (ex.: o nome na estampa); vazio no produto sem personalização.
 	Personalization string
+	// Color é a cor escolhida; vazio no produto sem cor à escolha.
+	Color string
 }
 
 type ValidatedItem struct {
@@ -50,6 +53,8 @@ type ValidatedItem struct {
 	Size string
 	// Personalization é o texto normalizado (sem espaços nas pontas nem repetidos), como vai para a arte.
 	Personalization string
+	// Color é a cor como está no cadastro (ex.: "preto" pedido volta "Preto").
+	Color string
 	// Product vem preenchido sempre que o produto existe (inclusive com status de erro).
 	Product        *domain.Product
 	UnitPriceCents int64
@@ -110,6 +115,7 @@ func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) Validate
 	v.Product = &p
 	v.UnitPriceCents = p.EffectivePriceCents()
 	v.Size = canonicalSize(p, it.Size)
+	v.Color = canonicalIn(p.Colors, it.Color)
 
 	switch {
 	case p.Status != domain.ProductActive:
@@ -118,6 +124,8 @@ func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) Validate
 		v.Status = ItemInvalidQuantity
 	case !p.HasSize(it.Size):
 		v.Status = ItemInvalidSize
+	case !p.HasColor(it.Color):
+		v.Status = ItemInvalidColor
 	case !p.AcceptsPersonalization(text):
 		v.Status = ItemInvalidPersonalization
 	case it.ExpectedUnitPriceCents != nil && *it.ExpectedUnitPriceCents != v.UnitPriceCents:
@@ -127,6 +135,16 @@ func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) Validate
 		v.LineTotalCents = v.UnitPriceCents * int64(it.Quantity)
 	}
 	return v
+}
+
+// canonicalIn devolve o valor como a lista o cadastra; um que ela não tem volta como veio.
+func canonicalIn(list []string, value string) string {
+	for _, s := range list {
+		if strings.EqualFold(s, value) {
+			return s
+		}
+	}
+	return value
 }
 
 // canonicalSize devolve o tamanho como o produto o cadastra; um que ele não tem volta como veio.
@@ -147,6 +165,7 @@ func validateItemsRequest(items []ItemToValidate) error {
 	type line struct {
 		id              uuid.UUID
 		size            string
+		color           string
 		personalization string
 	}
 	seen := make(map[line]struct{}, len(items))
@@ -162,9 +181,12 @@ func validateItemsRequest(items []ItemToValidate) error {
 			return domain.Invalid(fmt.Sprintf("items[%d].personalization", i),
 				fmt.Sprintf("deve ter no máximo %d caracteres", domain.MaxPersonalizationInput))
 		}
-		key := line{it.ProductID, strings.ToUpper(it.Size), domain.NormalizePersonalizationText(it.Personalization)}
+		if utf8.RuneCountInString(it.Color) > domain.MaxColorLength {
+			return domain.Invalid(fmt.Sprintf("items[%d].color", i), fmt.Sprintf("deve ter no máximo %d caracteres", domain.MaxColorLength))
+		}
+		key := line{it.ProductID, strings.ToUpper(it.Size), strings.ToUpper(it.Color), domain.NormalizePersonalizationText(it.Personalization)}
 		if _, dup := seen[key]; dup {
-			return domain.Invalid(field, "produto repetido no mesmo tamanho e personalização; some as quantidades em um item")
+			return domain.Invalid(field, "produto repetido no mesmo tamanho, cor e personalização; some as quantidades em um item")
 		}
 		seen[key] = struct{}{}
 	}

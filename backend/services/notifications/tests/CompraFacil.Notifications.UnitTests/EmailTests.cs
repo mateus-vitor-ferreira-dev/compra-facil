@@ -67,6 +67,19 @@ public sealed class EmailTests
     }
 
     [Fact]
+    public async Task Confirmed_ShowsTheColor_OnlyWhenThereIsOne()
+    {
+        var email = await EmailComposer.ConfirmedAsync(new OrderConfirmedData(Guid.NewGuid(), "ana@exemplo.com",
+            [
+                new OrderItem("Camiseta", 1, new Money(7990, "BRL"), new Money(7990, "BRL"), "M", Color: "Preto"),
+                new OrderItem("Caneca", 1, new Money(5990, "BRL"), new Money(5990, "BRL")),
+            ], new Money(13980, "BRL")));
+
+        Assert.Contains("Cor Preto", email.TextBody, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(email.HtmlBody, "Cor Preto"));
+    }
+
+    [Fact]
     public async Task InvoiceIssued_HasTheNumber_TheKeyInGroups_AndTheOrderLink()
     {
         var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");

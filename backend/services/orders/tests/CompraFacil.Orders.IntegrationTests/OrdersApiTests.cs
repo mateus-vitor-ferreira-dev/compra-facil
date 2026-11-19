@@ -403,6 +403,40 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     }
 
     [Fact]
+    public async Task Place_TheSameProductInTwoColors_IsTwoItems_WithTheColorAsInTheCatalog()
+    {
+        var camiseta = fx.Catalog.Add(new CatalogProduct("CAM-COR", "Camiseta", 7990, Sizes: ["M"], Colors: ["Branco", "Preto"]));
+        var customer = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(customer,
+            new { product_id = camiseta, quantity = 1, size = "M", color = "preto" },
+            new { product_id = camiseta, quantity = 1, size = "M", color = " Branco " }));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        var items = JsonDocument.Parse(json).RootElement.GetProperty("items");
+        Assert.Equal(["Preto", "Branco"], items.EnumerateArray().Select(i => i.GetProperty("color").GetString()));
+
+        var outbox = Assert.Single(await OutboxForAsync(JsonDocument.Parse(json).RootElement.GetProperty("id").GetGuid()));
+        ContractAssert.AssertEvent("orders.v1.yaml", "OrderPlaced", outbox.Payload);
+    }
+
+    [Theory]
+    [InlineData(null, "escolha a cor")]
+    [InlineData("Vinho", "não tem a cor Vinho")]
+    public async Task Place_WithoutTheColorOrWithOneTheProductDoesNotHave_Is409(string? color, string detail)
+    {
+        var camiseta = fx.Catalog.Add(new CatalogProduct("CAM-COR-2", "Camiseta", 7990, Colors: ["Branco"]));
+        var customer = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(customer, new { product_id = camiseta, quantity = 1, color }));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(detail, (await JsonOf(response)).GetProperty("detail").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Place_SameKeyAndBody_ReturnsTheSameOrder()
     {
         var product = fx.Catalog.Add(new CatalogProduct("SKU-IDEM", "Produto", 1000));

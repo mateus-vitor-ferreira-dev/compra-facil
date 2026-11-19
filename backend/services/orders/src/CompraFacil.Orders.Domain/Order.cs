@@ -200,9 +200,9 @@ public sealed class Order
         {
             throw new DomainException($"o pedido precisa de 1 a {MaxItems} itens");
         }
-        if (items.Select(i => OrderItem.LineKey(i.ProductId, i.Size, i.Personalization)).Distinct().Count() != items.Count)
+        if (items.Select(i => OrderItem.LineKey(i.ProductId, i.Size, i.Personalization, i.Color)).Distinct().Count() != items.Count)
         {
-            throw new DomainException("produto repetido no pedido no mesmo tamanho e personalização");
+            throw new DomainException("produto repetido no pedido no mesmo tamanho, cor e personalização");
         }
         if (items.Any(i => i.Quantity is < OrderItem.MinQuantity or > OrderItem.MaxQuantity))
         {
