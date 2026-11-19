@@ -13,10 +13,11 @@ namespace CompraFacil.Orders.Application.Orders;
 
 /// <summary>
 /// Um item do pedido; Size é o tamanho escolhido (nulo no produto sem tamanho) e Personalization, o texto do cliente
-/// para a arte, normalizado (nulo no produto sem personalização).
+/// para a arte, normalizado (nulo no produto sem personalização); Color, a cor escolhida (nula sem cor à escolha).
 /// </summary>
 public sealed record PlaceOrderItem(
-    Guid ProductId, int Quantity, long? ExpectedUnitPriceCents, string? Size = null, string? Personalization = null);
+    Guid ProductId, int Quantity, long? ExpectedUnitPriceCents, string? Size = null, string? Personalization = null,
+    string? Color = null);
 
 /// <summary>Como pagar (#220): PIX, ou cartão com o token do provedor, a bandeira e as parcelas.</summary>
 public sealed record PlaceOrderPayment(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
@@ -42,9 +43,9 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
         RuleFor(c => c.IdempotencyKey).NotEmpty().Length(8, 128);
         RuleFor(c => c.Items).NotEmpty().Must(i => i.Count <= Order.MaxItems)
             .WithMessage($"no máximo {Order.MaxItems} itens");
-        RuleFor(c => c.Items).Must(i => i.Select(x => OrderItem.LineKey(x.ProductId, x.Size, x.Personalization)).Distinct().Count() == i.Count)
+        RuleFor(c => c.Items).Must(i => i.Select(x => OrderItem.LineKey(x.ProductId, x.Size, x.Personalization, x.Color)).Distinct().Count() == i.Count)
             .When(c => c.Items is { Count: > 0 })
-            .WithMessage("um item por produto, tamanho e personalização: product_id repetido no mesmo tamanho e texto");
+            .WithMessage("um item por produto, tamanho, cor e personalização: product_id repetido na mesma variante");
         RuleForEach(c => c.Items).ChildRules(item =>
         {
             item.RuleFor(i => i.ProductId).NotEmpty();
@@ -52,6 +53,7 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
             item.RuleFor(i => i.ExpectedUnitPriceCents).GreaterThanOrEqualTo(1).When(i => i.ExpectedUnitPriceCents.HasValue);
             item.RuleFor(i => i.Size).MaximumLength(OrderItem.MaxSizeLength).OverridePropertyName("size");
             item.RuleFor(i => i.Personalization).MaximumLength(Personalization.MaxLength).OverridePropertyName("personalization");
+            item.RuleFor(i => i.Color).MaximumLength(OrderItem.MaxColorLength).OverridePropertyName("color");
         });
         // o que a NF-e exige (#221), nos tamanhos dela (60 caracteres por campo de endereço)
         RuleFor(c => c.Recipient).NotNull().OverridePropertyName("recipient").WithMessage("informe quem recebe o pedido");
@@ -116,7 +118,7 @@ public sealed class PlaceOrder(
         }
 
         var priced = await catalog.PriceAsync(
-            [.. command.Items.Select(i => new ItemToPrice(i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size, i.Personalization))], ct);
+            [.. command.Items.Select(i => new ItemToPrice(i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size, i.Personalization, i.Color))], ct);
         EnsureAllSellable(priced);
 
         // o frete recotado aqui, com os SKUs e as quantidades que o catálogo confirmou
@@ -132,7 +134,7 @@ public sealed class PlaceOrder(
         var payment = command.Payment!; // validado acima
         var order = Order.Place(
             Guid.CreateVersion7(), command.CustomerId, command.CustomerEmail.Trim(),
-            [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId, p.Size, p.Personalization))],
+            [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId, p.Size, p.Personalization, p.Color))],
             command.IdempotencyKey, requestHash, now, command.Recipient!, command.ShippingAddress!, orderShipping,
             payment.Method, payment.Installments);
         orders.Add(order);
@@ -182,6 +184,9 @@ public sealed class PlaceOrder(
         PricedItemStatus.InvalidSize => p.Size is null
             ? $"{p.ProductId} ({p.Sku}): escolha o tamanho"
             : $"{p.ProductId} ({p.Sku}): o produto não tem o tamanho {p.Size}",
+        PricedItemStatus.InvalidColor => p.Color is null
+            ? $"{p.ProductId} ({p.Sku}): escolha a cor"
+            : $"{p.ProductId} ({p.Sku}): o produto não tem a cor {p.Color}",
         PricedItemStatus.InvalidPersonalization => p.Personalization is null
             ? $"{p.ProductId} ({p.Sku}): escreva a personalização"
             : $"{p.ProductId} ({p.Sku}): a personalização \"{p.Personalization}\" não serve para o produto",
@@ -195,13 +200,15 @@ public sealed class PlaceOrder(
         {
             c.CustomerId,
             Email = c.CustomerEmail.Trim().ToUpperInvariant(),
-            // o tamanho e a personalização só entram quando há: o hash dos pedidos de antes dos campos continua o mesmo
+            // o tamanho, a personalização e a cor só entram quando há: o hash dos pedidos de antes dos campos continua o mesmo
             Items = c.Items.OrderBy(i => i.ProductId).ThenBy(i => i.Size, StringComparer.Ordinal)
-                .ThenBy(i => i.Personalization, StringComparer.Ordinal).Select(i => (i.Size, i.Personalization) switch
+                .ThenBy(i => i.Personalization, StringComparer.Ordinal).ThenBy(i => i.Color, StringComparer.Ordinal)
+                .Select(i => (i.Size, i.Personalization, i.Color) switch
                 {
-                    (null, null) => (object)new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents },
-                    (_, null) => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size },
-                    _ => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size, i.Personalization },
+                    (null, null, null) => (object)new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents },
+                    (_, null, null) => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size },
+                    (_, _, null) => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size, i.Personalization },
+                    _ => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size, i.Personalization, i.Color },
                 }),
             // o meio, não o token: o token é de uso único, e o retry do cliente pode trazer outro
             Payment = c.Payment is { } p ? new { p.Method, p.Installments } : null,
