@@ -339,3 +339,34 @@ func TestProductRepository_Update_SizesAndBrand(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, gotPlain.Sizes, "produto sem tamanho lê lista vazia")
 }
+
+func TestProductRepository_Personalization(t *testing.T) {
+	resetDB(t)
+	repo := NewProductRepository(testDB)
+	cat := mustCategory(t, "camisetas", nil)
+	nome := &domain.Personalization{Label: "Nome", MaxLength: 20, Required: true, Template: "nome-classico:mae"}
+	p := mustProduct(t, "CAM-NOME", cat.ID, func(p *domain.Product) { p.Personalization = nome })
+
+	got, err := repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	require.NotNil(t, got.Personalization, "o Create grava a personalização")
+	assert.Equal(t, *nome, *got.Personalization)
+
+	got.Personalization = nil // PUT de quem não conhece o campo
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got, err = repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	require.NotNil(t, got.Personalization, "nil mantém a gravada")
+	assert.Equal(t, "nome-classico:mae", got.Personalization.Template)
+
+	got.Personalization = &domain.Personalization{}
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got, err = repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Nil(t, got.Personalization, "vazia tira a personalização")
+
+	plain := mustProduct(t, "CANECA-1", cat.ID)
+	gotPlain, err := repo.GetByID(ctx, plain.ID, now)
+	require.NoError(t, err)
+	assert.Nil(t, gotPlain.Personalization, "produto sem personalização lê nulo")
+}

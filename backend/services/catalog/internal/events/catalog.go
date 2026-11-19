@@ -45,6 +45,15 @@ type productSnapshot struct {
 	Supplier *supplierRef `json:"supplier"`
 	// Sizes: os tamanhos que o cliente escolhe (o orders confere o do pedido quando o catalog está fora)
 	Sizes []string `json:"sizes"`
+	// Personalization: o campo de texto do cliente (o orders confere o texto quando o catalog está fora); nulo, não tem
+	Personalization *personalizationRef `json:"personalization"`
+}
+
+type personalizationRef struct {
+	Label     string `json:"label"`
+	MaxLength int    `json:"max_length"`
+	Required  bool   `json:"required"`
+	Template  string `json:"template"`
 }
 
 type supplierRef struct {
@@ -61,17 +70,22 @@ func snapshotOf(p domain.Product) productSnapshot {
 	if sizes == nil {
 		sizes = []string{}
 	}
+	var personalization *personalizationRef
+	if c := p.Personalization; c != nil && !c.IsZero() {
+		personalization = &personalizationRef{Label: c.Label, MaxLength: c.MaxLength, Required: c.Required, Template: c.Template}
+	}
 	return productSnapshot{
-		Supplier:   supplier,
-		Sizes:      sizes,
-		ProductID:  p.ID,
-		SKU:        p.SKU,
-		Name:       p.Name,
-		CategoryID: p.CategoryID,
-		Price:      money{AmountCents: p.PriceCents, Currency: p.Currency},
-		Status:     p.Status,
-		Version:    p.Version,
-		UpdatedAt:  p.UpdatedAt.UTC(),
+		Personalization: personalization,
+		Supplier:        supplier,
+		Sizes:           sizes,
+		ProductID:       p.ID,
+		SKU:             p.SKU,
+		Name:            p.Name,
+		CategoryID:      p.CategoryID,
+		Price:           money{AmountCents: p.PriceCents, Currency: p.Currency},
+		Status:          p.Status,
+		Version:         p.Version,
+		UpdatedAt:       p.UpdatedAt.UTC(),
 	}
 }
 

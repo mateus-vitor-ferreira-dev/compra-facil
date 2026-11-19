@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -90,6 +91,43 @@ func TestProductService_ValidateItems_Sizes(t *testing.T) {
 	})
 }
 
+func TestProductService_ValidateItems_Personalization(t *testing.T) {
+	camiseta := domain.Product{ID: uuid.New(), SKU: "CAM-NOME", PriceCents: 7990, Currency: "BRL", Status: domain.ProductActive,
+		Sizes:           []string{"P", "M"},
+		Personalization: &domain.Personalization{Label: "Nome", MaxLength: 12, Required: true, Template: "nome-classico"}}
+	caneca := domain.Product{ID: uuid.New(), SKU: "CAN-1", PriceCents: 5990, Currency: "BRL", Status: domain.ProductActive}
+
+	svc, products, _ := newProductService()
+	products.On("GetByIDs", anyArg, anyArg, fixedNow).Return([]domain.Product{camiseta, caneca}, nil)
+
+	t.Run("o mesmo produto e tamanho com dois nomes, cada um no seu item", func(t *testing.T) {
+		got, err := svc.ValidateItems(ctx, []ItemToValidate{
+			{ProductID: camiseta.ID, Quantity: 1, Size: "M", Personalization: "  Ana   Maria "},
+			{ProductID: camiseta.ID, Quantity: 1, Size: "M", Personalization: "João"},
+			{ProductID: caneca.ID, Quantity: 1},
+		})
+		require.NoError(t, err)
+		assert.True(t, got.Valid)
+		assert.Equal(t, "Ana Maria", got.Items[0].Personalization, "volta normalizado")
+		assert.Equal(t, "João", got.Items[1].Personalization)
+		assert.Empty(t, got.Items[2].Personalization)
+	})
+
+	t.Run("faltando, longo, com emoji ou no produto que não tem", func(t *testing.T) {
+		got, err := svc.ValidateItems(ctx, []ItemToValidate{
+			{ProductID: camiseta.ID, Quantity: 1, Size: "M"},
+			{ProductID: camiseta.ID, Quantity: 1, Size: "P", Personalization: "Maria Eduarda Souza"},
+			{ProductID: camiseta.ID, Quantity: 2, Size: "P", Personalization: "Bia 🎄"},
+			{ProductID: caneca.ID, Quantity: 1, Personalization: "Ana"},
+		})
+		require.NoError(t, err)
+		assert.False(t, got.Valid)
+		for i, it := range got.Items {
+			assert.Equal(t, ItemInvalidPersonalization, it.Status, "item %d", i)
+		}
+	})
+}
+
 func TestProductService_ValidateItems_BadRequest(t *testing.T) {
 	a := uuid.New()
 	tests := []struct {
@@ -102,6 +140,8 @@ func TestProductService_ValidateItems_BadRequest(t *testing.T) {
 		{"sem id", []ItemToValidate{{Quantity: 1}}, "items[0].product_id"},
 		{"repetido", []ItemToValidate{{ProductID: a, Quantity: 1}, {ProductID: a, Quantity: 2}}, "items[1].product_id"},
 		{"repetido no mesmo tamanho", []ItemToValidate{{ProductID: a, Quantity: 1, Size: "G"}, {ProductID: a, Quantity: 2, Size: "g"}}, "items[1].product_id"},
+		{"mesmo texto depois de normalizar", []ItemToValidate{{ProductID: a, Quantity: 1, Personalization: "Ana"}, {ProductID: a, Quantity: 1, Personalization: " Ana "}}, "items[1].product_id"},
+		{"texto enorme", []ItemToValidate{{ProductID: a, Quantity: 1, Personalization: strings.Repeat("a", domain.MaxPersonalizationInput+1)}}, "items[0].personalization"},
 		{"tamanho longo", []ItemToValidate{{ProductID: a, Quantity: 1, Size: "XXXXXXXXXXL"}}, "items[0].size"},
 	}
 	for _, tt := range tests {

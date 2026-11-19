@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -27,6 +28,7 @@ const (
 	ItemPriceChanged
 	ItemInvalidQuantity
 	ItemInvalidSize
+	ItemInvalidPersonalization
 )
 
 type ItemToValidate struct {
@@ -36,6 +38,8 @@ type ItemToValidate struct {
 	ExpectedUnitPriceCents *int64
 	// Size é o tamanho escolhido; vazio no produto sem tamanho.
 	Size string
+	// Personalization é o texto do cliente (ex.: o nome na estampa); vazio no produto sem personalização.
+	Personalization string
 }
 
 type ValidatedItem struct {
@@ -44,6 +48,8 @@ type ValidatedItem struct {
 	Quantity  int
 	// Size é o tamanho como está no cadastro (ex.: "g" pedido volta "G").
 	Size string
+	// Personalization é o texto normalizado (sem espaços nas pontas nem repetidos), como vai para a arte.
+	Personalization string
 	// Product vem preenchido sempre que o produto existe (inclusive com status de erro).
 	Product        *domain.Product
 	UnitPriceCents int64
@@ -94,7 +100,8 @@ func (s *ProductService) ValidateItems(ctx context.Context, items []ItemToValida
 }
 
 func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) ValidatedItem {
-	v := ValidatedItem{ProductID: it.ProductID, Quantity: it.Quantity, Size: it.Size}
+	text := domain.NormalizePersonalizationText(it.Personalization)
+	v := ValidatedItem{ProductID: it.ProductID, Quantity: it.Quantity, Size: it.Size, Personalization: text}
 	p, ok := byID[it.ProductID]
 	if !ok {
 		v.Status = ItemNotFound
@@ -111,6 +118,8 @@ func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) Validate
 		v.Status = ItemInvalidQuantity
 	case !p.HasSize(it.Size):
 		v.Status = ItemInvalidSize
+	case !p.AcceptsPersonalization(text):
+		v.Status = ItemInvalidPersonalization
 	case it.ExpectedUnitPriceCents != nil && *it.ExpectedUnitPriceCents != v.UnitPriceCents:
 		v.Status = ItemPriceChanged
 	default:
@@ -136,8 +145,9 @@ func validateItemsRequest(items []ItemToValidate) error {
 		return domain.Invalid("items", fmt.Sprintf("deve ter de 1 a %d itens", MaxOrderItems))
 	}
 	type line struct {
-		id   uuid.UUID
-		size string
+		id              uuid.UUID
+		size            string
+		personalization string
 	}
 	seen := make(map[line]struct{}, len(items))
 	for i, it := range items {
@@ -148,9 +158,13 @@ func validateItemsRequest(items []ItemToValidate) error {
 		if len([]rune(it.Size)) > domain.MaxSizeLength {
 			return domain.Invalid(fmt.Sprintf("items[%d].size", i), fmt.Sprintf("deve ter no máximo %d caracteres", domain.MaxSizeLength))
 		}
-		key := line{it.ProductID, strings.ToUpper(it.Size)}
+		if utf8.RuneCountInString(it.Personalization) > domain.MaxPersonalizationInput {
+			return domain.Invalid(fmt.Sprintf("items[%d].personalization", i),
+				fmt.Sprintf("deve ter no máximo %d caracteres", domain.MaxPersonalizationInput))
+		}
+		key := line{it.ProductID, strings.ToUpper(it.Size), domain.NormalizePersonalizationText(it.Personalization)}
 		if _, dup := seen[key]; dup {
-			return domain.Invalid(field, "produto repetido no mesmo tamanho; some as quantidades em um item")
+			return domain.Invalid(field, "produto repetido no mesmo tamanho e personalização; some as quantidades em um item")
 		}
 		seen[key] = struct{}{}
 	}

@@ -349,15 +349,17 @@ type ProductInput struct {
 	// MoreImageURLs são as outras fotos, na ordem da galeria; nil mantém as que estão gravadas.
 	MoreImageURLs []string
 	// Sizes são os tamanhos que o cliente escolhe; nil mantém os gravados, vazio tira o tamanho.
-	Sizes      []string
-	PriceCents int64
-	Status     domain.ProductStatus
+	Sizes []string
+	// Personalization é o texto que o cliente escreve na compra; nil mantém a gravada, vazia ({}) tira.
+	Personalization *domain.Personalization
+	PriceCents      int64
+	Status          domain.ProductStatus
 }
 
 func (in ProductInput) toProduct() domain.Product {
 	p := domain.Product{
 		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
-		ImageURL: in.ImageURL, Sizes: in.Sizes, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
+		ImageURL: in.ImageURL, Sizes: in.Sizes, Personalization: in.Personalization, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
 	}
 	if in.MoreImageURLs != nil {
 		p.Gallery = make([]domain.GalleryImage, len(in.MoreImageURLs))
@@ -371,6 +373,9 @@ func (in ProductInput) toProduct() domain.Product {
 
 func (s *ProductService) Create(ctx context.Context, in ProductInput) (domain.Product, error) {
 	p := in.toProduct()
+	if p.Personalization.IsZero() {
+		p.Personalization = nil // no produto novo, vazia é o mesmo que sem personalização
+	}
 	if err := p.Validate(); err != nil {
 		return domain.Product{}, err
 	}
