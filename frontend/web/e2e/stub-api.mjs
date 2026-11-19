@@ -913,7 +913,8 @@ async function placeOrder(req, res, email) {
   const sizeOk = (l) => (l.product.sizes.length ? l.product.sizes.includes(l.size) : !l.size);
   if (
     lines.some(
-      (l) => !l.product || l.expected_unit_price_cents !== l.product.effective_price.amount_cents || !sizeOk(l),
+      (l) =>
+        !l.product || l.expected_unit_price_cents !== l.product.effective_price.amount_cents || !sizeOk(l),
     )
   ) {
     return send(
