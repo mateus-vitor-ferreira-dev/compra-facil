@@ -60,8 +60,10 @@ jobs:
           df -h /
           docker compose up -d --wait --wait-timeout 600
 
+      # o seed fica no perfil tools, fora do "docker compose build": o --build o reconstrói aqui. Sem ele, o runner
+      # próprio (#405) usaria a imagem velha de outra execução, sem as migrações novas do catalog
       - name: Popula o catálogo
-        run: docker compose run --rm catalog-seed
+        run: docker compose run --rm --build catalog-seed
 
       # o admin entra pelo identity (operador inicial do compose)
       - name: Compra ponta a ponta (k6)
