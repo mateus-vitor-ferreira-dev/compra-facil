@@ -19,6 +19,7 @@ const schema = z.object({
         id: z.uuid(),
         qty: z.int().min(1).max(MAX_QUANTITY),
         seen: z.int().min(1),
+        size: z.string().min(1).max(10).optional(),
       }),
     )
     .max(MAX_ITEMS),
@@ -70,7 +71,8 @@ export async function writeUndo(item: CartItem | undefined): Promise<void> {
  * compra. Vale até o carrinho esvaziar (o pedido feito, ou o esvaziar), e só no navegador (sem maxAge).
  */
 export const DOUBLES_COOKIE = "cf_cart_dobro";
-const doublesSchema = z.array(z.uuid()).max(MAX_ITEMS);
+// as linhas (lineKey: o id, ou "id:TAMANHO")
+const doublesSchema = z.array(z.string().max(60)).max(MAX_ITEMS);
 
 export async function readConfirmedDoubles(): Promise<string[]> {
   const raw = (await cookies()).get(DOUBLES_COOKIE)?.value;

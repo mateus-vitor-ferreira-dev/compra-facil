@@ -18,7 +18,7 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private async Task<Guid> PaidOrderAsync()
+    private async Task<Guid> PaidOrderAsync(params OrderItem[] items)
     {
         using (var upload = await ManualSupplierTests.UploadAsync(fx, ManualSupplierTests.Sheet, fx.Identity.AdminToken()))
         {
@@ -28,8 +28,11 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
         await using (var scope = fx.Factory.Services.CreateAsyncScope())
         {
             var handler = ActivatorUtilities.CreateInstance<OnOrderConfirmed>(scope.ServiceProvider);
-            var item = new OrderItem(Guid.NewGuid(), "FON-BT-01", "Fone Bluetooth", 1, new Money(15990, "BRL"), new Money(15990, "BRL"));
-            await handler.HandleAsync(new OrderConfirmedData(id, Guid.NewGuid(), "ana@exemplo.com", [item], new Money(17980, "BRL"),
+            if (items.Length == 0)
+            {
+                items = [new OrderItem(Guid.NewGuid(), "FON-BT-01", "Fone Bluetooth", 1, new Money(15990, "BRL"), new Money(15990, "BRL"))];
+            }
+            await handler.HandleAsync(new OrderConfirmedData(id, Guid.NewGuid(), "ana@exemplo.com", items, new Money(17980, "BRL"),
                     new Recipient("Ana Souza", "52998224725", "11987654321"),
                     new ShippingAddress("01310100", "Avenida Paulista", "1000", null, "Bela Vista", "São Paulo", "SP"),
                     "pix", new OrderShipping("economico", new Money(1990, "BRL"), new DateOnly(2026, 12, 28))),
@@ -93,6 +96,25 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
         // a equipe não faz mais o pedido no fornecedor
         using var placed = await PostAsync($"/v1/admin/supplier-orders/{id}/placed", new { supplier_order_id = "F-9" }, fx.Identity.AdminToken());
         Assert.NotEqual(HttpStatusCode.OK, placed.StatusCode);
+    }
+
+    [Fact]
+    public async Task O_tamanho_escolhido_chega_na_fila_um_item_por_tamanho()
+    {
+        var product = Guid.NewGuid();
+        var id = await PaidOrderAsync(
+            new OrderItem(product, "FON-BT-01", "Camiseta Natal", 1, new Money(7990, "BRL"), new Money(7990, "BRL"), "P"),
+            new OrderItem(product, "FON-BT-01", "Camiseta Natal", 2, new Money(7990, "BRL"), new Money(15980, "BRL"), "G"));
+
+        using var admin = fx.Factory.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", fx.Identity.AdminToken());
+        var json = await admin.GetStringAsync("/v1/admin/supplier-orders/to-place", Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml",
+            "/paths/~1v1~1admin~1supplier-orders~1to-place/get/responses/200/content/application~1json/schema", json);
+        var mine = JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().Single(o => o.GetProperty("order_id").GetGuid() == id);
+        var items = mine.GetProperty("items").EnumerateArray().Select(i => (i.GetProperty("size").GetString(), i.GetProperty("quantity").GetInt32()));
+        Assert.Equal([("P", 1), ("G", 2)], items);
+        Assert.Equal(3 * 8990, mine.GetProperty("expected_product_cost_cents").GetInt64()); // o custo soma os dois tamanhos
     }
 
     [Fact]

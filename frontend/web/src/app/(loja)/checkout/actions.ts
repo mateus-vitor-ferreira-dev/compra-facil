@@ -165,7 +165,12 @@ async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutSt
 
   const result = await placeOrder(
     token,
-    cart.items.map((i) => ({ product_id: i.id, quantity: i.qty, expected_unit_price_cents: i.seen })),
+    cart.items.map((i) => ({
+      product_id: i.id,
+      quantity: i.qty,
+      expected_unit_price_cents: i.seen,
+      ...(i.size ? { size: i.size } : {}),
+    })),
     payment,
     { ...toOrderDelivery(values), shipping: { service: shipping.data } },
     key.data,

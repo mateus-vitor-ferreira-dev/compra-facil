@@ -45,8 +45,11 @@ public static class SupplierFailureReasons
     public const string OrderCancelled = "order_cancelled";
 }
 
-/// <summary>Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome e a quantidade.</summary>
-public sealed record SupplierOrderItem(string Sku, string Name, int Quantity);
+/// <summary>
+/// Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome, a quantidade e o tamanho escolhido pelo
+/// cliente (nulo no produto sem tamanho): no modo manual, a equipe pede ao fornecedor nesse tamanho.
+/// </summary>
+public sealed record SupplierOrderItem(string Sku, string Name, int Quantity, string? Size = null);
 
 /// <summary>Para quem e para onde o fornecedor manda (#221): o nome, o CPF (o consigneeID do CJ), o telefone e o endereço.</summary>
 public sealed record ShipTo(

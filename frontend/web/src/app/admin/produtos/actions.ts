@@ -63,6 +63,7 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     description: text(form, "description"),
     category_id: text(form, "category_id"),
     price: text(form, "price"),
+    sizes: text(form, "sizes"),
     status: text(form, "status"),
   };
   const photos = form
@@ -73,6 +74,17 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
   if (price === null || price < 1) {
     return { values, fields: { price: "Escreva o preço em reais, como 1.299,90." } };
   }
+  const sizes = values.sizes
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const repeated = sizes.find((s, i) => sizes.findIndex((o) => o.toUpperCase() === s.toUpperCase()) !== i);
+  if (repeated) {
+    return { values, fields: { sizes: `O tamanho ${repeated} aparece mais de uma vez.` } };
+  }
+  if (sizes.length > 12 || sizes.some((s) => s.length > 10)) {
+    return { values, fields: { sizes: "Até 12 tamanhos, cada um com até 10 caracteres." } };
+  }
   const status = z.enum(["draft", "active", "inactive"]).safeParse(values.status);
   const body: ProductInput = {
     name: values.name,
@@ -82,6 +94,7 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     category_id: values.category_id,
     image_url: photos[0] ?? null,
     more_image_urls: photos.slice(1),
+    sizes,
     price_cents: price,
     status: status.success ? status.data : "draft",
   };

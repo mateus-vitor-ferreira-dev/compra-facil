@@ -398,6 +398,7 @@ export interface components {
              *     Vem só no detalhe do produto: a listagem usa `image`.
              */
             images?: components["schemas"]["ProductImage"][];
+            sizes: components["schemas"]["ProductSizes"];
             /** @description Preço de tabela. */
             price: components["schemas"]["Money"];
             /** @description Preço cobrado agora (igual a `price` quando não há campanha ativa). */
@@ -521,10 +522,26 @@ export interface components {
              *     posição, inclusive para `image_url`. Exige `image_url`.
              */
             more_image_urls?: string[];
+            /**
+             * @description Os tamanhos que o cliente escolhe na compra, na ordem de exibição, sem repetir (maiúsculas e minúsculas
+             *     contam como o mesmo). Ausente, mantém os que estão gravados; vazia, o produto deixa de ter tamanho.
+             */
+            sizes?: components["schemas"]["ProductSizes"];
             /** Format: int64 */
             price_cents: number;
             status: components["schemas"]["ProductStatus"];
         };
+        /**
+         * @description Os tamanhos que o cliente escolhe na compra (ex.: P, M, G), na ordem de exibição. Vazio, o produto não tem
+         *     tamanho. Preço e estoque são do produto, iguais em todos os tamanhos.
+         * @example [
+         *       "P",
+         *       "M",
+         *       "G",
+         *       "GG"
+         *     ]
+         */
+        ProductSizes: string[];
         /** @enum {string} */
         ProductSort: "relevance" | "price_asc" | "price_desc" | "discount" | "newest";
         BrandCount: {
