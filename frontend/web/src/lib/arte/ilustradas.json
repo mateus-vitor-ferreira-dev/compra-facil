@@ -1,0 +1,3014 @@
+[
+  {
+    "id": "natal/papai-noel",
+    "produto": "adulto",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Papai Noel",
+        "face": "serif-it",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/mamae-noel",
+    "produto": "adulto",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Mamãe Noel",
+        "face": "serif-it",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/vovo-noel",
+    "produto": "adulto",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Vovô Noel",
+        "face": "serif-it",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/vova-noel",
+    "produto": "adulto",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Vovó Noel",
+        "face": "serif-it",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/titio-noel",
+    "produto": "adulto",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Titio Noel",
+        "face": "serif-it",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/titia-noel",
+    "produto": "adulto",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Titia Noel",
+        "face": "serif-it",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/noelzinho",
+    "produto": "infantil",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Noelzinho",
+        "face": "serif-it",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/noelzinha",
+    "produto": "infantil",
+    "ilustracao": "natal-renas.png",
+    "ilustracaoEscura": "natal-renas-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Noelzinha",
+        "face": "serif-it",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/body-meu-primeiro-natal",
+    "produto": "body",
+    "ilustracao": "natal-bebe-rena.png",
+    "ilustracaoEscura": "natal-bebe-rena-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MEU PRIMEIRO"
+      },
+      {
+        "k": "big",
+        "t": "Natal",
+        "face": "script",
+        "size": 1100,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "natal/pet-noel",
+    "produto": "pet",
+    "ilustracao": "natal-cachorro.png",
+    "ilustracaoEscura": "natal-cachorro-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "FAMÍLIA NOEL",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "Pet Noel",
+        "face": "serif-it",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "natal/caneca-chocolate-quente",
+    "produto": "caneca",
+    "ilustracao": "natal-chocolate.png",
+    "ilustracaoEscura": "natal-chocolate-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Família Noel",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "NATAL 2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/natal-doce-natal",
+    "produto": "adulto",
+    "ilustracao": "natal-biscoitos.png",
+    "ilustracaoEscura": "natal-biscoitos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Doce Natal",
+        "face": "script",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "EM FAMÍLIA",
+        "orn": "star"
+      }
+    ]
+  },
+  {
+    "id": "natal/natal-feliz-natal",
+    "produto": "adulto",
+    "ilustracao": "natal-gorro-presente.png",
+    "ilustracaoEscura": "natal-gorro-presente-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Feliz Natal",
+        "face": "script",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "2026"
+      }
+    ]
+  },
+  {
+    "id": "natal/caneca-feliz-natal",
+    "produto": "caneca",
+    "ilustracao": "natal-gorro-presente.png",
+    "ilustracaoEscura": "natal-gorro-presente-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Feliz Natal",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "2026"
+      }
+    ]
+  },
+  {
+    "id": "maes/mae-meu-lugar-favorito",
+    "produto": "adulto",
+    "ilustracao": "maes-abraco.png",
+    "ilustracaoEscura": "maes-abraco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE,"
+      },
+      {
+        "k": "big",
+        "t": "meu lugar favorito",
+        "face": "script",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/mae-floral",
+    "produto": "adulto",
+    "ilustracao": "maes-buque.png",
+    "ilustracaoEscura": "maes-buque-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mãe",
+        "face": "script",
+        "size": 1100,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "AMOR QUE FLORESCE",
+        "orn": "heart"
+      }
+    ]
+  },
+  {
+    "id": "maes/mae-de-menino",
+    "produto": "adulto",
+    "ilustracao": "maes-buque.png",
+    "ilustracaoEscura": "maes-buque-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Menino",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/mae-de-menina",
+    "produto": "adulto",
+    "ilustracao": "maes-buque.png",
+    "ilustracaoEscura": "maes-buque-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Menina",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/mae-de-gato",
+    "produto": "adulto",
+    "ilustracao": "maes-gata.png",
+    "ilustracaoEscura": "maes-gata-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Gato",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/mae-movida-a-cafe",
+    "produto": "adulto",
+    "ilustracao": "maes-cafe.png",
+    "ilustracaoEscura": "maes-cafe-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mãe",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "MOVIDA A CAFÉ E AMOR",
+        "orn": "heart"
+      }
+    ]
+  },
+  {
+    "id": "maes/caneca-mae-cafe",
+    "produto": "caneca",
+    "ilustracao": "maes-cafe.png",
+    "ilustracaoEscura": "maes-cafe-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mãe",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "MOVIDA A CAFÉ E AMOR"
+      }
+    ]
+  },
+  {
+    "id": "maes/caneca-mae-floral",
+    "produto": "caneca",
+    "ilustracao": "maes-buque.png",
+    "ilustracaoEscura": "maes-buque-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mãe",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "AMOR QUE FLORESCE"
+      }
+    ]
+  },
+  {
+    "id": "maes/tal-mae",
+    "produto": "adulto",
+    "ilustracao": "maes-abraco.png",
+    "ilustracaoEscura": "maes-abraco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TAL"
+      },
+      {
+        "k": "big",
+        "t": "Mãe",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/tal-filha",
+    "produto": "infantil",
+    "ilustracao": "maes-abraco.png",
+    "ilustracaoEscura": "maes-abraco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TAL"
+      },
+      {
+        "k": "big",
+        "t": "Filha",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/tal-filho",
+    "produto": "infantil",
+    "ilustracao": "maes-abraco.png",
+    "ilustracaoEscura": "maes-abraco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TAL"
+      },
+      {
+        "k": "big",
+        "t": "Filho",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/body-amo-minha-mae",
+    "produto": "body",
+    "ilustracao": "maes-abraco.png",
+    "ilustracaoEscura": "maes-abraco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "EU AMO"
+      },
+      {
+        "k": "big",
+        "t": "minha mãe",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "namorados/meu-amor-gatos",
+    "produto": "adulto",
+    "ilustracao": "namorados-gatos.png",
+    "ilustracaoEscura": "namorados-gatos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#c62839",
+        "b": "#46121c"
+      },
+      "escura": {
+        "a": "#f4606c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "meu amor",
+        "face": "pacifico",
+        "size": 800,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "namorados/player-1",
+    "produto": "adulto",
+    "ilustracao": "namorados-controles.png",
+    "ilustracaoEscura": "namorados-controles-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#c62839",
+        "b": "#46121c"
+      },
+      "escura": {
+        "a": "#f4606c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PLAYER"
+      },
+      {
+        "k": "big",
+        "t": "1",
+        "face": "anton",
+        "size": 900
+      }
+    ]
+  },
+  {
+    "id": "namorados/player-2",
+    "produto": "adulto",
+    "ilustracao": "namorados-controles.png",
+    "ilustracaoEscura": "namorados-controles-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#c62839",
+        "b": "#46121c"
+      },
+      "escura": {
+        "a": "#f4606c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PLAYER"
+      },
+      {
+        "k": "big",
+        "t": "2",
+        "face": "anton",
+        "size": 900
+      }
+    ]
+  },
+  {
+    "id": "namorados/caneca-nosso-amor",
+    "produto": "caneca",
+    "ilustracao": "namorados-xicaras.png",
+    "ilustracaoEscura": "namorados-xicaras-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#c62839",
+        "b": "#46121c"
+      },
+      "escura": {
+        "a": "#f4606c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Nosso amor",
+        "face": "pacifico",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "É O MELHOR CAFÉ DA MANHÃ"
+      }
+    ]
+  },
+  {
+    "id": "namorados/caneca-meu-amor-gatos",
+    "produto": "caneca",
+    "ilustracao": "namorados-gatos.png",
+    "ilustracaoEscura": "namorados-gatos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#c62839",
+        "b": "#46121c"
+      },
+      "escura": {
+        "a": "#f4606c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "meu amor",
+        "face": "pacifico",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "avos/vova-coruja",
+    "produto": "adulto",
+    "ilustracao": "avos-coruja-vovo.png",
+    "ilustracaoEscura": "avos-coruja-vovo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#0e6868",
+        "b": "#c45a40"
+      },
+      "escura": {
+        "a": "#60ccc2",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Vovó",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "big",
+        "t": "coruja",
+        "face": "script",
+        "size": 900
+      }
+    ]
+  },
+  {
+    "id": "avos/vovo-coruja",
+    "produto": "adulto",
+    "ilustracao": "avos-coruja-vovo-m.png",
+    "ilustracaoEscura": "avos-coruja-vovo-m-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#0e6868",
+        "b": "#c45a40"
+      },
+      "escura": {
+        "a": "#60ccc2",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Vovô",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "big",
+        "t": "coruja",
+        "face": "script",
+        "size": 900
+      }
+    ]
+  },
+  {
+    "id": "avos/caneca-vova-coruja",
+    "produto": "caneca",
+    "ilustracao": "avos-coruja-vovo.png",
+    "ilustracaoEscura": "avos-coruja-vovo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#0e6868",
+        "b": "#c45a40"
+      },
+      "escura": {
+        "a": "#60ccc2",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Vovó coruja",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "avos/caneca-vovo-coruja",
+    "produto": "caneca",
+    "ilustracao": "avos-coruja-vovo-m.png",
+    "ilustracaoEscura": "avos-coruja-vovo-m-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#0e6868",
+        "b": "#c45a40"
+      },
+      "escura": {
+        "a": "#60ccc2",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Vovô coruja",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "avos/xodo-da-vova",
+    "produto": "infantil",
+    "ilustracao": "avos-coruja-vovo.png",
+    "ilustracaoEscura": "avos-coruja-vovo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#0e6868",
+        "b": "#c45a40"
+      },
+      "escura": {
+        "a": "#60ccc2",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "XODÓ DA"
+      },
+      {
+        "k": "big",
+        "t": "Vovó",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "avos/xodo-do-vovo",
+    "produto": "infantil",
+    "ilustracao": "avos-coruja-vovo-m.png",
+    "ilustracaoEscura": "avos-coruja-vovo-m-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#0e6868",
+        "b": "#c45a40"
+      },
+      "escura": {
+        "a": "#60ccc2",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "XODÓ DO"
+      },
+      {
+        "k": "big",
+        "t": "Vovô",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais/tal-pai",
+    "produto": "adulto",
+    "ilustracao": "pais-ursos.png",
+    "ilustracaoEscura": "pais-ursos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TAL"
+      },
+      {
+        "k": "big",
+        "t": "PAI",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais/tal-filho-pai",
+    "produto": "infantil",
+    "ilustracao": "pais-ursos.png",
+    "ilustracaoEscura": "pais-ursos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TAL"
+      },
+      {
+        "k": "big",
+        "t": "FILHO",
+        "face": "anton",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais/tal-filha-pai",
+    "produto": "infantil",
+    "ilustracao": "pais-ursos.png",
+    "ilustracaoEscura": "pais-ursos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TAL"
+      },
+      {
+        "k": "big",
+        "t": "FILHA",
+        "face": "anton",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais/rei-do-churrasco",
+    "produto": "adulto",
+    "ilustracao": "pais-churrasco.png",
+    "ilustracaoEscura": "pais-churrasco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "O REI DO",
+        "orn": "star"
+      },
+      {
+        "k": "big",
+        "t": "CHURRASCO",
+        "face": "anton",
+        "size": 900
+      }
+    ]
+  },
+  {
+    "id": "pais/caneca-rei-do-churrasco",
+    "produto": "caneca",
+    "ilustracao": "pais-churrasco.png",
+    "ilustracaoEscura": "pais-churrasco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "O REI DO"
+      },
+      {
+        "k": "big",
+        "t": "CHURRASCO",
+        "face": "anton"
+      }
+    ]
+  },
+  {
+    "id": "pais/pai-de-pet",
+    "produto": "adulto",
+    "ilustracao": "pais-cachorros.png",
+    "ilustracaoEscura": "pais-cachorros-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "PET",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais/body-meu-heroi",
+    "produto": "body",
+    "ilustracao": "pais-ursos.png",
+    "ilustracaoEscura": "pais-ursos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MEU HERÓI"
+      },
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais/caneca-paizao",
+    "produto": "caneca",
+    "ilustracao": "pais-ursos.png",
+    "ilustracaoEscura": "pais-ursos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "PAIZÃO",
+        "face": "anton",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "O ORIGINAL"
+      }
+    ]
+  },
+  {
+    "id": "criancas/pequeno-explorador",
+    "produto": "infantil",
+    "ilustracao": "criancas-dino.png",
+    "ilustracaoEscura": "criancas-dino-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Pequeno",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "big",
+        "t": "explorador",
+        "face": "round"
+      }
+    ]
+  },
+  {
+    "id": "criancas/rumo-as-estrelas",
+    "produto": "infantil",
+    "ilustracao": "criancas-astronauta.png",
+    "ilustracaoEscura": "criancas-astronauta-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "RUMO ÀS"
+      },
+      {
+        "k": "big",
+        "t": "estrelas",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/pequena-sonhadora",
+    "produto": "infantil",
+    "ilustracao": "criancas-unicornio.png",
+    "ilustracaoEscura": "criancas-unicornio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Pequena",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "big",
+        "t": "sonhadora",
+        "face": "round"
+      }
+    ]
+  },
+  {
+    "id": "criancas/irmao-mais-velho",
+    "produto": "infantil",
+    "ilustracao": "criancas-leoes.png",
+    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "IRMÃO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "mais velho",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/irma-mais-velha",
+    "produto": "infantil",
+    "ilustracao": "criancas-leoes.png",
+    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "IRMÃ",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "mais velha",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/irmao-mais-novo",
+    "produto": "infantil",
+    "ilustracao": "criancas-leoes.png",
+    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "IRMÃO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "mais novo",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/irma-mais-nova",
+    "produto": "infantil",
+    "ilustracao": "criancas-leoes.png",
+    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "IRMÃ",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "mais nova",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/body-irmao-mais-novo",
+    "produto": "body",
+    "ilustracao": "criancas-leoes.png",
+    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "IRMÃO"
+      },
+      {
+        "k": "big",
+        "t": "mais novo",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/body-irma-mais-nova",
+    "produto": "body",
+    "ilustracao": "criancas-leoes.png",
+    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "IRMÃ"
+      },
+      {
+        "k": "big",
+        "t": "mais nova",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-papai",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDO A"
+      },
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-mamae",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDA A"
+      },
+      {
+        "k": "big",
+        "t": "Mamãe",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-vovo",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDO A"
+      },
+      {
+        "k": "big",
+        "t": "Vovô",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-vova",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDA A"
+      },
+      {
+        "k": "big",
+        "t": "Vovó",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-titio",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDO A"
+      },
+      {
+        "k": "big",
+        "t": "Titio",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-titia",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDA A"
+      },
+      {
+        "k": "big",
+        "t": "Titia",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-dindo",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDO A"
+      },
+      {
+        "k": "big",
+        "t": "Dindo",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/promovido-a-dinda",
+    "produto": "adulto",
+    "ilustracao": "chegada-cegonha.png",
+    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PROMOVIDA A"
+      },
+      {
+        "k": "big",
+        "t": "Dinda",
+        "face": "serif-it",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM 2026"
+      }
+    ]
+  },
+  {
+    "id": "chegada/body-cheguei",
+    "produto": "body",
+    "ilustracao": "chegada-bebe-lua.png",
+    "ilustracaoEscura": "chegada-bebe-lua-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Cheguei!",
+        "face": "pacifico",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "chegada/body-ola-mundo",
+    "produto": "body",
+    "ilustracao": "chegada-pezinhos.png",
+    "ilustracaoEscura": "chegada-pezinhos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#be8a0a"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f2c040"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "OLÁ,"
+      },
+      {
+        "k": "big",
+        "t": "mundo",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet/mae-de-pet-cachorro",
+    "produto": "adulto",
+    "ilustracao": "pet-golden.png",
+    "ilustracaoEscura": "pet-golden-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#6e4024",
+        "b": "#ce6228"
+      },
+      "escura": {
+        "a": "#f29c60",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Pet",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet/pai-de-pet-cachorro",
+    "produto": "adulto",
+    "ilustracao": "pet-golden.png",
+    "ilustracaoEscura": "pet-golden-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#6e4024",
+        "b": "#ce6228"
+      },
+      "escura": {
+        "a": "#f29c60",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "PET",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet/mae-de-gato",
+    "produto": "adulto",
+    "ilustracao": "pet-gato.png",
+    "ilustracaoEscura": "pet-gato-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#6e4024",
+        "b": "#ce6228"
+      },
+      "escura": {
+        "a": "#f29c60",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Gato",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet/pai-de-gato",
+    "produto": "adulto",
+    "ilustracao": "pet-gato.png",
+    "ilustracaoEscura": "pet-gato-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#6e4024",
+        "b": "#ce6228"
+      },
+      "escura": {
+        "a": "#f29c60",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "GATO",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet/pet-xodo-da-casa",
+    "produto": "pet",
+    "ilustracao": "pet-patinha.png",
+    "ilustracaoEscura": "pet-patinha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#6e4024",
+        "b": "#ce6228"
+      },
+      "escura": {
+        "a": "#f29c60",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "XODÓ DA"
+      },
+      {
+        "k": "big",
+        "t": "Casa",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet/caneca-mae-de-pet",
+    "produto": "caneca",
+    "ilustracao": "pet-golden.png",
+    "ilustracaoEscura": "pet-golden-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#6e4024",
+        "b": "#ce6228"
+      },
+      "escura": {
+        "a": "#f29c60",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Pet",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet/caneca-mae-de-gato",
+    "produto": "caneca",
+    "ilustracao": "pet-gato.png",
+    "ilustracaoEscura": "pet-gato-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#6e4024",
+        "b": "#ce6228"
+      },
+      "escura": {
+        "a": "#f29c60",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Gato",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "gamer/nao-me-chame-estou-jogando",
+    "produto": "adulto",
+    "ilustracao": "gamer-controle.png",
+    "ilustracaoEscura": "gamer-controle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "NÃO ME CHAME"
+      },
+      {
+        "k": "big",
+        "t": "estou jogando",
+        "face": "round",
+        "size": 700,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "gamer/pai-gamer",
+    "produto": "adulto",
+    "ilustracao": "gamer-controle.png",
+    "ilustracaoEscura": "gamer-controle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI"
+      },
+      {
+        "k": "big",
+        "t": "GAMER",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "gamer/mae-gamer",
+    "produto": "adulto",
+    "ilustracao": "gamer-coracao.png",
+    "ilustracaoEscura": "gamer-coracao-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE"
+      },
+      {
+        "k": "big",
+        "t": "GAMER",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "gamer/level-up",
+    "produto": "adulto",
+    "ilustracao": "gamer-coracao.png",
+    "ilustracaoEscura": "gamer-coracao-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "LEVEL UP",
+        "face": "anton",
+        "size": 900
+      },
+      {
+        "k": "kicker",
+        "t": "MAIS UM ANO DESBLOQUEADO",
+        "size": 110
+      }
+    ]
+  },
+  {
+    "id": "gamer/caneca-gamer",
+    "produto": "caneca",
+    "ilustracao": "gamer-controle.png",
+    "ilustracaoEscura": "gamer-controle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "NÃO ME CHAME"
+      },
+      {
+        "k": "big",
+        "t": "estou jogando",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "gamer/so-mais-uma-missao",
+    "produto": "adulto",
+    "ilustracao": "gamer-sono.png",
+    "ilustracaoEscura": "gamer-sono-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "SÓ MAIS UMA MISSÃO"
+      },
+      {
+        "k": "big",
+        "t": "e eu durmo",
+        "face": "round",
+        "size": 800,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "gamer/caneca-so-mais-uma-missao",
+    "produto": "caneca",
+    "ilustracao": "gamer-sono.png",
+    "ilustracaoEscura": "gamer-sono-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "SÓ MAIS UMA MISSÃO"
+      },
+      {
+        "k": "big",
+        "t": "e eu durmo",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "gamer/esperei-13-anos",
+    "produto": "adulto",
+    "ilustracao": "gamer-ampulheta.png",
+    "ilustracaoEscura": "gamer-ampulheta-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "ESPEREI"
+      },
+      {
+        "k": "big",
+        "t": "13 ANOS",
+        "face": "anton",
+        "size": 900
+      },
+      {
+        "k": "kicker",
+        "t": "POR ISSO"
+      }
+    ]
+  },
+  {
+    "id": "natal/pet-o-presente-sou-eu",
+    "produto": "pet",
+    "ilustracao": "pet-presente.png",
+    "ilustracaoEscura": "pet-presente-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "O presente",
+        "face": "round",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "SOU EU",
+        "orn": "star"
+      }
+    ]
+  },
+  {
+    "id": "natal/nosso-primeiro-natal",
+    "produto": "adulto",
+    "ilustracao": "natal-primeiro-natal.png",
+    "ilustracaoEscura": "natal-primeiro-natal-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#be1628",
+        "b": "#185c3a"
+      },
+      "escura": {
+        "a": "#f0545c",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto", "Vermelho"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "NOSSO PRIMEIRO"
+      },
+      {
+        "k": "big",
+        "t": "Natal",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "EM FAMÍLIA • 2026"
+      }
+    ]
+  }
+]

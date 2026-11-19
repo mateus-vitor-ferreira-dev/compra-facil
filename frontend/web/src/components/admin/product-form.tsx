@@ -7,6 +7,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/utils";
 import { FormError } from "./form-error";
 import { ProductPhotos } from "./product-photos";
+import { ILLUSTRATED_OPTIONS, resolveIllustrated } from "@/lib/arte/illustrated";
 import { TEMPLATE_OPTIONS } from "@/lib/arte/templates";
 import { STATUS_LABEL } from "./product-status";
 
@@ -159,14 +160,37 @@ export function ProductForm({
             id="personalization_template"
             name="personalization_template"
             defaultValue={v.personalization_template}
+            onChange={(e) => {
+              // a ilustrada já diz o rótulo e o máximo da linha editável: preenche, e dá para mudar
+              const line = resolveIllustrated(e.target.value)?.linhas.find((l) => l.editavel)?.editavel;
+              const form = e.target.form;
+              if (!line || !form) return;
+              const set = (name: string, value: string) => {
+                const input = form.elements.namedItem(name);
+                if (input instanceof HTMLInputElement) input.value = value;
+              };
+              set("personalization_label", line.label);
+              set("personalization_max_length", String(line.maxLength));
+            }}
             aria-describedby={described("personalization_template")}
             className="border-field-line bg-surface h-11 w-full rounded-md border px-3"
           >
             <option value="">Sem personalização</option>
-            {TEMPLATE_OPTIONS.map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
+            <optgroup label="Tipográficas">
+              {TEMPLATE_OPTIONS.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </optgroup>
+            {ILLUSTRATED_OPTIONS.map(([collection, options]) => (
+              <optgroup key={collection} label={`Ilustradas: ${collection}`}>
+                {options.map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           {err.personalization_template && (

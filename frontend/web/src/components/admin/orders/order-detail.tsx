@@ -238,6 +238,7 @@ export function OrderDetail({
                         itemName={i.name}
                         text={i.personalization}
                         template={templates[i.sku]}
+                        color={i.color ?? undefined}
                       />
                     </span>
                   )}

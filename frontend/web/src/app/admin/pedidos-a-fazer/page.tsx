@@ -352,6 +352,7 @@ function Ticket({
                       itemName={i.name}
                       text={i.personalization}
                       template={templates[i.sku]}
+                      color={i.color ?? undefined}
                     />
                   </div>
                 )}
