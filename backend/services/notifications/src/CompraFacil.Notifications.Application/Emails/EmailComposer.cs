@@ -133,6 +133,7 @@ public static partial class EmailComposer
             {
                 name = i.Name,
                 size = i.Size,
+                personalization = i.Personalization,
                 quantity = i.Quantity,
                 unit_price = Brl(i.UnitPrice),
                 line_total = Brl(i.LineTotal),

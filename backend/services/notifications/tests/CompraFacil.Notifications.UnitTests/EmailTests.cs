@@ -54,6 +54,19 @@ public sealed class EmailTests
     }
 
     [Fact]
+    public async Task Confirmed_ShowsThePersonalization_OnlyWhenThereIsOne()
+    {
+        var email = await EmailComposer.ConfirmedAsync(new OrderConfirmedData(Guid.NewGuid(), "ana@exemplo.com",
+            [
+                new OrderItem("Camiseta Mãe", 1, new Money(7990, "BRL"), new Money(7990, "BRL"), "M", "Ana Maria"),
+                new OrderItem("Caneca", 1, new Money(5990, "BRL"), new Money(5990, "BRL")),
+            ], new Money(13980, "BRL")));
+
+        Assert.Contains("Personalização: Ana Maria", email.TextBody, StringComparison.Ordinal);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(email.HtmlBody, "Personalização"));
+    }
+
+    [Fact]
     public async Task InvoiceIssued_HasTheNumber_TheKeyInGroups_AndTheOrderLink()
     {
         var order = Guid.Parse("01a16430-0000-7000-8000-00000000abcd");
