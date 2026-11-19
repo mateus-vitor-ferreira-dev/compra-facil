@@ -90,6 +90,8 @@ const (
 	ItemStatus_ITEM_STATUS_PRICE_CHANGED ItemStatus = 4
 	// Quantidade fora de 1..99.
 	ItemStatus_ITEM_STATUS_INVALID_QUANTITY ItemStatus = 5
+	// Tamanho que o produto não tem, ou faltando no produto que tem tamanho.
+	ItemStatus_ITEM_STATUS_INVALID_SIZE ItemStatus = 6
 )
 
 // Enum value maps for ItemStatus.
@@ -101,6 +103,7 @@ var (
 		3: "ITEM_STATUS_NOT_ACTIVE",
 		4: "ITEM_STATUS_PRICE_CHANGED",
 		5: "ITEM_STATUS_INVALID_QUANTITY",
+		6: "ITEM_STATUS_INVALID_SIZE",
 	}
 	ItemStatus_value = map[string]int32{
 		"ITEM_STATUS_UNSPECIFIED":      0,
@@ -109,6 +112,7 @@ var (
 		"ITEM_STATUS_NOT_ACTIVE":       3,
 		"ITEM_STATUS_PRICE_CHANGED":    4,
 		"ITEM_STATUS_INVALID_QUANTITY": 5,
+		"ITEM_STATUS_INVALID_SIZE":     6,
 	}
 )
 
@@ -275,9 +279,11 @@ type Product struct {
 	// Campanha que gerou o desconto; ausente quando não há.
 	Campaign *CampaignRef `protobuf:"bytes,7,opt,name=campaign,proto3" json:"campaign,omitempty"`
 	// Incrementa a cada alteração (mesmo valor do ETag no REST).
-	Version       int32                  `protobuf:"varint,8,opt,name=version,proto3" json:"version,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	CategoryId    string                 `protobuf:"bytes,10,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"`
+	Version    int32                  `protobuf:"varint,8,opt,name=version,proto3" json:"version,omitempty"`
+	UpdatedAt  *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	CategoryId string                 `protobuf:"bytes,10,opt,name=category_id,json=categoryId,proto3" json:"category_id,omitempty"`
+	// Tamanhos que o cliente escolhe na compra, na ordem de exibição; vazio, o produto não tem tamanho.
+	Sizes         []string `protobuf:"bytes,11,rep,name=sizes,proto3" json:"sizes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -380,6 +386,13 @@ func (x *Product) GetCategoryId() string {
 		return x.CategoryId
 	}
 	return ""
+}
+
+func (x *Product) GetSizes() []string {
+	if x != nil {
+		return x.Sizes
+	}
+	return nil
 }
 
 type GetProductRequest struct {
@@ -617,8 +630,11 @@ type ItemToValidate struct {
 	Quantity int32 `protobuf:"varint,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	// Preço que o cliente viu. Se informado e diferente do efetivo, o item volta como PRICE_CHANGED.
 	ExpectedUnitPriceCents *int64 `protobuf:"varint,3,opt,name=expected_unit_price_cents,json=expectedUnitPriceCents,proto3,oneof" json:"expected_unit_price_cents,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// Tamanho escolhido, um dos `sizes` do produto (sem diferenciar maiúsculas); vazio no produto sem tamanho.
+	// O mesmo produto pode vir em mais de um item, um por tamanho.
+	Size          string `protobuf:"bytes,4,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ItemToValidate) Reset() {
@@ -672,6 +688,13 @@ func (x *ItemToValidate) GetExpectedUnitPriceCents() int64 {
 	return 0
 }
 
+func (x *ItemToValidate) GetSize() string {
+	if x != nil {
+		return x.Size
+	}
+	return ""
+}
+
 type ValidatedItem struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	ProductId string                 `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
@@ -683,7 +706,9 @@ type ValidatedItem struct {
 	UnitPrice *Money `protobuf:"bytes,6,opt,name=unit_price,json=unitPrice,proto3" json:"unit_price,omitempty"`
 	LineTotal *Money `protobuf:"bytes,7,opt,name=line_total,json=lineTotal,proto3" json:"line_total,omitempty"`
 	// Campanha aplicada ao unit_price, se houver.
-	CampaignId    string `protobuf:"bytes,8,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	CampaignId string `protobuf:"bytes,8,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	// Tamanho como está no cadastro (ex.: "g" pedido volta "G"); vazio no produto sem tamanho.
+	Size          string `protobuf:"bytes,9,opt,name=size,proto3" json:"size,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -774,6 +799,13 @@ func (x *ValidatedItem) GetCampaignId() string {
 	return ""
 }
 
+func (x *ValidatedItem) GetSize() string {
+	if x != nil {
+		return x.Size
+	}
+	return ""
+}
+
 type ValidateItemsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// true só se todos os itens estão ITEM_STATUS_OK.
@@ -859,7 +891,7 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
 	"\x10discount_percent\x18\x03 \x01(\x05R\x0fdiscountPercent\x123\n" +
-	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x82\x03\n" +
+	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x98\x03\n" +
 	"\aProduct\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
 	"\x03sku\x18\x02 \x01(\tR\x03sku\x12\x12\n" +
@@ -873,7 +905,8 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1f\n" +
 	"\vcategory_id\x18\n" +
 	" \x01(\tR\n" +
-	"categoryId\"2\n" +
+	"categoryId\x12\x14\n" +
+	"\x05sizes\x18\v \x03(\tR\x05sizes\"2\n" +
 	"\x11GetProductRequest\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\"C\n" +
@@ -886,13 +919,14 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\bproducts\x18\x01 \x03(\v2\x13.catalog.v1.ProductR\bproducts\x12\"\n" +
 	"\rnot_found_ids\x18\x02 \x03(\tR\vnotFoundIds\"H\n" +
 	"\x14ValidateItemsRequest\x120\n" +
-	"\x05items\x18\x01 \x03(\v2\x1a.catalog.v1.ItemToValidateR\x05items\"\xa9\x01\n" +
+	"\x05items\x18\x01 \x03(\v2\x1a.catalog.v1.ItemToValidateR\x05items\"\xbd\x01\n" +
 	"\x0eItemToValidate\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\x12>\n" +
-	"\x19expected_unit_price_cents\x18\x03 \x01(\x03H\x00R\x16expectedUnitPriceCents\x88\x01\x01B\x1c\n" +
-	"\x1a_expected_unit_price_cents\"\xa5\x02\n" +
+	"\x19expected_unit_price_cents\x18\x03 \x01(\x03H\x00R\x16expectedUnitPriceCents\x88\x01\x01\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\tR\x04sizeB\x1c\n" +
+	"\x1a_expected_unit_price_cents\"\xb9\x02\n" +
 	"\rValidatedItem\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12.\n" +
@@ -905,7 +939,8 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\n" +
 	"line_total\x18\a \x01(\v2\x11.catalog.v1.MoneyR\tlineTotal\x12\x1f\n" +
 	"\vcampaign_id\x18\b \x01(\tR\n" +
-	"campaignId\"\xc0\x01\n" +
+	"campaignId\x12\x12\n" +
+	"\x04size\x18\t \x01(\tR\x04size\"\xc0\x01\n" +
 	"\x15ValidateItemsResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12/\n" +
 	"\x05items\x18\x02 \x03(\v2\x19.catalog.v1.ValidatedItemR\x05items\x12'\n" +
@@ -915,7 +950,7 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\x1aPRODUCT_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14PRODUCT_STATUS_DRAFT\x10\x01\x12\x19\n" +
 	"\x15PRODUCT_STATUS_ACTIVE\x10\x02\x12\x1b\n" +
-	"\x17PRODUCT_STATUS_INACTIVE\x10\x03*\xb5\x01\n" +
+	"\x17PRODUCT_STATUS_INACTIVE\x10\x03*\xd3\x01\n" +
 	"\n" +
 	"ItemStatus\x12\x1b\n" +
 	"\x17ITEM_STATUS_UNSPECIFIED\x10\x00\x12\x12\n" +
@@ -923,7 +958,8 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\x15ITEM_STATUS_NOT_FOUND\x10\x02\x12\x1a\n" +
 	"\x16ITEM_STATUS_NOT_ACTIVE\x10\x03\x12\x1d\n" +
 	"\x19ITEM_STATUS_PRICE_CHANGED\x10\x04\x12 \n" +
-	"\x1cITEM_STATUS_INVALID_QUANTITY\x10\x052\x92\x02\n" +
+	"\x1cITEM_STATUS_INVALID_QUANTITY\x10\x05\x12\x1c\n" +
+	"\x18ITEM_STATUS_INVALID_SIZE\x10\x062\x92\x02\n" +
 	"\x0eCatalogService\x12K\n" +
 	"\n" +
 	"GetProduct\x12\x1d.catalog.v1.GetProductRequest\x1a\x1e.catalog.v1.GetProductResponse\x12]\n" +

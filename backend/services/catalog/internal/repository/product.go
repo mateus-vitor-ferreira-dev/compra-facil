@@ -39,7 +39,7 @@ const (
 	// marcas na faceta do filtro
 	maxBrands = 50
 
-	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.gallery, p.price_cents,
+	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.gallery, p.sizes, p.price_cents,
 		p.currency, p.status, p.version, p.created_at, p.updated_at,
 		p.supplier, p.supplier_vid, p.cost_cents, p.cost_currency, p.supplier_synced_at, p.supplier_removed_at,
 		cat.slug AS category_slug, cat.name AS category_name,
@@ -91,6 +91,18 @@ func keepPhotoVariants(before productRecord, p *domain.Product) (image, gallery 
 	return gorm.Expr("NULLIF(?::jsonb, 'null'::jsonb)", string(firstJSON)), gorm.Expr("?::jsonb", string(photosJSON)), nil
 }
 
+// jsonbOf grava a lista como jsonb; nil vira [], não o JSON null.
+func jsonbOf(list []string) (clause.Expr, error) {
+	if list == nil {
+		list = []string{}
+	}
+	b, err := json.Marshal(list)
+	if err != nil {
+		return clause.Expr{}, fmt.Errorf("lista em jsonb: %w", err)
+	}
+	return gorm.Expr("?::jsonb", string(b)), nil
+}
+
 // Create grava o produto e o ProductCreated na mesma transação.
 func (r *ProductRepository) Create(ctx context.Context, p *domain.Product) error {
 	p.ID = newID(p.ID)
@@ -118,11 +130,19 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expec
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// lê o preço anterior travando a linha: ninguém altera entre a leitura e o UPDATE
 		var before productRecord
-		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency", "image_url", "image", "gallery").
+		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency", "image_url", "image", "gallery", "sizes").
 			Where("id = ?", p.ID).Take(&before).Error; err != nil {
 			return err
 		}
 		image, gallery, err := keepPhotoVariants(before, p)
+		if err != nil {
+			return err
+		}
+		// Sizes nil (PUT de quem não conhece o campo) mantém os tamanhos gravados
+		if p.Sizes == nil {
+			p.Sizes = before.Sizes
+		}
+		sizes, err := jsonbOf(p.Sizes)
 		if err != nil {
 			return err
 		}
@@ -132,10 +152,12 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expec
 				"sku":         rec.SKU,
 				"name":        rec.Name,
 				"description": rec.Description,
+				"brand":       rec.Brand,
 				"category_id": rec.CategoryID,
 				"image_url":   rec.ImageURL,
 				"image":       image,
 				"gallery":     gallery,
+				"sizes":       sizes,
 				"price_cents": rec.PriceCents,
 				"currency":    rec.Currency,
 				"status":      rec.Status,

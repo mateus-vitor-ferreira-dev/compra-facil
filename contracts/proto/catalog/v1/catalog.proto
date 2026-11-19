@@ -60,6 +60,8 @@ message Product {
   int32 version = 8;
   google.protobuf.Timestamp updated_at = 9;
   string category_id = 10;
+  // Tamanhos que o cliente escolhe na compra, na ordem de exibição; vazio, o produto não tem tamanho.
+  repeated string sizes = 11;
 }
 
 message GetProductRequest {
@@ -89,6 +91,9 @@ message ItemToValidate {
   int32 quantity = 2;
   // Preço que o cliente viu. Se informado e diferente do efetivo, o item volta como PRICE_CHANGED.
   optional int64 expected_unit_price_cents = 3;
+  // Tamanho escolhido, um dos `sizes` do produto (sem diferenciar maiúsculas); vazio no produto sem tamanho.
+  // O mesmo produto pode vir em mais de um item, um por tamanho.
+  string size = 4;
 }
 
 enum ItemStatus {
@@ -102,6 +107,8 @@ enum ItemStatus {
   ITEM_STATUS_PRICE_CHANGED = 4;
   // Quantidade fora de 1..99.
   ITEM_STATUS_INVALID_QUANTITY = 5;
+  // Tamanho que o produto não tem, ou faltando no produto que tem tamanho.
+  ITEM_STATUS_INVALID_SIZE = 6;
 }
 
 message ValidatedItem {
@@ -115,6 +122,8 @@ message ValidatedItem {
   Money line_total = 7;
   // Campanha aplicada ao unit_price, se houver.
   string campaign_id = 8;
+  // Tamanho como está no cadastro (ex.: "g" pedido volta "G"); vazio no produto sem tamanho.
+  string size = 9;
 }
 
 message ValidateItemsResponse {

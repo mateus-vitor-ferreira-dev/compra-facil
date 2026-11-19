@@ -308,3 +308,34 @@ func TestProductRepository_Update_GalleryKeepsEachPhotoVariants(t *testing.T) {
 	assert.Nil(t, got.Image)
 	assert.Empty(t, got.Gallery)
 }
+
+func TestProductRepository_Update_SizesAndBrand(t *testing.T) {
+	resetDB(t)
+	repo := NewProductRepository(testDB)
+	cat := mustCategory(t, "camisetas", nil)
+	p := mustProduct(t, "CAM-NATAL", cat.ID, func(p *domain.Product) { p.Sizes = []string{"P", "M", "G"} })
+
+	got, err := repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"P", "M", "G"}, got.Sizes, "o Create grava os tamanhos")
+
+	brand := "Embrulhado"
+	got.Brand, got.Sizes = &brand, nil // PUT de quem não conhece o campo
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got, err = repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"P", "M", "G"}, got.Sizes, "nil mantém os tamanhos gravados")
+	require.NotNil(t, got.Brand, "a marca é gravada no Update")
+	assert.Equal(t, "Embrulhado", *got.Brand)
+
+	got.Sizes = []string{}
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got, err = repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Empty(t, got.Sizes, "lista vazia tira os tamanhos")
+
+	plain := mustProduct(t, "CANECA-1", cat.ID)
+	gotPlain, err := repo.GetByID(ctx, plain.ID, now)
+	require.NoError(t, err)
+	assert.Empty(t, gotPlain.Sizes, "produto sem tamanho lê lista vazia")
+}

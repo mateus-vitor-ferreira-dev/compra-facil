@@ -53,6 +53,43 @@ func TestProductService_ValidateItems(t *testing.T) {
 	})
 }
 
+func TestProductService_ValidateItems_Sizes(t *testing.T) {
+	camiseta := domain.Product{ID: uuid.New(), SKU: "CAM-1", PriceCents: 7990, Currency: "BRL", Status: domain.ProductActive,
+		Sizes: []string{"P", "M", "G"}}
+	caneca := domain.Product{ID: uuid.New(), SKU: "CAN-1", PriceCents: 5990, Currency: "BRL", Status: domain.ProductActive}
+
+	svc, products, _ := newProductService()
+	products.On("GetByIDs", anyArg, anyArg, fixedNow).Return([]domain.Product{camiseta, caneca}, nil)
+
+	t.Run("o mesmo produto em dois tamanhos, cada um no seu item", func(t *testing.T) {
+		got, err := svc.ValidateItems(ctx, []ItemToValidate{
+			{ProductID: camiseta.ID, Quantity: 1, Size: "p"},
+			{ProductID: camiseta.ID, Quantity: 2, Size: "G"},
+			{ProductID: caneca.ID, Quantity: 1},
+		})
+		require.NoError(t, err)
+		assert.True(t, got.Valid)
+		assert.Equal(t, "P", got.Items[0].Size, "volta como está no cadastro")
+		assert.Equal(t, "G", got.Items[1].Size)
+		assert.Empty(t, got.Items[2].Size)
+		assert.Equal(t, int64(7990*3+5990), got.TotalCents)
+	})
+
+	t.Run("tamanho que o produto não tem, faltando ou sobrando", func(t *testing.T) {
+		got, err := svc.ValidateItems(ctx, []ItemToValidate{
+			{ProductID: camiseta.ID, Quantity: 1, Size: "GG"},
+			{ProductID: camiseta.ID, Quantity: 1},
+			{ProductID: caneca.ID, Quantity: 1, Size: "M"},
+		})
+		require.NoError(t, err)
+		assert.False(t, got.Valid)
+		for i, it := range got.Items {
+			assert.Equal(t, ItemInvalidSize, it.Status, "item %d", i)
+		}
+		assert.Zero(t, got.TotalCents)
+	})
+}
+
 func TestProductService_ValidateItems_BadRequest(t *testing.T) {
 	a := uuid.New()
 	tests := []struct {
@@ -64,6 +101,8 @@ func TestProductService_ValidateItems_BadRequest(t *testing.T) {
 		{"acima de 50", make([]ItemToValidate, MaxOrderItems+1), "items"},
 		{"sem id", []ItemToValidate{{Quantity: 1}}, "items[0].product_id"},
 		{"repetido", []ItemToValidate{{ProductID: a, Quantity: 1}, {ProductID: a, Quantity: 2}}, "items[1].product_id"},
+		{"repetido no mesmo tamanho", []ItemToValidate{{ProductID: a, Quantity: 1, Size: "G"}, {ProductID: a, Quantity: 2, Size: "g"}}, "items[1].product_id"},
+		{"tamanho longo", []ItemToValidate{{ProductID: a, Quantity: 1, Size: "XXXXXXXXXXL"}}, "items[0].size"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

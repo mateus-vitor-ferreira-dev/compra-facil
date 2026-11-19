@@ -67,7 +67,11 @@ type Product struct {
 	// Image são as dimensões e as variantes da foto de ImageURL; nulo se só a URL é conhecida.
 	Image *ProductImage
 	// Gallery são as outras fotos, na ordem da galeria. Num Update, nil mantém as que estão gravadas.
-	Gallery    []GalleryImage
+	Gallery []GalleryImage
+	// Sizes são os tamanhos que o cliente escolhe na compra (ex.: P, M, G), na ordem de exibição; vazio, o produto
+	// não tem tamanho. Preço e estoque continuam do produto (a peça é feita sob demanda). Num Update, nil mantém os
+	// que estão gravados.
+	Sizes      []string
 	PriceCents int64
 	Currency   string
 	Status     ProductStatus

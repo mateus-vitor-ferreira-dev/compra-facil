@@ -63,6 +63,8 @@ const (
 	MinDiscountPercent = 1
 	MaxDiscountPercent = 90
 	MaxCampaignItems   = 1000
+	MaxSizes           = 12
+	MaxSizeLength      = 10
 )
 
 var (
@@ -93,7 +95,41 @@ func (p *Product) Validate() error {
 		v.check(isHTTPURL(*p.ImageURL), "image_url", "deve ser uma URL http(s) absoluta")
 	}
 	p.validateGallery(&v)
+	p.validateSizes(&v)
 	return v.err()
+}
+
+func (p *Product) validateSizes(v *validator) {
+	if len(p.Sizes) > MaxSizes {
+		v.check(false, "sizes", "deve ter no máximo %d tamanhos", MaxSizes)
+		return
+	}
+	seen := map[string]bool{}
+	for _, size := range p.Sizes {
+		if n := utf8.RuneCountInString(size); n < 1 || n > MaxSizeLength {
+			v.check(false, "sizes", "cada tamanho deve ter de 1 a %d caracteres", MaxSizeLength)
+			return
+		}
+		key := strings.ToUpper(size)
+		if seen[key] {
+			v.check(false, "sizes", "não pode repetir um tamanho (%s)", size)
+			return
+		}
+		seen[key] = true
+	}
+}
+
+// HasSize diz se o produto vende o tamanho (sem diferenciar maiúsculas); sem tamanhos, só o vazio vale.
+func (p *Product) HasSize(size string) bool {
+	if len(p.Sizes) == 0 {
+		return size == ""
+	}
+	for _, s := range p.Sizes {
+		if strings.EqualFold(s, size) {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Product) validateGallery(v *validator) {
@@ -118,6 +154,15 @@ func (p *Product) Normalize() {
 	p.SKU = strings.TrimSpace(p.SKU)
 	p.Name = strings.TrimSpace(p.Name)
 	p.Description = strings.TrimSpace(p.Description)
+	if p.Sizes != nil {
+		sizes := make([]string, 0, len(p.Sizes))
+		for _, size := range p.Sizes {
+			if t := strings.TrimSpace(size); t != "" {
+				sizes = append(sizes, t)
+			}
+		}
+		p.Sizes = sizes
+	}
 	if p.Brand != nil {
 		trimmed := strings.TrimSpace(*p.Brand)
 		if trimmed == "" {
