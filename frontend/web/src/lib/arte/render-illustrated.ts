@@ -4,6 +4,7 @@ import {
   type ArtLine,
   type Face,
   type IllustratedTemplate,
+  type Palette,
   type Variant,
 } from "./illustrated";
 import { withDpi } from "./png";
@@ -59,7 +60,6 @@ const fontOf = (face: Face, px: number) => {
 };
 
 type Ctx = CanvasRenderingContext2D;
-type Palette = { a: string; b: string };
 
 function star(ctx: Ctx, cx: number, cy: number, s: number) {
   ctx.beginPath();
@@ -84,6 +84,26 @@ function heart(ctx: Ctx, cx: number, cy: number, s: number) {
   ctx.fill();
 }
 
+/** Barra de carregamento com corações (gestante): o contorno e 5 corações. */
+function loading(ctx: Ctx, cx: number, cy: number, s: number, color: string, hearts: string) {
+  const w = s * 3.2;
+  const h = s * 0.62;
+  const x0 = cx - w / 2;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(3, Math.floor(s * 0.07));
+  ctx.beginPath();
+  ctx.roundRect(x0, cy - h / 2, w, h, h / 2);
+  ctx.stroke();
+  const step = (w - h * 0.6) / 7;
+  ctx.fillStyle = hearts;
+  for (let i = 0; i < 5; i++) heart(ctx, x0 + h * 0.3 + step * (i + 0.5), cy, h * 0.62);
+}
+
+const DEFAULT_COLOR: Record<ArtLine["k"], string> = { kicker: "b", footer: "b", big: "a", icon: "a" };
+
+/** A cor da linha: a chave `c` dela na paleta, ou a padrão do tipo. */
+const lineColor = (line: ArtLine, pal: Palette) => pal[line.c ?? DEFAULT_COLOR[line.k]] ?? pal.a;
+
 /** A largura do texto com o espaçamento entre as letras (sem o espaço depois da última). */
 function spacedWidth(ctx: Ctx, text: string, spacing: number) {
   ctx.letterSpacing = `${spacing}px`;
@@ -93,6 +113,10 @@ function spacedWidth(ctx: Ctx, text: string, spacing: number) {
 type Measured = { height: number; px: number };
 
 function measure(ctx: Ctx, line: ArtLine, maxWidth: number, scale: number): Measured {
+  if (line.k === "icon") {
+    const px = (line.size ?? 420) * scale;
+    return { px, height: px * 1.25 };
+  }
   if (line.k === "kicker" || line.k === "footer") {
     const px = Math.floor((line.size ?? (line.k === "kicker" ? 150 : 130)) * scale);
     return { px, height: px * (line.k === "kicker" ? 1.55 : 1.7) };
@@ -102,7 +126,7 @@ function measure(ctx: Ctx, line: ArtLine, maxWidth: number, scale: number): Meas
   ctx.letterSpacing = "0px";
   for (;;) {
     ctx.font = fontOf(face, px);
-    const m = ctx.measureText(line.t);
+    const m = ctx.measureText(line.t ?? "");
     if (px <= 30 || m.actualBoundingBoxLeft + m.actualBoundingBoxRight <= maxWidth) {
       return { px, height: (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) * 1.18 };
     }
@@ -127,20 +151,28 @@ function drawBlock(
     if (draw) {
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
-      if (line.k === "big") {
+      if (line.k === "icon") {
+        const color = lineColor(line, pal);
+        if (line.i === "loading") loading(ctx, cx, y + px * 0.55, px, color, pal.b);
+        else {
+          ctx.fillStyle = color;
+          (line.i === "heart" ? heart : star)(ctx, cx, y + px * 0.55, px);
+        }
+      } else if (line.k === "big") {
         ctx.font = fontOf(line.face ?? "serif-it", px);
         ctx.letterSpacing = "0px";
-        const m = ctx.measureText(line.t);
+        const m = ctx.measureText(line.t ?? "");
         const width = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
-        ctx.fillStyle = pal.a;
-        ctx.fillText(line.t, cx - width / 2 + m.actualBoundingBoxLeft, y + m.actualBoundingBoxAscent);
+        ctx.fillStyle = lineColor(line, pal);
+        ctx.fillText(line.t ?? "", cx - width / 2 + m.actualBoundingBoxLeft, y + m.actualBoundingBoxAscent);
       } else {
         ctx.font = fontOf("sans", px);
+        const text = line.t ?? "";
         const spacing = Math.floor(px * 0.2);
-        const width = spacedWidth(ctx, line.t, spacing);
-        const ascent = ctx.measureText(line.t).fontBoundingBoxAscent;
-        ctx.fillStyle = pal.b;
-        ctx.fillText(line.t, cx - width / 2, y + ascent);
+        const width = spacedWidth(ctx, text, spacing);
+        const ascent = ctx.measureText(text).fontBoundingBoxAscent;
+        ctx.fillStyle = lineColor(line, pal);
+        ctx.fillText(text, cx - width / 2, y + ascent);
         if (line.orn) {
           const s = px * 0.75;
           ctx.fillStyle = pal.a;

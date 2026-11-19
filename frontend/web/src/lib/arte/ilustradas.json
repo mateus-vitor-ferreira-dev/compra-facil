@@ -1991,18 +1991,22 @@
     ]
   },
   {
-    "id": "chegada/promovido-a-papai",
+    "id": "cha/guardia-do-segredo",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-segredo.png",
+    "ilustracaoEscura": "cha-segredo-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2013,13 +2017,15 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDO A"
+        "t": "GUARDIÃ DO",
+        "c": "b",
+        "size": 270
       },
       {
         "k": "big",
-        "t": "Papai",
-        "face": "serif-it",
-        "size": 900,
+        "t": "Segredo",
+        "face": "script",
+        "size": 1000,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
           "maxLength": 18
@@ -2027,23 +2033,29 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "EU JÁ SEI!",
+        "c": "b",
+        "size": 190
       }
     ]
   },
   {
-    "id": "chegada/promovido-a-mamae",
+    "id": "cha/guardiao-do-segredo",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-segredo.png",
+    "ilustracaoEscura": "cha-segredo-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2054,13 +2066,15 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDA A"
+        "t": "GUARDIÃO DO",
+        "c": "b",
+        "size": 270
       },
       {
         "k": "big",
-        "t": "Mamãe",
-        "face": "serif-it",
-        "size": 900,
+        "t": "Segredo",
+        "face": "script",
+        "size": 1000,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
           "maxLength": 18
@@ -2068,23 +2082,29 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "EU JÁ SEI!",
+        "c": "b",
+        "size": 190
       }
     ]
   },
   {
-    "id": "chegada/promovido-a-vovo",
+    "id": "cha/titia-ansioso",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2095,13 +2115,15 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDO A"
+        "t": "TITIA",
+        "c": "b",
+        "size": 330
       },
       {
         "k": "big",
-        "t": "Vovô",
-        "face": "serif-it",
-        "size": 900,
+        "t": "ansiosa",
+        "face": "script",
+        "size": 1000,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
           "maxLength": 18
@@ -2109,23 +2131,29 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "JÁ AMO MUITO",
+        "c": "b",
+        "size": 170
       }
     ]
   },
   {
-    "id": "chegada/promovido-a-vova",
+    "id": "cha/titio-ansioso",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2136,13 +2164,15 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDA A"
+        "t": "TITIO",
+        "c": "b",
+        "size": 330
       },
       {
         "k": "big",
-        "t": "Vovó",
-        "face": "serif-it",
-        "size": 900,
+        "t": "ansioso",
+        "face": "script",
+        "size": 1000,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
           "maxLength": 18
@@ -2150,23 +2180,29 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "JÁ AMO MUITO",
+        "c": "b",
+        "size": 170
       }
     ]
   },
   {
-    "id": "chegada/promovido-a-titio",
+    "id": "cha/vova-ansioso",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2177,13 +2213,15 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDO A"
+        "t": "VOVÓ",
+        "c": "b",
+        "size": 330
       },
       {
         "k": "big",
-        "t": "Titio",
-        "face": "serif-it",
-        "size": 900,
+        "t": "ansiosa",
+        "face": "script",
+        "size": 1000,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
           "maxLength": 18
@@ -2191,23 +2229,29 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "JÁ AMO MUITO",
+        "c": "b",
+        "size": 170
       }
     ]
   },
   {
-    "id": "chegada/promovido-a-titia",
+    "id": "cha/vovo-ansioso",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2218,13 +2262,15 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDA A"
+        "t": "VOVÔ",
+        "c": "b",
+        "size": 330
       },
       {
         "k": "big",
-        "t": "Titia",
-        "face": "serif-it",
-        "size": 900,
+        "t": "ansioso",
+        "face": "script",
+        "size": 1000,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
           "maxLength": 18
@@ -2232,23 +2278,29 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "JÁ AMO MUITO",
+        "c": "b",
+        "size": 170
       }
     ]
   },
   {
-    "id": "chegada/promovido-a-dindo",
+    "id": "cha/dinda-ansioso",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2259,13 +2311,15 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDO A"
+        "t": "DINDA",
+        "c": "b",
+        "size": 330
       },
       {
         "k": "big",
-        "t": "Dindo",
-        "face": "serif-it",
-        "size": 900,
+        "t": "ansiosa",
+        "face": "script",
+        "size": 1000,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
           "maxLength": 18
@@ -2273,23 +2327,29 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "JÁ AMO MUITO",
+        "c": "b",
+        "size": 170
       }
     ]
   },
   {
-    "id": "chegada/promovido-a-dinda",
+    "id": "cha/dindo-ansioso",
     "produto": "adulto",
-    "ilustracao": "chegada-cegonha.png",
-    "ilustracaoEscura": "chegada-cegonha-escura.png",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2300,12 +2360,63 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "PROMOVIDA A"
+        "t": "DINDO",
+        "c": "b",
+        "size": 330
       },
       {
         "k": "big",
-        "t": "Dinda",
-        "face": "serif-it",
+        "t": "ansioso",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "JÁ AMO MUITO",
+        "c": "b",
+        "size": 170
+      }
+    ]
+  },
+  {
+    "id": "cha/mamae-ja-te-ama",
+    "produto": "adulto",
+    "ilustracao": "cha-ursinho.png",
+    "ilustracaoEscura": "cha-ursinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MAMÃE",
+        "c": "b",
+        "size": 330
+      },
+      {
+        "k": "big",
+        "t": "já te ama",
+        "face": "script",
         "size": 900,
         "editavel": {
           "label": "Texto principal (nome ou apelido)",
@@ -2314,23 +2425,216 @@
       },
       {
         "k": "footer",
-        "t": "EM 2026"
+        "t": "MENINO OU MENINA?",
+        "c": "b",
+        "size": 170
       }
     ]
   },
   {
-    "id": "chegada/body-cheguei",
+    "id": "cha/papai-ja-te-ama",
+    "produto": "adulto",
+    "ilustracao": "cha-ursinho.png",
+    "ilustracaoEscura": "cha-ursinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAPAI",
+        "c": "b",
+        "size": 330
+      },
+      {
+        "k": "big",
+        "t": "já te ama",
+        "face": "script",
+        "size": 900,
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      },
+      {
+        "k": "footer",
+        "t": "MENINO OU MENINA?",
+        "c": "b",
+        "size": 170
+      }
+    ]
+  },
+  {
+    "id": "cha/time-menino",
+    "produto": "adulto",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TIME",
+        "size": 330
+      },
+      {
+        "k": "big",
+        "t": "Menino",
+        "face": "script",
+        "size": 1000,
+        "c": "z"
+      },
+      {
+        "k": "footer",
+        "t": "CHÁ REVELAÇÃO",
+        "c": "b"
+      }
+    ]
+  },
+  {
+    "id": "cha/time-menina",
+    "produto": "adulto",
+    "ilustracao": "cha-baloes.png",
+    "ilustracaoEscura": "cha-baloes-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "TIME",
+        "size": 330
+      },
+      {
+        "k": "big",
+        "t": "Menina",
+        "face": "script",
+        "size": 1000,
+        "c": "p"
+      },
+      {
+        "k": "footer",
+        "t": "CHÁ REVELAÇÃO",
+        "c": "b"
+      }
+    ]
+  },
+  {
+    "id": "cha/carregando-gestante",
+    "produto": "adulto",
+    "ilustracao": "cha-ursinho.png",
+    "ilustracaoEscura": "cha-ursinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "CARREGANDO",
+        "c": "b",
+        "size": 260
+      },
+      {
+        "k": "icon",
+        "i": "loading",
+        "size": 440,
+        "c": "a"
+      },
+      {
+        "k": "big",
+        "t": "2027",
+        "face": "anton",
+        "size": 600
+      },
+      {
+        "k": "footer",
+        "t": "PREVISÃO DE CHEGADA",
+        "c": "b"
+      }
+    ]
+  },
+  {
+    "id": "cha/body-cheguei",
     "produto": "body",
-    "ilustracao": "chegada-bebe-lua.png",
-    "ilustracaoEscura": "chegada-bebe-lua-escura.png",
+    "ilustracao": "cha-coroa-bebe.png",
+    "ilustracaoEscura": "cha-coroa-bebe-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2351,18 +2655,22 @@
     ]
   },
   {
-    "id": "chegada/body-ola-mundo",
+    "id": "cha/body-ola-mundo",
     "produto": "body",
     "ilustracao": "chegada-pezinhos.png",
     "ilustracaoEscura": "chegada-pezinhos-escura.png",
     "paleta": {
       "clara": {
         "a": "#1b1f3b",
-        "b": "#be8a0a"
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
       },
       "escura": {
         "a": "#f6f1e7",
-        "b": "#f2c040"
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
       },
       "vermelha": {
         "a": "#f6f1e7",
@@ -2373,11 +2681,53 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "OLÁ,"
+        "t": "OLÁ,",
+        "c": "b"
       },
       {
         "k": "big",
         "t": "mundo",
+        "face": "script",
+        "editavel": {
+          "label": "Texto principal (nome ou apelido)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "cha/body-guardei-segredo",
+    "produto": "body",
+    "ilustracao": "cha-segredo.png",
+    "ilustracaoEscura": "cha-segredo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1b1f3b",
+        "b": "#d65c88",
+        "p": "#d65c88",
+        "z": "#3480cc"
+      },
+      "escura": {
+        "a": "#f6f1e7",
+        "b": "#f6a0c0",
+        "p": "#f6a0c0",
+        "z": "#82befa"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "EU ERA O",
+        "c": "b"
+      },
+      {
+        "k": "big",
+        "t": "segredo",
         "face": "script",
         "editavel": {
           "label": "Texto principal (nome ou apelido)",

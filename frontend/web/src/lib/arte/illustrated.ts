@@ -15,9 +15,13 @@ import type { PieceKind } from "./templates";
 export type Face = "serif-it" | "script" | "pacifico" | "anton" | "round" | "sans";
 
 export type ArtLine = {
-  k: "kicker" | "big" | "footer";
-  /** o texto padrão (o da linha editável é trocado pelo do cliente) */
-  t: string;
+  k: "kicker" | "big" | "footer" | "icon";
+  /** o texto padrão (o da linha editável é trocado pelo do cliente); a linha de ícone não tem */
+  t?: string;
+  /** o ícone da linha "icon" */
+  i?: "loading" | "heart" | "star";
+  /** a chave da cor na paleta (padrão: a no texto grande e no ícone, b no kicker e no rodapé) */
+  c?: string;
   face?: Face;
   size?: number;
   /** o ornamento dos dois lados do kicker */
@@ -25,7 +29,8 @@ export type ArtLine = {
   editavel?: { label: string; maxLength: number };
 };
 
-type Palette = { a: string; b: string };
+/** a e b sempre; outras chaves (ex.: p rosa e z azul no chá revelação) para as linhas com `c` */
+export type Palette = { a: string; b: string } & Record<string, string>;
 
 export type IllustratedTemplate = {
   id: string;
