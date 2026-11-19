@@ -2,9 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { readCart, readUndo, writeCart, writeUndo } from "@/lib/cart";
+import { cartFits, readCart, readUndo, writeCart, writeUndo } from "@/lib/cart";
 import {
   MAX_ITEMS,
+  MAX_LINE_KEY,
   acceptPrices,
   addItem,
   emptyCart,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/cart-rules";
 import { getProduct } from "@/lib/catalog-api";
 import { getAvailability } from "@/lib/inventory-api";
+import { normalizePersonalization, personalizationError } from "@/lib/personalization";
 
 /**
  * O que muda o carrinho. São server actions (POST com a checagem de origem do Next) chamadas por
@@ -22,13 +24,13 @@ import { getAvailability } from "@/lib/inventory-api";
 
 export type AddState =
   | { status: "idle" }
-  | { status: "added"; name: string; qty: number; limited: boolean; size?: string }
+  | { status: "added"; name: string; qty: number; limited: boolean; size?: string; text?: string }
   | { status: "error"; message: string };
 
 const id = z.uuid();
 const quantity = z.coerce.number().int();
-// a linha do carrinho: o id do produto, ou "id:TAMANHO"
-const line = z.string().min(1).max(60);
+// a linha do carrinho: o id do produto, "id:TAMANHO" ou "id:TAMANHO|texto"
+const line = z.string().min(1).max(MAX_LINE_KEY);
 
 export async function addToCart(_: AddState, form: FormData): Promise<AddState> {
   const productId = id.safeParse(form.get("product_id"));
@@ -53,6 +55,10 @@ export async function addToCart(_: AddState, form: FormData): Promise<AddState> 
   if (sizes.length > 0 && !size) {
     return { status: "error", message: "Escolha o tamanho." };
   }
+  // o texto da personalização, normalizado e conferido com a regra do produto
+  const text = normalizePersonalization(String(form.get("personalization") ?? "").slice(0, 200));
+  const textError = personalizationError(text, product.data.personalization);
+  if (textError) return { status: "error", message: textError };
   // o preço que o cliente viu na página; se mudou desde então, o carrinho avisa
   const seen = quantity.safeParse(form.get("seen_price_cents"));
   const price = seen.success && seen.data > 0 ? seen.data : product.data.effective_price.amount_cents;
@@ -64,6 +70,7 @@ export async function addToCart(_: AddState, form: FormData): Promise<AddState> 
     price,
     stock.ok ? stock.data[productId.data] : undefined,
     size,
+    text || undefined,
   );
   if (!result.ok) {
     return {
@@ -74,8 +81,21 @@ export async function addToCart(_: AddState, form: FormData): Promise<AddState> 
           : `O carrinho já tem ${MAX_ITEMS} produtos diferentes, o máximo de um pedido.`,
     };
   }
+  if (!cartFits(result.cart)) {
+    return {
+      status: "error",
+      message: "O carrinho está cheio: finalize este pedido e faça outro com o restante.",
+    };
+  }
   await writeCart(result.cart);
-  return { status: "added", name: product.data.name, qty: result.qty, limited: result.limited, size };
+  return {
+    status: "added",
+    name: product.data.name,
+    qty: result.qty,
+    limited: result.limited,
+    size,
+    text: text || undefined,
+  };
 }
 
 export async function updateQuantity(form: FormData): Promise<void> {

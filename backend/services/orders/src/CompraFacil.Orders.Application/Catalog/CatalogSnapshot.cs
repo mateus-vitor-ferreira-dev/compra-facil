@@ -12,11 +12,14 @@ public static class CatalogEvents
 
 /// <summary>
 /// data de ProductCreated/ProductUpdated (ProductSnapshot do contrato). Sizes nulo nos eventos de antes do campo:
-/// vale como lista vazia.
+/// vale como lista vazia; Personalization nulo, o produto não tem (ou o evento é de antes do campo).
 /// </summary>
 public sealed record ProductSnapshotData(
     Guid ProductId, string Sku, string Name, Guid CategoryId, Money Price, string Status, int Version, DateTimeOffset UpdatedAt,
-    IReadOnlyList<string>? Sizes = null);
+    IReadOnlyList<string>? Sizes = null, ProductPersonalizationData? Personalization = null);
+
+/// <summary>O campo de texto do cliente no produto: o que o orders precisa para conferir o texto com o catalog fora.</summary>
+public sealed record ProductPersonalizationData(string Label, int MaxLength, bool Required, string Template);
 
 public sealed record ProductDeletedData(Guid ProductId, string Sku, int Version);
 

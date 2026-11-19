@@ -96,6 +96,7 @@ func (p *Product) Validate() error {
 	}
 	p.validateGallery(&v)
 	p.validateSizes(&v)
+	p.validatePersonalization(&v)
 	return v.err()
 }
 
@@ -154,6 +155,10 @@ func (p *Product) Normalize() {
 	p.SKU = strings.TrimSpace(p.SKU)
 	p.Name = strings.TrimSpace(p.Name)
 	p.Description = strings.TrimSpace(p.Description)
+	if c := p.Personalization; c != nil && !c.IsZero() {
+		c.Label = strings.TrimSpace(c.Label)
+		c.Template = strings.TrimSpace(c.Template)
+	}
 	if p.Sizes != nil {
 		sizes := make([]string, 0, len(p.Sizes))
 		for _, size := range p.Sizes {

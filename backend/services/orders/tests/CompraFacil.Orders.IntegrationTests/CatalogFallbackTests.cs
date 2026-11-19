@@ -25,7 +25,10 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
     private async Task<Guid> SnapshotProductAsync(long cents, string status = "active", bool deleted = false, params (int Discount, int StartedHoursAgo, int EndsInHours)[] campaigns) =>
         await SnapshotProductAsync(cents, [], status, deleted, campaigns);
 
-    private async Task<Guid> SnapshotProductAsync(long cents, List<string> sizes, string status = "active", bool deleted = false, params (int Discount, int StartedHoursAgo, int EndsInHours)[] campaigns)
+    private async Task<Guid> SnapshotProductAsync(long cents, List<string> sizes, string status = "active", bool deleted = false, params (int Discount, int StartedHoursAgo, int EndsInHours)[] campaigns) =>
+        await SnapshotProductAsync(cents, sizes, null, false, status, deleted, campaigns);
+
+    private async Task<Guid> SnapshotProductAsync(long cents, List<string> sizes, int? textMax, bool textRequired, string status = "active", bool deleted = false, params (int Discount, int StartedHoursAgo, int EndsInHours)[] campaigns)
     {
         var id = Guid.NewGuid();
         await using var scope = fx.Factory.Services.CreateAsyncScope();
@@ -40,6 +43,8 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
             Currency = "BRL",
             Status = status,
             Sizes = sizes,
+            PersonalizationMaxLength = textMax,
+            PersonalizationRequired = textRequired,
             Version = 1,
             Deleted = deleted,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -150,6 +155,28 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
         using var missing = await PlaceItemsAsync(new { product_id = camiseta, quantity = 1 });
         Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
         using var extra = await PlaceItemsAsync(new { product_id = caneca, quantity = 1, size = "M" });
+        Assert.Equal(HttpStatusCode.Conflict, extra.StatusCode);
+    }
+
+    [Fact]
+    public async Task CatalogDown_TheSnapshotChecksThePersonalization()
+    {
+        var camiseta = await SnapshotProductAsync(7990, [], textMax: 10, textRequired: true);
+        var caneca = await SnapshotProductAsync(5990);
+        fx.Catalog.Down = true;
+
+        using var ok = await PlaceItemsAsync(
+            new { product_id = camiseta, quantity = 1, personalization = " Ana  Lú " },
+            new { product_id = caneca, quantity = 1 });
+        Assert.Equal(HttpStatusCode.Accepted, ok.StatusCode);
+        var items = (await ok.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("items");
+        Assert.Equal(["Ana Lú", null], items.EnumerateArray().Select(i => i.GetProperty("personalization").GetString()));
+
+        using var missing = await PlaceItemsAsync(new { product_id = camiseta, quantity = 1 });
+        Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
+        using var tooLong = await PlaceItemsAsync(new { product_id = camiseta, quantity = 1, personalization = "Maria Eduarda" });
+        Assert.Equal(HttpStatusCode.Conflict, tooLong.StatusCode);
+        using var extra = await PlaceItemsAsync(new { product_id = caneca, quantity = 1, personalization = "Ana" });
         Assert.Equal(HttpStatusCode.Conflict, extra.StatusCode);
     }
 

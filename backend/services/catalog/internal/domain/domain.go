@@ -71,11 +71,14 @@ type Product struct {
 	// Sizes são os tamanhos que o cliente escolhe na compra (ex.: P, M, G), na ordem de exibição; vazio, o produto
 	// não tem tamanho. Preço e estoque continuam do produto (a peça é feita sob demanda). Num Update, nil mantém os
 	// que estão gravados.
-	Sizes      []string
-	PriceCents int64
-	Currency   string
-	Status     ProductStatus
-	Version    int
+	Sizes []string
+	// Personalization é o texto que o cliente escreve na compra (ex.: o nome na estampa); nulo, o produto não tem.
+	// Num Update, nil mantém a gravada e uma vazia (IsZero) tira.
+	Personalization *Personalization
+	PriceCents      int64
+	Currency        string
+	Status          ProductStatus
+	Version         int
 	// ActiveCampaign é a campanha vigente de maior desconto, se houver (preenchida na leitura).
 	ActiveCampaign *CampaignRef
 	// Supplier: o produto vem do feed de um fornecedor de dropshipping (nulo: cadastrado pela loja).

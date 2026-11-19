@@ -62,6 +62,19 @@ message Product {
   string category_id = 10;
   // Tamanhos que o cliente escolhe na compra, na ordem de exibição; vazio, o produto não tem tamanho.
   repeated string sizes = 11;
+  // Texto que o cliente escreve na compra (ex.: o nome na estampa); ausente, o produto não tem personalização.
+  optional Personalization personalization = 12;
+}
+
+// O campo de texto que o cliente preenche na compra e o id da arte que o recebe.
+message Personalization {
+  // Rótulo do campo na loja (ex.: "Nome").
+  string label = 1;
+  // Caracteres no máximo, contados depois de normalizar (sem espaços nas pontas nem repetidos).
+  int32 max_length = 2;
+  bool required = 3;
+  // Id da arte (ex.: "nome-classico:mae").
+  string template = 4;
 }
 
 message GetProductRequest {
@@ -94,6 +107,9 @@ message ItemToValidate {
   // Tamanho escolhido, um dos `sizes` do produto (sem diferenciar maiúsculas); vazio no produto sem tamanho.
   // O mesmo produto pode vir em mais de um item, um por tamanho.
   string size = 4;
+  // Texto do cliente para a arte; vazio no produto sem personalização. Letras (com acento), algarismos, espaço e
+  // . , ' - & ! ? /, até o max_length do produto. O mesmo produto e tamanho pode vir em mais de um item, um por texto.
+  string personalization = 5;
 }
 
 enum ItemStatus {
@@ -109,6 +125,9 @@ enum ItemStatus {
   ITEM_STATUS_INVALID_QUANTITY = 5;
   // Tamanho que o produto não tem, ou faltando no produto que tem tamanho.
   ITEM_STATUS_INVALID_SIZE = 6;
+  // Texto que o produto não aceita: faltando quando é obrigatório, longo demais, com caractere que a arte não
+  // imprime, ou presente no produto sem personalização.
+  ITEM_STATUS_INVALID_PERSONALIZATION = 7;
 }
 
 message ValidatedItem {
@@ -124,6 +143,8 @@ message ValidatedItem {
   string campaign_id = 8;
   // Tamanho como está no cadastro (ex.: "g" pedido volta "G"); vazio no produto sem tamanho.
   string size = 9;
+  // Texto normalizado (sem espaços nas pontas nem repetidos), como vai para a arte; vazio sem personalização.
+  string personalization = 10;
 }
 
 message ValidateItemsResponse {

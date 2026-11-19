@@ -6,17 +6,24 @@ export const MAX_ITEMS = 50;
 export const MAX_QUANTITY = 99;
 
 /**
- * Um produto no carrinho: id, quantidade, o preço unitário (centavos) que o cliente aceitou e o tamanho escolhido
- * (ausente no produto sem tamanho). O mesmo produto pode estar em mais de uma linha, uma por tamanho.
+ * Um produto no carrinho: id, quantidade, o preço unitário (centavos) que o cliente aceitou, o tamanho escolhido
+ * (ausente no produto sem tamanho) e o texto da personalização (ausente no produto sem ela). O mesmo produto pode
+ * estar em mais de uma linha, uma por tamanho e texto.
  */
-export type CartItem = { id: string; qty: number; seen: number; size?: string };
+export type CartItem = { id: string; qty: number; seen: number; size?: string; text?: string };
 export type Cart = { items: CartItem[] };
 
 export const emptyCart = (): Cart => ({ items: [] });
 
-/** A chave da linha: o produto e o tamanho ("id" sem tamanho, "id:G" com). */
-export const lineKey = (item: { id: string; size?: string }) =>
-  item.size ? `${item.id}:${item.size.toUpperCase()}` : item.id;
+/**
+ * A chave da linha: o produto, o tamanho e o texto ("id" sem os dois, "id:G" com tamanho, "id:G|Ana" com o texto da
+ * personalização). O texto vem normalizado (personalization.ts), então "Ana" e " Ana " são a mesma linha.
+ */
+export const lineKey = (item: { id: string; size?: string; text?: string }) =>
+  (item.size ? `${item.id}:${item.size.toUpperCase()}` : item.id) + (item.text ? `|${item.text}` : "");
+
+/** O tamanho máximo de uma chave de linha: o id, o tamanho e o texto (36 + 1 + 10 + 1 + 40). */
+export const MAX_LINE_KEY = 88;
 
 const clampQty = (qty: number, max = MAX_QUANTITY) =>
   Math.max(1, Math.min(Math.floor(qty) || 1, max, MAX_QUANTITY));
@@ -25,7 +32,7 @@ export type AddResult =
   { ok: true; cart: Cart; qty: number; limited: boolean } | { ok: false; reason: "full" | "sold_out" };
 
 /**
- * Soma ao que já está no carrinho no mesmo tamanho, até o estoque disponível (quando se sabe) e o limite de 99.
+ * Soma ao que já está no carrinho no mesmo tamanho e texto, até o estoque disponível (quando se sabe) e o limite de 99.
  * O preço visto passa a ser o desta adição: foi o que o cliente acabou de ver na página.
  */
 export function addItem(
@@ -35,14 +42,15 @@ export function addItem(
   seen: number,
   available?: number,
   size?: string,
+  text?: string,
 ): AddResult {
   if (available !== undefined && available <= 0) return { ok: false, reason: "sold_out" };
-  const key = lineKey({ id, size });
+  const key = lineKey({ id, size, text });
   const current = cart.items.find((i) => lineKey(i) === key);
   if (!current && cart.items.length >= MAX_ITEMS) return { ok: false, reason: "full" };
   const wanted = (current?.qty ?? 0) + Math.max(1, Math.floor(qty) || 1);
   const final = clampQty(wanted, available);
-  const item: CartItem = size ? { id, qty: final, seen, size } : { id, qty: final, seen };
+  const item: CartItem = { id, qty: final, seen, ...(size ? { size } : {}), ...(text ? { text } : {}) };
   const items = current ? cart.items.map((i) => (lineKey(i) === key ? item : i)) : [...cart.items, item];
   return { ok: true, cart: { items }, qty: final, limited: final < wanted };
 }
@@ -72,9 +80,11 @@ export const itemCount = (cart: Cart) => cart.items.reduce((n, i) => n + i.qty, 
 /** Uma linha do carrinho já com o produto e o estoque, para a tela e o resumo. */
 export type Line = {
   id: string;
-  /** a linha: produto e tamanho (lineKey) */
+  /** a linha: produto, tamanho e texto (lineKey) */
   key: string;
   size?: string;
+  /** o texto da personalização */
+  text?: string;
   qty: number;
   seen: number;
   /** nulo: o produto saiu do catálogo */

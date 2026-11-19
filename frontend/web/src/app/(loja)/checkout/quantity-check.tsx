@@ -27,7 +27,7 @@ export function QuantityCheck({ doubles, itemsTotal }: { doubles: CartLine[]; it
       <div className="space-y-2">
         <FocusHeading level={1} id="quantidade" className="text-2xl tracking-tight sm:text-3xl">
           {one
-            ? `2 unidades de ${doubles[0]?.product?.name}${doubles[0]?.size ? `, tamanho ${doubles[0].size}` : ""}?`
+            ? `2 unidades de ${doubles[0]?.product?.name}${doubles[0]?.size ? `, tamanho ${doubles[0].size}` : ""}${doubles[0]?.text ? `, com "${doubles[0].text}"` : ""}?`
             : "Confira as quantidades"}
         </FocusHeading>
         <p className="text-ink-soft">
@@ -38,13 +38,14 @@ export function QuantityCheck({ doubles, itemsTotal }: { doubles: CartLine[]; it
       </div>
 
       <ul className="divide-line border-line divide-y border-y">
-        {doubles.map(({ key, size, product }) =>
+        {doubles.map(({ key, size, text, product }) =>
           product ? (
             <li key={key} className="grid grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3 py-3">
               <ProductImage image={product.image} alt="" categorySlug={product.category.slug} sizes="56px" />
               <div className="min-w-0">
                 <p className="leading-snug font-medium">{product.name}</p>
                 {size && <p className="text-sm font-medium">Tamanho {size}</p>}
+                {text && <p className="text-sm font-medium break-words">Personalização: {text}</p>}
                 <p className="text-ink-soft text-sm">2 × {brl(product.effective_price.amount_cents)}</p>
               </div>
             </li>

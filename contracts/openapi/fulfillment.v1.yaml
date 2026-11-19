@@ -1223,6 +1223,12 @@ components:
                 type: [string, "null"]
                 description: O tamanho que o cliente escolheu; peça ao fornecedor nele. Nulo no produto sem tamanho.
                 examples: ["G"]
+              personalization:
+                type: [string, "null"]
+                description: |
+                  O texto do cliente para a arte (ex.: o nome na estampa): gere o arquivo de impressão com ele.
+                  Nulo no produto sem personalização.
+                examples: ["Ana Maria"]
         revenue_cents:
           type: [integer, "null"]
           description: O que o cliente pagou, com o frete.
@@ -1583,6 +1589,9 @@ components:
               size:
                 type: [string, "null"]
                 description: O tamanho que o cliente escolheu; nulo no produto sem tamanho.
+              personalization:
+                type: [string, "null"]
+                description: O texto do cliente para a arte; nulo no produto sem personalização.
         attempts:
           type: integer
           minimum: 0

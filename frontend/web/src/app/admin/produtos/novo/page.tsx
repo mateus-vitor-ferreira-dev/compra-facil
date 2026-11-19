@@ -22,6 +22,10 @@ export default async function NewProduct() {
           image_urls: [],
           price: "",
           sizes: "",
+          personalization_template: "",
+          personalization_label: "",
+          personalization_max_length: "",
+          personalization_required: "",
           status: "draft",
         }}
       />

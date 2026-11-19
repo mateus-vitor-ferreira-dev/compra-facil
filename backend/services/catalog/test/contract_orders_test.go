@@ -48,12 +48,19 @@ type contractInteraction struct {
 		PriceCents              int64    `json:"price_cents"`
 		CampaignDiscountPercent *int     `json:"campaign_discount_percent"`
 		Sizes                   []string `json:"sizes"`
+		Personalization         *struct {
+			Label     string `json:"label"`
+			MaxLength int    `json:"max_length"`
+			Required  bool   `json:"required"`
+			Template  string `json:"template"`
+		} `json:"personalization"`
 	} `json:"given"`
 	Request []struct {
 		Product                string `json:"product"`
 		Quantity               int32  `json:"quantity"`
 		ExpectedUnitPriceCents *int64 `json:"expected_unit_price_cents"`
 		Size                   string `json:"size"`
+		Personalization        string `json:"personalization"`
 	} `json:"request"`
 	Response []struct {
 		Product    string         `json:"product"`
@@ -64,6 +71,8 @@ type contractInteraction struct {
 		UnitPrice  *contractMoney `json:"unit_price"`
 		CampaignID *string        `json:"campaign_id"`
 		Size       *string        `json:"size"`
+		// Personalization: o texto como volta (normalizado)
+		Personalization *string `json:"personalization"`
 	} `json:"response"`
 }
 
@@ -93,7 +102,7 @@ func TestConsumerContract_OrdersValidateItems(t *testing.T) {
 			for _, r := range it.Request {
 				req.Items = append(req.Items, &catalogv1.ItemToValidate{
 					ProductId: idOf(ids, r.Product).String(), Quantity: r.Quantity, ExpectedUnitPriceCents: r.ExpectedUnitPriceCents,
-					Size: r.Size,
+					Size: r.Size, Personalization: r.Personalization,
 				})
 			}
 
@@ -116,6 +125,7 @@ func TestConsumerContract_OrdersValidateItems(t *testing.T) {
 				matchString(t, want.Name, got.GetName(), want.Product+": name")
 				matchString(t, want.CampaignID, got.GetCampaignId(), want.Product+": campaign_id")
 				matchString(t, want.Size, got.GetSize(), want.Product+": size")
+				matchString(t, want.Personalization, got.GetPersonalization(), want.Product+": personalization")
 				if want.UnitPrice != nil {
 					require.NotNil(t, got.GetUnitPrice(), "%s: unit_price", want.Product)
 					assert.Equal(t, want.UnitPrice.AmountCents, got.GetUnitPrice().GetAmountCents(), "%s: unit_price.amount_cents", want.Product)
@@ -141,6 +151,9 @@ func givenState(t *testing.T, db *gorm.DB, n int, it contractInteraction) map[st
 		p := domain.Product{
 			SKU: fmt.Sprintf("CT-%d-%s", n, ref), Name: "Produto do contrato " + ref, CategoryID: cat.ID,
 			PriceCents: g.PriceCents, Status: domain.ProductStatus(g.Status), Sizes: g.Sizes,
+		}
+		if c := g.Personalization; c != nil {
+			p.Personalization = &domain.Personalization{Label: c.Label, MaxLength: c.MaxLength, Required: c.Required, Template: c.Template}
 		}
 		require.NoError(t, products.Create(ctx, &p))
 		ids[ref] = p.ID

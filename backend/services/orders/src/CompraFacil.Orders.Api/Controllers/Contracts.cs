@@ -44,10 +44,14 @@ public sealed record PlaceOrderPaymentRequest(PaymentMethod? Method, string? Car
 
 public sealed record OrderPaymentResponse(PaymentMethod Method, int Installments, OrderPix? Pix);
 
-public sealed record PlaceOrderItemRequest(Guid? ProductId, int? Quantity, long? ExpectedUnitPriceCents, string? Size = null)
+public sealed record PlaceOrderItemRequest(
+    Guid? ProductId, int? Quantity, long? ExpectedUnitPriceCents, string? Size = null, string? Personalization = null)
 {
     /// <summary>O tamanho sem espaços nas pontas; em branco é o mesmo que ausente.</summary>
     public string? CleanSize => string.IsNullOrWhiteSpace(Size) ? null : Size.Trim();
+
+    /// <summary>O texto sem espaços nas pontas nem repetidos; em branco é o mesmo que ausente.</summary>
+    public string? CleanPersonalization => Domain.Personalization.Normalize(Personalization);
 }
 
 public sealed record OrderResponse(

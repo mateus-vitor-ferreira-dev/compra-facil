@@ -181,6 +181,7 @@ const products = seed.map(([name, slug, price, effective, brand], i) => {
     effective_price: { amount_cents: effective, currency: "BRL" },
     campaign: effective < price ? campaign : null,
     sizes: [],
+    personalization: null,
     created_at: "2026-10-01T10:00:00Z",
     updated_at: "2026-10-01T10:00:00Z",
   };
@@ -198,6 +199,13 @@ products[0].image = products[0].images[0];
 products[0].image_url = products[0].images[0].url;
 // um fone (10) com tamanho, para o seletor da página e as linhas por tamanho no carrinho
 products[10].sizes = ["P", "M", "G"];
+// um fone (11) com o nome do cliente na arte, obrigatório, até 12 caracteres
+products[11].personalization = {
+  label: "Nome",
+  max_length: 12,
+  required: true,
+  template: "nome-classico:mae",
+};
 
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
 const baseStock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
@@ -911,10 +919,20 @@ async function placeOrder(req, res, email) {
   const lines = items.map((i) => ({ ...i, product: products.find((p) => p.id === i.product_id) }));
   // como o catalog: o produto com tamanho exige um dos dele, e o sem tamanho não aceita
   const sizeOk = (l) => (l.product.sizes.length ? l.product.sizes.includes(l.size) : !l.size);
+  // e a personalização: obrigatória quando o produto pede, até o máximo, e recusada no produto sem ela
+  const textOk = (l) => {
+    const rule = l.product.personalization;
+    if (!rule) return !l.personalization;
+    if (!l.personalization) return !rule.required;
+    return [...l.personalization].length <= rule.max_length;
+  };
   if (
     lines.some(
       (l) =>
-        !l.product || l.expected_unit_price_cents !== l.product.effective_price.amount_cents || !sizeOk(l),
+        !l.product ||
+        l.expected_unit_price_cents !== l.product.effective_price.amount_cents ||
+        !sizeOk(l) ||
+        !textOk(l),
     )
   ) {
     return send(
@@ -924,8 +942,9 @@ async function placeOrder(req, res, email) {
       "application/problem+json",
     );
   }
-  const orderItems = lines.map(({ product, quantity, size }) => ({
+  const orderItems = lines.map(({ product, quantity, size, personalization }) => ({
     size: size ?? null,
+    personalization: personalization ?? null,
     product_id: product.id,
     sku: product.sku,
     name: product.name,

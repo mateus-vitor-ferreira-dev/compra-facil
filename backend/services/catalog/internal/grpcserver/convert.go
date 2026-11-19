@@ -15,12 +15,13 @@ var productStatus = map[domain.ProductStatus]catalogv1.ProductStatus{
 }
 
 var itemStatus = map[service.ItemStatus]catalogv1.ItemStatus{
-	service.ItemOK:              catalogv1.ItemStatus_ITEM_STATUS_OK,
-	service.ItemNotFound:        catalogv1.ItemStatus_ITEM_STATUS_NOT_FOUND,
-	service.ItemNotActive:       catalogv1.ItemStatus_ITEM_STATUS_NOT_ACTIVE,
-	service.ItemPriceChanged:    catalogv1.ItemStatus_ITEM_STATUS_PRICE_CHANGED,
-	service.ItemInvalidQuantity: catalogv1.ItemStatus_ITEM_STATUS_INVALID_QUANTITY,
-	service.ItemInvalidSize:     catalogv1.ItemStatus_ITEM_STATUS_INVALID_SIZE,
+	service.ItemOK:                     catalogv1.ItemStatus_ITEM_STATUS_OK,
+	service.ItemNotFound:               catalogv1.ItemStatus_ITEM_STATUS_NOT_FOUND,
+	service.ItemNotActive:              catalogv1.ItemStatus_ITEM_STATUS_NOT_ACTIVE,
+	service.ItemPriceChanged:           catalogv1.ItemStatus_ITEM_STATUS_PRICE_CHANGED,
+	service.ItemInvalidQuantity:        catalogv1.ItemStatus_ITEM_STATUS_INVALID_QUANTITY,
+	service.ItemInvalidSize:            catalogv1.ItemStatus_ITEM_STATUS_INVALID_SIZE,
+	service.ItemInvalidPersonalization: catalogv1.ItemStatus_ITEM_STATUS_INVALID_PERSONALIZATION,
 }
 
 func money(cents int64, currency string) *catalogv1.Money {
@@ -40,6 +41,11 @@ func toProto(p domain.Product) *catalogv1.Product {
 		CategoryId:     p.CategoryID.String(),
 		Sizes:          p.Sizes,
 	}
+	if c := p.Personalization; c != nil && !c.IsZero() {
+		out.Personalization = &catalogv1.Personalization{
+			Label: c.Label, MaxLength: int32(c.MaxLength), Required: c.Required, Template: c.Template, //nolint:gosec // até 40
+		}
+	}
 	if c := p.ActiveCampaign; c != nil {
 		out.Campaign = &catalogv1.CampaignRef{
 			Id: c.ID.String(), Name: c.Name, DiscountPercent: int32(c.DiscountPercent), //nolint:gosec // 1..90
@@ -58,10 +64,11 @@ func toValidateResponse(v service.ItemsValidation) *catalogv1.ValidateItemsRespo
 	}
 	for i, it := range v.Items {
 		item := &catalogv1.ValidatedItem{
-			ProductId: it.ProductID.String(),
-			Status:    itemStatus[it.Status],
-			Quantity:  int32(it.Quantity), //nolint:gosec // veio de um int32 do request
-			Size:      it.Size,
+			ProductId:       it.ProductID.String(),
+			Status:          itemStatus[it.Status],
+			Quantity:        int32(it.Quantity), //nolint:gosec // veio de um int32 do request
+			Size:            it.Size,
+			Personalization: it.Personalization,
 		}
 		if p := it.Product; p != nil {
 			item.Sku, item.Name = p.SKU, p.Name

@@ -2,10 +2,12 @@
 
 import { ShoppingCart } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { QuantityStepper } from "@/components/commerce/quantity-stepper";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { TextField } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
+import { normalizePersonalization, type PersonalizationRule } from "@/lib/personalization";
 import { addToCart, type AddState } from "../../carrinho/actions";
 
 /**
@@ -17,6 +19,7 @@ export function AddToCartForm({
   seenPriceCents,
   max,
   sizes = [],
+  personalization,
 }: {
   productId: string;
   /** o preço que esta página mostrou: se mudar até o pedido, o carrinho avisa */
@@ -24,6 +27,8 @@ export function AddToCartForm({
   max?: number;
   /** os tamanhos à escolha; vazio, o produto não tem tamanho */
   sizes?: string[];
+  /** o campo de texto do cliente (ex.: o nome na estampa); nulo, o produto não tem */
+  personalization?: PersonalizationRule | null;
 }) {
   const [state, action, pending] = useActionState<AddState, FormData>(addToCart, { status: "idle" });
   const { show } = useToast();
@@ -36,8 +41,8 @@ export function AddToCartForm({
       show(
         "success",
         state.limited
-          ? `Adicionado ao carrinho até o limite disponível: ${state.qty} no total${sizeNote(state.size)}.`
-          : `Adicionado ao carrinho: ${state.qty} ${state.qty === 1 ? "unidade" : "unidades"} no total${sizeNote(state.size)}.`,
+          ? `Adicionado ao carrinho até o limite disponível: ${state.qty} no total${sizeNote(state.size)}${textNote(state.text)}.`
+          : `Adicionado ao carrinho: ${state.qty} ${state.qty === 1 ? "unidade" : "unidades"} no total${sizeNote(state.size)}${textNote(state.text)}.`,
       );
     }
   }, [state, show]);
@@ -47,6 +52,7 @@ export function AddToCartForm({
       <input type="hidden" name="product_id" value={productId} />
       <input type="hidden" name="seen_price_cents" value={seenPriceCents} />
       {sizes.length > 0 && <SizePicker productId={productId} sizes={sizes} />}
+      {personalization && <PersonalizationField productId={productId} rule={personalization} />}
       <div className="flex flex-wrap items-end gap-3">
         <QuantityStepper id={`qtd-${productId}`} max={max} />
         <Button type="submit" disabled={pending} className="min-w-0 flex-1 sm:flex-none sm:px-8">
@@ -72,6 +78,39 @@ export function AddToCartForm({
 }
 
 const sizeNote = (size?: string) => (size ? ` no tamanho ${size}` : "");
+const textNote = (text?: string) => (text ? `, com "${text}"` : "");
+
+/**
+ * O texto do cliente para a arte (ex.: o nome na estampa), com o contador. O contador conta como a arte (sem os
+ * espaços das pontas nem os repetidos); o campo deixa digitar um pouco além, para os espaços não cortarem letras, e
+ * o servidor confere o máximo e o que a fonte imprime.
+ */
+function PersonalizationField({ productId, rule }: { productId: string; rule: PersonalizationRule }) {
+  const [text, setText] = useState("");
+  const used = [...normalizePersonalization(text)].length;
+  const over = used > rule.max_length;
+  return (
+    <div className="relative">
+      <TextField
+        id={`perso-${productId}`}
+        name="personalization"
+        label={rule.required ? rule.label : `${rule.label} (opcional)`}
+        hint={`Até ${rule.max_length} caracteres: letras, números, espaço e . , ' - & ! ? /. Sai na arte do jeito que você escrever.`}
+        maxLength={rule.max_length * 2}
+        required={rule.required}
+        autoComplete="off"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <span
+        aria-hidden="true"
+        className={`absolute top-0 right-0 text-sm tabular-nums ${over ? "text-danger font-semibold" : "text-ink-soft"}`}
+      >
+        {used}/{rule.max_length}
+      </span>
+    </div>
+  );
+}
 
 /**
  * Os tamanhos como opções de rádio em botões (44 px no toque): um grupo nativo, que o teclado percorre com as

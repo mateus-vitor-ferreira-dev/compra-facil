@@ -17,7 +17,8 @@ namespace CompraFacil.Orders.IntegrationTests;
 
 /// <summary>Produto do catalog falso.</summary>
 public sealed record CatalogProduct(
-    string Sku, string Name, long PriceCents, bool Active = true, Guid? CampaignId = null, IReadOnlyList<string>? Sizes = null);
+    string Sku, string Name, long PriceCents, bool Active = true, Guid? CampaignId = null, IReadOnlyList<string>? Sizes = null,
+    int? PersonalizationMaxLength = null, bool PersonalizationRequired = false);
 
 /// <summary>
 /// Catalog falso, servindo o mesmo contrato gRPC (contracts/proto/catalog/v1) que o catalog em Go,
@@ -66,8 +67,12 @@ public sealed class FakeCatalog : CatalogService.CatalogServiceBase
                 var size = sizes.FirstOrDefault(s => string.Equals(s, item.Size, StringComparison.OrdinalIgnoreCase));
                 validated.Size = size ?? item.Size;
                 var sizeOk = sizes.Count == 0 ? item.Size.Length == 0 : size is not null;
+                var text = CompraFacil.Orders.Domain.Personalization.Normalize(item.Personalization);
+                validated.Personalization = text ?? "";
+                var textOk = CompraFacil.Orders.Domain.Personalization.Accepts(text, p.PersonalizationMaxLength, p.PersonalizationRequired);
                 validated.Status = !p.Active ? ItemStatus.NotActive
                     : !sizeOk ? ItemStatus.InvalidSize
+                    : !textOk ? ItemStatus.InvalidPersonalization
                     : item.HasExpectedUnitPriceCents && item.ExpectedUnitPriceCents != p.PriceCents ? ItemStatus.PriceChanged
                     : ItemStatus.Ok;
             }

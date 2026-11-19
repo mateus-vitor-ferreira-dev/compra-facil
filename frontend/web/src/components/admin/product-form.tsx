@@ -7,6 +7,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/utils";
 import { FormError } from "./form-error";
 import { ProductPhotos } from "./product-photos";
+import { TEMPLATE_OPTIONS } from "@/lib/arte/templates";
 import { STATUS_LABEL } from "./product-status";
 
 export type ProductFormValues = {
@@ -22,6 +23,12 @@ export type ProductFormValues = {
   price: string;
   /** os tamanhos separados por vírgula, na ordem da página do produto; vazio, sem tamanho */
   sizes: string;
+  /** a arte que recebe o texto do cliente; vazio, o produto não tem personalização */
+  personalization_template: string;
+  personalization_label: string;
+  personalization_max_length: string;
+  /** "sim" quando o texto é obrigatório */
+  personalization_required: string;
   status: "draft" | "active" | "inactive";
 };
 
@@ -128,6 +135,64 @@ export function ProductForm({
         autoCorrect="off"
         autoCapitalize="characters"
       />
+      <fieldset className="border-line space-y-3 rounded-md border p-4">
+        <legend className="px-1 font-medium">Personalização</legend>
+        <p className="text-ink-soft text-sm">
+          O texto que o cliente escreve na compra (ex.: o nome na estampa). Na fila do fornecedor, o painel
+          gera o arquivo de impressão com a arte escolhida.
+        </p>
+        <div className="space-y-1.5">
+          <label htmlFor="personalization_template" className="block font-medium">
+            Arte
+          </label>
+          <select
+            id="personalization_template"
+            name="personalization_template"
+            defaultValue={v.personalization_template}
+            aria-describedby={described("personalization_template")}
+            className="border-field-line bg-surface h-11 w-full rounded-md border px-3"
+          >
+            <option value="">Sem personalização</option>
+            {TEMPLATE_OPTIONS.map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {err.personalization_template && (
+            <p id="personalization_template-erro" className="text-danger text-sm">
+              {err.personalization_template}
+            </p>
+          )}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label="Rótulo do campo"
+            name="personalization_label"
+            defaultValue={v.personalization_label || "Nome"}
+            error={err.personalization_label}
+            hint="O que o cliente vê acima do campo (ex.: Nome, Sobrenome, Ano)."
+            maxLength={30}
+          />
+          <TextField
+            label="Caracteres no máximo"
+            name="personalization_max_length"
+            defaultValue={v.personalization_max_length || "14"}
+            error={err.personalization_max_length}
+            hint="De 1 a 40. Nomes longos saem em duas linhas e menores."
+            inputMode="numeric"
+          />
+        </div>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="personalization_required"
+            defaultChecked={v.personalization_required === "sim"}
+            className="size-5"
+          />
+          O cliente precisa escrever o texto para comprar
+        </label>
+      </fieldset>
       <div className="space-y-1.5">
         <label htmlFor="description" className="block font-medium">
           Descrição

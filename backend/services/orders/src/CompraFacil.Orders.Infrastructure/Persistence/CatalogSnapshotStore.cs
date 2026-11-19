@@ -28,6 +28,8 @@ internal sealed class CatalogSnapshotStore(OrdersDbContext db) : ICatalogSnapsho
         row.Currency = product.Price.Currency;
         row.Status = product.Status;
         row.Sizes = [.. product.Sizes ?? []];
+        row.PersonalizationMaxLength = product.Personalization?.MaxLength;
+        row.PersonalizationRequired = product.Personalization?.Required ?? false;
         row.Version = product.Version;
         row.Deleted = false;
         row.UpdatedAt = product.UpdatedAt;
