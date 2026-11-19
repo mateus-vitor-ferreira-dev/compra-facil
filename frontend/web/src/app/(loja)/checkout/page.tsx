@@ -118,9 +118,12 @@ export default async function CheckoutPage() {
                 </Link>
               </div>
               <ul className="divide-line border-line mt-3 divide-y border-y">
-                {lines.map(({ id, qty, product }) =>
+                {lines.map(({ key, size, qty, product }) =>
                   product ? (
-                    <li key={id} className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-4 py-4">
+                    <li
+                      key={key}
+                      className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-4 py-4"
+                    >
                       <ProductImage
                         image={product.image}
                         alt=""
@@ -129,6 +132,7 @@ export default async function CheckoutPage() {
                       />
                       <div className="min-w-0">
                         <p className="leading-snug font-medium">{product.name}</p>
+                        {size && <p className="text-sm font-medium">Tamanho {size}</p>}
                         <p className="text-ink-soft text-sm">
                           {qty} × {brl(product.effective_price.amount_cents)}
                         </p>

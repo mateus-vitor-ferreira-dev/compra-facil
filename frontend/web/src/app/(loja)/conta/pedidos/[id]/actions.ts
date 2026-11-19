@@ -48,7 +48,7 @@ export async function refazerPedido(form: FormData): Promise<void> {
     redirect(`/conta/pedidos/${id.data}`);
   }
   const items = order.data.items;
-  const stock = await getAvailability(items.map((i) => i.product_id));
+  const stock = await getAvailability([...new Set(items.map((i) => i.product_id))]);
   let cart = await readCart();
   let back = 0;
   for (const item of items) {
@@ -58,6 +58,7 @@ export async function refazerPedido(form: FormData): Promise<void> {
       item.quantity,
       item.unit_price.amount_cents,
       stock.ok ? stock.data[item.product_id] : undefined,
+      item.size ?? undefined,
     );
     if (result.ok) {
       cart = result.cart;

@@ -463,7 +463,10 @@ export interface components {
             recipient: components["schemas"]["Recipient"];
             shipping_address: components["schemas"]["ShippingAddress"];
             payment: components["schemas"]["PlaceOrderPayment"];
-            /** @description Um item por produto (sem repetir `product_id`). */
+            /**
+             * @description Um item por produto e tamanho: o mesmo `product_id` pode vir em mais de um item, cada um com um
+             *     `size` diferente.
+             */
             items: components["schemas"]["PlaceOrderItem"][];
         };
         /**
@@ -499,6 +502,12 @@ export interface components {
              *     recusado com 409 (evita cobrar um preço que mudou no meio da campanha).
              */
             expected_unit_price_cents?: number;
+            /**
+             * @description O tamanho escolhido, um dos `sizes` do produto no catálogo (sem diferenciar maiúsculas). Obrigatório
+             *     no produto com tamanho e ausente no sem tamanho; senão, 409.
+             * @example G
+             */
+            size?: string | null;
         };
         Order: {
             /** Format: uuid */
@@ -585,6 +594,11 @@ export interface components {
             line_total: components["schemas"]["Money"];
             /** Format: uuid */
             campaign_id?: string | null;
+            /**
+             * @description O tamanho escolhido, como está no catálogo; nulo no produto sem tamanho.
+             * @example G
+             */
+            size?: string | null;
         };
         /** @enum {string} */
         PaymentMethod: "pix" | "card";

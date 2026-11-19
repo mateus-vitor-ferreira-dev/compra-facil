@@ -653,6 +653,11 @@ export interface components {
                 sku: string;
                 name: string;
                 quantity: number;
+                /**
+                 * @description O tamanho que o cliente escolheu; peça ao fornecedor nele. Nulo no produto sem tamanho.
+                 * @example G
+                 */
+                size?: string | null;
             }[];
             /** @description O que o cliente pagou, com o frete. */
             revenue_cents?: number | null;
@@ -898,6 +903,8 @@ export interface components {
                 sku: string;
                 name: string;
                 quantity: number;
+                /** @description O tamanho que o cliente escolheu; nulo no produto sem tamanho. */
+                size?: string | null;
             }[];
             /** @description Tentativas de abrir com o fornecedor fora do ar. */
             attempts: number;

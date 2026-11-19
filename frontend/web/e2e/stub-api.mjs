@@ -180,6 +180,7 @@ const products = seed.map(([name, slug, price, effective, brand], i) => {
     price: { amount_cents: price, currency: "BRL" },
     effective_price: { amount_cents: effective, currency: "BRL" },
     campaign: effective < price ? campaign : null,
+    sizes: [],
     created_at: "2026-10-01T10:00:00Z",
     updated_at: "2026-10-01T10:00:00Z",
   };
@@ -195,6 +196,8 @@ const photo = (color) => ({
 products[0].images = ["steelblue", "goldenrod", "seagreen"].map(photo);
 products[0].image = products[0].images[0];
 products[0].image_url = products[0].images[0].url;
+// um fone (10) com tamanho, para o seletor da página e as linhas por tamanho no carrinho
+products[10].sizes = ["P", "M", "G"];
 
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
 const baseStock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;
@@ -906,8 +909,13 @@ async function placeOrder(req, res, email) {
     );
   }
   const lines = items.map((i) => ({ ...i, product: products.find((p) => p.id === i.product_id) }));
+  // como o catalog: o produto com tamanho exige um dos dele, e o sem tamanho não aceita
+  const sizeOk = (l) => (l.product.sizes.length ? l.product.sizes.includes(l.size) : !l.size);
   if (
-    lines.some((l) => !l.product || l.expected_unit_price_cents !== l.product.effective_price.amount_cents)
+    lines.some(
+      (l) =>
+        !l.product || l.expected_unit_price_cents !== l.product.effective_price.amount_cents || !sizeOk(l),
+    )
   ) {
     return send(
       res,
@@ -916,7 +924,8 @@ async function placeOrder(req, res, email) {
       "application/problem+json",
     );
   }
-  const orderItems = lines.map(({ product, quantity }) => ({
+  const orderItems = lines.map(({ product, quantity, size }) => ({
+    size: size ?? null,
     product_id: product.id,
     sku: product.sku,
     name: product.name,

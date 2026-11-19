@@ -20,6 +20,8 @@ export type ProductFormValues = {
   /** a primeira é a dos cards da vitrine */
   image_urls: string[];
   price: string;
+  /** os tamanhos separados por vírgula, na ordem da página do produto; vazio, sem tamanho */
+  sizes: string;
   status: "draft" | "active" | "inactive";
 };
 
@@ -116,6 +118,16 @@ export function ProductForm({
           required
         />
       </div>
+      <TextField
+        label="Tamanhos"
+        name="sizes"
+        defaultValue={v.sizes}
+        error={err.sizes}
+        hint="Separados por vírgula, na ordem em que aparecem na página (ex.: P, M, G, GG). Vazio: o produto não tem tamanho. O preço e o estoque valem para todos."
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="characters"
+      />
       <div className="space-y-1.5">
         <label htmlFor="description" className="block font-medium">
           Descrição
