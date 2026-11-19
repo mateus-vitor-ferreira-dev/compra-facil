@@ -43,6 +43,8 @@ type productSnapshot struct {
 	UpdatedAt  time.Time            `json:"updated_at"`
 	// Supplier: a variante do fornecedor de dropshipping (nulo no produto da loja); o custo fica de fora
 	Supplier *supplierRef `json:"supplier"`
+	// Sizes: os tamanhos que o cliente escolhe (o orders confere o do pedido quando o catalog está fora)
+	Sizes []string `json:"sizes"`
 }
 
 type supplierRef struct {
@@ -55,8 +57,13 @@ func snapshotOf(p domain.Product) productSnapshot {
 	if p.Supplier != nil {
 		supplier = &supplierRef{Name: p.Supplier.Name, VID: p.Supplier.VID}
 	}
+	sizes := p.Sizes
+	if sizes == nil {
+		sizes = []string{}
+	}
 	return productSnapshot{
 		Supplier:   supplier,
+		Sizes:      sizes,
 		ProductID:  p.ID,
 		SKU:        p.SKU,
 		Name:       p.Name,

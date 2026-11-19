@@ -1219,6 +1219,10 @@ components:
               quantity:
                 type: integer
                 minimum: 1
+              size:
+                type: [string, "null"]
+                description: O tamanho que o cliente escolheu; peça ao fornecedor nele. Nulo no produto sem tamanho.
+                examples: ["G"]
         revenue_cents:
           type: [integer, "null"]
           description: O que o cliente pagou, com o frete.
@@ -1576,6 +1580,9 @@ components:
               quantity:
                 type: integer
                 minimum: 1
+              size:
+                type: [string, "null"]
+                description: O tamanho que o cliente escolheu; nulo no produto sem tamanho.
         attempts:
           type: integer
           minimum: 0

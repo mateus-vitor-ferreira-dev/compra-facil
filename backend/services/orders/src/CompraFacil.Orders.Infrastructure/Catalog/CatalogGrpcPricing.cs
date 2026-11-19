@@ -47,7 +47,7 @@ internal sealed class CatalogGrpcPricing(CatalogService.CatalogServiceClient cli
         var request = new ValidateItemsRequest();
         foreach (var item in items)
         {
-            var proto = new ItemToValidate { ProductId = item.ProductId.ToString(), Quantity = item.Quantity };
+            var proto = new ItemToValidate { ProductId = item.ProductId.ToString(), Quantity = item.Quantity, Size = item.Size ?? "" };
             if (item.ExpectedUnitPriceCents is { } expected)
             {
                 proto.ExpectedUnitPriceCents = expected;
@@ -74,7 +74,8 @@ internal sealed class CatalogGrpcPricing(CatalogService.CatalogServiceClient cli
             i.Sku,
             i.Name,
             i.UnitPrice is null ? null : new DomainMoney(i.UnitPrice.AmountCents, i.UnitPrice.Currency),
-            string.IsNullOrEmpty(i.CampaignId) ? null : Guid.Parse(i.CampaignId)))];
+            string.IsNullOrEmpty(i.CampaignId) ? null : Guid.Parse(i.CampaignId),
+            string.IsNullOrEmpty(i.Size) ? null : i.Size))];
     }
 
     private static PricedItemStatus Map(ItemStatus status) => status switch
@@ -84,6 +85,7 @@ internal sealed class CatalogGrpcPricing(CatalogService.CatalogServiceClient cli
         ItemStatus.NotActive => PricedItemStatus.NotActive,
         ItemStatus.PriceChanged => PricedItemStatus.PriceChanged,
         ItemStatus.InvalidQuantity => PricedItemStatus.InvalidQuantity,
+        ItemStatus.InvalidSize => PricedItemStatus.InvalidSize,
         _ => throw new InvalidOperationException($"status de item desconhecido do catálogo: {status}"),
     };
 }

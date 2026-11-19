@@ -98,6 +98,54 @@ func TestProduct_Validate_Gallery(t *testing.T) {
 	}
 }
 
+func TestProduct_Validate_Sizes(t *testing.T) {
+	tests := []struct {
+		name  string
+		sizes []string
+		ok    bool
+	}{
+		{"sem tamanho", nil, true},
+		{"lista vazia", []string{}, true},
+		{"P M G GG", []string{"P", "M", "G", "GG"}, true},
+		{"numeração", []string{"36", "38", "40"}, true},
+		{"repetido sem diferenciar maiúsculas", []string{"G", "g"}, false},
+		{"tamanho longo", []string{strings.Repeat("X", MaxSizeLength+1)}, false},
+		{"acima do máximo", strings.Split(strings.Repeat("a,", MaxSizes)+"z", ","), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := validProduct()
+			p.Sizes = tt.sizes
+			if tt.ok {
+				assert.NoError(t, p.Validate())
+			} else {
+				assert.Equal(t, []string{"sizes"}, fieldsOf(t, p.Validate()))
+			}
+		})
+	}
+}
+
+func TestProduct_Normalize_Sizes(t *testing.T) {
+	p := Product{Sizes: []string{" P ", "", "  ", "M"}}
+	p.Normalize()
+	assert.Equal(t, []string{"P", "M"}, p.Sizes, "tira espaços e os vazios")
+
+	p = Product{}
+	p.Normalize()
+	assert.Nil(t, p.Sizes, "nil continua nil (o PUT mantém os gravados)")
+}
+
+func TestProduct_HasSize(t *testing.T) {
+	sem := Product{}
+	assert.True(t, sem.HasSize(""))
+	assert.False(t, sem.HasSize("M"), "produto sem tamanho não aceita um")
+
+	com := Product{Sizes: []string{"P", "G"}}
+	assert.True(t, com.HasSize("g"), "sem diferenciar maiúsculas")
+	assert.False(t, com.HasSize("M"))
+	assert.False(t, com.HasSize(""), "produto com tamanho exige a escolha")
+}
+
 func TestProduct_Normalize(t *testing.T) {
 	blank := "   "
 	p := Product{SKU: " TV-55 ", Name: "  Smart TV ", Description: " x ", ImageURL: &blank}

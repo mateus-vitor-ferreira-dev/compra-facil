@@ -300,6 +300,57 @@ public sealed class OrdersApiTests(OrdersFixture fx) : IClassFixture<OrdersFixtu
     }
 
     [Fact]
+    public async Task Place_TheSameProductInTwoSizes_IsTwoItems_WithTheSizeAsInTheCatalog()
+    {
+        var camiseta = fx.Catalog.Add(new CatalogProduct("CAM-NATAL", "Camiseta Natal", 7990, Sizes: ["P", "M", "G"]));
+        var customer = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(customer,
+            new { product_id = camiseta, quantity = 1, size = "p" },
+            new { product_id = camiseta, quantity = 2, size = " G " }));
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync(Ct);
+        ContractAssert.AssertSchema("orders.v1.yaml", "/components/schemas/Order", json);
+        var items = JsonDocument.Parse(json).RootElement.GetProperty("items");
+        Assert.Equal(["P", "G"], items.EnumerateArray().Select(i => i.GetProperty("size").GetString()));
+        Assert.Equal(7990 * 3 + 2430, JsonDocument.Parse(json).RootElement.GetProperty("total").GetProperty("amount_cents").GetInt64());
+
+        var outbox = Assert.Single(await OutboxForAsync(JsonDocument.Parse(json).RootElement.GetProperty("id").GetGuid()));
+        ContractAssert.AssertEvent("orders.v1.yaml", "OrderPlaced", outbox.Payload);
+        var placed = EventEnvelope.TryParse(outbox.Payload)!.Data.GetProperty("items");
+        Assert.Equal(["P", "G"], placed.EnumerateArray().Select(i => i.GetProperty("size").GetString()));
+    }
+
+    [Theory]
+    [InlineData(null, "escolha o tamanho")]
+    [InlineData("GG", "não tem o tamanho GG")]
+    public async Task Place_WithoutTheSizeOrWithOneTheProductDoesNotHave_Is409(string? size, string detail)
+    {
+        var camiseta = fx.Catalog.Add(new CatalogProduct("CAM-SIZE", "Camiseta", 7990, Sizes: ["P", "M"]));
+        var customer = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(customer, new { product_id = camiseta, quantity = 1, size }));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(detail, (await JsonOf(response)).GetProperty("detail").GetString(), StringComparison.Ordinal);
+        Assert.Equal(0, await OrdersOfAsync(customer));
+    }
+
+    [Fact]
+    public async Task Place_TheSameProductTwiceInTheSameSize_Is422()
+    {
+        var camiseta = Guid.NewGuid();
+
+        using var response = await PlaceAsync(Body(Guid.NewGuid(),
+            new { product_id = camiseta, quantity = 1, size = "G" },
+            new { product_id = camiseta, quantity = 1, size = "g" }));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains((await JsonOf(response)).GetProperty("errors").EnumerateArray(), e => e.GetProperty("field").GetString() == "items");
+    }
+
+    [Fact]
     public async Task Place_SameKeyAndBody_ReturnsTheSameOrder()
     {
         var product = fx.Catalog.Add(new CatalogProduct("SKU-IDEM", "Produto", 1000));

@@ -402,3 +402,8 @@ components:
                 vid:
                   type: string
             - type: "null"
+        sizes:
+          description: |
+            Os tamanhos que o cliente escolhe na compra; vazio, o produto não tem tamanho. Eventos de antes do
+            campo não o trazem: o consumidor trata a ausência como lista vazia.
+          $ref: "../openapi/catalog.v1.yaml#/components/schemas/ProductSizes"

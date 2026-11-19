@@ -348,14 +348,16 @@ type ProductInput struct {
 	ImageURL    *string
 	// MoreImageURLs são as outras fotos, na ordem da galeria; nil mantém as que estão gravadas.
 	MoreImageURLs []string
-	PriceCents    int64
-	Status        domain.ProductStatus
+	// Sizes são os tamanhos que o cliente escolhe; nil mantém os gravados, vazio tira o tamanho.
+	Sizes      []string
+	PriceCents int64
+	Status     domain.ProductStatus
 }
 
 func (in ProductInput) toProduct() domain.Product {
 	p := domain.Product{
 		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
-		ImageURL: in.ImageURL, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
+		ImageURL: in.ImageURL, Sizes: in.Sizes, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
 	}
 	if in.MoreImageURLs != nil {
 		p.Gallery = make([]domain.GalleryImage, len(in.MoreImageURLs))

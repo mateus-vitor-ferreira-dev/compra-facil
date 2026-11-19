@@ -132,6 +132,7 @@ public static partial class EmailComposer
             items = order.Items.Select(i => new
             {
                 name = i.Name,
+                size = i.Size,
                 quantity = i.Quantity,
                 unit_price = Brl(i.UnitPrice),
                 line_total = Brl(i.LineTotal),

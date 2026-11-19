@@ -4,6 +4,7 @@ const TV = "/produto/0199f6a0-0000-7000-8000-000000000000";
 const NOTEBOOK = "/produto/0199f6a0-0000-7000-8000-000000000002"; // 3 unidades no stub
 const SOLD_OUT = "/produto/0199f6a0-0000-7000-8000-000000000032";
 const FONE = "/produto/0199f6a0-0000-7000-8000-000000000001";
+const COM_TAMANHO = "/produto/0199f6a0-0000-7000-8000-000000000010"; // P, M e G no stub
 
 /** Põe o produto da página no carrinho, com o formulário já hidratado. */
 async function add(page: Page, path: string) {
@@ -168,4 +169,36 @@ test("sem JavaScript, esvaziar também pede confirmação", async ({ browser }) 
   await expect(page.getByRole("heading", { name: "Seu carrinho está vazio" })).toBeVisible();
   expect((await context.cookies()).find((c) => c.name === "cf_cart")).toBeUndefined();
   await context.close();
+});
+
+test("o produto com tamanho pede a escolha, e cada tamanho é uma linha do carrinho", async ({ page }) => {
+  await page.goto(COM_TAMANHO);
+  await page.locator("form[action] input[name=quantity]").waitFor();
+  const sizes = page.getByRole("group", { name: "Tamanho" });
+  await expect(sizes.getByRole("radio")).toHaveCount(3);
+
+  // sem escolher, o navegador não envia: nada entra no carrinho
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toHaveCount(0);
+
+  await sizes.getByText("G", { exact: true }).click();
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "no tamanho G" })).toBeVisible();
+  await sizes.getByText("P", { exact: true }).click();
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "no tamanho P" })).toBeVisible();
+
+  await page.goto("/carrinho");
+  const list = page.getByRole("list", { name: "Produtos no carrinho" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list).toContainText("Tamanho G");
+  await expect(list).toContainText("Tamanho P");
+
+  // cada linha muda sozinha
+  await page.getByRole("button", { name: /^Aumentar a quantidade de .*, tamanho G$/ }).click();
+  await expect(page.getByRole("status", { name: /^Quantidade de .*, tamanho G$/ })).toHaveText("2");
+  await expect(page.getByRole("status", { name: /^Quantidade de .*, tamanho P$/ })).toHaveText("1");
+  await page.getByRole("button", { name: /^Remover .*, tamanho P do carrinho$/ }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list).toContainText("Tamanho G");
 });

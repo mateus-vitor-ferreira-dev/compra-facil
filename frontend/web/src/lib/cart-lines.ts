@@ -1,5 +1,5 @@
 import "server-only";
-import type { Cart, Line } from "@/lib/cart-rules";
+import { lineKey, type Cart, type Line } from "@/lib/cart-rules";
 import type { Product } from "@/lib/catalog";
 import { getProduct } from "@/lib/catalog-api";
 import { getAvailability } from "@/lib/inventory-api";
@@ -12,7 +12,7 @@ export type CartLine = Line & { product?: Product };
  * então a linha sem produto não é dada como removida.
  */
 export async function loadCartLines(cart: Cart): Promise<{ lines: CartLine[]; unreachable: boolean }> {
-  const ids = cart.items.map((i) => i.id);
+  const ids = [...new Set(cart.items.map((i) => i.id))];
   const [products, stock] = await Promise.all([Promise.all(ids.map(getProduct)), getAvailability(ids)]);
   const byId = new Map<string, Product>(products.flatMap((p) => (p.ok ? [[p.data.id, p.data]] : [])));
   const unreachable = products.some((p) => !p.ok && p.error.status !== 404);
@@ -21,6 +21,7 @@ export async function loadCartLines(cart: Cart): Promise<{ lines: CartLine[]; un
     const product = byId.get(item.id);
     return {
       ...item,
+      key: lineKey(item),
       product,
       unit: product
         ? { price: product.price.amount_cents, effective: product.effective_price.amount_cents }

@@ -20,6 +20,7 @@ var itemStatus = map[service.ItemStatus]catalogv1.ItemStatus{
 	service.ItemNotActive:       catalogv1.ItemStatus_ITEM_STATUS_NOT_ACTIVE,
 	service.ItemPriceChanged:    catalogv1.ItemStatus_ITEM_STATUS_PRICE_CHANGED,
 	service.ItemInvalidQuantity: catalogv1.ItemStatus_ITEM_STATUS_INVALID_QUANTITY,
+	service.ItemInvalidSize:     catalogv1.ItemStatus_ITEM_STATUS_INVALID_SIZE,
 }
 
 func money(cents int64, currency string) *catalogv1.Money {
@@ -37,6 +38,7 @@ func toProto(p domain.Product) *catalogv1.Product {
 		Version:        int32(p.Version), //nolint:gosec // versão cresce de 1 em 1; não chega perto de 2^31
 		UpdatedAt:      timestamppb.New(p.UpdatedAt),
 		CategoryId:     p.CategoryID.String(),
+		Sizes:          p.Sizes,
 	}
 	if c := p.ActiveCampaign; c != nil {
 		out.Campaign = &catalogv1.CampaignRef{
@@ -59,6 +61,7 @@ func toValidateResponse(v service.ItemsValidation) *catalogv1.ValidateItemsRespo
 			ProductId: it.ProductID.String(),
 			Status:    itemStatus[it.Status],
 			Quantity:  int32(it.Quantity), //nolint:gosec // veio de um int32 do request
+			Size:      it.Size,
 		}
 		if p := it.Product; p != nil {
 			item.Sku, item.Name = p.SKU, p.Name

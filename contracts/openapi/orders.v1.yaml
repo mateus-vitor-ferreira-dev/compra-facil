@@ -879,7 +879,9 @@ components:
           type: array
           minItems: 1
           maxItems: 50
-          description: Um item por produto (sem repetir `product_id`).
+          description: |
+            Um item por produto e tamanho: o mesmo `product_id` pode vir em mais de um item, cada um com um
+            `size` diferente.
           items:
             $ref: "#/components/schemas/PlaceOrderItem"
 
@@ -944,6 +946,13 @@ components:
           description: |
             Preço que o cliente viu. Se informado e diferente do vigente no catálogo, o pedido é
             recusado com 409 (evita cobrar um preço que mudou no meio da campanha).
+        size:
+          type: [string, "null"]
+          maxLength: 10
+          description: |
+            O tamanho escolhido, um dos `sizes` do produto no catálogo (sem diferenciar maiúsculas). Obrigatório
+            no produto com tamanho e ausente no sem tamanho; senão, 409.
+          examples: ["G"]
 
     Order:
       type: object
@@ -1075,6 +1084,10 @@ components:
         campaign_id:
           type: [string, "null"]
           format: uuid
+        size:
+          type: [string, "null"]
+          description: O tamanho escolhido, como está no catálogo; nulo no produto sem tamanho.
+          examples: ["G"]
 
   securitySchemes:
     bearerAuth:

@@ -22,7 +22,10 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
 
     public void Dispose() => fx.Catalog.Down = false;
 
-    private async Task<Guid> SnapshotProductAsync(long cents, string status = "active", bool deleted = false, params (int Discount, int StartedHoursAgo, int EndsInHours)[] campaigns)
+    private async Task<Guid> SnapshotProductAsync(long cents, string status = "active", bool deleted = false, params (int Discount, int StartedHoursAgo, int EndsInHours)[] campaigns) =>
+        await SnapshotProductAsync(cents, [], status, deleted, campaigns);
+
+    private async Task<Guid> SnapshotProductAsync(long cents, List<string> sizes, string status = "active", bool deleted = false, params (int Discount, int StartedHoursAgo, int EndsInHours)[] campaigns)
     {
         var id = Guid.NewGuid();
         await using var scope = fx.Factory.Services.CreateAsyncScope();
@@ -36,6 +39,7 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
             PriceCents = cents,
             Currency = "BRL",
             Status = status,
+            Sizes = sizes,
             Version = 1,
             Deleted = deleted,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -59,13 +63,16 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
         return id;
     }
 
-    private async Task<HttpResponseMessage> PlaceAsync(Guid product, long? expected = null)
+    private Task<HttpResponseMessage> PlaceAsync(Guid product, long? expected = null) =>
+        PlaceItemsAsync(new { product_id = product, quantity = 2, expected_unit_price_cents = expected });
+
+    private async Task<HttpResponseMessage> PlaceItemsAsync(params object[] items)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/orders")
         {
             Content = JsonContent.Create(new
             {
-                items = new[] { new { product_id = product, quantity = 2, expected_unit_price_cents = expected } },
+                items,
                 payment = new { method = "pix" },
                 recipient = new { name = "Ana Souza", cpf = "52998224725", phone = "11987654321" },
                 shipping_address = new { zip_code = "01310100", street = "Avenida Paulista", number = "1000", district = "Bela Vista", city = "São Paulo", state = "SP" },
@@ -123,6 +130,27 @@ public sealed class CatalogFallbackTests(OrdersFixture fx) : IClassFixture<Order
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.Contains(detail, problem.GetProperty("detail").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CatalogDown_TheSnapshotChecksTheSize()
+    {
+        var camiseta = await SnapshotProductAsync(7990, ["P", "G"]);
+        var caneca = await SnapshotProductAsync(5990);
+        fx.Catalog.Down = true;
+
+        using var ok = await PlaceItemsAsync(
+            new { product_id = camiseta, quantity = 1, size = "p" },
+            new { product_id = camiseta, quantity = 1, size = "G" },
+            new { product_id = caneca, quantity = 1 });
+        Assert.Equal(HttpStatusCode.Accepted, ok.StatusCode);
+        var items = (await ok.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("items");
+        Assert.Equal(["P", "G", null], items.EnumerateArray().Select(i => i.GetProperty("size").GetString()));
+
+        using var missing = await PlaceItemsAsync(new { product_id = camiseta, quantity = 1 });
+        Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
+        using var extra = await PlaceItemsAsync(new { product_id = caneca, quantity = 1, size = "M" });
+        Assert.Equal(HttpStatusCode.Conflict, extra.StatusCode);
     }
 
     [Fact]

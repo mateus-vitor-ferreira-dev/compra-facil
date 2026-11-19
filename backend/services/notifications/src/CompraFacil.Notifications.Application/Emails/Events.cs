@@ -27,7 +27,8 @@ public static class NotificationEvents
 
 public sealed record Money(long AmountCents, string Currency);
 
-public sealed record OrderItem(string Name, int Quantity, Money UnitPrice, Money LineTotal);
+/// <summary>Item do pedido; Size é o tamanho escolhido (nulo no produto sem tamanho e nos eventos de antes do campo).</summary>
+public sealed record OrderItem(string Name, int Quantity, Money UnitPrice, Money LineTotal, string? Size = null);
 
 public sealed record OrderConfirmedData(Guid OrderId, string CustomerEmail, IReadOnlyList<OrderItem> Items, Money Total);
 

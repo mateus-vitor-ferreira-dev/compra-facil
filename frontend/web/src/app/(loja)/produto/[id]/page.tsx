@@ -142,7 +142,12 @@ export default async function ProductPage({ params }: Props) {
               Sem unidades para vender agora. Veja outros produtos de {p.category.name} logo abaixo.
             </p>
           ) : (
-            <AddToCartForm productId={p.id} seenPriceCents={p.effective_price.amount_cents} max={available} />
+            <AddToCartForm
+              productId={p.id}
+              seenPriceCents={p.effective_price.amount_cents}
+              max={available}
+              sizes={p.sizes}
+            />
           )}
 
           {p.campaign && off > 0 && (

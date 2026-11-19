@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ const (
 	ItemNotActive
 	ItemPriceChanged
 	ItemInvalidQuantity
+	ItemInvalidSize
 )
 
 type ItemToValidate struct {
@@ -32,12 +34,16 @@ type ItemToValidate struct {
 	Quantity  int
 	// ExpectedUnitPriceCents é o preço que o cliente viu; nil não confere.
 	ExpectedUnitPriceCents *int64
+	// Size é o tamanho escolhido; vazio no produto sem tamanho.
+	Size string
 }
 
 type ValidatedItem struct {
 	ProductID uuid.UUID
 	Status    ItemStatus
 	Quantity  int
+	// Size é o tamanho como está no cadastro (ex.: "g" pedido volta "G").
+	Size string
 	// Product vem preenchido sempre que o produto existe (inclusive com status de erro).
 	Product        *domain.Product
 	UnitPriceCents int64
@@ -88,7 +94,7 @@ func (s *ProductService) ValidateItems(ctx context.Context, items []ItemToValida
 }
 
 func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) ValidatedItem {
-	v := ValidatedItem{ProductID: it.ProductID, Quantity: it.Quantity}
+	v := ValidatedItem{ProductID: it.ProductID, Quantity: it.Quantity, Size: it.Size}
 	p, ok := byID[it.ProductID]
 	if !ok {
 		v.Status = ItemNotFound
@@ -96,12 +102,15 @@ func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) Validate
 	}
 	v.Product = &p
 	v.UnitPriceCents = p.EffectivePriceCents()
+	v.Size = canonicalSize(p, it.Size)
 
 	switch {
 	case p.Status != domain.ProductActive:
 		v.Status = ItemNotActive
 	case it.Quantity < MinItemQuantity || it.Quantity > MaxItemQuantity:
 		v.Status = ItemInvalidQuantity
+	case !p.HasSize(it.Size):
+		v.Status = ItemInvalidSize
 	case it.ExpectedUnitPriceCents != nil && *it.ExpectedUnitPriceCents != v.UnitPriceCents:
 		v.Status = ItemPriceChanged
 	default:
@@ -111,21 +120,39 @@ func validateItem(it ItemToValidate, byID map[uuid.UUID]domain.Product) Validate
 	return v
 }
 
+// canonicalSize devolve o tamanho como o produto o cadastra; um que ele não tem volta como veio.
+func canonicalSize(p domain.Product, size string) string {
+	for _, s := range p.Sizes {
+		if strings.EqualFold(s, size) {
+			return s
+		}
+	}
+	return size
+}
+
 // validateItemsRequest recusa requisições malformadas (viram INVALID_ARGUMENT no gRPC).
 func validateItemsRequest(items []ItemToValidate) error {
 	if len(items) == 0 || len(items) > MaxOrderItems {
 		return domain.Invalid("items", fmt.Sprintf("deve ter de 1 a %d itens", MaxOrderItems))
 	}
-	seen := make(map[uuid.UUID]struct{}, len(items))
+	type line struct {
+		id   uuid.UUID
+		size string
+	}
+	seen := make(map[line]struct{}, len(items))
 	for i, it := range items {
 		field := fmt.Sprintf("items[%d].product_id", i)
 		if it.ProductID == uuid.Nil {
 			return domain.Invalid(field, "é obrigatório")
 		}
-		if _, dup := seen[it.ProductID]; dup {
-			return domain.Invalid(field, "produto repetido; some as quantidades em um item")
+		if len([]rune(it.Size)) > domain.MaxSizeLength {
+			return domain.Invalid(fmt.Sprintf("items[%d].size", i), fmt.Sprintf("deve ter no máximo %d caracteres", domain.MaxSizeLength))
 		}
-		seen[it.ProductID] = struct{}{}
+		key := line{it.ProductID, strings.ToUpper(it.Size)}
+		if _, dup := seen[key]; dup {
+			return domain.Invalid(field, "produto repetido no mesmo tamanho; some as quantidades em um item")
+		}
+		seen[key] = struct{}{}
 	}
 	return nil
 }
