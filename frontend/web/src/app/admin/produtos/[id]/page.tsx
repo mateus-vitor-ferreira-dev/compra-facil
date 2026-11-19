@@ -141,6 +141,7 @@ export default async function AdminProduct({ params, searchParams }: Props) {
             category_id: p.category.id,
             image_urls: p.images?.map((i) => i.url) ?? (p.image_url ? [p.image_url] : []),
             price: reaisInput(p.price.amount_cents),
+            sizes: (p.sizes ?? []).join(", "),
             status: p.status,
           }}
         />

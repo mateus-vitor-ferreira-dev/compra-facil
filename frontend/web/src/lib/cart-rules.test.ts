@@ -5,6 +5,7 @@ import {
   emptyCart,
   itemCount,
   lineIssue,
+  lineKey,
   removeItem,
   setQuantity,
   summarize,
@@ -68,7 +69,7 @@ describe("quantidade e remoção", () => {
 });
 
 describe("linhas e resumo", () => {
-  const ok = { id: A, qty: 2, seen: 800, unit: { price: 1000, effective: 800 }, available: 10 };
+  const ok = { id: A, key: A, qty: 2, seen: 800, unit: { price: 1000, effective: 800 }, available: 10 };
 
   it("aponta o problema de cada linha", () => {
     expect(lineIssue(ok)).toBeUndefined();
@@ -81,7 +82,7 @@ describe("linhas e resumo", () => {
   });
 
   it("soma tabela, desconto e total, fora o que não dá para comprar", () => {
-    const sold = { id: B, qty: 1, seen: 500, unit: { price: 500, effective: 500 }, available: 0 };
+    const sold = { id: B, key: B, qty: 1, seen: 500, unit: { price: 500, effective: 500 }, available: 0 };
     expect(summarize([ok, sold])).toEqual({
       list: 2000,
       total: 1600,
@@ -97,6 +98,7 @@ describe("linhas e resumo", () => {
 describe("unconfirmedDoubles (#322)", () => {
   const line = (id: string, qty: number, unit = true) => ({
     id,
+    key: id,
     qty,
     seen: 1000,
     unit: unit ? { price: 1000, effective: 1000 } : undefined,
@@ -110,5 +112,38 @@ describe("unconfirmedDoubles (#322)", () => {
   it("não pergunta de novo do que foi confirmado, nem do produto que saiu do catálogo", () => {
     const lines = [line("a", 2), line("b", 2), line("c", 2, false)];
     expect(unconfirmedDoubles(lines, ["a"]).map((l) => l.id)).toEqual(["b"]);
+  });
+});
+
+describe("tamanhos", () => {
+  it("o mesmo produto em tamanhos diferentes são linhas diferentes; no mesmo tamanho, soma", () => {
+    const p = addItem(emptyCart(), A, 1, 7990, undefined, "P");
+    if (!p.ok) throw new Error();
+    const g = addItem(p.cart, A, 2, 7990, undefined, "G");
+    if (!g.ok) throw new Error();
+    const g2 = addItem(g.cart, A, 1, 7990, undefined, "G");
+    expect(g2).toMatchObject({
+      ok: true,
+      qty: 3,
+      cart: {
+        items: [
+          { id: A, qty: 1, seen: 7990, size: "P" },
+          { id: A, qty: 3, seen: 7990, size: "G" },
+        ],
+      },
+    });
+  });
+
+  it("a chave da linha separa o tamanho, sem diferenciar maiúsculas", () => {
+    expect(lineKey({ id: A })).toBe(A);
+    expect(lineKey({ id: A, size: "g" })).toBe(`${A}:G`);
+    const cart: Cart = {
+      items: [
+        { id: A, qty: 1, seen: 100, size: "P" },
+        { id: A, qty: 2, seen: 100, size: "G" },
+      ],
+    };
+    expect(setQuantity(cart, `${A}:G`, 5).items.map((i) => i.qty)).toEqual([1, 5]);
+    expect(removeItem(cart, `${A}:P`).items).toEqual([{ id: A, qty: 2, seen: 100, size: "G" }]);
   });
 });

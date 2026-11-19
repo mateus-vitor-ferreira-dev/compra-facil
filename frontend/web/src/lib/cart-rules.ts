@@ -5,11 +5,18 @@
 export const MAX_ITEMS = 50;
 export const MAX_QUANTITY = 99;
 
-/** Um produto no carrinho: id, quantidade e o preço unitário (centavos) que o cliente aceitou. */
-export type CartItem = { id: string; qty: number; seen: number };
+/**
+ * Um produto no carrinho: id, quantidade, o preço unitário (centavos) que o cliente aceitou e o tamanho escolhido
+ * (ausente no produto sem tamanho). O mesmo produto pode estar em mais de uma linha, uma por tamanho.
+ */
+export type CartItem = { id: string; qty: number; seen: number; size?: string };
 export type Cart = { items: CartItem[] };
 
 export const emptyCart = (): Cart => ({ items: [] });
+
+/** A chave da linha: o produto e o tamanho ("id" sem tamanho, "id:G" com). */
+export const lineKey = (item: { id: string; size?: string }) =>
+  item.size ? `${item.id}:${item.size.toUpperCase()}` : item.id;
 
 const clampQty = (qty: number, max = MAX_QUANTITY) =>
   Math.max(1, Math.min(Math.floor(qty) || 1, max, MAX_QUANTITY));
@@ -18,29 +25,36 @@ export type AddResult =
   { ok: true; cart: Cart; qty: number; limited: boolean } | { ok: false; reason: "full" | "sold_out" };
 
 /**
- * Soma ao que já está no carrinho, até o estoque disponível (quando se sabe) e o limite de 99. O preço
- * visto passa a ser o desta adição: foi o que o cliente acabou de ver na página.
+ * Soma ao que já está no carrinho no mesmo tamanho, até o estoque disponível (quando se sabe) e o limite de 99.
+ * O preço visto passa a ser o desta adição: foi o que o cliente acabou de ver na página.
  */
-export function addItem(cart: Cart, id: string, qty: number, seen: number, available?: number): AddResult {
+export function addItem(
+  cart: Cart,
+  id: string,
+  qty: number,
+  seen: number,
+  available?: number,
+  size?: string,
+): AddResult {
   if (available !== undefined && available <= 0) return { ok: false, reason: "sold_out" };
-  const current = cart.items.find((i) => i.id === id);
+  const key = lineKey({ id, size });
+  const current = cart.items.find((i) => lineKey(i) === key);
   if (!current && cart.items.length >= MAX_ITEMS) return { ok: false, reason: "full" };
   const wanted = (current?.qty ?? 0) + Math.max(1, Math.floor(qty) || 1);
   const final = clampQty(wanted, available);
-  const items = current
-    ? cart.items.map((i) => (i.id === id ? { id, qty: final, seen } : i))
-    : [...cart.items, { id, qty: final, seen }];
+  const item: CartItem = size ? { id, qty: final, seen, size } : { id, qty: final, seen };
+  const items = current ? cart.items.map((i) => (lineKey(i) === key ? item : i)) : [...cart.items, item];
   return { ok: true, cart: { items }, qty: final, limited: final < wanted };
 }
 
-/** Troca a quantidade (0 tira o produto). */
-export function setQuantity(cart: Cart, id: string, qty: number): Cart {
-  if (qty <= 0) return removeItem(cart, id);
-  return { items: cart.items.map((i) => (i.id === id ? { ...i, qty: clampQty(qty) } : i)) };
+/** Troca a quantidade da linha (0 tira). */
+export function setQuantity(cart: Cart, key: string, qty: number): Cart {
+  if (qty <= 0) return removeItem(cart, key);
+  return { items: cart.items.map((i) => (lineKey(i) === key ? { ...i, qty: clampQty(qty) } : i)) };
 }
 
-export function removeItem(cart: Cart, id: string): Cart {
-  return { items: cart.items.filter((i) => i.id !== id) };
+export function removeItem(cart: Cart, key: string): Cart {
+  return { items: cart.items.filter((i) => lineKey(i) !== key) };
 }
 
 /** O cliente aceitou os preços de agora: o preço visto de cada item vira o atual. */
@@ -58,6 +72,9 @@ export const itemCount = (cart: Cart) => cart.items.reduce((n, i) => n + i.qty, 
 /** Uma linha do carrinho já com o produto e o estoque, para a tela e o resumo. */
 export type Line = {
   id: string;
+  /** a linha: produto e tamanho (lineKey) */
+  key: string;
+  size?: string;
   qty: number;
   seen: number;
   /** nulo: o produto saiu do catálogo */
@@ -81,7 +98,7 @@ export function lineIssue(line: Line): LineIssue | undefined {
  * costumam ser um clique repetido. Com 3 ou mais, a quantidade foi escolhida de propósito, e não pergunta.
  */
 export function unconfirmedDoubles<T extends Line>(lines: T[], confirmed: readonly string[]): T[] {
-  return lines.filter((l) => l.unit && l.qty === 2 && !confirmed.includes(l.id));
+  return lines.filter((l) => l.unit && l.qty === 2 && !confirmed.includes(l.key));
 }
 
 /** Totais do que dá para comprar agora (sem os itens que saíram do catálogo ou esgotaram). */

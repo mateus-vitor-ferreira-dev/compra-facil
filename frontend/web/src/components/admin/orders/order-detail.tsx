@@ -212,11 +212,14 @@ export function OrderDetail({
           <ul>
             {o.items.map((i) => (
               <li
-                key={`${i.product_id}-${i.sku}`}
+                key={`${i.product_id}-${i.sku}-${i.size ?? ""}`}
                 className="border-line flex items-baseline justify-between gap-4 border-b px-4 py-3"
               >
                 <span className="min-w-0">
-                  <span className="block font-medium">{i.name}</span>
+                  <span className="block font-medium">
+                    {i.name}
+                    {i.size && <span className="text-ink-soft font-normal"> · tamanho {i.size}</span>}
+                  </span>
                   <span className="text-ink-soft block text-sm break-all">
                     {i.quantity} × {formatMoney(i.unit_price)}, SKU {i.sku}
                   </span>

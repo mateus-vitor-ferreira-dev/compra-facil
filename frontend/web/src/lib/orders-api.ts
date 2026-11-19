@@ -40,7 +40,13 @@ export function returnOrder(token: string, id: string): Promise<Result<Order>> {
   });
 }
 
-export type PlaceOrderItem = { product_id: string; quantity: number; expected_unit_price_cents: number };
+export type PlaceOrderItem = {
+  product_id: string;
+  quantity: number;
+  expected_unit_price_cents: number;
+  /** o tamanho escolhido; só no produto com tamanho */
+  size?: string;
+};
 /** PIX, ou o cartão já tokenizado no provedor (#220): o número dele nunca chega aqui. */
 export type PlaceOrderPayment = OrdersSchemas["schemas"]["PlaceOrderPayment"];
 /** Quem recebe, onde (#221) e o frete escolhido (#222): o CPF, o telefone e o CEP só com os dígitos. */
