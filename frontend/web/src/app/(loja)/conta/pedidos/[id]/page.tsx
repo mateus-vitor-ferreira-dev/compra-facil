@@ -115,7 +115,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
             const product = photos.get(item.product_id);
             return (
               <li
-                key={`${item.product_id}:${item.size ?? ""}`}
+                key={`${item.product_id}:${item.size ?? ""}|${item.personalization ?? ""}`}
                 className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-start gap-4 py-4"
               >
                 {product ? (
@@ -135,6 +135,9 @@ export default async function OrderPage({ params, searchParams }: Props) {
                     {item.name}
                   </Link>
                   {item.size && <p className="text-sm font-medium">Tamanho {item.size}</p>}
+                  {item.personalization && (
+                    <p className="text-sm font-medium break-words">Personalização: {item.personalization}</p>
+                  )}
                   <p className="text-ink-soft text-sm">
                     {item.quantity} × {formatMoney(item.unit_price)}
                   </p>

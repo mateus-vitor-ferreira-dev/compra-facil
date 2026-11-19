@@ -5,6 +5,7 @@ const NOTEBOOK = "/produto/0199f6a0-0000-7000-8000-000000000002"; // 3 unidades 
 const SOLD_OUT = "/produto/0199f6a0-0000-7000-8000-000000000032";
 const FONE = "/produto/0199f6a0-0000-7000-8000-000000000001";
 const COM_TAMANHO = "/produto/0199f6a0-0000-7000-8000-000000000010"; // P, M e G no stub
+const COM_NOME = "/produto/0199f6a0-0000-7000-8000-000000000011"; // o nome do cliente na arte, até 12
 
 /** Põe o produto da página no carrinho, com o formulário já hidratado. */
 async function add(page: Page, path: string) {
@@ -201,4 +202,37 @@ test("o produto com tamanho pede a escolha, e cada tamanho é uma linha do carri
   await page.getByRole("button", { name: /^Remover .*, tamanho P do carrinho$/ }).click();
   await expect(list.getByRole("listitem")).toHaveCount(1);
   await expect(list).toContainText("Tamanho G");
+});
+
+test("o produto personalizado pede o texto, e cada texto é uma linha do carrinho", async ({ page }) => {
+  await page.goto(COM_NOME);
+  await page.locator("form[action] input[name=quantity]").waitFor();
+  const field = page.getByRole("textbox", { name: "Nome" });
+  await expect(page.getByText("0/12")).toBeVisible();
+
+  // vazio, o navegador não envia (é obrigatório)
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Adicionado ao carrinho" })).toHaveCount(0);
+
+  // o que a fonte não imprime volta com o motivo
+  await field.fill("Bia 🎄");
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "sem emoji" })).toBeVisible();
+
+  await field.fill("  Ana   Maria ");
+  await expect(page.getByText("9/12")).toBeVisible(); // conta como a arte, sem os espaços a mais
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: 'com "Ana Maria"' })).toBeVisible();
+  await field.fill("João");
+  await page.getByRole("button", { name: "Adicionar ao carrinho" }).click();
+  await expect(page.getByRole("status").filter({ hasText: 'com "João"' })).toBeVisible();
+
+  await page.goto("/carrinho");
+  const list = page.getByRole("list", { name: "Produtos no carrinho" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list).toContainText("Personalização: Ana Maria");
+  await expect(list).toContainText("Personalização: João");
+  await page.getByRole("button", { name: /^Remover .*, "João" do carrinho$/ }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list).toContainText("Ana Maria");
 });

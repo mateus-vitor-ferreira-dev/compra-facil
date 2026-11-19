@@ -464,8 +464,8 @@ export interface components {
             shipping_address: components["schemas"]["ShippingAddress"];
             payment: components["schemas"]["PlaceOrderPayment"];
             /**
-             * @description Um item por produto e tamanho: o mesmo `product_id` pode vir em mais de um item, cada um com um
-             *     `size` diferente.
+             * @description Um item por produto, tamanho e personalização: o mesmo `product_id` pode vir em mais de um item, cada um
+             *     com um `size` ou uma `personalization` diferente.
              */
             items: components["schemas"]["PlaceOrderItem"][];
         };
@@ -508,6 +508,14 @@ export interface components {
              * @example G
              */
             size?: string | null;
+            /**
+             * @description O texto do cliente para a arte (ex.: o nome na estampa), quando o produto tem `personalization` no
+             *     catálogo. Normalizado (sem espaços nas pontas nem repetidos); aceita letras do alfabeto latino (com
+             *     acento), algarismos, espaço e `. , ' - & ! ? /`, até o `max_length` do produto. Faltando quando é
+             *     obrigatória, inválido, ou presente no produto sem personalização: 409.
+             * @example Ana Maria
+             */
+            personalization?: string | null;
         };
         Order: {
             /** Format: uuid */
@@ -599,6 +607,11 @@ export interface components {
              * @example G
              */
             size?: string | null;
+            /**
+             * @description O texto do cliente para a arte, normalizado; nulo no produto sem personalização.
+             * @example Ana Maria
+             */
+            personalization?: string | null;
         };
         /** @enum {string} */
         PaymentMethod: "pix" | "card";

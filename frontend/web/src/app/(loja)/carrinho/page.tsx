@@ -59,6 +59,7 @@ export default async function CartPage({ searchParams }: Props) {
         <span className="font-semibold">
           {removedProduct.data.name}
           {removed?.size && ` (tamanho ${removed.size})`}
+          {removed?.text && ` com "${removed.text}"`}
         </span>{" "}
         saiu do carrinho.
       </p>
@@ -309,8 +310,10 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
 
   const unit = product.effective_price.amount_cents;
   const lineTotal = unit * line.qty;
-  // nos nomes acessíveis, o tamanho separa as linhas do mesmo produto
-  const label = line.size ? `${product.name}, tamanho ${line.size}` : product.name;
+  // nos nomes acessíveis, o tamanho e o texto separam as linhas do mesmo produto
+  const label = [product.name, line.size && `tamanho ${line.size}`, line.text && `"${line.text}"`]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <li className="grid grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-3 py-5 sm:grid-cols-[6rem_minmax(0,1fr)_auto]">
@@ -330,6 +333,11 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           </Link>
         </h3>
         {line.size && <p className="text-sm font-medium">Tamanho {line.size}</p>}
+        {line.text && (
+          <p className="text-sm font-medium break-words">
+            Personalização: <span className="font-semibold">{line.text}</span>
+          </p>
+        )}
         <p className="text-ink-soft text-sm">
           {brl(unit)} cada
           {product.price.amount_cents > unit && (

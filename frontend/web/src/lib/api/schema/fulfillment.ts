@@ -658,6 +658,12 @@ export interface components {
                  * @example G
                  */
                 size?: string | null;
+                /**
+                 * @description O texto do cliente para a arte (ex.: o nome na estampa): gere o arquivo de impressão com ele.
+                 *     Nulo no produto sem personalização.
+                 * @example Ana Maria
+                 */
+                personalization?: string | null;
             }[];
             /** @description O que o cliente pagou, com o frete. */
             revenue_cents?: number | null;
@@ -905,6 +911,8 @@ export interface components {
                 quantity: number;
                 /** @description O tamanho que o cliente escolheu; nulo no produto sem tamanho. */
                 size?: string | null;
+                /** @description O texto do cliente para a arte; nulo no produto sem personalização. */
+                personalization?: string | null;
             }[];
             /** @description Tentativas de abrir com o fornecedor fora do ar. */
             attempts: number;

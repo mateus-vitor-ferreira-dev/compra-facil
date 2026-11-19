@@ -142,6 +142,10 @@ export default async function AdminProduct({ params, searchParams }: Props) {
             image_urls: p.images?.map((i) => i.url) ?? (p.image_url ? [p.image_url] : []),
             price: reaisInput(p.price.amount_cents),
             sizes: (p.sizes ?? []).join(", "),
+            personalization_template: p.personalization?.template ?? "",
+            personalization_label: p.personalization?.label ?? "",
+            personalization_max_length: p.personalization ? String(p.personalization.max_length) : "",
+            personalization_required: p.personalization?.required ? "sim" : "",
             status: p.status,
           }}
         />

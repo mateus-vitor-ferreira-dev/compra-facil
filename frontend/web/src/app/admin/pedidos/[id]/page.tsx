@@ -7,7 +7,7 @@ import { OrderList } from "@/components/admin/orders/order-list";
 import { OrderPages } from "@/components/admin/orders/order-pages";
 import { buttonVariants } from "@/components/ui/button";
 import { StateMessage } from "@/components/ui/state";
-import { getAdminOrder, listAdminOrders } from "@/lib/admin-api";
+import { getAdminOrder, listAdminOrders, templatesBySku } from "@/lib/admin-api";
 import { apiFilter, filterSearch, ordersQuery } from "@/lib/admin-orders";
 import { requireAdmin } from "@/lib/auth/current";
 import { orderNumber } from "@/lib/order-status";
@@ -80,7 +80,14 @@ export default async function OrderPage({ params, searchParams }: Props) {
           Voltar aos pedidos
         </Link>
         {order.ok ? (
-          <OrderDetail order={order.data} refundNotice={refundNoticeOf(await searchParams)} />
+          <OrderDetail
+            order={order.data}
+            refundNotice={refundNoticeOf(await searchParams)}
+            templates={await templatesBySku(
+              token,
+              order.data.items.filter((i) => i.personalization).map((i) => i.sku),
+            )}
+          />
         ) : (
           <StateMessage
             tone="error"
