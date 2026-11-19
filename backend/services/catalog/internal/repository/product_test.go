@@ -370,3 +370,26 @@ func TestProductRepository_Personalization(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, gotPlain.Personalization, "produto sem personalização lê nulo")
 }
+
+func TestProductRepository_Update_Colors(t *testing.T) {
+	resetDB(t)
+	repo := NewProductRepository(testDB)
+	cat := mustCategory(t, "camisetas", nil)
+	p := mustProduct(t, "CAM-COR", cat.ID, func(p *domain.Product) { p.Colors = []string{"Branco", "Preto"} })
+
+	got, err := repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Branco", "Preto"}, got.Colors, "o Create grava as cores")
+
+	got.Colors = nil // PUT de quem não conhece o campo
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got, err = repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Branco", "Preto"}, got.Colors, "nil mantém as gravadas")
+
+	got.Colors = []string{}
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got, err = repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Empty(t, got.Colors, "lista vazia tira as cores")
+}

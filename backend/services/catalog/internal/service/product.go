@@ -350,6 +350,8 @@ type ProductInput struct {
 	MoreImageURLs []string
 	// Sizes são os tamanhos que o cliente escolhe; nil mantém os gravados, vazio tira o tamanho.
 	Sizes []string
+	// Colors são as cores que o cliente escolhe; nil mantém as gravadas, vazio tira a cor.
+	Colors []string
 	// Personalization é o texto que o cliente escreve na compra; nil mantém a gravada, vazia ({}) tira.
 	Personalization *domain.Personalization
 	PriceCents      int64
@@ -359,7 +361,7 @@ type ProductInput struct {
 func (in ProductInput) toProduct() domain.Product {
 	p := domain.Product{
 		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
-		ImageURL: in.ImageURL, Sizes: in.Sizes, Personalization: in.Personalization, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
+		ImageURL: in.ImageURL, Sizes: in.Sizes, Colors: in.Colors, Personalization: in.Personalization, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
 	}
 	if in.MoreImageURLs != nil {
 		p.Gallery = make([]domain.GalleryImage, len(in.MoreImageURLs))

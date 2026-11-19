@@ -95,6 +95,8 @@ const (
 	// Texto que o produto não aceita: faltando quando é obrigatório, longo demais, com caractere que a arte não
 	// imprime, ou presente no produto sem personalização.
 	ItemStatus_ITEM_STATUS_INVALID_PERSONALIZATION ItemStatus = 7
+	// Cor que o produto não tem, ou faltando no produto com cor à escolha.
+	ItemStatus_ITEM_STATUS_INVALID_COLOR ItemStatus = 8
 )
 
 // Enum value maps for ItemStatus.
@@ -108,6 +110,7 @@ var (
 		5: "ITEM_STATUS_INVALID_QUANTITY",
 		6: "ITEM_STATUS_INVALID_SIZE",
 		7: "ITEM_STATUS_INVALID_PERSONALIZATION",
+		8: "ITEM_STATUS_INVALID_COLOR",
 	}
 	ItemStatus_value = map[string]int32{
 		"ITEM_STATUS_UNSPECIFIED":             0,
@@ -118,6 +121,7 @@ var (
 		"ITEM_STATUS_INVALID_QUANTITY":        5,
 		"ITEM_STATUS_INVALID_SIZE":            6,
 		"ITEM_STATUS_INVALID_PERSONALIZATION": 7,
+		"ITEM_STATUS_INVALID_COLOR":           8,
 	}
 )
 
@@ -291,8 +295,10 @@ type Product struct {
 	Sizes []string `protobuf:"bytes,11,rep,name=sizes,proto3" json:"sizes,omitempty"`
 	// Texto que o cliente escreve na compra (ex.: o nome na estampa); ausente, o produto não tem personalização.
 	Personalization *Personalization `protobuf:"bytes,12,opt,name=personalization,proto3,oneof" json:"personalization,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Cores que o cliente escolhe na compra (ex.: Branco, Preto), na ordem de exibição; vazio, sem cor à escolha.
+	Colors        []string `protobuf:"bytes,13,rep,name=colors,proto3" json:"colors,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Product) Reset() {
@@ -405,6 +411,13 @@ func (x *Product) GetSizes() []string {
 func (x *Product) GetPersonalization() *Personalization {
 	if x != nil {
 		return x.Personalization
+	}
+	return nil
+}
+
+func (x *Product) GetColors() []string {
+	if x != nil {
+		return x.Colors
 	}
 	return nil
 }
@@ -722,8 +735,10 @@ type ItemToValidate struct {
 	// Texto do cliente para a arte; vazio no produto sem personalização. Letras (com acento), algarismos, espaço e
 	// . , ' - & ! ? /, até o max_length do produto. O mesmo produto e tamanho pode vir em mais de um item, um por texto.
 	Personalization string `protobuf:"bytes,5,opt,name=personalization,proto3" json:"personalization,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Cor escolhida, uma das `colors` do produto (sem diferenciar maiúsculas); vazio no produto sem cor à escolha.
+	Color         string `protobuf:"bytes,6,opt,name=color,proto3" json:"color,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ItemToValidate) Reset() {
@@ -791,6 +806,13 @@ func (x *ItemToValidate) GetPersonalization() string {
 	return ""
 }
 
+func (x *ItemToValidate) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
 type ValidatedItem struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	ProductId string                 `protobuf:"bytes,1,opt,name=product_id,json=productId,proto3" json:"product_id,omitempty"`
@@ -807,8 +829,10 @@ type ValidatedItem struct {
 	Size string `protobuf:"bytes,9,opt,name=size,proto3" json:"size,omitempty"`
 	// Texto normalizado (sem espaços nas pontas nem repetidos), como vai para a arte; vazio sem personalização.
 	Personalization string `protobuf:"bytes,10,opt,name=personalization,proto3" json:"personalization,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Cor como está no cadastro (ex.: "preto" pedido volta "Preto"); vazio no produto sem cor à escolha.
+	Color         string `protobuf:"bytes,11,opt,name=color,proto3" json:"color,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidatedItem) Reset() {
@@ -911,6 +935,13 @@ func (x *ValidatedItem) GetPersonalization() string {
 	return ""
 }
 
+func (x *ValidatedItem) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
 type ValidateItemsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// true só se todos os itens estão ITEM_STATUS_OK.
@@ -996,7 +1027,7 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
 	"\x10discount_percent\x18\x03 \x01(\x05R\x0fdiscountPercent\x123\n" +
-	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\xf8\x03\n" +
+	"\aends_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x90\x04\n" +
 	"\aProduct\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
 	"\x03sku\x18\x02 \x01(\tR\x03sku\x12\x12\n" +
@@ -1012,7 +1043,8 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	" \x01(\tR\n" +
 	"categoryId\x12\x14\n" +
 	"\x05sizes\x18\v \x03(\tR\x05sizes\x12J\n" +
-	"\x0fpersonalization\x18\f \x01(\v2\x1b.catalog.v1.PersonalizationH\x00R\x0fpersonalization\x88\x01\x01B\x12\n" +
+	"\x0fpersonalization\x18\f \x01(\v2\x1b.catalog.v1.PersonalizationH\x00R\x0fpersonalization\x88\x01\x01\x12\x16\n" +
+	"\x06colors\x18\r \x03(\tR\x06colorsB\x12\n" +
 	"\x10_personalization\"~\n" +
 	"\x0fPersonalization\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x1d\n" +
@@ -1032,15 +1064,16 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\bproducts\x18\x01 \x03(\v2\x13.catalog.v1.ProductR\bproducts\x12\"\n" +
 	"\rnot_found_ids\x18\x02 \x03(\tR\vnotFoundIds\"H\n" +
 	"\x14ValidateItemsRequest\x120\n" +
-	"\x05items\x18\x01 \x03(\v2\x1a.catalog.v1.ItemToValidateR\x05items\"\xe7\x01\n" +
+	"\x05items\x18\x01 \x03(\v2\x1a.catalog.v1.ItemToValidateR\x05items\"\xfd\x01\n" +
 	"\x0eItemToValidate\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\x12>\n" +
 	"\x19expected_unit_price_cents\x18\x03 \x01(\x03H\x00R\x16expectedUnitPriceCents\x88\x01\x01\x12\x12\n" +
 	"\x04size\x18\x04 \x01(\tR\x04size\x12(\n" +
-	"\x0fpersonalization\x18\x05 \x01(\tR\x0fpersonalizationB\x1c\n" +
-	"\x1a_expected_unit_price_cents\"\xe3\x02\n" +
+	"\x0fpersonalization\x18\x05 \x01(\tR\x0fpersonalization\x12\x14\n" +
+	"\x05color\x18\x06 \x01(\tR\x05colorB\x1c\n" +
+	"\x1a_expected_unit_price_cents\"\xf9\x02\n" +
 	"\rValidatedItem\x12\x1d\n" +
 	"\n" +
 	"product_id\x18\x01 \x01(\tR\tproductId\x12.\n" +
@@ -1056,7 +1089,8 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"campaignId\x12\x12\n" +
 	"\x04size\x18\t \x01(\tR\x04size\x12(\n" +
 	"\x0fpersonalization\x18\n" +
-	" \x01(\tR\x0fpersonalization\"\xc0\x01\n" +
+	" \x01(\tR\x0fpersonalization\x12\x14\n" +
+	"\x05color\x18\v \x01(\tR\x05color\"\xc0\x01\n" +
 	"\x15ValidateItemsResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12/\n" +
 	"\x05items\x18\x02 \x03(\v2\x19.catalog.v1.ValidatedItemR\x05items\x12'\n" +
@@ -1066,7 +1100,7 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\x1aPRODUCT_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14PRODUCT_STATUS_DRAFT\x10\x01\x12\x19\n" +
 	"\x15PRODUCT_STATUS_ACTIVE\x10\x02\x12\x1b\n" +
-	"\x17PRODUCT_STATUS_INACTIVE\x10\x03*\xfc\x01\n" +
+	"\x17PRODUCT_STATUS_INACTIVE\x10\x03*\x9b\x02\n" +
 	"\n" +
 	"ItemStatus\x12\x1b\n" +
 	"\x17ITEM_STATUS_UNSPECIFIED\x10\x00\x12\x12\n" +
@@ -1076,7 +1110,8 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\x19ITEM_STATUS_PRICE_CHANGED\x10\x04\x12 \n" +
 	"\x1cITEM_STATUS_INVALID_QUANTITY\x10\x05\x12\x1c\n" +
 	"\x18ITEM_STATUS_INVALID_SIZE\x10\x06\x12'\n" +
-	"#ITEM_STATUS_INVALID_PERSONALIZATION\x10\a2\x92\x02\n" +
+	"#ITEM_STATUS_INVALID_PERSONALIZATION\x10\a\x12\x1d\n" +
+	"\x19ITEM_STATUS_INVALID_COLOR\x10\b2\x92\x02\n" +
 	"\x0eCatalogService\x12K\n" +
 	"\n" +
 	"GetProduct\x12\x1d.catalog.v1.GetProductRequest\x1a\x1e.catalog.v1.GetProductResponse\x12]\n" +

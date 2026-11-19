@@ -90,6 +90,8 @@ type productInputDTO struct {
 	MoreImageURLs []string `json:"more_image_urls"`
 	// Sizes: os tamanhos que o cliente escolhe; ausente mantém os gravados, [] tira
 	Sizes []string `json:"sizes"`
+	// Colors: as cores que o cliente escolhe; ausente mantém as gravadas, [] tira
+	Colors []string `json:"colors"`
 	// Personalization: o texto que o cliente escreve na compra; ausente ou null mantém a gravada, {} tira
 	Personalization *personalizationDTO  `json:"personalization"`
 	PriceCents      int64                `json:"price_cents"`
@@ -99,7 +101,7 @@ type productInputDTO struct {
 func (in productInputDTO) toService() service.ProductInput {
 	return service.ProductInput{
 		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
-		ImageURL: in.ImageURL, MoreImageURLs: in.MoreImageURLs, Sizes: in.Sizes,
+		ImageURL: in.ImageURL, MoreImageURLs: in.MoreImageURLs, Sizes: in.Sizes, Colors: in.Colors,
 		Personalization: in.Personalization.toDomain(), PriceCents: in.PriceCents, Status: in.Status,
 	}
 }

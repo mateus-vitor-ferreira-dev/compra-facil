@@ -221,3 +221,43 @@ func TestValidationError(t *testing.T) {
 	require.ErrorAs(t, err, &ve)
 	assert.Equal(t, "dados inválidos: category_id: categoria não existe", err.Error())
 }
+
+func TestProduct_Validate_Colors(t *testing.T) {
+	tests := []struct {
+		name   string
+		colors []string
+		ok     bool
+	}{
+		{"sem cor", nil, true},
+		{"Branco e Preto", []string{"Branco", "Preto", "Azul Marinho"}, true},
+		{"repetida sem diferenciar maiúsculas", []string{"Preto", "preto"}, false},
+		{"cor longa", []string{strings.Repeat("x", MaxColorLength+1)}, false},
+		{"acima do máximo", strings.Split(strings.Repeat("c,", MaxColors)+"z", ","), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := validProduct()
+			p.Colors = tt.colors
+			if tt.ok {
+				assert.NoError(t, p.Validate())
+			} else {
+				assert.Equal(t, []string{"colors"}, fieldsOf(t, p.Validate()))
+			}
+		})
+	}
+}
+
+func TestProduct_ColorsNormalizeAndHasColor(t *testing.T) {
+	p := Product{Colors: []string{" Branco ", "", "Preto"}}
+	p.Normalize()
+	assert.Equal(t, []string{"Branco", "Preto"}, p.Colors)
+	assert.True(t, p.HasColor("preto"))
+	assert.False(t, p.HasColor("Vinho"))
+	assert.False(t, p.HasColor(""), "produto com cor exige a escolha")
+
+	sem := Product{}
+	sem.Normalize()
+	assert.Nil(t, sem.Colors, "nil continua nil (o PUT mantém as gravadas)")
+	assert.True(t, sem.HasColor(""))
+	assert.False(t, sem.HasColor("Preto"))
+}
