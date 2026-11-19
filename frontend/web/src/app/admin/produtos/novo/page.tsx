@@ -22,6 +22,7 @@ export default async function NewProduct() {
           image_urls: [],
           price: "",
           sizes: "",
+          colors: "",
           personalization_template: "",
           personalization_label: "",
           personalization_max_length: "",

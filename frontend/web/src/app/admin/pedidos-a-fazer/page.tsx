@@ -257,7 +257,7 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
         {o.items
           .map(
             (i) =>
-              `${i.quantity} × ${i.name}${i.size ? ` (${i.size})` : ""}${i.personalization ? ` "${i.personalization}"` : ""}`,
+              `${i.quantity} × ${i.name}${i.size ? ` (${i.size})` : ""}${i.color ? ` ${i.color}` : ""}${i.personalization ? ` "${i.personalization}"` : ""}`,
           )
           .join(", ")}
         {o.placed_at && (
@@ -316,7 +316,10 @@ function Ticket({
           <h4 className="font-medium">Itens</h4>
           <ul className="space-y-1 text-sm">
             {o.items.map((i) => (
-              <li key={`${i.sku}:${i.size ?? ""}|${i.personalization ?? ""}`} className="space-y-2">
+              <li
+                key={`${i.sku}:${i.size ?? ""}~${i.color ?? ""}|${i.personalization ?? ""}`}
+                className="space-y-2"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <span>
                     <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
@@ -324,6 +327,11 @@ function Ticket({
                     {i.size && (
                       <span className="border-ink ml-2 rounded border px-1.5 py-0.5 text-xs font-bold">
                         Tamanho {i.size}
+                      </span>
+                    )}
+                    {i.color && (
+                      <span className="border-ink ml-2 rounded border px-1.5 py-0.5 text-xs font-bold">
+                        Cor: {i.color}
                       </span>
                     )}
                     <span className="text-ink-soft block tabular-nums">SKU {i.sku}</span>

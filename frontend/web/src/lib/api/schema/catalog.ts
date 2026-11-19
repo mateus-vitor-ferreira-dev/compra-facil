@@ -399,6 +399,7 @@ export interface components {
              */
             images?: components["schemas"]["ProductImage"][];
             sizes: components["schemas"]["ProductSizes"];
+            colors: components["schemas"]["ProductColors"];
             /** @description O texto que o cliente escreve na compra (ex.: o nome na estampa); nulo, o produto não tem. */
             personalization: components["schemas"]["Personalization"] | null;
             /** @description Preço de tabela. */
@@ -530,6 +531,11 @@ export interface components {
              */
             sizes?: components["schemas"]["ProductSizes"];
             /**
+             * @description As cores que o cliente escolhe na compra, na ordem de exibição, sem repetir (maiúsculas e minúsculas
+             *     contam como a mesma). Ausente, mantém as que estão gravadas; vazia, o produto deixa de ter cor à escolha.
+             */
+            colors?: components["schemas"]["ProductColors"];
+            /**
              * @description O texto que o cliente escreve na compra. Ausente ou null, mantém a gravada; objeto vazio (`{}`), o produto
              *     deixa de ter personalização.
              */
@@ -568,6 +574,16 @@ export interface components {
              */
             template: string;
         };
+        /**
+         * @description As cores que o cliente escolhe na compra (ex.: Branco, Preto), na ordem de exibição. Vazio, o produto não
+         *     tem cor à escolha. Preço e estoque são do produto, iguais em todas as cores.
+         * @example [
+         *       "Branco",
+         *       "Preto",
+         *       "Vinho"
+         *     ]
+         */
+        ProductColors: string[];
         /** @enum {string} */
         ProductSort: "relevance" | "price_asc" | "price_desc" | "discount" | "newest";
         BrandCount: {

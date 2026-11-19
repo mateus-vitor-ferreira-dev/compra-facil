@@ -60,6 +60,7 @@ export async function refazerPedido(form: FormData): Promise<void> {
       stock.ok ? stock.data[item.product_id] : undefined,
       item.size ?? undefined,
       item.personalization ?? undefined,
+      item.color ?? undefined,
     );
     if (result.ok) {
       cart = result.cart;

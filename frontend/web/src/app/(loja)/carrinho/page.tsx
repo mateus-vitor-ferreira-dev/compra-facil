@@ -59,6 +59,7 @@ export default async function CartPage({ searchParams }: Props) {
         <span className="font-semibold">
           {removedProduct.data.name}
           {removed?.size && ` (tamanho ${removed.size})`}
+          {removed?.color && ` (cor ${removed.color})`}
           {removed?.text && ` com "${removed.text}"`}
         </span>{" "}
         saiu do carrinho.
@@ -311,7 +312,12 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
   const unit = product.effective_price.amount_cents;
   const lineTotal = unit * line.qty;
   // nos nomes acessíveis, o tamanho e o texto separam as linhas do mesmo produto
-  const label = [product.name, line.size && `tamanho ${line.size}`, line.text && `"${line.text}"`]
+  const label = [
+    product.name,
+    line.size && `tamanho ${line.size}`,
+    line.color && `cor ${line.color}`,
+    line.text && `"${line.text}"`,
+  ]
     .filter(Boolean)
     .join(", ");
 
@@ -333,6 +339,7 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
           </Link>
         </h3>
         {line.size && <p className="text-sm font-medium">Tamanho {line.size}</p>}
+        {line.color && <p className="text-sm font-medium">Cor {line.color}</p>}
         {line.text && (
           <p className="text-sm font-medium break-words">
             Personalização: <span className="font-semibold">{line.text}</span>
