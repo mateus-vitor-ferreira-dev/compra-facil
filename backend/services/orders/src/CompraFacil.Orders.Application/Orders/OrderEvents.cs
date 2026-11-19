@@ -21,11 +21,12 @@ public static class OrderEvents
     public const string InvoicesTopic = "fulfillment.invoice.v1";
 }
 
-/// <summary>Item do pedido nos eventos (OrderItem do contrato REST).</summary>
+/// <summary>Item do pedido nos eventos (OrderItem do contrato REST); Size nulo no produto sem tamanho.</summary>
 public sealed record OrderItemData(
-    Guid ProductId, string Sku, string Name, int Quantity, Money UnitPrice, Money LineTotal, Guid? CampaignId)
+    Guid ProductId, string Sku, string Name, int Quantity, Money UnitPrice, Money LineTotal, Guid? CampaignId, string? Size = null)
 {
-    public static OrderItemData From(OrderItem i) => new(i.ProductId, i.Sku, i.Name, i.Quantity, i.UnitPrice, i.LineTotal, i.CampaignId);
+    public static OrderItemData From(OrderItem i) =>
+        new(i.ProductId, i.Sku, i.Name, i.Quantity, i.UnitPrice, i.LineTotal, i.CampaignId, i.Size);
 }
 
 /// <summary>Como pagar, para o payments: o token do cartão (de uso único) só passa por aqui, não fica no pedido.</summary>

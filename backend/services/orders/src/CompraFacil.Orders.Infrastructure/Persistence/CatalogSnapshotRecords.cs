@@ -10,6 +10,8 @@ public sealed class ProductSnapshotRecord
     public long PriceCents { get; set; }
     public string Currency { get; set; } = "";
     public string Status { get; set; } = "";
+    /// <summary>Os tamanhos que o cliente escolhe; vazio, o produto não tem tamanho.</summary>
+    public List<string> Sizes { get; set; } = [];
     public int Version { get; set; }
     /// <summary>Removido no catálogo; a linha fica para barrar eventos mais velhos.</summary>
     public bool Deleted { get; set; }

@@ -46,12 +46,14 @@ type contractInteraction struct {
 	Given       map[string]struct {
 		Status                  string `json:"status"`
 		PriceCents              int64  `json:"price_cents"`
-		CampaignDiscountPercent *int   `json:"campaign_discount_percent"`
+		CampaignDiscountPercent *int     `json:"campaign_discount_percent"`
+		Sizes                   []string `json:"sizes"`
 	} `json:"given"`
 	Request []struct {
 		Product                string `json:"product"`
 		Quantity               int32  `json:"quantity"`
 		ExpectedUnitPriceCents *int64 `json:"expected_unit_price_cents"`
+		Size                   string `json:"size"`
 	} `json:"request"`
 	Response []struct {
 		Product    string         `json:"product"`
@@ -61,6 +63,7 @@ type contractInteraction struct {
 		Name       *string        `json:"name"`
 		UnitPrice  *contractMoney `json:"unit_price"`
 		CampaignID *string        `json:"campaign_id"`
+		Size       *string        `json:"size"`
 	} `json:"response"`
 }
 
@@ -90,6 +93,7 @@ func TestConsumerContract_OrdersValidateItems(t *testing.T) {
 			for _, r := range it.Request {
 				req.Items = append(req.Items, &catalogv1.ItemToValidate{
 					ProductId: idOf(ids, r.Product).String(), Quantity: r.Quantity, ExpectedUnitPriceCents: r.ExpectedUnitPriceCents,
+					Size: r.Size,
 				})
 			}
 
@@ -111,6 +115,7 @@ func TestConsumerContract_OrdersValidateItems(t *testing.T) {
 				matchString(t, want.Sku, got.GetSku(), want.Product+": sku")
 				matchString(t, want.Name, got.GetName(), want.Product+": name")
 				matchString(t, want.CampaignID, got.GetCampaignId(), want.Product+": campaign_id")
+				matchString(t, want.Size, got.GetSize(), want.Product+": size")
 				if want.UnitPrice != nil {
 					require.NotNil(t, got.GetUnitPrice(), "%s: unit_price", want.Product)
 					assert.Equal(t, want.UnitPrice.AmountCents, got.GetUnitPrice().GetAmountCents(), "%s: unit_price.amount_cents", want.Product)
@@ -135,7 +140,7 @@ func givenState(t *testing.T, db *gorm.DB, n int, it contractInteraction) map[st
 	for ref, g := range it.Given {
 		p := domain.Product{
 			SKU: fmt.Sprintf("CT-%d-%s", n, ref), Name: "Produto do contrato " + ref, CategoryID: cat.ID,
-			PriceCents: g.PriceCents, Status: domain.ProductStatus(g.Status),
+			PriceCents: g.PriceCents, Status: domain.ProductStatus(g.Status), Sizes: g.Sizes,
 		}
 		require.NoError(t, products.Create(ctx, &p))
 		ids[ref] = p.ID

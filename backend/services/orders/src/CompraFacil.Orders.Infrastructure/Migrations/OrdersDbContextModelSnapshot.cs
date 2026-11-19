@@ -529,6 +529,11 @@ namespace CompraFacil.Orders.Infrastructure.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("price_cents");
 
+                    b.PrimitiveCollection<List<string>>("Sizes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("sizes");
+
                     b.Property<string>("Sku")
                         .IsRequired()
                         .HasColumnType("text")
