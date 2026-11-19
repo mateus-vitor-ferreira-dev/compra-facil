@@ -763,6 +763,8 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
 
                             b1.Property<int>("Quantity");
 
+                            b1.Property<string>("Size");
+
                             b1.Property<string>("Sku")
                                 .IsRequired();
 

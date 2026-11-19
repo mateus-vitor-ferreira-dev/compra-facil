@@ -9,7 +9,7 @@ import { StateMessage } from "@/components/ui/state";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { readCart, readUndo } from "@/lib/cart";
 import { loadCartLines, type CartLine } from "@/lib/cart-lines";
-import { MAX_QUANTITY, lineIssue, summarize, type Line } from "@/lib/cart-rules";
+import { MAX_QUANTITY, lineIssue, lineKey, summarize, type Line } from "@/lib/cart-rules";
 import { getProduct } from "@/lib/catalog-api";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -47,14 +47,20 @@ export default async function CartPage({ searchParams }: Props) {
   // ?esvaziar=1: a pergunta antes de esvaziar, numa página própria para funcionar sem JavaScript
   const confirmClear = canClear && query.esvaziar === "1";
   const removedProduct =
-    removed && !cart.items.some((i) => i.id === removed.id) ? await getProduct(removed.id) : undefined;
+    removed && !cart.items.some((i) => lineKey(i) === lineKey(removed))
+      ? await getProduct(removed.id)
+      : undefined;
   const undo = removedProduct?.ok && (
     <div
       role="status"
       className="bg-surface border-line mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border p-4"
     >
       <p>
-        <span className="font-semibold">{removedProduct.data.name}</span> saiu do carrinho.
+        <span className="font-semibold">
+          {removedProduct.data.name}
+          {removed?.size && ` (tamanho ${removed.size})`}
+        </span>{" "}
+        saiu do carrinho.
       </p>
       <UndoFocus>
         <form action={undoRemove}>
@@ -180,7 +186,7 @@ export default async function CartPage({ searchParams }: Props) {
           )}
           <ul aria-label="Produtos no carrinho" className="divide-line border-line divide-y border-y">
             {lines.map((line) => (
-              <CartLineItem key={line.id} line={line} unreachable={unreachable} />
+              <CartLineItem key={line.key} line={line} unreachable={unreachable} />
             ))}
           </ul>
         </div>
@@ -273,7 +279,12 @@ function reorderMessage(back: number, left: number) {
 function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: boolean }) {
   const { product } = line;
   const issue = lineIssue(line);
-  const productId = <input type="hidden" name="product_id" value={line.id} />;
+  const productId = (
+    <>
+      <input type="hidden" name="product_id" value={line.id} />
+      <input type="hidden" name="line" value={line.key} />
+    </>
+  );
   const stepper =
     "text-ink hover:bg-ink/8 grid size-11 cursor-pointer place-items-center rounded-md aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:bg-transparent [&_svg]:size-4";
   const maxQty = Math.min(MAX_QUANTITY, line.available && line.available > 0 ? line.available : MAX_QUANTITY);
@@ -298,6 +309,8 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
 
   const unit = product.effective_price.amount_cents;
   const lineTotal = unit * line.qty;
+  // nos nomes acessíveis, o tamanho separa as linhas do mesmo produto
+  const label = line.size ? `${product.name}, tamanho ${line.size}` : product.name;
 
   return (
     <li className="grid grid-cols-[5rem_minmax(0,1fr)] gap-x-4 gap-y-3 py-5 sm:grid-cols-[6rem_minmax(0,1fr)_auto]">
@@ -316,6 +329,7 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
             {product.name}
           </Link>
         </h3>
+        {line.size && <p className="text-sm font-medium">Tamanho {line.size}</p>}
         <p className="text-ink-soft text-sm">
           {brl(unit)} cada
           {product.price.amount_cents > unit && (
@@ -336,7 +350,7 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
               buttonVariants({ variant: "ghost", size: "sm" }),
               "text-ink-soft hover:text-ink px-2",
             )}
-            aria-label={`Remover ${product.name} do carrinho`}
+            aria-label={`Remover ${label} do carrinho`}
           >
             <Trash2 aria-hidden="true" />
             Remover
@@ -365,12 +379,12 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
               value={Math.max(1, line.qty - 1)}
               aria-disabled={line.qty <= 1 || undefined}
               className={stepper}
-              aria-label={`Diminuir a quantidade de ${product.name}`}
+              aria-label={`Diminuir a quantidade de ${label}`}
             >
               <Minus aria-hidden="true" />
             </button>
             <output
-              aria-label={`Quantidade de ${product.name}`}
+              aria-label={`Quantidade de ${label}`}
               className="font-condensed w-8 text-center text-lg font-bold"
             >
               {line.qty}
@@ -381,7 +395,7 @@ function CartLineItem({ line, unreachable }: { line: CartLine; unreachable: bool
               value={Math.min(maxQty, line.qty + 1)}
               aria-disabled={line.qty >= maxQty || undefined}
               className={stepper}
-              aria-label={`Aumentar a quantidade de ${product.name}`}
+              aria-label={`Aumentar a quantidade de ${label}`}
             >
               <Plus aria-hidden="true" />
             </button>
@@ -408,6 +422,7 @@ function LineNotice({ issue, line }: { issue: NonNullable<ReturnType<typeof line
     return (
       <form action={updateQuantity} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="product_id" value={line.id} />
+        <input type="hidden" name="line" value={line.key} />
         <input type="hidden" name="quantity" value={line.available} />
         <p className="text-danger text-sm font-semibold">
           {line.available === 1 ? "Só resta 1 unidade." : `Só restam ${line.available} unidades.`}

@@ -10,9 +10,13 @@ public static class CatalogEvents
     public const string CampaignsTopic = "catalog.campaign.v1";
 }
 
-/// <summary>data de ProductCreated/ProductUpdated (ProductSnapshot do contrato).</summary>
+/// <summary>
+/// data de ProductCreated/ProductUpdated (ProductSnapshot do contrato). Sizes nulo nos eventos de antes do campo:
+/// vale como lista vazia.
+/// </summary>
 public sealed record ProductSnapshotData(
-    Guid ProductId, string Sku, string Name, Guid CategoryId, Money Price, string Status, int Version, DateTimeOffset UpdatedAt);
+    Guid ProductId, string Sku, string Name, Guid CategoryId, Money Price, string Status, int Version, DateTimeOffset UpdatedAt,
+    IReadOnlyList<string>? Sizes = null);
 
 public sealed record ProductDeletedData(Guid ProductId, string Sku, int Version);
 

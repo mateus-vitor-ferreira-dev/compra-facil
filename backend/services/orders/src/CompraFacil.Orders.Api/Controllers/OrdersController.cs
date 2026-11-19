@@ -37,7 +37,7 @@ public sealed class OrdersController(PlaceOrder placeOrder, OrderQueries queries
         var result = await placeOrder.HandleAsync(new PlaceOrderCommand(
             customerId,
             User.FindFirstValue("email") ?? "",
-            [.. (body.Items ?? []).Select(i => new PlaceOrderItem(i.ProductId ?? Guid.Empty, i.Quantity ?? 0, i.ExpectedUnitPriceCents))],
+            [.. (body.Items ?? []).Select(i => new PlaceOrderItem(i.ProductId ?? Guid.Empty, i.Quantity ?? 0, i.ExpectedUnitPriceCents, i.CleanSize))],
             idempotencyKey,
             body.Payment is { } p
                 ? new PlaceOrderPayment(p.Method ?? (PaymentMethod)(-1), p.Installments ?? 1, p.CardToken, p.CardBrand)

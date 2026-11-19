@@ -33,16 +33,16 @@ public sealed partial class OnOrderConfirmed(
             return; // o mesmo pedido de novo (evento repetido)
         }
         var now = clock.GetUtcNow();
-        var items = data.Items.Select(i => new SupplierOrderItem(i.Sku, i.Name, i.Quantity)).ToList();
+        var items = data.Items.Select(i => new SupplierOrderItem(i.Sku, i.Name, i.Quantity, i.Size)).ToList();
         var order = SupplierOrder.Create(data.OrderId, data.CustomerEmail, items, supplier.Name, now, data.ShipTo, data.Shipping?.PromisedBy);
         // o SKU da loja é o vid do fornecedor: dele saem o custo e o NCM
-        var supplied = (await products.GetManyAsync(supplier.Name, [.. data.Items.Select(i => i.Sku)], ct)).ToDictionary(p => p.Vid);
+        var supplied = (await products.GetManyAsync(supplier.Name, [.. data.Items.Select(i => i.Sku).Distinct()], ct)).ToDictionary(p => p.Vid);
         order.RecordEconomics(data.Total.AmountCents, data.Shipping?.Price.AmountCents ?? 0, ProductCost(data.Items, supplied), data.Shipping?.Service);
         orders.Add(order);
         if (invoicing.Enabled && data.ShipTo is { } shipTo)
         {
             var lines = data.Items.Select(i => new InvoiceLine(
-                i.Sku, i.Name, invoicing.NcmFor(supplied.GetValueOrDefault(i.Sku)?.Category), i.Quantity,
+                i.Sku, i.NameWithSize, invoicing.NcmFor(supplied.GetValueOrDefault(i.Sku)?.Category), i.Quantity,
                 i.UnitPrice.AmountCents, i.LineTotal.AmountCents)).ToList();
             invoices.Add(Invoice.Create(data.OrderId, data.CustomerId, data.CustomerEmail, shipTo, lines, data.PaymentMethod ?? "pix", now,
                 data.Shipping?.Price.AmountCents ?? 0));

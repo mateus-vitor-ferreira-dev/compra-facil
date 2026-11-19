@@ -24,16 +24,16 @@ namespace CompraFacil.Orders.IntegrationTests;
 // ---------------------------------------------------------------------------------------------
 
 /// <summary>Produto que o provedor precisa ter antes da interação (estado do provedor).</summary>
-public sealed record GivenProduct(string Status, long PriceCents, int? CampaignDiscountPercent = null);
+public sealed record GivenProduct(string Status, long PriceCents, int? CampaignDiscountPercent = null, IReadOnlyList<string>? Sizes = null);
 
-public sealed record ContractRequestItem(string Product, int Quantity, long? ExpectedUnitPriceCents = null);
+public sealed record ContractRequestItem(string Product, int Quantity, long? ExpectedUnitPriceCents = null, string? Size = null);
 
 public sealed record ContractMoney(long AmountCents, string Currency);
 
 /// <summary>Item esperado na resposta; "&lt;string&gt;" e "&lt;uuid&gt;" casam com qualquer valor do tipo.</summary>
 public sealed record ContractResponseItem(
     string Product, string Status, int? Quantity = null, string? Sku = null, string? Name = null,
-    ContractMoney? UnitPrice = null, string? CampaignId = null);
+    ContractMoney? UnitPrice = null, string? CampaignId = null, string? Size = null);
 
 public sealed record ContractInteraction(
     string Description,
@@ -93,6 +93,13 @@ public static class OrdersCatalogContract
                     new("fantasma", "ITEM_STATUS_NOT_FOUND"),
                     new("p2", "ITEM_STATUS_OK", 3, AnyString, AnyString, new(500, "BRL"), ""),
                 ]),
+            new("tamanhos: o escolhido volta como está no cadastro; faltando no produto com tamanho, INVALID_SIZE",
+                new Dictionary<string, GivenProduct> { ["p1"] = s_active with { Sizes = ["P", "G"] }, ["p2"] = s_active with { Sizes = ["M"] } },
+                [new("p1", 1, Size: "g"), new("p2", 1)],
+                [
+                    new("p1", "ITEM_STATUS_OK", 1, AnyString, AnyString, new(1990, "BRL"), "", Size: "G"),
+                    new("p2", "ITEM_STATUS_INVALID_SIZE", Sku: AnyString),
+                ]),
         ]);
 
     public static readonly JsonSerializerOptions Json = new()
@@ -118,8 +125,8 @@ public sealed class ContractCatalog : CatalogService.CatalogServiceBase
     public override Task<ValidateItemsResponse> ValidateItems(ValidateItemsRequest request, ServerCallContext context)
     {
         var interaction = Current ?? throw new RpcException(new Status(StatusCode.FailedPrecondition, "sem interação"));
-        var expected = interaction.Request.Select(i => (Ids[i.Product].ToString(), i.Quantity, i.ExpectedUnitPriceCents)).ToList();
-        var actual = request.Items.Select(i => (i.ProductId, i.Quantity, i.HasExpectedUnitPriceCents ? i.ExpectedUnitPriceCents : (long?)null)).ToList();
+        var expected = interaction.Request.Select(i => (Ids[i.Product].ToString(), i.Quantity, i.ExpectedUnitPriceCents, i.Size ?? "")).ToList();
+        var actual = request.Items.Select(i => (i.ProductId, i.Quantity, i.HasExpectedUnitPriceCents ? i.ExpectedUnitPriceCents : (long?)null, i.Size)).ToList();
         if (!expected.SequenceEqual(actual))
         {
             Mismatches.Add($"{interaction.Description}: request {string.Join(", ", actual)} ≠ contrato {string.Join(", ", expected)}");
@@ -136,6 +143,7 @@ public sealed class ContractCatalog : CatalogService.CatalogServiceBase
                 Sku = Example(item.Sku),
                 Name = Example(item.Name),
                 CampaignId = Example(item.CampaignId),
+                Size = Example(item.Size),
             };
             if (item.UnitPrice is { } price)
             {
@@ -212,7 +220,7 @@ public sealed class CatalogContractTests(CatalogContractFixture fx) : IClassFixt
         await using var scope = fx.Factory.Services.CreateAsyncScope();
         var pricing = scope.ServiceProvider.GetRequiredService<ICatalogPricing>();
         var priced = await pricing.PriceAsync(
-            [.. interaction.Request.Select(r => new ItemToPrice(ids[r.Product], r.Quantity, r.ExpectedUnitPriceCents))], Ct);
+            [.. interaction.Request.Select(r => new ItemToPrice(ids[r.Product], r.Quantity, r.ExpectedUnitPriceCents, r.Size))], Ct);
 
         Assert.Empty(fx.Catalog.Mismatches); // o orders pediu o que o contrato diz
         Assert.Equal(interaction.Response.Count, priced.Count);
@@ -236,6 +244,10 @@ public sealed class CatalogContractTests(CatalogContractFixture fx) : IClassFixt
             if (expected.CampaignId is not null)
             {
                 Assert.Equal(expected.CampaignId == OrdersCatalogContract.AnyUuid, item.CampaignId is not null);
+            }
+            if (expected.Size is not null)
+            {
+                Assert.Equal(expected.Size, item.Size);
             }
         }
     }
@@ -265,6 +277,7 @@ public sealed class CatalogContractTests(CatalogContractFixture fx) : IClassFixt
         "ITEM_STATUS_NOT_ACTIVE" => PricedItemStatus.NotActive,
         "ITEM_STATUS_PRICE_CHANGED" => PricedItemStatus.PriceChanged,
         "ITEM_STATUS_INVALID_QUANTITY" => PricedItemStatus.InvalidQuantity,
+        "ITEM_STATUS_INVALID_SIZE" => PricedItemStatus.InvalidSize,
         _ => throw new ArgumentOutOfRangeException(nameof(status), status, "status fora do contrato"),
     };
 

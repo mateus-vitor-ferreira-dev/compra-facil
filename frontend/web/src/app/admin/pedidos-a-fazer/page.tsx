@@ -242,7 +242,7 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
         )}
       </p>
       <p className="text-ink-soft">
-        {o.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}
+        {o.items.map((i) => `${i.quantity} × ${i.name}${i.size ? ` (${i.size})` : ""}`).join(", ")}
         {o.placed_at && (
           <>
             ; feito em <time dateTime={o.placed_at}>{when.format(new Date(o.placed_at))}</time>
@@ -290,9 +290,15 @@ function Ticket({ order: o, now }: { order: ManualOrder; now: number }) {
           <h4 className="font-medium">Itens</h4>
           <ul className="space-y-1 text-sm">
             {o.items.map((i) => (
-              <li key={i.sku} className="flex items-center justify-between gap-2">
+              <li key={`${i.sku}:${i.size ?? ""}`} className="flex items-center justify-between gap-2">
                 <span>
                   <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+                  {/* no modo manual, a equipe pede ao fornecedor nesse tamanho: em destaque */}
+                  {i.size && (
+                    <span className="border-ink ml-2 rounded border px-1.5 py-0.5 text-xs font-bold">
+                      Tamanho {i.size}
+                    </span>
+                  )}
                   <span className="text-ink-soft block tabular-nums">SKU {i.sku}</span>
                 </span>
                 <CopyButton value={i.sku} label={`o SKU ${i.sku}`} />

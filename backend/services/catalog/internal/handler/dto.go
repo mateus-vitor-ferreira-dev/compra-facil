@@ -38,7 +38,9 @@ type productDTO struct {
 	ImageURL    *string        `json:"image_url"`
 	Image       *imageDTO      `json:"image"`
 	// Images: todas as fotos, a primeira igual a Image. Só no detalhe: a listagem usa a primeira.
-	Images         []imageDTO      `json:"images,omitempty"`
+	Images []imageDTO `json:"images,omitempty"`
+	// Sizes: os tamanhos que o cliente escolhe na compra; vazio, o produto não tem tamanho
+	Sizes          []string        `json:"sizes"`
 	Price          moneyDTO        `json:"price"`
 	EffectivePrice moneyDTO        `json:"effective_price"`
 	Campaign       *campaignRefDTO `json:"campaign"`
@@ -150,10 +152,14 @@ func toProductDTO(p domain.Product) productDTO {
 		Category:       categoryRefDTO{ID: p.Category.ID, Slug: p.Category.Slug, Name: p.Category.Name},
 		ImageURL:       p.ImageURL,
 		Image:          toImageDTO(p),
+		Sizes:          p.Sizes,
 		Price:          moneyDTO{AmountCents: p.PriceCents, Currency: p.Currency},
 		EffectivePrice: moneyDTO{AmountCents: p.EffectivePriceCents(), Currency: p.Currency},
 		CreatedAt:      p.CreatedAt.UTC(),
 		UpdatedAt:      p.UpdatedAt.UTC(),
+	}
+	if dto.Sizes == nil {
+		dto.Sizes = []string{}
 	}
 	if c := p.ActiveCampaign; c != nil {
 		dto.Campaign = &campaignRefDTO{ID: c.ID, Name: c.Name, DiscountPercent: c.DiscountPercent, EndsAt: c.EndsAt.UTC()}

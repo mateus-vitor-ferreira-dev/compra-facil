@@ -16,7 +16,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace CompraFacil.Orders.IntegrationTests;
 
 /// <summary>Produto do catalog falso.</summary>
-public sealed record CatalogProduct(string Sku, string Name, long PriceCents, bool Active = true, Guid? CampaignId = null);
+public sealed record CatalogProduct(
+    string Sku, string Name, long PriceCents, bool Active = true, Guid? CampaignId = null, IReadOnlyList<string>? Sizes = null);
 
 /// <summary>
 /// Catalog falso, servindo o mesmo contrato gRPC (contracts/proto/catalog/v1) que o catalog em Go,
@@ -61,7 +62,12 @@ public sealed class FakeCatalog : CatalogService.CatalogServiceBase
                 validated.UnitPrice = new Contracts.Catalog.V1.Money { AmountCents = p.PriceCents, Currency = "BRL" };
                 validated.LineTotal = new Contracts.Catalog.V1.Money { AmountCents = p.PriceCents * item.Quantity, Currency = "BRL" };
                 validated.CampaignId = p.CampaignId?.ToString() ?? "";
+                var sizes = p.Sizes ?? [];
+                var size = sizes.FirstOrDefault(s => string.Equals(s, item.Size, StringComparison.OrdinalIgnoreCase));
+                validated.Size = size ?? item.Size;
+                var sizeOk = sizes.Count == 0 ? item.Size.Length == 0 : size is not null;
                 validated.Status = !p.Active ? ItemStatus.NotActive
+                    : !sizeOk ? ItemStatus.InvalidSize
                     : item.HasExpectedUnitPriceCents && item.ExpectedUnitPriceCents != p.PriceCents ? ItemStatus.PriceChanged
                     : ItemStatus.Ok;
             }

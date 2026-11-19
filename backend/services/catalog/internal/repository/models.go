@@ -32,6 +32,7 @@ type productRecord struct {
 	ImageURL    *string
 	Image       *domain.ProductImage  `gorm:"serializer:json"` // jsonb
 	Gallery     []domain.GalleryImage `gorm:"serializer:json"` // jsonb
+	Sizes       []string              `gorm:"serializer:json"` // jsonb
 	PriceCents  int64
 	Currency    string
 	Status      string
@@ -107,6 +108,7 @@ func (row productRow) toDomain() domain.Product {
 		ImageURL:    r.ImageURL,
 		Image:       r.Image,
 		Gallery:     r.Gallery,
+		Sizes:       r.Sizes,
 		PriceCents:  r.PriceCents,
 		Currency:    r.Currency,
 		Status:      domain.ProductStatus(r.Status),
@@ -146,6 +148,7 @@ func productToRecord(p *domain.Product) productRecord {
 		ImageURL:    p.ImageURL,
 		Image:       p.Image,
 		Gallery:     p.Gallery,
+		Sizes:       p.Sizes,
 		PriceCents:  p.PriceCents,
 		Currency:    currency,
 		Status:      string(p.Status),
@@ -153,6 +156,9 @@ func productToRecord(p *domain.Product) productRecord {
 	}
 	if rec.Gallery == nil {
 		rec.Gallery = []domain.GalleryImage{}
+	}
+	if rec.Sizes == nil {
+		rec.Sizes = []string{}
 	}
 	if s := p.Supplier; s != nil {
 		rec.Supplier, rec.SupplierVID, rec.CostCents, rec.CostCurrency = &s.Name, &s.VID, &s.CostCents, &s.CostCurrency

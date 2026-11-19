@@ -189,6 +189,57 @@
           "campaign_id": ""
         }
       ]
+    },
+    {
+      "description": "tamanhos: o escolhido volta como está no cadastro; faltando no produto com tamanho, INVALID_SIZE",
+      "given": {
+        "p1": {
+          "status": "active",
+          "price_cents": 1990,
+          "sizes": [
+            "P",
+            "G"
+          ]
+        },
+        "p2": {
+          "status": "active",
+          "price_cents": 1990,
+          "sizes": [
+            "M"
+          ]
+        }
+      },
+      "request": [
+        {
+          "product": "p1",
+          "quantity": 1,
+          "size": "g"
+        },
+        {
+          "product": "p2",
+          "quantity": 1
+        }
+      ],
+      "response": [
+        {
+          "product": "p1",
+          "status": "ITEM_STATUS_OK",
+          "quantity": 1,
+          "sku": "<string>",
+          "name": "<string>",
+          "unit_price": {
+            "amount_cents": 1990,
+            "currency": "BRL"
+          },
+          "campaign_id": "",
+          "size": "G"
+        },
+        {
+          "product": "p2",
+          "status": "ITEM_STATUS_INVALID_SIZE",
+          "sku": "<string>"
+        }
+      ]
     }
   ]
 }

@@ -11,7 +11,8 @@ using FluentValidation.Results;
 
 namespace CompraFacil.Orders.Application.Orders;
 
-public sealed record PlaceOrderItem(Guid ProductId, int Quantity, long? ExpectedUnitPriceCents);
+/// <summary>Um item do pedido; Size é o tamanho escolhido (nulo no produto sem tamanho).</summary>
+public sealed record PlaceOrderItem(Guid ProductId, int Quantity, long? ExpectedUnitPriceCents, string? Size = null);
 
 /// <summary>Como pagar (#220): PIX, ou cartão com o token do provedor, a bandeira e as parcelas.</summary>
 public sealed record PlaceOrderPayment(PaymentMethod Method, int Installments, string? CardToken, string? CardBrand);
@@ -37,14 +38,15 @@ public sealed class PlaceOrderValidator : AbstractValidator<PlaceOrderCommand>
         RuleFor(c => c.IdempotencyKey).NotEmpty().Length(8, 128);
         RuleFor(c => c.Items).NotEmpty().Must(i => i.Count <= Order.MaxItems)
             .WithMessage($"no máximo {Order.MaxItems} itens");
-        RuleFor(c => c.Items).Must(i => i.Select(x => x.ProductId).Distinct().Count() == i.Count)
+        RuleFor(c => c.Items).Must(i => i.Select(x => OrderItem.LineKey(x.ProductId, x.Size)).Distinct().Count() == i.Count)
             .When(c => c.Items is { Count: > 0 })
-            .WithMessage("um item por produto: product_id repetido");
+            .WithMessage("um item por produto e tamanho: product_id repetido no mesmo tamanho");
         RuleForEach(c => c.Items).ChildRules(item =>
         {
             item.RuleFor(i => i.ProductId).NotEmpty();
             item.RuleFor(i => i.Quantity).InclusiveBetween(OrderItem.MinQuantity, OrderItem.MaxQuantity);
             item.RuleFor(i => i.ExpectedUnitPriceCents).GreaterThanOrEqualTo(1).When(i => i.ExpectedUnitPriceCents.HasValue);
+            item.RuleFor(i => i.Size).MaximumLength(OrderItem.MaxSizeLength).OverridePropertyName("size");
         });
         // o que a NF-e exige (#221), nos tamanhos dela (60 caracteres por campo de endereço)
         RuleFor(c => c.Recipient).NotNull().OverridePropertyName("recipient").WithMessage("informe quem recebe o pedido");
@@ -109,7 +111,7 @@ public sealed class PlaceOrder(
         }
 
         var priced = await catalog.PriceAsync(
-            [.. command.Items.Select(i => new ItemToPrice(i.ProductId, i.Quantity, i.ExpectedUnitPriceCents))], ct);
+            [.. command.Items.Select(i => new ItemToPrice(i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size))], ct);
         EnsureAllSellable(priced);
 
         // o frete recotado aqui, com os SKUs e as quantidades que o catálogo confirmou
@@ -125,7 +127,7 @@ public sealed class PlaceOrder(
         var payment = command.Payment!; // validado acima
         var order = Order.Place(
             Guid.CreateVersion7(), command.CustomerId, command.CustomerEmail.Trim(),
-            [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId))],
+            [.. priced.Select(p => new OrderItem(p.ProductId, p.Sku, p.Name, p.Quantity, p.UnitPrice!.Value, p.CampaignId, p.Size))],
             command.IdempotencyKey, requestHash, now, command.Recipient!, command.ShippingAddress!, orderShipping,
             payment.Method, payment.Installments);
         orders.Add(order);
@@ -172,6 +174,9 @@ public sealed class PlaceOrder(
         PricedItemStatus.NotActive => $"{p.ProductId} ({p.Sku}): produto não está à venda",
         PricedItemStatus.PriceChanged => $"{p.ProductId} ({p.Sku}): o preço mudou, agora {p.UnitPrice?.AmountCents} centavos",
         PricedItemStatus.InvalidQuantity => $"{p.ProductId}: quantidade inválida",
+        PricedItemStatus.InvalidSize => p.Size is null
+            ? $"{p.ProductId} ({p.Sku}): escolha o tamanho"
+            : $"{p.ProductId} ({p.Sku}): o produto não tem o tamanho {p.Size}",
         _ => $"{p.ProductId}: {p.Status}",
     };
 
@@ -182,7 +187,10 @@ public sealed class PlaceOrder(
         {
             c.CustomerId,
             Email = c.CustomerEmail.Trim().ToUpperInvariant(),
-            Items = c.Items.OrderBy(i => i.ProductId).Select(i => new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents }),
+            // o tamanho só entra quando há: o hash dos pedidos de antes do campo continua o mesmo
+            Items = c.Items.OrderBy(i => i.ProductId).ThenBy(i => i.Size, StringComparer.Ordinal).Select(i => i.Size is null
+                ? (object)new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents }
+                : new { i.ProductId, i.Quantity, i.ExpectedUnitPriceCents, i.Size }),
             // o meio, não o token: o token é de uso único, e o retry do cliente pode trazer outro
             Payment = c.Payment is { } p ? new { p.Method, p.Installments } : null,
             c.Recipient,

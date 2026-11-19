@@ -87,15 +87,17 @@ type productInputDTO struct {
 	CategoryID  uuid.UUID `json:"category_id"`
 	ImageURL    *string   `json:"image_url"`
 	// MoreImageURLs: as outras fotos, na ordem; ausente mantém as gravadas
-	MoreImageURLs []string             `json:"more_image_urls"`
-	PriceCents    int64                `json:"price_cents"`
-	Status        domain.ProductStatus `json:"status"`
+	MoreImageURLs []string `json:"more_image_urls"`
+	// Sizes: os tamanhos que o cliente escolhe; ausente mantém os gravados, [] tira
+	Sizes      []string             `json:"sizes"`
+	PriceCents int64                `json:"price_cents"`
+	Status     domain.ProductStatus `json:"status"`
 }
 
 func (in productInputDTO) toService() service.ProductInput {
 	return service.ProductInput{
 		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
-		ImageURL: in.ImageURL, MoreImageURLs: in.MoreImageURLs, PriceCents: in.PriceCents, Status: in.Status,
+		ImageURL: in.ImageURL, MoreImageURLs: in.MoreImageURLs, Sizes: in.Sizes, PriceCents: in.PriceCents, Status: in.Status,
 	}
 }
 
