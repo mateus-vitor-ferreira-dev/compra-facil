@@ -33,3 +33,5 @@ __pycache__/
 # cópias de trabalho dos agentes e o relatório de cobertura dos testes do front
 .claude/worktrees/
 frontend/web/coverage/
+# o modelo de ameaças fica no vault (o repositório é público)
+THREAT_MODEL.md
