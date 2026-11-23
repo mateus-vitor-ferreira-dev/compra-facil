@@ -32,7 +32,8 @@ public sealed record Money(long AmountCents, string Currency);
 /// eles e nos eventos de antes dos campos).
 /// </summary>
 public sealed record OrderItem(
-    string Name, int Quantity, Money UnitPrice, Money LineTotal, string? Size = null, string? Personalization = null);
+    string Name, int Quantity, Money UnitPrice, Money LineTotal, string? Size = null, string? Personalization = null,
+    string? Color = null);
 
 public sealed record OrderConfirmedData(Guid OrderId, string CustomerEmail, IReadOnlyList<OrderItem> Items, Money Total);
 

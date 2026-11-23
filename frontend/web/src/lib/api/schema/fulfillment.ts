@@ -659,6 +659,11 @@ export interface components {
                  */
                 size?: string | null;
                 /**
+                 * @description A cor que o cliente escolheu; peça ao fornecedor nela (na Montink, var2). Nula sem cor à escolha.
+                 * @example Preto
+                 */
+                color?: string | null;
+                /**
                  * @description O texto do cliente para a arte (ex.: o nome na estampa): gere o arquivo de impressão com ele.
                  *     Nulo no produto sem personalização.
                  * @example Ana Maria
@@ -911,6 +916,8 @@ export interface components {
                 quantity: number;
                 /** @description O tamanho que o cliente escolheu; nulo no produto sem tamanho. */
                 size?: string | null;
+                /** @description A cor que o cliente escolheu; nula no produto sem cor à escolha. */
+                color?: string | null;
                 /** @description O texto do cliente para a arte; nulo no produto sem personalização. */
                 personalization?: string | null;
             }[];

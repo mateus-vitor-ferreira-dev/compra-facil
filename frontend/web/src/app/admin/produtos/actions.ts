@@ -69,6 +69,7 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     category_id: text(form, "category_id"),
     price: text(form, "price"),
     sizes: text(form, "sizes"),
+    colors: text(form, "colors"),
     personalization_template: text(form, "personalization_template"),
     personalization_label: text(form, "personalization_label"),
     personalization_max_length: text(form, "personalization_max_length"),
@@ -93,6 +94,19 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
   }
   if (sizes.length > 12 || sizes.some((s) => s.length > 10)) {
     return { values, fields: { sizes: "Até 12 tamanhos, cada um com até 10 caracteres." } };
+  }
+  const colors = values.colors
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const repeatedColor = colors.find(
+    (c, i) => colors.findIndex((o) => o.toUpperCase() === c.toUpperCase()) !== i,
+  );
+  if (repeatedColor) {
+    return { values, fields: { colors: `A cor ${repeatedColor} aparece mais de uma vez.` } };
+  }
+  if (colors.length > 12 || colors.some((c) => c.length > 20)) {
+    return { values, fields: { colors: "Até 12 cores, cada uma com até 20 caracteres." } };
   }
   // sem arte, sem personalização: {} tira a que estiver gravada
   let personalization: ProductInput["personalization"] = {};
@@ -124,6 +138,7 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     image_url: photos[0] ?? null,
     more_image_urls: photos.slice(1),
     sizes,
+    colors,
     personalization,
     price_cents: price,
     status: status.success ? status.data : "draft",

@@ -64,6 +64,8 @@ message Product {
   repeated string sizes = 11;
   // Texto que o cliente escreve na compra (ex.: o nome na estampa); ausente, o produto não tem personalização.
   optional Personalization personalization = 12;
+  // Cores que o cliente escolhe na compra (ex.: Branco, Preto), na ordem de exibição; vazio, sem cor à escolha.
+  repeated string colors = 13;
 }
 
 // O campo de texto que o cliente preenche na compra e o id da arte que o recebe.
@@ -110,6 +112,8 @@ message ItemToValidate {
   // Texto do cliente para a arte; vazio no produto sem personalização. Letras (com acento), algarismos, espaço e
   // . , ' - & ! ? /, até o max_length do produto. O mesmo produto e tamanho pode vir em mais de um item, um por texto.
   string personalization = 5;
+  // Cor escolhida, uma das `colors` do produto (sem diferenciar maiúsculas); vazio no produto sem cor à escolha.
+  string color = 6;
 }
 
 enum ItemStatus {
@@ -128,6 +132,8 @@ enum ItemStatus {
   // Texto que o produto não aceita: faltando quando é obrigatório, longo demais, com caractere que a arte não
   // imprime, ou presente no produto sem personalização.
   ITEM_STATUS_INVALID_PERSONALIZATION = 7;
+  // Cor que o produto não tem, ou faltando no produto com cor à escolha.
+  ITEM_STATUS_INVALID_COLOR = 8;
 }
 
 message ValidatedItem {
@@ -145,6 +151,8 @@ message ValidatedItem {
   string size = 9;
   // Texto normalizado (sem espaços nas pontas nem repetidos), como vai para a arte; vazio sem personalização.
   string personalization = 10;
+  // Cor como está no cadastro (ex.: "preto" pedido volta "Preto"); vazio no produto sem cor à escolha.
+  string color = 11;
 }
 
 message ValidateItemsResponse {

@@ -35,3 +35,14 @@ public sealed class PersonalizationTests
         Assert.Equal(OrderItem.LineKey(id, null), OrderItem.LineKey(id, null, "  "));
     }
 }
+
+public sealed class LineKeyTests
+{
+    [Fact]
+    public void TheSameProductSizeAndTextInTwoColors_IsTwoLines()
+    {
+        var id = Guid.NewGuid();
+        Assert.NotEqual(OrderItem.LineKey(id, "M", null, "Preto"), OrderItem.LineKey(id, "M", null, "Branco"));
+        Assert.Equal(OrderItem.LineKey(id, "M", "Ana", "preto"), OrderItem.LineKey(id, "m", " Ana ", "PRETO"));
+    }
+}

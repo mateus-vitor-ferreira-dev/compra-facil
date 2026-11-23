@@ -880,8 +880,8 @@ components:
           minItems: 1
           maxItems: 50
           description: |
-            Um item por produto, tamanho e personalização: o mesmo `product_id` pode vir em mais de um item, cada um
-            com um `size` ou uma `personalization` diferente.
+            Um item por produto, tamanho, cor e personalização: o mesmo `product_id` pode vir em mais de um item,
+            cada um com um `size`, uma `color` ou uma `personalization` diferente.
           items:
             $ref: "#/components/schemas/PlaceOrderItem"
 
@@ -962,6 +962,13 @@ components:
             acento), algarismos, espaço e `. , ' - & ! ? /`, até o `max_length` do produto. Faltando quando é
             obrigatória, inválido, ou presente no produto sem personalização: 409.
           examples: ["Ana Maria"]
+        color:
+          type: [string, "null"]
+          maxLength: 20
+          description: |
+            A cor escolhida, uma das `colors` do produto no catálogo (sem diferenciar maiúsculas). Obrigatória no
+            produto com cor à escolha e ausente no sem; senão, 409.
+          examples: ["Preto"]
 
     Order:
       type: object
@@ -1101,6 +1108,10 @@ components:
           type: [string, "null"]
           description: O texto do cliente para a arte, normalizado; nulo no produto sem personalização.
           examples: ["Ana Maria"]
+        color:
+          type: [string, "null"]
+          description: A cor escolhida, como está no catálogo; nula no produto sem cor à escolha.
+          examples: ["Preto"]
 
   securitySchemes:
     bearerAuth:

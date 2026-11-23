@@ -24,12 +24,20 @@ import { normalizePersonalization, personalizationError } from "@/lib/personaliz
 
 export type AddState =
   | { status: "idle" }
-  | { status: "added"; name: string; qty: number; limited: boolean; size?: string; text?: string }
+  | {
+      status: "added";
+      name: string;
+      qty: number;
+      limited: boolean;
+      size?: string;
+      color?: string;
+      text?: string;
+    }
   | { status: "error"; message: string };
 
 const id = z.uuid();
 const quantity = z.coerce.number().int();
-// a linha do carrinho: o id do produto, "id:TAMANHO" ou "id:TAMANHO|texto"
+// a linha do carrinho: o id do produto e a variante (lineKey)
 const line = z.string().min(1).max(MAX_LINE_KEY);
 
 export async function addToCart(_: AddState, form: FormData): Promise<AddState> {
@@ -55,6 +63,13 @@ export async function addToCart(_: AddState, form: FormData): Promise<AddState> 
   if (sizes.length > 0 && !size) {
     return { status: "error", message: "Escolha o tamanho." };
   }
+  // a cor como o catálogo a cadastra; o produto com cor à escolha exige a escolha
+  const colors = product.data.colors ?? [];
+  const wantedColor = String(form.get("color") ?? "").trim();
+  const color = colors.find((c) => c.toUpperCase() === wantedColor.toUpperCase());
+  if (colors.length > 0 && !color) {
+    return { status: "error", message: "Escolha a cor." };
+  }
   // o texto da personalização, normalizado e conferido com a regra do produto
   const text = normalizePersonalization(String(form.get("personalization") ?? "").slice(0, 200));
   const textError = personalizationError(text, product.data.personalization);
@@ -71,6 +86,7 @@ export async function addToCart(_: AddState, form: FormData): Promise<AddState> 
     stock.ok ? stock.data[productId.data] : undefined,
     size,
     text || undefined,
+    color,
   );
   if (!result.ok) {
     return {
@@ -94,6 +110,7 @@ export async function addToCart(_: AddState, form: FormData): Promise<AddState> 
     qty: result.qty,
     limited: result.limited,
     size,
+    color,
     text: text || undefined,
   };
 }

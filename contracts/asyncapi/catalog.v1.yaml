@@ -414,3 +414,8 @@ components:
           oneOf:
             - $ref: "../openapi/catalog.v1.yaml#/components/schemas/Personalization"
             - type: "null"
+        colors:
+          description: |
+            As cores que o cliente escolhe na compra; vazio, o produto não tem cor à escolha. Eventos de antes do
+            campo não o trazem: o consumidor trata a ausência como lista vazia.
+          $ref: "../openapi/catalog.v1.yaml#/components/schemas/ProductColors"

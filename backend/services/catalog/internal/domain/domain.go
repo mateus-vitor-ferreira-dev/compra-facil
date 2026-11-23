@@ -72,6 +72,9 @@ type Product struct {
 	// não tem tamanho. Preço e estoque continuam do produto (a peça é feita sob demanda). Num Update, nil mantém os
 	// que estão gravados.
 	Sizes []string
+	// Colors são as cores que o cliente escolhe na compra (ex.: Branco, Preto), na ordem de exibição; vazio, o produto
+	// não tem cor à escolha. Como o tamanho, preço e estoque são do produto. Num Update, nil mantém as gravadas.
+	Colors []string
 	// Personalization é o texto que o cliente escreve na compra (ex.: o nome na estampa); nulo, o produto não tem.
 	// Num Update, nil mantém a gravada e uma vazia (IsZero) tira.
 	Personalization *Personalization

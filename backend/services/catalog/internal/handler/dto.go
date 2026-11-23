@@ -41,6 +41,8 @@ type productDTO struct {
 	Images []imageDTO `json:"images,omitempty"`
 	// Sizes: os tamanhos que o cliente escolhe na compra; vazio, o produto não tem tamanho
 	Sizes []string `json:"sizes"`
+	// Colors: as cores que o cliente escolhe na compra; vazio, o produto não tem cor à escolha
+	Colors []string `json:"colors"`
 	// Personalization: o texto que o cliente escreve na compra; nulo, o produto não tem
 	Personalization *personalizationDTO `json:"personalization"`
 	Price           moneyDTO            `json:"price"`
@@ -163,6 +165,10 @@ func toProductDTO(p domain.Product) productDTO {
 	}
 	if dto.Sizes == nil {
 		dto.Sizes = []string{}
+	}
+	dto.Colors = p.Colors
+	if dto.Colors == nil {
+		dto.Colors = []string{}
 	}
 	if c := p.ActiveCampaign; c != nil {
 		dto.Campaign = &campaignRefDTO{ID: c.ID, Name: c.Name, DiscountPercent: c.DiscountPercent, EndsAt: c.EndsAt.UTC()}

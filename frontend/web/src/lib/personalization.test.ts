@@ -56,3 +56,19 @@ describe("personalização no carrinho", () => {
     expect(lineKey({ id: "p1" })).toBe("p1");
   });
 });
+
+describe("cor no carrinho", () => {
+  it("cada cor é uma linha, e a chave junta tamanho, cor e texto", () => {
+    let cart = emptyCart();
+    for (const color of ["Preto", "Branco", "preto"]) {
+      const r = addItem(cart, "p1", 1, 7990, undefined, "M", undefined, color);
+      if (!r.ok) throw new Error("não entrou");
+      cart = r.cart;
+    }
+    expect(cart.items.map((i) => [i.color, i.qty])).toEqual([
+      ["preto", 2],
+      ["Branco", 1],
+    ]);
+    expect(lineKey({ id: "p1", size: "M", color: "Preto", text: "Ana" })).toBe("p1:M~PRETO|Ana");
+  });
+});

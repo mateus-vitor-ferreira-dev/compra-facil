@@ -1223,6 +1223,10 @@ components:
                 type: [string, "null"]
                 description: O tamanho que o cliente escolheu; peça ao fornecedor nele. Nulo no produto sem tamanho.
                 examples: ["G"]
+              color:
+                type: [string, "null"]
+                description: A cor que o cliente escolheu; peça ao fornecedor nela (na Montink, var2). Nula sem cor à escolha.
+                examples: ["Preto"]
               personalization:
                 type: [string, "null"]
                 description: |
@@ -1589,6 +1593,9 @@ components:
               size:
                 type: [string, "null"]
                 description: O tamanho que o cliente escolheu; nulo no produto sem tamanho.
+              color:
+                type: [string, "null"]
+                description: A cor que o cliente escolheu; nula no produto sem cor à escolha.
               personalization:
                 type: [string, "null"]
                 description: O texto do cliente para a arte; nulo no produto sem personalização.
