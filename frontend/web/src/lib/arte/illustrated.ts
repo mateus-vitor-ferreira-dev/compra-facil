@@ -12,7 +12,7 @@ import type { PieceKind } from "./templates";
  * no formato de id de arte do catalog, e o ":" é o separador de base e variante que ele aceita.
  */
 
-export type Face = "serif-it" | "script" | "pacifico" | "anton" | "round" | "sans";
+export type Face = "serif-it" | "script" | "pacifico" | "anton" | "round" | "sans" | "lilita" | "bowlby";
 
 export type ArtLine = {
   k: "kicker" | "big" | "footer" | "icon";
@@ -24,6 +24,10 @@ export type ArtLine = {
   c?: string;
   face?: Face;
   size?: number;
+  /** a altura da linha grande em relação à altura do texto (padrão 1,18; 1,0 junta duas linhas da mesma frase) */
+  lh?: number;
+  /** a fração da largura útil que a linha grande pode ocupar (padrão 1) */
+  w?: number;
   /** o ornamento dos dois lados do kicker */
   orn?: "star" | "heart";
   editavel?: { label: string; maxLength: number };

@@ -1,560 +1,5 @@
 [
   {
-    "id": "natal/papai-noel",
-    "produto": "adulto",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Papai Noel",
-        "face": "serif-it",
-        "size": 700,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/mamae-noel",
-    "produto": "adulto",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Mamãe Noel",
-        "face": "serif-it",
-        "size": 700,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/vovo-noel",
-    "produto": "adulto",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Vovô Noel",
-        "face": "serif-it",
-        "size": 700,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/vova-noel",
-    "produto": "adulto",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Vovó Noel",
-        "face": "serif-it",
-        "size": 700,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/titio-noel",
-    "produto": "adulto",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Titio Noel",
-        "face": "serif-it",
-        "size": 700,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/titia-noel",
-    "produto": "adulto",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Titia Noel",
-        "face": "serif-it",
-        "size": 700,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/noelzinho",
-    "produto": "infantil",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Noelzinho",
-        "face": "serif-it",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/noelzinha",
-    "produto": "infantil",
-    "ilustracao": "natal-renas.png",
-    "ilustracaoEscura": "natal-renas-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Noelzinha",
-        "face": "serif-it",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/body-meu-primeiro-natal",
-    "produto": "body",
-    "ilustracao": "natal-bebe-rena.png",
-    "ilustracaoEscura": "natal-bebe-rena-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "MEU PRIMEIRO"
-      },
-      {
-        "k": "big",
-        "t": "Natal",
-        "face": "script",
-        "size": 1100,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "natal/pet-noel",
-    "produto": "pet",
-    "ilustracao": "natal-cachorro.png",
-    "ilustracaoEscura": "natal-cachorro-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "FAMÍLIA NOEL",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "Pet Noel",
-        "face": "serif-it",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "natal/caneca-chocolate-quente",
-    "produto": "caneca",
-    "ilustracao": "natal-chocolate.png",
-    "ilustracaoEscura": "natal-chocolate-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "Família Noel",
-        "face": "script",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "NATAL 2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/natal-doce-natal",
-    "produto": "adulto",
-    "ilustracao": "natal-biscoitos.png",
-    "ilustracaoEscura": "natal-biscoitos-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "Doce Natal",
-        "face": "script",
-        "size": 900,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "kicker",
-        "t": "EM FAMÍLIA",
-        "orn": "star"
-      }
-    ]
-  },
-  {
-    "id": "natal/natal-feliz-natal",
-    "produto": "adulto",
-    "ilustracao": "natal-gorro-presente.png",
-    "ilustracaoEscura": "natal-gorro-presente-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "Feliz Natal",
-        "face": "script",
-        "size": 900,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "2026"
-      }
-    ]
-  },
-  {
-    "id": "natal/caneca-feliz-natal",
-    "produto": "caneca",
-    "ilustracao": "natal-gorro-presente.png",
-    "ilustracaoEscura": "natal-gorro-presente-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "Feliz Natal",
-        "face": "script",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "footer",
-        "t": "2026"
-      }
-    ]
-  },
-  {
     "id": "maes/mae-meu-lugar-favorito",
     "produto": "adulto",
     "ilustracao": "maes-abraco.png",
@@ -996,10 +441,10 @@
     ]
   },
   {
-    "id": "namorados/meu-amor-gatos",
+    "id": "namorados/juntos-desde",
     "produto": "adulto",
-    "ilustracao": "namorados-gatos.png",
-    "ilustracaoEscura": "namorados-gatos-escura.png",
+    "ilustracao": "n3-juntos.png",
+    "ilustracaoEscura": "n3-juntos-escura.png",
     "paleta": {
       "clara": {
         "a": "#c62839",
@@ -1017,88 +462,27 @@
     "cores": ["Branco", "Preto", "Vermelho"],
     "linhas": [
       {
+        "k": "kicker",
+        "t": "JUNTOS DESDE",
+        "size": 280
+      },
+      {
         "k": "big",
-        "t": "meu amor",
-        "face": "pacifico",
-        "size": 800,
+        "t": "2019",
+        "face": "bowlby",
+        "size": 1100,
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
+          "label": "Ano (ex.: 2019)",
+          "maxLength": 4
         }
       }
     ]
   },
   {
-    "id": "namorados/player-1",
-    "produto": "adulto",
-    "ilustracao": "namorados-controles.png",
-    "ilustracaoEscura": "namorados-controles-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#c62839",
-        "b": "#46121c"
-      },
-      "escura": {
-        "a": "#f4606c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "PLAYER"
-      },
-      {
-        "k": "big",
-        "t": "1",
-        "face": "anton",
-        "size": 900
-      }
-    ]
-  },
-  {
-    "id": "namorados/player-2",
-    "produto": "adulto",
-    "ilustracao": "namorados-controles.png",
-    "ilustracaoEscura": "namorados-controles-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#c62839",
-        "b": "#46121c"
-      },
-      "escura": {
-        "a": "#f4606c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "PLAYER"
-      },
-      {
-        "k": "big",
-        "t": "2",
-        "face": "anton",
-        "size": 900
-      }
-    ]
-  },
-  {
-    "id": "namorados/caneca-nosso-amor",
+    "id": "namorados/caneca-juntos-desde",
     "produto": "caneca",
-    "ilustracao": "namorados-xicaras.png",
-    "ilustracaoEscura": "namorados-xicaras-escura.png",
+    "ilustracao": "n3-juntos.png",
+    "ilustracaoEscura": "n3-juntos-escura.png",
     "paleta": {
       "clara": {
         "a": "#c62839",
@@ -1116,48 +500,16 @@
     "cores": ["Branco"],
     "linhas": [
       {
-        "k": "big",
-        "t": "Nosso amor",
-        "face": "pacifico",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
         "k": "kicker",
-        "t": "É O MELHOR CAFÉ DA MANHÃ"
-      }
-    ]
-  },
-  {
-    "id": "namorados/caneca-meu-amor-gatos",
-    "produto": "caneca",
-    "ilustracao": "namorados-gatos.png",
-    "ilustracaoEscura": "namorados-gatos-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#c62839",
-        "b": "#46121c"
+        "t": "JUNTOS DESDE"
       },
-      "escura": {
-        "a": "#f4606c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco"],
-    "linhas": [
       {
         "k": "big",
-        "t": "meu amor",
-        "face": "pacifico",
+        "t": "2019",
+        "face": "bowlby",
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
+          "label": "Ano (ex.: 2019)",
+          "maxLength": 4
         }
       }
     ]
@@ -1486,72 +838,6 @@
     ]
   },
   {
-    "id": "pais/rei-do-churrasco",
-    "produto": "adulto",
-    "ilustracao": "pais-churrasco.png",
-    "ilustracaoEscura": "pais-churrasco-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1f3a5f",
-        "b": "#b87610"
-      },
-      "escura": {
-        "a": "#f2b840",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "O REI DO",
-        "orn": "star"
-      },
-      {
-        "k": "big",
-        "t": "CHURRASCO",
-        "face": "anton",
-        "size": 900
-      }
-    ]
-  },
-  {
-    "id": "pais/caneca-rei-do-churrasco",
-    "produto": "caneca",
-    "ilustracao": "pais-churrasco.png",
-    "ilustracaoEscura": "pais-churrasco-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1f3a5f",
-        "b": "#b87610"
-      },
-      "escura": {
-        "a": "#f2b840",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "O REI DO"
-      },
-      {
-        "k": "big",
-        "t": "CHURRASCO",
-        "face": "anton"
-      }
-    ]
-  },
-  {
     "id": "pais/pai-de-pet",
     "produto": "adulto",
     "ilustracao": "pais-cachorros.png",
@@ -1661,268 +947,10 @@
     ]
   },
   {
-    "id": "criancas/pequeno-explorador",
-    "produto": "infantil",
-    "ilustracao": "criancas-dino.png",
-    "ilustracaoEscura": "criancas-dino-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1e68cd",
-        "b": "#de8c00"
-      },
-      "escura": {
-        "a": "#78b0ff",
-        "b": "#ffc446"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "Pequeno",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "big",
-        "t": "explorador",
-        "face": "round"
-      }
-    ]
-  },
-  {
-    "id": "criancas/rumo-as-estrelas",
-    "produto": "infantil",
-    "ilustracao": "criancas-astronauta.png",
-    "ilustracaoEscura": "criancas-astronauta-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1e68cd",
-        "b": "#de8c00"
-      },
-      "escura": {
-        "a": "#78b0ff",
-        "b": "#ffc446"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "RUMO ÀS"
-      },
-      {
-        "k": "big",
-        "t": "estrelas",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "criancas/pequena-sonhadora",
-    "produto": "infantil",
-    "ilustracao": "criancas-unicornio.png",
-    "ilustracaoEscura": "criancas-unicornio-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1e68cd",
-        "b": "#de8c00"
-      },
-      "escura": {
-        "a": "#78b0ff",
-        "b": "#ffc446"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "Pequena",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "big",
-        "t": "sonhadora",
-        "face": "round"
-      }
-    ]
-  },
-  {
-    "id": "criancas/irmao-mais-velho",
-    "produto": "infantil",
-    "ilustracao": "criancas-leoes.png",
-    "ilustracaoEscura": "criancas-leoes-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1e68cd",
-        "b": "#de8c00"
-      },
-      "escura": {
-        "a": "#78b0ff",
-        "b": "#ffc446"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "IRMÃO",
-        "size": 260
-      },
-      {
-        "k": "big",
-        "t": "mais velho",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "criancas/irma-mais-velha",
-    "produto": "infantil",
-    "ilustracao": "criancas-leoes.png",
-    "ilustracaoEscura": "criancas-leoes-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1e68cd",
-        "b": "#de8c00"
-      },
-      "escura": {
-        "a": "#78b0ff",
-        "b": "#ffc446"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "IRMÃ",
-        "size": 260
-      },
-      {
-        "k": "big",
-        "t": "mais velha",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "criancas/irmao-mais-novo",
-    "produto": "infantil",
-    "ilustracao": "criancas-leoes.png",
-    "ilustracaoEscura": "criancas-leoes-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1e68cd",
-        "b": "#de8c00"
-      },
-      "escura": {
-        "a": "#78b0ff",
-        "b": "#ffc446"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "IRMÃO",
-        "size": 260
-      },
-      {
-        "k": "big",
-        "t": "mais novo",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "criancas/irma-mais-nova",
-    "produto": "infantil",
-    "ilustracao": "criancas-leoes.png",
-    "ilustracaoEscura": "criancas-leoes-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1e68cd",
-        "b": "#de8c00"
-      },
-      "escura": {
-        "a": "#78b0ff",
-        "b": "#ffc446"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "IRMÃ",
-        "size": 260
-      },
-      {
-        "k": "big",
-        "t": "mais nova",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "criancas/body-irmao-mais-novo",
+    "id": "criancas/body-pacotinho-titia",
     "produto": "body",
-    "ilustracao": "criancas-leoes.png",
-    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "ilustracao": "k2-pacotinho.png",
+    "ilustracaoEscura": "k2-pacotinho-escura.png",
     "paleta": {
       "clara": {
         "a": "#1e68cd",
@@ -1941,24 +969,24 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "IRMÃO"
+        "t": "PACOTINHO DE AMOR"
       },
       {
         "k": "big",
-        "t": "mais novo",
+        "t": "da titia",
         "face": "round",
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "De quem (ex.: da titia, do vovô)",
           "maxLength": 18
         }
       }
     ]
   },
   {
-    "id": "criancas/body-irma-mais-nova",
+    "id": "criancas/body-pacotinho-titio",
     "produto": "body",
-    "ilustracao": "criancas-leoes.png",
-    "ilustracaoEscura": "criancas-leoes-escura.png",
+    "ilustracao": "k2-pacotinho.png",
+    "ilustracaoEscura": "k2-pacotinho-escura.png",
     "paleta": {
       "clara": {
         "a": "#1e68cd",
@@ -1977,16 +1005,838 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "IRMÃ"
+        "t": "PACOTINHO DE AMOR"
       },
       {
         "k": "big",
-        "t": "mais nova",
+        "t": "do titio",
         "face": "round",
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "De quem (ex.: da titia, do vovô)",
           "maxLength": 18
         }
+      }
+    ]
+  },
+  {
+    "id": "criancas/body-pacotinho-vova",
+    "produto": "body",
+    "ilustracao": "k2-pacotinho.png",
+    "ilustracaoEscura": "k2-pacotinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PACOTINHO DE AMOR"
+      },
+      {
+        "k": "big",
+        "t": "da vovó",
+        "face": "round",
+        "editavel": {
+          "label": "De quem (ex.: da titia, do vovô)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/body-pacotinho-vovo",
+    "produto": "body",
+    "ilustracao": "k2-pacotinho.png",
+    "ilustracaoEscura": "k2-pacotinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PACOTINHO DE AMOR"
+      },
+      {
+        "k": "big",
+        "t": "do vovô",
+        "face": "round",
+        "editavel": {
+          "label": "De quem (ex.: da titia, do vovô)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/body-pacotinho-dinda",
+    "produto": "body",
+    "ilustracao": "k2-pacotinho.png",
+    "ilustracaoEscura": "k2-pacotinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PACOTINHO DE AMOR"
+      },
+      {
+        "k": "big",
+        "t": "da dinda",
+        "face": "round",
+        "editavel": {
+          "label": "De quem (ex.: da titia, do vovô)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/body-mesversario",
+    "produto": "body",
+    "ilustracao": "k2-mesversario.png",
+    "ilustracaoEscura": "k2-mesversario-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "3 meses",
+        "face": "round",
+        "editavel": {
+          "label": "Idade (ex.: 3 meses)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DE MUITO AMOR"
+      }
+    ]
+  },
+  {
+    "id": "criancas/aniversario-dino",
+    "produto": "infantil",
+    "ilustracao": "k2-aniv-dino.png",
+    "ilustracaoEscura": "k2-aniv-dino-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "ANIVERSÁRIO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "Lucas 5 anos",
+        "face": "round",
+        "editavel": {
+          "label": "Nome e idade (ex.: Lucas 5 anos)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/mamae-aniversario-dino",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-dino.png",
+    "ilustracaoEscura": "k2-aniv-dino-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mamãe",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/papai-aniversario-dino",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-dino.png",
+    "ilustracaoEscura": "k2-aniv-dino-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/aniversario-espaco",
+    "produto": "infantil",
+    "ilustracao": "k2-aniv-espaco.png",
+    "ilustracaoEscura": "k2-aniv-espaco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "ANIVERSÁRIO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "Lucas 5 anos",
+        "face": "round",
+        "editavel": {
+          "label": "Nome e idade (ex.: Lucas 5 anos)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/mamae-aniversario-espaco",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-espaco.png",
+    "ilustracaoEscura": "k2-aniv-espaco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mamãe",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/papai-aniversario-espaco",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-espaco.png",
+    "ilustracaoEscura": "k2-aniv-espaco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/aniversario-safari",
+    "produto": "infantil",
+    "ilustracao": "k2-aniv-safari.png",
+    "ilustracaoEscura": "k2-aniv-safari-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "ANIVERSÁRIO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "Lucas 5 anos",
+        "face": "round",
+        "editavel": {
+          "label": "Nome e idade (ex.: Lucas 5 anos)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/mamae-aniversario-safari",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-safari.png",
+    "ilustracaoEscura": "k2-aniv-safari-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mamãe",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/papai-aniversario-safari",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-safari.png",
+    "ilustracaoEscura": "k2-aniv-safari-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/aniversario-mar",
+    "produto": "infantil",
+    "ilustracao": "k2-aniv-mar.png",
+    "ilustracaoEscura": "k2-aniv-mar-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "ANIVERSÁRIO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "Lucas 5 anos",
+        "face": "round",
+        "editavel": {
+          "label": "Nome e idade (ex.: Lucas 5 anos)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/mamae-aniversario-mar",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-mar.png",
+    "ilustracaoEscura": "k2-aniv-mar-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mamãe",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/papai-aniversario-mar",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-mar.png",
+    "ilustracaoEscura": "k2-aniv-mar-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/aniversario-fazenda",
+    "produto": "infantil",
+    "ilustracao": "k2-aniv-fazenda.png",
+    "ilustracaoEscura": "k2-aniv-fazenda-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "ANIVERSÁRIO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "Lucas 5 anos",
+        "face": "round",
+        "editavel": {
+          "label": "Nome e idade (ex.: Lucas 5 anos)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/mamae-aniversario-fazenda",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-fazenda.png",
+    "ilustracaoEscura": "k2-aniv-fazenda-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mamãe",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/papai-aniversario-fazenda",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-fazenda.png",
+    "ilustracaoEscura": "k2-aniv-fazenda-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DO ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/aniversario-unicornio",
+    "produto": "infantil",
+    "ilustracao": "k2-aniv-unicornio.png",
+    "ilustracaoEscura": "k2-aniv-unicornio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "ANIVERSÁRIO",
+        "size": 260
+      },
+      {
+        "k": "big",
+        "t": "Alice 5 anos",
+        "face": "round",
+        "editavel": {
+          "label": "Nome e idade (ex.: Lucas 5 anos)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "criancas/mamae-aniversario-unicornio",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-unicornio.png",
+    "ilustracaoEscura": "k2-aniv-unicornio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Mamãe",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DA ANIVERSARIANTE",
+        "size": 230
+      }
+    ]
+  },
+  {
+    "id": "criancas/papai-aniversario-unicornio",
+    "produto": "adulto",
+    "ilustracao": "k2-aniv-unicornio.png",
+    "ilustracaoEscura": "k2-aniv-unicornio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1e68cd",
+        "b": "#de8c00"
+      },
+      "escura": {
+        "a": "#78b0ff",
+        "b": "#ffc446"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "big",
+        "t": "Papai",
+        "face": "round",
+        "size": 900,
+        "editavel": {
+          "label": "Quem é (Mamãe, Papai, Titia...)",
+          "maxLength": 12
+        }
+      },
+      {
+        "k": "kicker",
+        "t": "DA ANIVERSARIANTE",
+        "size": 230
       }
     ]
   },
@@ -2481,144 +2331,6 @@
     ]
   },
   {
-    "id": "cha/time-menino",
-    "produto": "adulto",
-    "ilustracao": "cha-baloes.png",
-    "ilustracaoEscura": "cha-baloes-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1b1f3b",
-        "b": "#d65c88",
-        "p": "#d65c88",
-        "z": "#3480cc"
-      },
-      "escura": {
-        "a": "#f6f1e7",
-        "b": "#f6a0c0",
-        "p": "#f6a0c0",
-        "z": "#82befa"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "TIME",
-        "size": 330
-      },
-      {
-        "k": "big",
-        "t": "Menino",
-        "face": "script",
-        "size": 1000,
-        "c": "z"
-      },
-      {
-        "k": "footer",
-        "t": "CHÁ REVELAÇÃO",
-        "c": "b"
-      }
-    ]
-  },
-  {
-    "id": "cha/time-menina",
-    "produto": "adulto",
-    "ilustracao": "cha-baloes.png",
-    "ilustracaoEscura": "cha-baloes-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1b1f3b",
-        "b": "#d65c88",
-        "p": "#d65c88",
-        "z": "#3480cc"
-      },
-      "escura": {
-        "a": "#f6f1e7",
-        "b": "#f6a0c0",
-        "p": "#f6a0c0",
-        "z": "#82befa"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "TIME",
-        "size": 330
-      },
-      {
-        "k": "big",
-        "t": "Menina",
-        "face": "script",
-        "size": 1000,
-        "c": "p"
-      },
-      {
-        "k": "footer",
-        "t": "CHÁ REVELAÇÃO",
-        "c": "b"
-      }
-    ]
-  },
-  {
-    "id": "cha/carregando-gestante",
-    "produto": "adulto",
-    "ilustracao": "cha-ursinho.png",
-    "ilustracaoEscura": "cha-ursinho-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#1b1f3b",
-        "b": "#d65c88",
-        "p": "#d65c88",
-        "z": "#3480cc"
-      },
-      "escura": {
-        "a": "#f6f1e7",
-        "b": "#f6a0c0",
-        "p": "#f6a0c0",
-        "z": "#82befa"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "CARREGANDO",
-        "c": "b",
-        "size": 260
-      },
-      {
-        "k": "icon",
-        "i": "loading",
-        "size": 440,
-        "c": "a"
-      },
-      {
-        "k": "big",
-        "t": "2027",
-        "face": "anton",
-        "size": 600
-      },
-      {
-        "k": "footer",
-        "t": "PREVISÃO DE CHEGADA",
-        "c": "b"
-      }
-    ]
-  },
-  {
     "id": "cha/body-cheguei",
     "produto": "body",
     "ilustracao": "cha-coroa-bebe.png",
@@ -2767,7 +2479,7 @@
         "face": "script",
         "size": 1000,
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "Nome do pet (ex.: Thor)",
           "maxLength": 18
         }
       }
@@ -2804,7 +2516,7 @@
         "face": "anton",
         "size": 900,
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "Nome do pet (ex.: Thor)",
           "maxLength": 18
         }
       }
@@ -2841,7 +2553,7 @@
         "face": "script",
         "size": 1000,
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "Nome do pet (ex.: Thor)",
           "maxLength": 18
         }
       }
@@ -2878,7 +2590,7 @@
         "face": "anton",
         "size": 900,
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "Nome do pet (ex.: Thor)",
           "maxLength": 18
         }
       }
@@ -2914,7 +2626,7 @@
         "t": "Casa",
         "face": "round",
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "Nome do pet (ex.: Thor)",
           "maxLength": 18
         }
       }
@@ -2950,7 +2662,7 @@
         "t": "Pet",
         "face": "script",
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "Nome do pet (ex.: Thor)",
           "maxLength": 18
         }
       }
@@ -2986,17 +2698,17 @@
         "t": "Gato",
         "face": "script",
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
+          "label": "Nome do pet (ex.: Thor)",
           "maxLength": 18
         }
       }
     ]
   },
   {
-    "id": "gamer/nao-me-chame-estou-jogando",
+    "id": "gamer/level-desbloqueado",
     "produto": "adulto",
-    "ilustracao": "gamer-controle.png",
-    "ilustracaoEscura": "gamer-controle-escura.png",
+    "ilustracao": "g2-level.png",
+    "ilustracaoEscura": "g2-level-escura.png",
     "paleta": {
       "clara": {
         "a": "#5828a0",
@@ -3015,349 +2727,4668 @@
     "linhas": [
       {
         "k": "kicker",
-        "t": "NÃO ME CHAME"
+        "t": "LEVEL",
+        "size": 320
       },
       {
         "k": "big",
-        "t": "estou jogando",
-        "face": "round",
-        "size": 700,
+        "t": "40",
+        "face": "bowlby",
+        "size": 1100,
         "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "gamer/pai-gamer",
-    "produto": "adulto",
-    "ilustracao": "gamer-controle.png",
-    "ilustracaoEscura": "gamer-controle-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#5828a0",
-        "b": "#148caa"
-      },
-      "escura": {
-        "a": "#c496ff",
-        "b": "#5ae0f4"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "PAI"
-      },
-      {
-        "k": "big",
-        "t": "GAMER",
-        "face": "anton",
-        "size": 900,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "gamer/mae-gamer",
-    "produto": "adulto",
-    "ilustracao": "gamer-coracao.png",
-    "ilustracaoEscura": "gamer-coracao-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#5828a0",
-        "b": "#148caa"
-      },
-      "escura": {
-        "a": "#c496ff",
-        "b": "#5ae0f4"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "MÃE"
-      },
-      {
-        "k": "big",
-        "t": "GAMER",
-        "face": "anton",
-        "size": 900,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "gamer/level-up",
-    "produto": "adulto",
-    "ilustracao": "gamer-coracao.png",
-    "ilustracaoEscura": "gamer-coracao-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#5828a0",
-        "b": "#148caa"
-      },
-      "escura": {
-        "a": "#c496ff",
-        "b": "#5ae0f4"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "LEVEL UP",
-        "face": "anton",
-        "size": 900
-      },
-      {
-        "k": "kicker",
-        "t": "MAIS UM ANO DESBLOQUEADO",
-        "size": 110
-      }
-    ]
-  },
-  {
-    "id": "gamer/caneca-gamer",
-    "produto": "caneca",
-    "ilustracao": "gamer-controle.png",
-    "ilustracaoEscura": "gamer-controle-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#5828a0",
-        "b": "#148caa"
-      },
-      "escura": {
-        "a": "#c496ff",
-        "b": "#5ae0f4"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "NÃO ME CHAME"
-      },
-      {
-        "k": "big",
-        "t": "estou jogando",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "gamer/so-mais-uma-missao",
-    "produto": "adulto",
-    "ilustracao": "gamer-sono.png",
-    "ilustracaoEscura": "gamer-sono-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#5828a0",
-        "b": "#148caa"
-      },
-      "escura": {
-        "a": "#c496ff",
-        "b": "#5ae0f4"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "SÓ MAIS UMA MISSÃO"
-      },
-      {
-        "k": "big",
-        "t": "e eu durmo",
-        "face": "round",
-        "size": 800,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "gamer/caneca-so-mais-uma-missao",
-    "produto": "caneca",
-    "ilustracao": "gamer-sono.png",
-    "ilustracaoEscura": "gamer-sono-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#5828a0",
-        "b": "#148caa"
-      },
-      "escura": {
-        "a": "#c496ff",
-        "b": "#5ae0f4"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "SÓ MAIS UMA MISSÃO"
-      },
-      {
-        "k": "big",
-        "t": "e eu durmo",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      }
-    ]
-  },
-  {
-    "id": "gamer/esperei-13-anos",
-    "produto": "adulto",
-    "ilustracao": "gamer-ampulheta.png",
-    "ilustracaoEscura": "gamer-ampulheta-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#5828a0",
-        "b": "#148caa"
-      },
-      "escura": {
-        "a": "#c496ff",
-        "b": "#5ae0f4"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "ESPEREI"
-      },
-      {
-        "k": "big",
-        "t": "13 ANOS",
-        "face": "anton",
-        "size": 900
-      },
-      {
-        "k": "kicker",
-        "t": "POR ISSO"
-      }
-    ]
-  },
-  {
-    "id": "natal/pet-o-presente-sou-eu",
-    "produto": "pet",
-    "ilustracao": "pet-presente.png",
-    "ilustracaoEscura": "pet-presente-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto"],
-    "linhas": [
-      {
-        "k": "big",
-        "t": "O presente",
-        "face": "round",
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
-        }
-      },
-      {
-        "k": "kicker",
-        "t": "SOU EU",
-        "orn": "star"
-      }
-    ]
-  },
-  {
-    "id": "natal/nosso-primeiro-natal",
-    "produto": "adulto",
-    "ilustracao": "natal-primeiro-natal.png",
-    "ilustracaoEscura": "natal-primeiro-natal-escura.png",
-    "paleta": {
-      "clara": {
-        "a": "#be1628",
-        "b": "#185c3a"
-      },
-      "escura": {
-        "a": "#f0545c",
-        "b": "#f6f1e7"
-      },
-      "vermelha": {
-        "a": "#f6f1e7",
-        "b": "#ffd250"
-      }
-    },
-    "cores": ["Branco", "Preto", "Vermelho"],
-    "linhas": [
-      {
-        "k": "kicker",
-        "t": "NOSSO PRIMEIRO"
-      },
-      {
-        "k": "big",
-        "t": "Natal",
-        "face": "script",
-        "size": 1000,
-        "editavel": {
-          "label": "Texto principal (nome ou apelido)",
-          "maxLength": 18
+          "label": "Idade (o level)",
+          "maxLength": 3
         }
       },
       {
         "k": "footer",
-        "t": "EM FAMÍLIA • 2026"
+        "t": "DESBLOQUEADO"
+      }
+    ]
+  },
+  {
+    "id": "gamer/caneca-level-desbloqueado",
+    "produto": "caneca",
+    "ilustracao": "g2-level.png",
+    "ilustracaoEscura": "g2-level-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#5828a0",
+        "b": "#148caa"
+      },
+      "escura": {
+        "a": "#c496ff",
+        "b": "#5ae0f4"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "LEVEL"
+      },
+      {
+        "k": "big",
+        "t": "40",
+        "face": "bowlby",
+        "editavel": {
+          "label": "Idade (o level)",
+          "maxLength": 3
+        }
+      },
+      {
+        "k": "footer",
+        "t": "DESBLOQUEADO"
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-agapornis",
+    "produto": "adulto",
+    "ilustracao": "pet-agapornis.png",
+    "ilustracaoEscura": "pet-agapornis-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Agapórnis",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-agapornis",
+    "produto": "adulto",
+    "ilustracao": "pet-agapornis.png",
+    "ilustracaoEscura": "pet-agapornis-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "AGAPÓRNIS",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-beagle",
+    "produto": "adulto",
+    "ilustracao": "pet-beagle.png",
+    "ilustracaoEscura": "pet-beagle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Beagle",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-beagle",
+    "produto": "adulto",
+    "ilustracao": "pet-beagle.png",
+    "ilustracaoEscura": "pet-beagle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "BEAGLE",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-border",
+    "produto": "adulto",
+    "ilustracao": "pet-border.png",
+    "ilustracaoEscura": "pet-border-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Border Collie",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-border",
+    "produto": "adulto",
+    "ilustracao": "pet-border.png",
+    "ilustracaoEscura": "pet-border-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "BORDER COLLIE",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-bulldog",
+    "produto": "adulto",
+    "ilustracao": "pet-bulldog.png",
+    "ilustracaoEscura": "pet-bulldog-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Bulldog",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-bulldog",
+    "produto": "adulto",
+    "ilustracao": "pet-bulldog.png",
+    "ilustracaoEscura": "pet-bulldog-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "BULLDOG",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-calopsita",
+    "produto": "adulto",
+    "ilustracao": "pet-calopsita.png",
+    "ilustracaoEscura": "pet-calopsita-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Calopsita",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-calopsita",
+    "produto": "adulto",
+    "ilustracao": "pet-calopsita.png",
+    "ilustracaoEscura": "pet-calopsita-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "CALOPSITA",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-canario",
+    "produto": "adulto",
+    "ilustracao": "pet-canario.png",
+    "ilustracaoEscura": "pet-canario-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Canário",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-canario",
+    "produto": "adulto",
+    "ilustracao": "pet-canario.png",
+    "ilustracaoEscura": "pet-canario-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "CANÁRIO",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-caramelo",
+    "produto": "adulto",
+    "ilustracao": "pet-caramelo.png",
+    "ilustracaoEscura": "pet-caramelo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Vira-lata Caramelo",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-caramelo",
+    "produto": "adulto",
+    "ilustracao": "pet-caramelo.png",
+    "ilustracaoEscura": "pet-caramelo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "VIRA-LATA CARAMELO",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-coelho",
+    "produto": "adulto",
+    "ilustracao": "pet-coelho.png",
+    "ilustracaoEscura": "pet-coelho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Coelho",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-coelho",
+    "produto": "adulto",
+    "ilustracao": "pet-coelho.png",
+    "ilustracaoEscura": "pet-coelho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "COELHO",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-escaminha",
+    "produto": "adulto",
+    "ilustracao": "pet-escaminha.png",
+    "ilustracaoEscura": "pet-escaminha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Escaminha",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-escaminha",
+    "produto": "adulto",
+    "ilustracao": "pet-escaminha.png",
+    "ilustracaoEscura": "pet-escaminha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "ESCAMINHA",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-frajola",
+    "produto": "adulto",
+    "ilustracao": "pet-frajola.png",
+    "ilustracaoEscura": "pet-frajola-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Frajola",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-frajola",
+    "produto": "adulto",
+    "ilustracao": "pet-frajola.png",
+    "ilustracaoEscura": "pet-frajola-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "FRAJOLA",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-gato-branco",
+    "produto": "adulto",
+    "ilustracao": "pet-gato-branco.png",
+    "ilustracaoEscura": "pet-gato-branco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Gato Branco",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-gato-branco",
+    "produto": "adulto",
+    "ilustracao": "pet-gato-branco.png",
+    "ilustracaoEscura": "pet-gato-branco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "GATO BRANCO",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-gato-cinza",
+    "produto": "adulto",
+    "ilustracao": "pet-gato-cinza.png",
+    "ilustracaoEscura": "pet-gato-cinza-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Gato Cinza",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-gato-cinza",
+    "produto": "adulto",
+    "ilustracao": "pet-gato-cinza.png",
+    "ilustracaoEscura": "pet-gato-cinza-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "GATO CINZA",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-gato-preto",
+    "produto": "adulto",
+    "ilustracao": "pet-gato-preto.png",
+    "ilustracaoEscura": "pet-gato-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Gato Preto",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-gato-preto",
+    "produto": "adulto",
+    "ilustracao": "pet-gato-preto.png",
+    "ilustracaoEscura": "pet-gato-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "GATO PRETO",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-hamster",
+    "produto": "adulto",
+    "ilustracao": "pet-hamster.png",
+    "ilustracaoEscura": "pet-hamster-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Hamster",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-hamster",
+    "produto": "adulto",
+    "ilustracao": "pet-hamster.png",
+    "ilustracaoEscura": "pet-hamster-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "HAMSTER",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-husky",
+    "produto": "adulto",
+    "ilustracao": "pet-husky.png",
+    "ilustracaoEscura": "pet-husky-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Husky",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-husky",
+    "produto": "adulto",
+    "ilustracao": "pet-husky.png",
+    "ilustracaoEscura": "pet-husky-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "HUSKY",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-labrador-preto",
+    "produto": "adulto",
+    "ilustracao": "pet-labrador-preto.png",
+    "ilustracaoEscura": "pet-labrador-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Labrador",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-labrador-preto",
+    "produto": "adulto",
+    "ilustracao": "pet-labrador-preto.png",
+    "ilustracaoEscura": "pet-labrador-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "LABRADOR",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-papagaio",
+    "produto": "adulto",
+    "ilustracao": "pet-papagaio.png",
+    "ilustracaoEscura": "pet-papagaio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Papagaio",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-papagaio",
+    "produto": "adulto",
+    "ilustracao": "pet-papagaio.png",
+    "ilustracaoEscura": "pet-papagaio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "PAPAGAIO",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-peixe",
+    "produto": "adulto",
+    "ilustracao": "pet-peixe.png",
+    "ilustracaoEscura": "pet-peixe-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Betta",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-peixe",
+    "produto": "adulto",
+    "ilustracao": "pet-peixe.png",
+    "ilustracaoEscura": "pet-peixe-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "BETTA",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-periquito",
+    "produto": "adulto",
+    "ilustracao": "pet-periquito.png",
+    "ilustracaoEscura": "pet-periquito-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Periquito",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-periquito",
+    "produto": "adulto",
+    "ilustracao": "pet-periquito.png",
+    "ilustracaoEscura": "pet-periquito-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "PERIQUITO",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-pinscher",
+    "produto": "adulto",
+    "ilustracao": "pet-pinscher.png",
+    "ilustracaoEscura": "pet-pinscher-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Pinscher",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-pinscher",
+    "produto": "adulto",
+    "ilustracao": "pet-pinscher.png",
+    "ilustracaoEscura": "pet-pinscher-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "PINSCHER",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-poodle",
+    "produto": "adulto",
+    "ilustracao": "pet-poodle.png",
+    "ilustracaoEscura": "pet-poodle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Poodle",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-poodle",
+    "produto": "adulto",
+    "ilustracao": "pet-poodle.png",
+    "ilustracaoEscura": "pet-poodle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "POODLE",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-porquinho",
+    "produto": "adulto",
+    "ilustracao": "pet-porquinho.png",
+    "ilustracaoEscura": "pet-porquinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Porquinho- da-índia",
+        "face": "script",
+        "size": 1000,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-porquinho",
+    "produto": "adulto",
+    "ilustracao": "pet-porquinho.png",
+    "ilustracaoEscura": "pet-porquinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "PORQUINHO- DA-ÍNDIA",
+        "face": "anton",
+        "size": 900,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-pug",
+    "produto": "adulto",
+    "ilustracao": "pet-pug.png",
+    "ilustracaoEscura": "pet-pug-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Pug",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-pug",
+    "produto": "adulto",
+    "ilustracao": "pet-pug.png",
+    "ilustracaoEscura": "pet-pug-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "PUG",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-ringneck",
+    "produto": "adulto",
+    "ilustracao": "pet-ringneck.png",
+    "ilustracaoEscura": "pet-ringneck-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Ring Neck",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-ringneck",
+    "produto": "adulto",
+    "ilustracao": "pet-ringneck.png",
+    "ilustracaoEscura": "pet-ringneck-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "RING NECK",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-salsicha",
+    "produto": "adulto",
+    "ilustracao": "pet-salsicha.png",
+    "ilustracaoEscura": "pet-salsicha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Salsicha",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-salsicha",
+    "produto": "adulto",
+    "ilustracao": "pet-salsicha.png",
+    "ilustracaoEscura": "pet-salsicha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "SALSICHA",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-shihtzu",
+    "produto": "adulto",
+    "ilustracao": "pet-shihtzu.png",
+    "ilustracaoEscura": "pet-shihtzu-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Shih Tzu",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-shihtzu",
+    "produto": "adulto",
+    "ilustracao": "pet-shihtzu.png",
+    "ilustracaoEscura": "pet-shihtzu-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "SHIH TZU",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-siames",
+    "produto": "adulto",
+    "ilustracao": "pet-siames.png",
+    "ilustracaoEscura": "pet-siames-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Siamês",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-siames",
+    "produto": "adulto",
+    "ilustracao": "pet-siames.png",
+    "ilustracaoEscura": "pet-siames-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "SIAMÊS",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-spitz",
+    "produto": "adulto",
+    "ilustracao": "pet-spitz.png",
+    "ilustracaoEscura": "pet-spitz-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Spitz",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-spitz",
+    "produto": "adulto",
+    "ilustracao": "pet-spitz.png",
+    "ilustracaoEscura": "pet-spitz-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "SPITZ",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-tartaruga",
+    "produto": "adulto",
+    "ilustracao": "pet-tartaruga.png",
+    "ilustracaoEscura": "pet-tartaruga-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Tartaruga",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-tartaruga",
+    "produto": "adulto",
+    "ilustracao": "pet-tartaruga.png",
+    "ilustracaoEscura": "pet-tartaruga-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "TARTARUGA",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/mae-de-yorkshire",
+    "produto": "adulto",
+    "ilustracao": "pet-yorkshire.png",
+    "ilustracaoEscura": "pet-yorkshire-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "Yorkshire",
+        "face": "script",
+        "size": 1000,
+        "lh": 1.0,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/pai-de-yorkshire",
+    "produto": "adulto",
+    "ilustracao": "pet-yorkshire.png",
+    "ilustracaoEscura": "pet-yorkshire-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE",
+        "size": 250
+      },
+      {
+        "k": "big",
+        "t": "YORKSHIRE",
+        "face": "anton",
+        "size": 900,
+        "lh": 1.05,
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/caneca-melhor-mae-do-mundo",
+    "produto": "caneca",
+    "ilustracao": "maes-buque.png",
+    "ilustracaoEscura": "maes-buque-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "A MELHOR MÃE DO MUNDO"
+      },
+      {
+        "k": "big",
+        "t": "Ana",
+        "face": "script",
+        "editavel": {
+          "label": "Nome (ex.: Ana)",
+          "maxLength": 14
+        }
+      }
+    ]
+  },
+  {
+    "id": "maes/melhor-mae-do-mundo",
+    "produto": "adulto",
+    "ilustracao": "maes-buque.png",
+    "ilustracaoEscura": "maes-buque-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "A MELHOR MÃE DO MUNDO",
+        "size": 230
+      },
+      {
+        "k": "big",
+        "t": "Ana",
+        "face": "script",
+        "size": 1100,
+        "editavel": {
+          "label": "Nome (ex.: Ana)",
+          "maxLength": 14
+        }
+      }
+    ]
+  },
+  {
+    "id": "pais/paizao-desde",
+    "produto": "adulto",
+    "ilustracao": "pais-ursos.png",
+    "ilustracaoEscura": "pais-ursos-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco", "Preto"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAIZÃO DESDE",
+        "size": 280
+      },
+      {
+        "k": "big",
+        "t": "2027",
+        "face": "anton",
+        "size": 1000,
+        "editavel": {
+          "label": "Ano (ex.: 2019)",
+          "maxLength": 4
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-agapornis",
+    "produto": "caneca",
+    "ilustracao": "pet-agapornis.png",
+    "ilustracaoEscura": "pet-agapornis-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Agapórnis",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-agapornis",
+    "produto": "caneca",
+    "ilustracao": "pet-agapornis.png",
+    "ilustracaoEscura": "pet-agapornis-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "AGAPÓRNIS",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-beagle",
+    "produto": "caneca",
+    "ilustracao": "pet-beagle.png",
+    "ilustracaoEscura": "pet-beagle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Beagle",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-beagle",
+    "produto": "caneca",
+    "ilustracao": "pet-beagle.png",
+    "ilustracaoEscura": "pet-beagle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "BEAGLE",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-border",
+    "produto": "caneca",
+    "ilustracao": "pet-border.png",
+    "ilustracaoEscura": "pet-border-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Border Collie",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-border",
+    "produto": "caneca",
+    "ilustracao": "pet-border.png",
+    "ilustracaoEscura": "pet-border-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "BORDER COLLIE",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-bulldog",
+    "produto": "caneca",
+    "ilustracao": "pet-bulldog.png",
+    "ilustracaoEscura": "pet-bulldog-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Bulldog",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-bulldog",
+    "produto": "caneca",
+    "ilustracao": "pet-bulldog.png",
+    "ilustracaoEscura": "pet-bulldog-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "BULLDOG",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-calopsita",
+    "produto": "caneca",
+    "ilustracao": "pet-calopsita.png",
+    "ilustracaoEscura": "pet-calopsita-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Calopsita",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-calopsita",
+    "produto": "caneca",
+    "ilustracao": "pet-calopsita.png",
+    "ilustracaoEscura": "pet-calopsita-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "CALOPSITA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-canario",
+    "produto": "caneca",
+    "ilustracao": "pet-canario.png",
+    "ilustracaoEscura": "pet-canario-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Canário",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-canario",
+    "produto": "caneca",
+    "ilustracao": "pet-canario.png",
+    "ilustracaoEscura": "pet-canario-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "CANÁRIO",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-caramelo",
+    "produto": "caneca",
+    "ilustracao": "pet-caramelo.png",
+    "ilustracaoEscura": "pet-caramelo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Vira-lata Caramelo",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-caramelo",
+    "produto": "caneca",
+    "ilustracao": "pet-caramelo.png",
+    "ilustracaoEscura": "pet-caramelo-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "VIRA-LATA CARAMELO",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-coelho",
+    "produto": "caneca",
+    "ilustracao": "pet-coelho.png",
+    "ilustracaoEscura": "pet-coelho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Coelho",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-coelho",
+    "produto": "caneca",
+    "ilustracao": "pet-coelho.png",
+    "ilustracaoEscura": "pet-coelho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "COELHO",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-escaminha",
+    "produto": "caneca",
+    "ilustracao": "pet-escaminha.png",
+    "ilustracaoEscura": "pet-escaminha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Escaminha",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-escaminha",
+    "produto": "caneca",
+    "ilustracao": "pet-escaminha.png",
+    "ilustracaoEscura": "pet-escaminha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "ESCAMINHA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-frajola",
+    "produto": "caneca",
+    "ilustracao": "pet-frajola.png",
+    "ilustracaoEscura": "pet-frajola-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Frajola",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-frajola",
+    "produto": "caneca",
+    "ilustracao": "pet-frajola.png",
+    "ilustracaoEscura": "pet-frajola-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "FRAJOLA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-gato-branco",
+    "produto": "caneca",
+    "ilustracao": "pet-gato-branco.png",
+    "ilustracaoEscura": "pet-gato-branco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Gato Branco",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-gato-branco",
+    "produto": "caneca",
+    "ilustracao": "pet-gato-branco.png",
+    "ilustracaoEscura": "pet-gato-branco-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "GATO BRANCO",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-gato-cinza",
+    "produto": "caneca",
+    "ilustracao": "pet-gato-cinza.png",
+    "ilustracaoEscura": "pet-gato-cinza-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Gato Cinza",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-gato-cinza",
+    "produto": "caneca",
+    "ilustracao": "pet-gato-cinza.png",
+    "ilustracaoEscura": "pet-gato-cinza-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "GATO CINZA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-gato-preto",
+    "produto": "caneca",
+    "ilustracao": "pet-gato-preto.png",
+    "ilustracaoEscura": "pet-gato-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Gato Preto",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-gato-preto",
+    "produto": "caneca",
+    "ilustracao": "pet-gato-preto.png",
+    "ilustracaoEscura": "pet-gato-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "GATO PRETO",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-hamster",
+    "produto": "caneca",
+    "ilustracao": "pet-hamster.png",
+    "ilustracaoEscura": "pet-hamster-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Hamster",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-hamster",
+    "produto": "caneca",
+    "ilustracao": "pet-hamster.png",
+    "ilustracaoEscura": "pet-hamster-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "HAMSTER",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-husky",
+    "produto": "caneca",
+    "ilustracao": "pet-husky.png",
+    "ilustracaoEscura": "pet-husky-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Husky",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-husky",
+    "produto": "caneca",
+    "ilustracao": "pet-husky.png",
+    "ilustracaoEscura": "pet-husky-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "HUSKY",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-labrador-preto",
+    "produto": "caneca",
+    "ilustracao": "pet-labrador-preto.png",
+    "ilustracaoEscura": "pet-labrador-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Labrador",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-labrador-preto",
+    "produto": "caneca",
+    "ilustracao": "pet-labrador-preto.png",
+    "ilustracaoEscura": "pet-labrador-preto-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "LABRADOR",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-papagaio",
+    "produto": "caneca",
+    "ilustracao": "pet-papagaio.png",
+    "ilustracaoEscura": "pet-papagaio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Papagaio",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-papagaio",
+    "produto": "caneca",
+    "ilustracao": "pet-papagaio.png",
+    "ilustracaoEscura": "pet-papagaio-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "PAPAGAIO",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-peixe",
+    "produto": "caneca",
+    "ilustracao": "pet-peixe.png",
+    "ilustracaoEscura": "pet-peixe-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Betta",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-peixe",
+    "produto": "caneca",
+    "ilustracao": "pet-peixe.png",
+    "ilustracaoEscura": "pet-peixe-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "BETTA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-periquito",
+    "produto": "caneca",
+    "ilustracao": "pet-periquito.png",
+    "ilustracaoEscura": "pet-periquito-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Periquito",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-periquito",
+    "produto": "caneca",
+    "ilustracao": "pet-periquito.png",
+    "ilustracaoEscura": "pet-periquito-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "PERIQUITO",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-pinscher",
+    "produto": "caneca",
+    "ilustracao": "pet-pinscher.png",
+    "ilustracaoEscura": "pet-pinscher-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Pinscher",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-pinscher",
+    "produto": "caneca",
+    "ilustracao": "pet-pinscher.png",
+    "ilustracaoEscura": "pet-pinscher-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "PINSCHER",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-poodle",
+    "produto": "caneca",
+    "ilustracao": "pet-poodle.png",
+    "ilustracaoEscura": "pet-poodle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Poodle",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-poodle",
+    "produto": "caneca",
+    "ilustracao": "pet-poodle.png",
+    "ilustracaoEscura": "pet-poodle-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "POODLE",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-porquinho",
+    "produto": "caneca",
+    "ilustracao": "pet-porquinho.png",
+    "ilustracaoEscura": "pet-porquinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Porquinho-da-índia",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-porquinho",
+    "produto": "caneca",
+    "ilustracao": "pet-porquinho.png",
+    "ilustracaoEscura": "pet-porquinho-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "PORQUINHO-DA-ÍNDIA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-pug",
+    "produto": "caneca",
+    "ilustracao": "pet-pug.png",
+    "ilustracaoEscura": "pet-pug-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Pug",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-pug",
+    "produto": "caneca",
+    "ilustracao": "pet-pug.png",
+    "ilustracaoEscura": "pet-pug-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "PUG",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-ringneck",
+    "produto": "caneca",
+    "ilustracao": "pet-ringneck.png",
+    "ilustracaoEscura": "pet-ringneck-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Ring Neck",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-ringneck",
+    "produto": "caneca",
+    "ilustracao": "pet-ringneck.png",
+    "ilustracaoEscura": "pet-ringneck-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "RING NECK",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-salsicha",
+    "produto": "caneca",
+    "ilustracao": "pet-salsicha.png",
+    "ilustracaoEscura": "pet-salsicha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Salsicha",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-salsicha",
+    "produto": "caneca",
+    "ilustracao": "pet-salsicha.png",
+    "ilustracaoEscura": "pet-salsicha-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "SALSICHA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-shihtzu",
+    "produto": "caneca",
+    "ilustracao": "pet-shihtzu.png",
+    "ilustracaoEscura": "pet-shihtzu-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Shih Tzu",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-shihtzu",
+    "produto": "caneca",
+    "ilustracao": "pet-shihtzu.png",
+    "ilustracaoEscura": "pet-shihtzu-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "SHIH TZU",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-siames",
+    "produto": "caneca",
+    "ilustracao": "pet-siames.png",
+    "ilustracaoEscura": "pet-siames-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Siamês",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-siames",
+    "produto": "caneca",
+    "ilustracao": "pet-siames.png",
+    "ilustracaoEscura": "pet-siames-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "SIAMÊS",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-spitz",
+    "produto": "caneca",
+    "ilustracao": "pet-spitz.png",
+    "ilustracaoEscura": "pet-spitz-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Spitz",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-spitz",
+    "produto": "caneca",
+    "ilustracao": "pet-spitz.png",
+    "ilustracaoEscura": "pet-spitz-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "SPITZ",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-tartaruga",
+    "produto": "caneca",
+    "ilustracao": "pet-tartaruga.png",
+    "ilustracaoEscura": "pet-tartaruga-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Tartaruga",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-tartaruga",
+    "produto": "caneca",
+    "ilustracao": "pet-tartaruga.png",
+    "ilustracaoEscura": "pet-tartaruga-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "TARTARUGA",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-maes/caneca-mae-de-yorkshire",
+    "produto": "caneca",
+    "ilustracao": "pet-yorkshire.png",
+    "ilustracaoEscura": "pet-yorkshire-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#b02054",
+        "b": "#601a3a"
+      },
+      "escura": {
+        "a": "#f482aa",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "MÃE DE"
+      },
+      {
+        "k": "big",
+        "t": "Yorkshire",
+        "face": "script",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
+      }
+    ]
+  },
+  {
+    "id": "pet-pais/caneca-pai-de-yorkshire",
+    "produto": "caneca",
+    "ilustracao": "pet-yorkshire.png",
+    "ilustracaoEscura": "pet-yorkshire-escura.png",
+    "paleta": {
+      "clara": {
+        "a": "#1f3a5f",
+        "b": "#b87610"
+      },
+      "escura": {
+        "a": "#f2b840",
+        "b": "#f6f1e7"
+      },
+      "vermelha": {
+        "a": "#f6f1e7",
+        "b": "#ffd250"
+      }
+    },
+    "cores": ["Branco"],
+    "linhas": [
+      {
+        "k": "kicker",
+        "t": "PAI DE"
+      },
+      {
+        "k": "big",
+        "t": "YORKSHIRE",
+        "face": "anton",
+        "editavel": {
+          "label": "Nome do pet (ex.: Thor)",
+          "maxLength": 18
+        }
       }
     ]
   }
