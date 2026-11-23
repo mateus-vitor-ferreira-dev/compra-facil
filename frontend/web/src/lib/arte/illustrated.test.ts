@@ -40,8 +40,10 @@ describe("artes ilustradas", () => {
         expect(l.editavel!.maxLength).toBeLessThanOrEqual(40);
     }
     const offered = ILLUSTRATED_OPTIONS.flatMap(([, options]) => options.map(([id]) => id));
-    expect(offered).toContain("natal:papai-noel");
-    expect(offered).not.toContain("namorados:player-1"); // sem linha editável
+    expect(offered).toContain("criancas:aniversario-dino");
+    expect(offered).toContain("pet-maes:mae-de-caramelo");
+    expect(offered).not.toContain("gamer:player-1"); // sem linha editável
+    expect(all.every((t) => t.linhas.some((l) => l.editavel))).toBe(true); // só entram as artes com texto do cliente
   });
 
   it("a versão vem da cor da peça", () => {
@@ -54,10 +56,10 @@ describe("artes ilustradas", () => {
   });
 
   it("o texto do cliente entra na linha editável e só nela", () => {
-    const t = resolveIllustrated("natal:titia-noel") ?? resolveIllustrated("natal:papai-noel")!;
-    const lines = linesWithText(t, "Tia Lu");
-    expect(lines.filter((l) => l.t === "Tia Lu")).toHaveLength(1);
-    expect(lines.find((l) => l.k === "kicker")?.t).toBe("FAMÍLIA NOEL");
+    const t = resolveIllustrated("criancas:body-pacotinho-titia")!;
+    const lines = linesWithText(t, "da tia Lu");
+    expect(lines.filter((l) => l.t === "da tia Lu")).toHaveLength(1);
+    expect(lines.find((l) => l.k === "kicker")?.t).toBe("PACOTINHO DE AMOR");
     expect(linesWithText(t, "")).toEqual(t.linhas);
   });
 });

@@ -33,6 +33,8 @@ const FAMILY: Record<Face, { family: string; style?: string; weight?: string }> 
   anton: { family: "Arte Anton" },
   round: { family: "Arte Round", weight: "800" },
   sans: { family: "Arte Sans", weight: "700" },
+  lilita: { family: "Arte Lilita" },
+  bowlby: { family: "Arte Bowlby" },
 };
 
 let ready: Promise<void> | undefined;
@@ -47,6 +49,8 @@ export function loadIllustratedFonts(): Promise<void> {
       new FontFace("Arte Anton", "url(/fonts/Anton-Regular.ttf)"),
       new FontFace("Arte Round", "url(/fonts/Baloo2.ttf)", { weight: "400 800" }),
       new FontFace("Arte Sans", "url(/fonts/InterDisplay-Bold.otf)", { weight: "700" }),
+      new FontFace("Arte Lilita", "url(/fonts/LilitaOne-Regular.ttf)"),
+      new FontFace("Arte Bowlby", "url(/fonts/BowlbyOneSC-Regular.ttf)"),
     ];
     await Promise.all(faces.map((f) => f.load()));
     for (const f of faces) document.fonts.add(f);
@@ -127,8 +131,8 @@ function measure(ctx: Ctx, line: ArtLine, maxWidth: number, scale: number): Meas
   for (;;) {
     ctx.font = fontOf(face, px);
     const m = ctx.measureText(line.t ?? "");
-    if (px <= 30 || m.actualBoundingBoxLeft + m.actualBoundingBoxRight <= maxWidth) {
-      return { px, height: (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) * 1.18 };
+    if (px <= 30 || m.actualBoundingBoxLeft + m.actualBoundingBoxRight <= maxWidth * (line.w ?? 1)) {
+      return { px, height: (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) * (line.lh ?? 1.18) };
     }
     px -= 6;
   }
