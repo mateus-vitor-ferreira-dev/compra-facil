@@ -464,8 +464,8 @@ export interface components {
             shipping_address: components["schemas"]["ShippingAddress"];
             payment: components["schemas"]["PlaceOrderPayment"];
             /**
-             * @description Um item por produto e tamanho: o mesmo `product_id` pode vir em mais de um item, cada um com um
-             *     `size` diferente.
+             * @description Um item por produto, tamanho, cor e personalização: o mesmo `product_id` pode vir em mais de um item,
+             *     cada um com um `size`, uma `color` ou uma `personalization` diferente.
              */
             items: components["schemas"]["PlaceOrderItem"][];
         };
@@ -508,6 +508,20 @@ export interface components {
              * @example G
              */
             size?: string | null;
+            /**
+             * @description O texto do cliente para a arte (ex.: o nome na estampa), quando o produto tem `personalization` no
+             *     catálogo. Normalizado (sem espaços nas pontas nem repetidos); aceita letras do alfabeto latino (com
+             *     acento), algarismos, espaço e `. , ' - & ! ? /`, até o `max_length` do produto. Faltando quando é
+             *     obrigatória, inválido, ou presente no produto sem personalização: 409.
+             * @example Ana Maria
+             */
+            personalization?: string | null;
+            /**
+             * @description A cor escolhida, uma das `colors` do produto no catálogo (sem diferenciar maiúsculas). Obrigatória no
+             *     produto com cor à escolha e ausente no sem; senão, 409.
+             * @example Preto
+             */
+            color?: string | null;
         };
         Order: {
             /** Format: uuid */
@@ -599,6 +613,16 @@ export interface components {
              * @example G
              */
             size?: string | null;
+            /**
+             * @description O texto do cliente para a arte, normalizado; nulo no produto sem personalização.
+             * @example Ana Maria
+             */
+            personalization?: string | null;
+            /**
+             * @description A cor escolhida, como está no catálogo; nula no produto sem cor à escolha.
+             * @example Preto
+             */
+            color?: string | null;
         };
         /** @enum {string} */
         PaymentMethod: "pix" | "card";

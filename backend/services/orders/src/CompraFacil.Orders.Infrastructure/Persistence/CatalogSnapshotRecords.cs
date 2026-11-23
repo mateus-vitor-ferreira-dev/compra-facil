@@ -12,6 +12,12 @@ public sealed class ProductSnapshotRecord
     public string Status { get; set; } = "";
     /// <summary>Os tamanhos que o cliente escolhe; vazio, o produto não tem tamanho.</summary>
     public List<string> Sizes { get; set; } = [];
+    /// <summary>As cores que o cliente escolhe; vazio, o produto não tem cor à escolha.</summary>
+    public List<string> Colors { get; set; } = [];
+    /// <summary>O máximo do texto do cliente; nulo, o produto não tem personalização.</summary>
+    public int? PersonalizationMaxLength { get; set; }
+    /// <summary>Se o texto do cliente é obrigatório (só vale com PersonalizationMaxLength).</summary>
+    public bool PersonalizationRequired { get; set; }
     public int Version { get; set; }
     /// <summary>Removido no catálogo; a linha fica para barrar eventos mais velhos.</summary>
     public bool Deleted { get; set; }

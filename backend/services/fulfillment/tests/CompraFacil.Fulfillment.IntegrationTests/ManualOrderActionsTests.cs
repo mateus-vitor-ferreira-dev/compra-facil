@@ -118,6 +118,41 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
     }
 
     [Fact]
+    public async Task A_personalizacao_chega_na_fila_um_item_por_texto()
+    {
+        var product = Guid.NewGuid();
+        var id = await PaidOrderAsync(
+            new OrderItem(product, "FON-BT-01", "Camiseta Mãe", 1, new Money(7990, "BRL"), new Money(7990, "BRL"), "M", "Ana Maria"),
+            new OrderItem(product, "FON-BT-01", "Camiseta Mãe", 1, new Money(7990, "BRL"), new Money(7990, "BRL"), "M", "João"),
+            new OrderItem(Guid.NewGuid(), "FON-BT-01", "Caneca", 1, new Money(5990, "BRL"), new Money(5990, "BRL")));
+
+        using var admin = fx.Factory.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", fx.Identity.AdminToken());
+        var json = await admin.GetStringAsync("/v1/admin/supplier-orders/to-place", Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml",
+            "/paths/~1v1~1admin~1supplier-orders~1to-place/get/responses/200/content/application~1json/schema", json);
+        var mine = JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().Single(o => o.GetProperty("order_id").GetGuid() == id);
+        Assert.Equal(["Ana Maria", "João", null], mine.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("personalization").GetString()));
+    }
+
+    [Fact]
+    public async Task A_cor_chega_na_fila_um_item_por_cor()
+    {
+        var product = Guid.NewGuid();
+        var id = await PaidOrderAsync(
+            new OrderItem(product, "FON-BT-01", "Camiseta", 1, new Money(7990, "BRL"), new Money(7990, "BRL"), "M", Color: "Preto"),
+            new OrderItem(product, "FON-BT-01", "Camiseta", 1, new Money(7990, "BRL"), new Money(7990, "BRL"), "M", Color: "Branco"));
+
+        using var admin = fx.Factory.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", fx.Identity.AdminToken());
+        var json = await admin.GetStringAsync("/v1/admin/supplier-orders/to-place", Ct);
+        ContractAssert.AssertSchema("fulfillment.v1.yaml",
+            "/paths/~1v1~1admin~1supplier-orders~1to-place/get/responses/200/content/application~1json/schema", json);
+        var mine = JsonDocument.Parse(json).RootElement.GetProperty("data").EnumerateArray().Single(o => o.GetProperty("order_id").GetGuid() == id);
+        Assert.Equal(["Preto", "Branco"], mine.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("color").GetString()));
+    }
+
+    [Fact]
     public async Task Da_fila_ao_entregue_pelo_painel_com_os_eventos_de_sempre()
     {
         var id = await PaidOrderAsync();

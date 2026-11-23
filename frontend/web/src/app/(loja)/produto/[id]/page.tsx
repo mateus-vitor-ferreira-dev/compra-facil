@@ -147,6 +147,8 @@ export default async function ProductPage({ params }: Props) {
               seenPriceCents={p.effective_price.amount_cents}
               max={available}
               sizes={p.sizes}
+              colors={p.colors}
+              personalization={p.personalization}
             />
           )}
 

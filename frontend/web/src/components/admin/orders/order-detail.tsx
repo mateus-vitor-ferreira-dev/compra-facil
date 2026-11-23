@@ -1,5 +1,6 @@
 import { Mail, MessageCircle, Phone, TriangleAlert } from "lucide-react";
 import { refundAgain } from "@/app/admin/pedidos/actions";
+import { ArtDownload } from "@/components/admin/art-download";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { AdminOrderDetail } from "@/lib/admin-api";
@@ -119,9 +120,12 @@ export type RefundNotice = "pedido" | "erro";
 export function OrderDetail({
   order: o,
   refundNotice,
+  templates = {},
 }: {
   order: AdminOrderDetail;
   refundNotice?: RefundNotice;
+  /** a arte de cada SKU com personalização, para o "Baixar arte" */
+  templates?: Record<string, string>;
 }) {
   const status = adminOrderStatus(o);
   const wa = whatsappHref(o.customer.phone);
@@ -212,17 +216,32 @@ export function OrderDetail({
           <ul>
             {o.items.map((i) => (
               <li
-                key={`${i.product_id}-${i.sku}-${i.size ?? ""}`}
+                key={`${i.product_id}-${i.sku}-${i.size ?? ""}-${i.color ?? ""}-${i.personalization ?? ""}`}
                 className="border-line flex items-baseline justify-between gap-4 border-b px-4 py-3"
               >
                 <span className="min-w-0">
                   <span className="block font-medium">
                     {i.name}
                     {i.size && <span className="text-ink-soft font-normal"> · tamanho {i.size}</span>}
+                    {i.color && <span className="text-ink-soft font-normal"> · cor {i.color}</span>}
                   </span>
                   <span className="text-ink-soft block text-sm break-all">
                     {i.quantity} × {formatMoney(i.unit_price)}, SKU {i.sku}
                   </span>
+                  {i.personalization && (
+                    <span className="mt-2 block space-y-2">
+                      <span className="block text-sm">
+                        Personalização: <span className="font-semibold break-words">{i.personalization}</span>
+                      </span>
+                      <ArtDownload
+                        orderId={o.id}
+                        itemName={i.name}
+                        text={i.personalization}
+                        template={templates[i.sku]}
+                        color={i.color ?? undefined}
+                      />
+                    </span>
+                  )}
                 </span>
                 <span className="tabular-nums">{formatMoney(i.line_total)}</span>
               </li>

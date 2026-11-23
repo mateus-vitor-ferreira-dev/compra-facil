@@ -40,12 +40,16 @@ type productDTO struct {
 	// Images: todas as fotos, a primeira igual a Image. Só no detalhe: a listagem usa a primeira.
 	Images []imageDTO `json:"images,omitempty"`
 	// Sizes: os tamanhos que o cliente escolhe na compra; vazio, o produto não tem tamanho
-	Sizes          []string        `json:"sizes"`
-	Price          moneyDTO        `json:"price"`
-	EffectivePrice moneyDTO        `json:"effective_price"`
-	Campaign       *campaignRefDTO `json:"campaign"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	Sizes []string `json:"sizes"`
+	// Colors: as cores que o cliente escolhe na compra; vazio, o produto não tem cor à escolha
+	Colors []string `json:"colors"`
+	// Personalization: o texto que o cliente escreve na compra; nulo, o produto não tem
+	Personalization *personalizationDTO `json:"personalization"`
+	Price           moneyDTO            `json:"price"`
+	EffectivePrice  moneyDTO            `json:"effective_price"`
+	Campaign        *campaignRefDTO     `json:"campaign"`
+	CreatedAt       time.Time           `json:"created_at"`
+	UpdatedAt       time.Time           `json:"updated_at"`
 }
 
 // imageDTO é a ProductImage do contrato: a foto e as larguras para o srcset. Sem variantes conhecidas
@@ -144,22 +148,27 @@ type listDTO[T any] struct {
 
 func toProductDTO(p domain.Product) productDTO {
 	dto := productDTO{
-		ID:             p.ID,
-		SKU:            p.SKU,
-		Name:           p.Name,
-		Description:    p.Description,
-		Brand:          p.Brand,
-		Category:       categoryRefDTO{ID: p.Category.ID, Slug: p.Category.Slug, Name: p.Category.Name},
-		ImageURL:       p.ImageURL,
-		Image:          toImageDTO(p),
-		Sizes:          p.Sizes,
-		Price:          moneyDTO{AmountCents: p.PriceCents, Currency: p.Currency},
-		EffectivePrice: moneyDTO{AmountCents: p.EffectivePriceCents(), Currency: p.Currency},
-		CreatedAt:      p.CreatedAt.UTC(),
-		UpdatedAt:      p.UpdatedAt.UTC(),
+		ID:              p.ID,
+		SKU:             p.SKU,
+		Name:            p.Name,
+		Description:     p.Description,
+		Brand:           p.Brand,
+		Category:        categoryRefDTO{ID: p.Category.ID, Slug: p.Category.Slug, Name: p.Category.Name},
+		ImageURL:        p.ImageURL,
+		Image:           toImageDTO(p),
+		Sizes:           p.Sizes,
+		Personalization: toPersonalizationDTO(p.Personalization),
+		Price:           moneyDTO{AmountCents: p.PriceCents, Currency: p.Currency},
+		EffectivePrice:  moneyDTO{AmountCents: p.EffectivePriceCents(), Currency: p.Currency},
+		CreatedAt:       p.CreatedAt.UTC(),
+		UpdatedAt:       p.UpdatedAt.UTC(),
 	}
 	if dto.Sizes == nil {
 		dto.Sizes = []string{}
+	}
+	dto.Colors = p.Colors
+	if dto.Colors == nil {
+		dto.Colors = []string{}
 	}
 	if c := p.ActiveCampaign; c != nil {
 		dto.Campaign = &campaignRefDTO{ID: c.ID, Name: c.Name, DiscountPercent: c.DiscountPercent, EndsAt: c.EndsAt.UTC()}
@@ -246,4 +255,26 @@ type categoryCountDTO struct {
 
 type categoryCountsDTO struct {
 	Data []categoryCountDTO `json:"data"`
+}
+
+// personalizationDTO é o campo de texto que o cliente preenche na compra e o id da arte que o recebe.
+type personalizationDTO struct {
+	Label     string `json:"label"`
+	MaxLength int    `json:"max_length"`
+	Required  bool   `json:"required"`
+	Template  string `json:"template"`
+}
+
+func (d *personalizationDTO) toDomain() *domain.Personalization {
+	if d == nil {
+		return nil
+	}
+	return &domain.Personalization{Label: d.Label, MaxLength: d.MaxLength, Required: d.Required, Template: d.Template}
+}
+
+func toPersonalizationDTO(c *domain.Personalization) *personalizationDTO {
+	if c == nil || c.IsZero() {
+		return nil
+	}
+	return &personalizationDTO{Label: c.Label, MaxLength: c.MaxLength, Required: c.Required, Template: c.Template}
 }

@@ -118,7 +118,7 @@ export default async function CheckoutPage() {
                 </Link>
               </div>
               <ul className="divide-line border-line mt-3 divide-y border-y">
-                {lines.map(({ key, size, qty, product }) =>
+                {lines.map(({ key, size, color, text, qty, product }) =>
                   product ? (
                     <li
                       key={key}
@@ -133,6 +133,8 @@ export default async function CheckoutPage() {
                       <div className="min-w-0">
                         <p className="leading-snug font-medium">{product.name}</p>
                         {size && <p className="text-sm font-medium">Tamanho {size}</p>}
+                        {color && <p className="text-sm font-medium">Cor {color}</p>}
+                        {text && <p className="text-sm font-medium break-words">Personalização: {text}</p>}
                         <p className="text-ink-soft text-sm">
                           {qty} × {brl(product.effective_price.amount_cents)}
                         </p>

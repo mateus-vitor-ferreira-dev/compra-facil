@@ -76,6 +76,27 @@ export function listProducts(token: string, f: ProductFilter) {
   );
 }
 
+/**
+ * As artes (personalization.template) dos produtos, pelo SKU: a fila do fornecedor só conhece o SKU, e o painel
+ * precisa da arte para gerar o arquivo de impressão do texto do cliente. SKU sem produto (ou sem personalização)
+ * fica de fora.
+ */
+export async function templatesBySku(token: string, skus: string[]): Promise<Record<string, string>> {
+  if (skus.length === 0) return {};
+  const found = await Promise.all(
+    [...new Set(skus)].map(async (sku) => {
+      const r = await run(() =>
+        api
+          .catalog({ token })
+          .GET("/v1/admin/products", { params: { query: { sku, limit: 1 } }, cache: "no-store" }),
+      );
+      const template = r.ok ? r.data.data[0]?.personalization?.template : undefined;
+      return template ? ([[sku, template]] as [string, string][]) : [];
+    }),
+  );
+  return Object.fromEntries(found.flat());
+}
+
 export function getProduct(token: string, id: string) {
   return run(() =>
     api.catalog({ token }).GET("/v1/admin/products/{product_id}", {

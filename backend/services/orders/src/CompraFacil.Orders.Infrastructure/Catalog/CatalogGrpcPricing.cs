@@ -47,7 +47,14 @@ internal sealed class CatalogGrpcPricing(CatalogService.CatalogServiceClient cli
         var request = new ValidateItemsRequest();
         foreach (var item in items)
         {
-            var proto = new ItemToValidate { ProductId = item.ProductId.ToString(), Quantity = item.Quantity, Size = item.Size ?? "" };
+            var proto = new ItemToValidate
+            {
+                ProductId = item.ProductId.ToString(),
+                Quantity = item.Quantity,
+                Size = item.Size ?? "",
+                Personalization = item.Personalization ?? "",
+                Color = item.Color ?? ""
+            };
             if (item.ExpectedUnitPriceCents is { } expected)
             {
                 proto.ExpectedUnitPriceCents = expected;
@@ -75,7 +82,9 @@ internal sealed class CatalogGrpcPricing(CatalogService.CatalogServiceClient cli
             i.Name,
             i.UnitPrice is null ? null : new DomainMoney(i.UnitPrice.AmountCents, i.UnitPrice.Currency),
             string.IsNullOrEmpty(i.CampaignId) ? null : Guid.Parse(i.CampaignId),
-            string.IsNullOrEmpty(i.Size) ? null : i.Size))];
+            string.IsNullOrEmpty(i.Size) ? null : i.Size,
+            string.IsNullOrEmpty(i.Personalization) ? null : i.Personalization,
+            string.IsNullOrEmpty(i.Color) ? null : i.Color))];
     }
 
     private static PricedItemStatus Map(ItemStatus status) => status switch
@@ -86,6 +95,8 @@ internal sealed class CatalogGrpcPricing(CatalogService.CatalogServiceClient cli
         ItemStatus.PriceChanged => PricedItemStatus.PriceChanged,
         ItemStatus.InvalidQuantity => PricedItemStatus.InvalidQuantity,
         ItemStatus.InvalidSize => PricedItemStatus.InvalidSize,
+        ItemStatus.InvalidPersonalization => PricedItemStatus.InvalidPersonalization,
+        ItemStatus.InvalidColor => PricedItemStatus.InvalidColor,
         _ => throw new InvalidOperationException($"status de item desconhecido do catálogo: {status}"),
     };
 }

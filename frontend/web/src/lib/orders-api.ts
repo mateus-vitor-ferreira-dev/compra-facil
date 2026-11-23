@@ -46,6 +46,10 @@ export type PlaceOrderItem = {
   expected_unit_price_cents: number;
   /** o tamanho escolhido; só no produto com tamanho */
   size?: string;
+  /** o texto do cliente para a arte; só no produto com personalização */
+  personalization?: string;
+  /** a cor escolhida; só no produto com cor à escolha */
+  color?: string;
 };
 /** PIX, ou o cartão já tokenizado no provedor (#220): o número dele nunca chega aqui. */
 export type PlaceOrderPayment = OrdersSchemas["schemas"]["PlaceOrderPayment"];

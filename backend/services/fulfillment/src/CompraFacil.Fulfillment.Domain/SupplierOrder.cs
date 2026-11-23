@@ -47,9 +47,12 @@ public static class SupplierFailureReasons
 
 /// <summary>
 /// Um item como vai ao fornecedor: o SKU dele (por ora, o da loja), o nome, a quantidade e o tamanho escolhido pelo
-/// cliente (nulo no produto sem tamanho): no modo manual, a equipe pede ao fornecedor nesse tamanho.
+/// cliente (nulo no produto sem tamanho): no modo manual, a equipe pede ao fornecedor nesse tamanho. Personalization é o
+/// texto do cliente para a arte (nulo no produto sem personalização): a equipe gera o arquivo de impressão com ele.
+/// Color é a cor escolhida (nula sem cor à escolha): na Montink vai em var2, e o tamanho em var1.
 /// </summary>
-public sealed record SupplierOrderItem(string Sku, string Name, int Quantity, string? Size = null);
+public sealed record SupplierOrderItem(
+    string Sku, string Name, int Quantity, string? Size = null, string? Personalization = null, string? Color = null);
 
 /// <summary>Para quem e para onde o fornecedor manda (#221): o nome, o CPF (o consigneeID do CJ), o telefone e o endereço.</summary>
 public sealed record ShipTo(

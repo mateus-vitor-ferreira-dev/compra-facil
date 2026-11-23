@@ -3,17 +3,17 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { readCart, readConfirmedDoubles, writeCart, writeConfirmedDoubles } from "@/lib/cart";
-import { lineKey, setQuantity } from "@/lib/cart-rules";
+import { MAX_LINE_KEY, lineKey, setQuantity } from "@/lib/cart-rules";
 
 /**
  * As duas saídas da pergunta das 2 unidades iguais (#322). São formulários comuns: funcionam sem JavaScript, e as
  * duas voltam para o pagamento, que refaz o total.
  */
-// as linhas (lineKey: o id do produto, ou "id:TAMANHO")
+// as linhas (lineKey: o id do produto, "id:TAMANHO" ou "id:TAMANHO|texto")
 const lines = (form: FormData) =>
   form
     .getAll("line")
-    .map((v) => z.string().min(1).max(60).safeParse(v))
+    .map((v) => z.string().min(1).max(MAX_LINE_KEY).safeParse(v))
     .flatMap((r) => (r.success ? [r.data] : []));
 
 /** "Está certo": as 2 unidades seguem, e a pergunta não volta nesta compra. */

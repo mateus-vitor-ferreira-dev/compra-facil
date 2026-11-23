@@ -12,6 +12,7 @@ import {
 } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { parseReais } from "@/lib/money-input";
+import { MAX_PERSONALIZATION } from "@/lib/personalization";
 
 export type FormState = {
   /** o erro geral, com o código para o suporte quando há */
@@ -25,10 +26,14 @@ export type FormState = {
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
 // os nomes dos campos da API, na língua do formulário
-const FIELD = { price_cents: "price", image_url: "photos", more_image_urls: "photos" } as Record<
-  string,
-  string
->;
+const FIELD = {
+  price_cents: "price",
+  image_url: "photos",
+  more_image_urls: "photos",
+  "personalization.label": "personalization_label",
+  "personalization.max_length": "personalization_max_length",
+  "personalization.template": "personalization_template",
+} as Record<string, string>;
 
 function failure(error: AdminError, values: Record<string, string>): FormState {
   if (error.fields) {
@@ -64,6 +69,11 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     category_id: text(form, "category_id"),
     price: text(form, "price"),
     sizes: text(form, "sizes"),
+    colors: text(form, "colors"),
+    personalization_template: text(form, "personalization_template"),
+    personalization_label: text(form, "personalization_label"),
+    personalization_max_length: text(form, "personalization_max_length"),
+    personalization_required: form.get("personalization_required") ? "sim" : "",
     status: text(form, "status"),
   };
   const photos = form
@@ -85,6 +95,39 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
   if (sizes.length > 12 || sizes.some((s) => s.length > 10)) {
     return { values, fields: { sizes: "Até 12 tamanhos, cada um com até 10 caracteres." } };
   }
+  const colors = values.colors
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const repeatedColor = colors.find(
+    (c, i) => colors.findIndex((o) => o.toUpperCase() === c.toUpperCase()) !== i,
+  );
+  if (repeatedColor) {
+    return { values, fields: { colors: `A cor ${repeatedColor} aparece mais de uma vez.` } };
+  }
+  if (colors.length > 12 || colors.some((c) => c.length > 20)) {
+    return { values, fields: { colors: "Até 12 cores, cada uma com até 20 caracteres." } };
+  }
+  // sem arte, sem personalização: {} tira a que estiver gravada
+  let personalization: ProductInput["personalization"] = {};
+  if (values.personalization_template) {
+    const max = Number(values.personalization_max_length);
+    if (!Number.isInteger(max) || max < 1 || max > MAX_PERSONALIZATION) {
+      return {
+        values,
+        fields: { personalization_max_length: `Um número de 1 a ${MAX_PERSONALIZATION}.` },
+      };
+    }
+    if (!values.personalization_label) {
+      return { values, fields: { personalization_label: "Escreva o rótulo do campo (ex.: Nome)." } };
+    }
+    personalization = {
+      label: values.personalization_label,
+      max_length: max,
+      required: values.personalization_required === "sim",
+      template: values.personalization_template,
+    };
+  }
   const status = z.enum(["draft", "active", "inactive"]).safeParse(values.status);
   const body: ProductInput = {
     name: values.name,
@@ -95,6 +138,8 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     image_url: photos[0] ?? null,
     more_image_urls: photos.slice(1),
     sizes,
+    colors,
+    personalization,
     price_cents: price,
     status: status.success ? status.data : "draft",
   };

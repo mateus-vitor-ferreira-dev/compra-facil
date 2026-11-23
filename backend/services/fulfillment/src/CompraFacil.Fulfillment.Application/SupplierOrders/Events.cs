@@ -21,11 +21,22 @@ public static class FulfillmentEvents
 
 public sealed record Money(long AmountCents, string Currency);
 
-/// <summary>Item do pedido; Size é o tamanho escolhido (nulo no produto sem tamanho e nos eventos de antes do campo).</summary>
-public sealed record OrderItem(Guid ProductId, string Sku, string Name, int Quantity, Money UnitPrice, Money LineTotal, string? Size = null)
+/// <summary>
+/// Item do pedido; Size é o tamanho, Color a cor e Personalization o texto do cliente para a arte (nulos no produto
+/// sem eles e nos eventos de antes dos campos).
+/// </summary>
+public sealed record OrderItem(
+    Guid ProductId, string Sku, string Name, int Quantity, Money UnitPrice, Money LineTotal, string? Size = null,
+    string? Personalization = null, string? Color = null)
 {
     /// <summary>O nome com o tamanho, como vai na nota: "Camiseta Natal (G)".</summary>
-    public string NameWithSize => Size is null ? Name : $"{Name} ({Size})";
+    public string NameWithSize => (Size, Color) switch
+    {
+        (null, null) => Name,
+        (_, null) => $"{Name} ({Size})",
+        (null, _) => $"{Name} ({Color})",
+        _ => $"{Name} ({Size}, {Color})",
+    };
 }
 
 public sealed record Recipient(string Name, string Cpf, string Phone);

@@ -170,6 +170,8 @@ async function submitOrder(_: CheckoutState, form: FormData): Promise<CheckoutSt
       quantity: i.qty,
       expected_unit_price_cents: i.seen,
       ...(i.size ? { size: i.size } : {}),
+      ...(i.color ? { color: i.color } : {}),
+      ...(i.text ? { personalization: i.text } : {}),
     })),
     payment,
     { ...toOrderDelivery(values), shipping: { service: shipping.data } },

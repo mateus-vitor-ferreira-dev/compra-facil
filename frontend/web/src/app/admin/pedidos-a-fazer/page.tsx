@@ -5,7 +5,14 @@ import { buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { StateMessage } from "@/components/ui/state";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { manualOrders, ordersToPlace, supplierSheet, type ManualOrder } from "@/lib/admin-api";
+import { ArtDownload } from "@/components/admin/art-download";
+import {
+  manualOrders,
+  ordersToPlace,
+  supplierSheet,
+  templatesBySku,
+  type ManualOrder,
+} from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { orderNumber } from "@/lib/order-status";
@@ -83,6 +90,11 @@ export default async function OrdersToPlace({ searchParams }: Props) {
     searchParams,
   ]);
   const message = notice(query);
+  // as artes dos itens com o texto do cliente, para o "Baixar arte" (a fila só conhece o SKU)
+  const personalized = queue.ok
+    ? queue.data.data.flatMap((o) => o.items.filter((i) => i.personalization).map((i) => i.sku))
+    : [];
+  const templates = personalized.length > 0 ? await templatesBySku(token, personalized) : {};
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -137,7 +149,7 @@ export default async function OrdersToPlace({ searchParams }: Props) {
             ) : (
               <ol className="space-y-4">
                 {queue.data.data.map((o) => (
-                  <Ticket key={o.order_id} order={o} now={now} />
+                  <Ticket key={o.order_id} order={o} now={now} templates={templates} />
                 ))}
               </ol>
             )}
@@ -242,7 +254,12 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
         )}
       </p>
       <p className="text-ink-soft">
-        {o.items.map((i) => `${i.quantity} × ${i.name}${i.size ? ` (${i.size})` : ""}`).join(", ")}
+        {o.items
+          .map(
+            (i) =>
+              `${i.quantity} × ${i.name}${i.size ? ` (${i.size})` : ""}${i.color ? ` ${i.color}` : ""}${i.personalization ? ` "${i.personalization}"` : ""}`,
+          )
+          .join(", ")}
         {o.placed_at && (
           <>
             ; feito em <time dateTime={o.placed_at}>{when.format(new Date(o.placed_at))}</time>
@@ -255,7 +272,16 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
 }
 
 /** A ficha de compra: tudo o que o formulário do fornecedor pede, na ordem, com um botão de copiar em cada dado. */
-function Ticket({ order: o, now }: { order: ManualOrder; now: number }) {
+function Ticket({
+  order: o,
+  now,
+  templates,
+}: {
+  order: ManualOrder;
+  now: number;
+  /** a arte de cada SKU com personalização */
+  templates: Record<string, string>;
+}) {
   const number = orderNumber(o.order_id);
   const age = waiting(o.awaiting_since, now);
   const s = o.ship_to;
@@ -290,18 +316,46 @@ function Ticket({ order: o, now }: { order: ManualOrder; now: number }) {
           <h4 className="font-medium">Itens</h4>
           <ul className="space-y-1 text-sm">
             {o.items.map((i) => (
-              <li key={`${i.sku}:${i.size ?? ""}`} className="flex items-center justify-between gap-2">
-                <span>
-                  <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
-                  {/* no modo manual, a equipe pede ao fornecedor nesse tamanho: em destaque */}
-                  {i.size && (
-                    <span className="border-ink ml-2 rounded border px-1.5 py-0.5 text-xs font-bold">
-                      Tamanho {i.size}
-                    </span>
-                  )}
-                  <span className="text-ink-soft block tabular-nums">SKU {i.sku}</span>
-                </span>
-                <CopyButton value={i.sku} label={`o SKU ${i.sku}`} />
+              <li
+                key={`${i.sku}:${i.size ?? ""}~${i.color ?? ""}|${i.personalization ?? ""}`}
+                className="space-y-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span>
+                    <span className="font-semibold tabular-nums">{i.quantity} ×</span> {i.name}
+                    {/* no modo manual, a equipe pede ao fornecedor nesse tamanho: em destaque */}
+                    {i.size && (
+                      <span className="border-ink ml-2 rounded border px-1.5 py-0.5 text-xs font-bold">
+                        Tamanho {i.size}
+                      </span>
+                    )}
+                    {i.color && (
+                      <span className="border-ink ml-2 rounded border px-1.5 py-0.5 text-xs font-bold">
+                        Cor: {i.color}
+                      </span>
+                    )}
+                    <span className="text-ink-soft block tabular-nums">SKU {i.sku}</span>
+                  </span>
+                  <CopyButton value={i.sku} label={`o SKU ${i.sku}`} />
+                </div>
+                {/* o texto do cliente vai na arte: o arquivo de impressão sai daqui */}
+                {i.personalization && (
+                  <div className="border-ink space-y-2 rounded-md border-l-4 py-1 pl-3">
+                    <p className="flex flex-wrap items-center gap-2">
+                      <span>
+                        Personalização: <span className="font-bold break-words">{i.personalization}</span>
+                      </span>
+                      <CopyButton value={i.personalization} label={`o texto ${i.personalization}`} />
+                    </p>
+                    <ArtDownload
+                      orderId={o.order_id}
+                      itemName={i.name}
+                      text={i.personalization}
+                      template={templates[i.sku]}
+                      color={i.color ?? undefined}
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

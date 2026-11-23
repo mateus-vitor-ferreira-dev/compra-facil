@@ -2,7 +2,8 @@ import "server-only";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { env } from "@/lib/env";
-import { MAX_ITEMS, MAX_QUANTITY, emptyCart, type Cart, type CartItem } from "./cart-rules";
+import { MAX_ITEMS, MAX_LINE_KEY, MAX_QUANTITY, emptyCart, type Cart, type CartItem } from "./cart-rules";
+import { MAX_PERSONALIZATION } from "./personalization";
 
 /**
  * O carrinho mora num cookie httpOnly (sem conta, sem serviço novo): ids, quantidades e o preço que o
@@ -20,6 +21,8 @@ const schema = z.object({
         qty: z.int().min(1).max(MAX_QUANTITY),
         seen: z.int().min(1),
         size: z.string().min(1).max(10).optional(),
+        color: z.string().min(1).max(20).optional(),
+        text: z.string().min(1).max(MAX_PERSONALIZATION).optional(),
       }),
     )
     .max(MAX_ITEMS),
@@ -71,8 +74,8 @@ export async function writeUndo(item: CartItem | undefined): Promise<void> {
  * compra. Vale até o carrinho esvaziar (o pedido feito, ou o esvaziar), e só no navegador (sem maxAge).
  */
 export const DOUBLES_COOKIE = "cf_cart_dobro";
-// as linhas (lineKey: o id, ou "id:TAMANHO")
-const doublesSchema = z.array(z.string().max(60)).max(MAX_ITEMS);
+// as linhas (lineKey: o id e a variante, "id:TAMANHO~COR|texto")
+const doublesSchema = z.array(z.string().max(MAX_LINE_KEY)).max(MAX_ITEMS);
 
 export async function readConfirmedDoubles(): Promise<string[]> {
   const raw = (await cookies()).get(DOUBLES_COOKIE)?.value;
@@ -99,6 +102,13 @@ export async function writeConfirmedDoubles(ids: string[]): Promise<void> {
 }
 
 /** Só em server action ou route handler (onde o Next deixa gravar cookie). */
+// o cookie vai até 4 KB (com o nome); o carrinho com textos longos de personalização pode passar disso
+const MAX_COOKIE_BYTES = 3900;
+const encodeCart = (cart: Cart) => Buffer.from(JSON.stringify(cart)).toString("base64url");
+
+/** Se o carrinho cabe no cookie: com muitos itens personalizados, não cabe (e o navegador o descartaria). */
+export const cartFits = (cart: Cart) => encodeCart(cart).length <= MAX_COOKIE_BYTES;
+
 export async function writeCart(cart: Cart): Promise<void> {
   const store = await cookies();
   if (cart.items.length === 0) {
@@ -106,7 +116,7 @@ export async function writeCart(cart: Cart): Promise<void> {
     store.delete(DOUBLES_COOKIE);
     return;
   }
-  store.set(CART_COOKIE, Buffer.from(JSON.stringify(cart)).toString("base64url"), {
+  store.set(CART_COOKIE, encodeCart(cart), {
     httpOnly: true,
     secure: env.NODE_ENV === "production",
     sameSite: "lax",

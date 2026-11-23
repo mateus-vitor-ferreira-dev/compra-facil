@@ -65,6 +65,8 @@ const (
 	MaxCampaignItems   = 1000
 	MaxSizes           = 12
 	MaxSizeLength      = 10
+	MaxColors          = 12
+	MaxColorLength     = 20
 )
 
 var (
@@ -96,6 +98,8 @@ func (p *Product) Validate() error {
 	}
 	p.validateGallery(&v)
 	p.validateSizes(&v)
+	p.validateColors(&v)
+	p.validatePersonalization(&v)
 	return v.err()
 }
 
@@ -117,6 +121,39 @@ func (p *Product) validateSizes(v *validator) {
 		}
 		seen[key] = true
 	}
+}
+
+func (p *Product) validateColors(v *validator) {
+	if len(p.Colors) > MaxColors {
+		v.check(false, "colors", "deve ter no máximo %d cores", MaxColors)
+		return
+	}
+	seen := map[string]bool{}
+	for _, color := range p.Colors {
+		if n := utf8.RuneCountInString(color); n < 1 || n > MaxColorLength {
+			v.check(false, "colors", "cada cor deve ter de 1 a %d caracteres", MaxColorLength)
+			return
+		}
+		key := strings.ToUpper(color)
+		if seen[key] {
+			v.check(false, "colors", "não pode repetir uma cor (%s)", color)
+			return
+		}
+		seen[key] = true
+	}
+}
+
+// HasColor diz se o produto vende a cor (sem diferenciar maiúsculas); sem cores, só o vazio vale.
+func (p *Product) HasColor(color string) bool {
+	if len(p.Colors) == 0 {
+		return color == ""
+	}
+	for _, c := range p.Colors {
+		if strings.EqualFold(c, color) {
+			return true
+		}
+	}
+	return false
 }
 
 // HasSize diz se o produto vende o tamanho (sem diferenciar maiúsculas); sem tamanhos, só o vazio vale.
@@ -154,6 +191,11 @@ func (p *Product) Normalize() {
 	p.SKU = strings.TrimSpace(p.SKU)
 	p.Name = strings.TrimSpace(p.Name)
 	p.Description = strings.TrimSpace(p.Description)
+	if c := p.Personalization; c != nil && !c.IsZero() {
+		c.Label = strings.TrimSpace(c.Label)
+		c.Template = strings.TrimSpace(c.Template)
+	}
+	p.Colors = trimmedList(p.Colors)
 	if p.Sizes != nil {
 		sizes := make([]string, 0, len(p.Sizes))
 		for _, size := range p.Sizes {
@@ -216,4 +258,18 @@ func (c *Campaign) Validate() error {
 func isHTTPURL(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+// trimmedList tira os espaços de cada item e os vazios; nil continua nil (o PUT mantém o gravado).
+func trimmedList(list []string) []string {
+	if list == nil {
+		return nil
+	}
+	out := make([]string, 0, len(list))
+	for _, item := range list {
+		if t := strings.TrimSpace(item); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

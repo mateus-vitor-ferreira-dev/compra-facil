@@ -399,6 +399,9 @@ export interface components {
              */
             images?: components["schemas"]["ProductImage"][];
             sizes: components["schemas"]["ProductSizes"];
+            colors: components["schemas"]["ProductColors"];
+            /** @description O texto que o cliente escreve na compra (ex.: o nome na estampa); nulo, o produto não tem. */
+            personalization: components["schemas"]["Personalization"] | null;
             /** @description Preço de tabela. */
             price: components["schemas"]["Money"];
             /** @description Preço cobrado agora (igual a `price` quando não há campanha ativa). */
@@ -527,6 +530,16 @@ export interface components {
              *     contam como o mesmo). Ausente, mantém os que estão gravados; vazia, o produto deixa de ter tamanho.
              */
             sizes?: components["schemas"]["ProductSizes"];
+            /**
+             * @description As cores que o cliente escolhe na compra, na ordem de exibição, sem repetir (maiúsculas e minúsculas
+             *     contam como a mesma). Ausente, mantém as que estão gravadas; vazia, o produto deixa de ter cor à escolha.
+             */
+            colors?: components["schemas"]["ProductColors"];
+            /**
+             * @description O texto que o cliente escreve na compra. Ausente ou null, mantém a gravada; objeto vazio (`{}`), o produto
+             *     deixa de ter personalização.
+             */
+            personalization?: components["schemas"]["Personalization"] | Record<string, never> | null;
             /** Format: int64 */
             price_cents: number;
             status: components["schemas"]["ProductStatus"];
@@ -542,6 +555,35 @@ export interface components {
          *     ]
          */
         ProductSizes: string[];
+        /**
+         * @description O campo de texto que o cliente preenche na compra e a arte que o recebe. O texto é normalizado (sem espaços
+         *     nas pontas nem repetidos) e aceita letras do alfabeto latino (com acento), algarismos, espaço e `. , ' - & ! ? /`.
+         */
+        Personalization: {
+            /**
+             * @description Rótulo do campo na loja.
+             * @example Nome
+             */
+            label: string;
+            /** @description Caracteres no máximo, depois de normalizar. */
+            max_length: number;
+            required: boolean;
+            /**
+             * @description Id da arte que recebe o texto; depois do `:`, a variante (ex. o kicker "MÃE DE").
+             * @example nome-classico:mae
+             */
+            template: string;
+        };
+        /**
+         * @description As cores que o cliente escolhe na compra (ex.: Branco, Preto), na ordem de exibição. Vazio, o produto não
+         *     tem cor à escolha. Preço e estoque são do produto, iguais em todas as cores.
+         * @example [
+         *       "Branco",
+         *       "Preto",
+         *       "Vinho"
+         *     ]
+         */
+        ProductColors: string[];
         /** @enum {string} */
         ProductSort: "relevance" | "price_asc" | "price_desc" | "discount" | "newest";
         BrandCount: {
