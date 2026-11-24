@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { colorHex } from "@/lib/colors";
+import { announceColor, onColor } from "@/lib/product-color-sync";
 import { normalizePersonalization, type PersonalizationRule } from "@/lib/personalization";
 import { addToCart, type AddState } from "../../carrinho/actions";
 
@@ -150,10 +151,24 @@ function SizePicker({ productId, sizes }: { productId: string; sizes: string[] }
 
 /**
  * As cores como bolinhas (44 px no toque), num grupo de rádio nativo: o nome de cada uma é o rótulo acessível, e o
- * da escolhida aparece por escrito ao lado do título. Nenhuma vem marcada: o cliente escolhe.
+ * da escolhida aparece por escrito ao lado do título. Nenhuma vem marcada: o cliente escolhe. A escolha leva a
+ * galeria para a foto da cor, e a miniatura de uma cor na galeria marca a cor aqui (lib/product-color-sync).
  */
 function ColorPicker({ productId, colors }: { productId: string; colors: string[] }) {
   const [chosen, setChosen] = useState<string>();
+  const inputs = useRef(new Map<string, HTMLInputElement>());
+
+  useEffect(
+    () =>
+      onColor(productId, "galeria", (color) => {
+        const input = inputs.current.get(color);
+        if (!input) return;
+        input.checked = true;
+        setChosen(color);
+      }),
+    [productId],
+  );
+
   return (
     <fieldset className="space-y-1">
       <legend className="text-ink-soft text-sm">
@@ -170,7 +185,14 @@ function ColorPicker({ productId, colors }: { productId: string; colors: string[
                 value={color}
                 required
                 id={`cor-${productId}-${color}`}
-                onChange={() => setChosen(color)}
+                ref={(el) => {
+                  if (el) inputs.current.set(color, el);
+                  else inputs.current.delete(color);
+                }}
+                onChange={() => {
+                  setChosen(color);
+                  announceColor(productId, color, "seletor");
+                }}
                 className="peer sr-only"
               />
               <span className="sr-only">{color}</span>

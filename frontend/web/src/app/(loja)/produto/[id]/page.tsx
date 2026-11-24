@@ -126,6 +126,8 @@ export default async function ProductPage({ params }: Props) {
             alt={p.name}
             categorySlug={p.category.slug}
             sizes="(min-width: 1152px) 640px, (min-width: 768px) 56vw, 100vw"
+            productId={p.id}
+            colors={p.colors}
           />
         </div>
 
