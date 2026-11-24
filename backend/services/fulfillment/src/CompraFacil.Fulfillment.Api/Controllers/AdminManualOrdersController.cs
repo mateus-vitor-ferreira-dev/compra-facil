@@ -64,6 +64,22 @@ public sealed class AdminManualOrdersController(ManualOrderActions actions) : Co
             "O pedido não está na fila de pedidos a fazer");
     }
 
+    /// <summary>
+    /// correctSupplierOrderPlacement (#480): corrige o número do pedido no fornecedor e o que a equipe pagou, enquanto
+    /// o pedido está feito ou em transporte. A margem passa a usar os valores novos; o antes e o depois ficam guardados.
+    /// </summary>
+    [HttpPut("v1/admin/supplier-orders/{order_id:guid}/placement")]
+    [Authorize(Policy = JwtAuth.AdminPolicy)]
+    public async Task<IActionResult> CorrectPlacement([FromRoute(Name = "order_id")] Guid orderId, [FromBody] PlacedRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        Validate(request.Validate());
+        var by = User.FindFirst("email")?.Value ?? User.FindFirst("sub")?.Value ?? "equipe";
+        return Result(await actions.CorrectPlacementAsync(orderId,
+            new StaffPlacement(request.SupplierOrderId!, request.PaidProductCostCents, request.PaidFreightCostCents, by), ct),
+            "Só dá para corrigir o pedido feito no fornecedor ou em transporte");
+    }
+
     /// <summary>markSupplierOrderOutOfStock: o fornecedor não tinha o produto. O pedido falha, e o cliente é estornado.</summary>
     [HttpPost("v1/admin/supplier-orders/{order_id:guid}/out-of-stock")]
     [Authorize(Policy = JwtAuth.AdminPolicy)]

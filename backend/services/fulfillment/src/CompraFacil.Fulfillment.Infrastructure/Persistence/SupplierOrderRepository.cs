@@ -12,6 +12,8 @@ internal sealed class SupplierOrderRepository(FulfillmentDbContext db) : ISuppli
 
     public void Add(SupplierOrder order) => db.SupplierOrders.Add(order);
 
+    public void AddCorrection(PlacementCorrection correction) => db.PlacementCorrections.Add(correction);
+
     public async Task<bool> TryRecordWebhookAsync(string messageId, DateTimeOffset receivedAt, CancellationToken ct)
     {
         if (await db.SupplierWebhooks.AnyAsync(w => w.MessageId == messageId, ct))

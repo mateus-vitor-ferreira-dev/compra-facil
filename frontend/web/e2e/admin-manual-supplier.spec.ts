@@ -111,6 +111,49 @@ test("pedidos a fazer: a ficha de compra, o pedido feito, o rastreio, a entrega 
   await expect(page.getByRole("status")).toHaveText("Pedido 4F5E6A32 marcado como entregue.");
 });
 
+test("o custo do pedido feito pode ser corrigido pelo painel, com os valores de agora preenchidos", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${STUB}/__manual/reset`);
+  await login(page, "/admin/pedidos-a-fazer");
+  const ticket = page.getByRole("listitem", { name: "Pedido 2D3C4E10" });
+  await ticket.getByLabel("Nº do pedido no fornecedor").fill("PED-6001");
+  await ticket.getByLabel("Pago nos produtos (R$)").fill("45,25");
+  await ticket.getByLabel("Pago no frete (R$)").fill("15,74");
+  await ticket.getByRole("button", { name: "Registrar o pedido feito para o pedido 2D3C4E10" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Pedido 2D3C4E10 registrado. O cliente vê que ele foi para o fornecedor.",
+  );
+
+  const mine = page
+    .getByRole("region", { name: /^Esperando o rastreio/ })
+    .getByRole("listitem")
+    .filter({ hasText: "Pedido 2D3C4E10" });
+  await expect(mine).toContainText(/pago R\$\s60,99 \(frete R\$\s15,74\)/);
+  await mine.getByText("Corrigir custo").click();
+  const products = mine.getByLabel("Pago nos produtos (R$)");
+  await expect(products).toHaveValue("45,25");
+  await expect(mine.getByLabel("Nº do pedido no fornecedor")).toHaveValue("PED-6001");
+
+  // o valor errado diz o que falta, sem gravar
+  await products.fill("abc");
+  await mine.getByRole("button", { name: "Salvar a correção do pedido 2D3C4E10" }).click();
+  await expect(mine.getByText("Use um valor em reais, como 89,90.")).toBeVisible();
+
+  await products.fill("43,25");
+  await mine.getByRole("button", { name: "Salvar a correção do pedido 2D3C4E10" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Custo do pedido 2D3C4E10 corrigido. A margem já usa os valores novos.",
+  );
+  await expect(
+    page
+      .getByRole("region", { name: /^Esperando o rastreio/ })
+      .getByRole("listitem")
+      .filter({ hasText: "Pedido 2D3C4E10" }),
+  ).toContainText(/pago R\$\s58,99 \(frete R\$\s15,74\)/);
+});
+
 test("sem o modo manual, a página manda para os pedidos no fornecedor", async ({ page }) => {
   await page.goto("/admin/pedidos-a-fazer");
   await page.getByLabel("E-mail").fill("admin@exemplo.com");

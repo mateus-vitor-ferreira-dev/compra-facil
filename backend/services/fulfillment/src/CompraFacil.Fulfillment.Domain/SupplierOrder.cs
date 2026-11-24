@@ -225,6 +225,29 @@ public sealed class SupplierOrder
         return MarkPlaced(supplierOrderId, now);
     }
 
+    /// <summary>
+    /// Fornecedor manual (#480): corrige o que a equipe registrou ao fazer o pedido (o número dele no fornecedor e o
+    /// que pagou), enquanto ele está feito ou em transporte. Depois de entregue, devolvido ou cancelado, a margem já
+    /// fechou e não muda. Devolve o registro da correção (antes e depois) ou null quando não pode ou nada mudou.
+    /// </summary>
+    public PlacementCorrection? CorrectPlacement(
+        string supplierOrderId, long? paidProductCostCents, long? paidFreightCostCents, string correctedBy, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(supplierOrderId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correctedBy);
+        if (Status is not (SupplierOrderStatus.Placed or SupplierOrderStatus.Shipped))
+        {
+            return null;
+        }
+        if (SupplierOrderId == supplierOrderId && PaidProductCostCents == paidProductCostCents && PaidFreightCostCents == paidFreightCostCents)
+        {
+            return null;
+        }
+        var correction = PlacementCorrection.Of(this, supplierOrderId, paidProductCostCents, paidFreightCostCents, correctedBy, now);
+        (SupplierOrderId, PaidProductCostCents, PaidFreightCostCents) = (supplierOrderId, paidProductCostCents, paidFreightCostCents);
+        return correction;
+    }
+
     /// <summary>Recusa de negócio (sem estoque, pedido recusado, cancelado pelo fornecedor): não tenta de novo.</summary>
     public SupplierOrderChange Fail(string reason, string? detail, DateTimeOffset now)
     {

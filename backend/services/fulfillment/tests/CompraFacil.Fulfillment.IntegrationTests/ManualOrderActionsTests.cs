@@ -256,4 +256,104 @@ public sealed class ManualOrderActionsTests(ManualSupplierFixture fx) : IClassFi
         var cancelled = await OrderAsync(placed);
         Assert.Equal((SupplierOrderStatus.Failed, SupplierFailureReasons.StoreCancelled), (cancelled.Status, cancelled.FailureReason));
     }
+
+    private async Task<HttpResponseMessage> PutAsync(string path, object body, string token)
+    {
+        using var client = fx.Factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await client.PutAsJsonAsync(path, body, Ct);
+    }
+
+    private async Task<List<PlacementCorrection>> CorrectionsAsync(Guid id)
+    {
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<FulfillmentDbContext>().PlacementCorrections.AsNoTracking()
+            .Where(c => c.OrderId == id).OrderBy(c => c.CorrectedAt).ToListAsync(Ct);
+    }
+
+    [Fact]
+    public async Task O_custo_do_pedido_feito_pode_ser_corrigido_e_a_correcao_fica_no_historico()
+    {
+        var id = await PaidOrderAsync();
+        var correction = new { supplier_order_id = "M-1499898", paid_product_cost_cents = 4325, paid_freight_cost_cents = 1574 };
+
+        // ainda na fila: nada para corrigir
+        using (var early = await PutAsync($"/v1/admin/supplier-orders/{id}/placement", correction, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, early.StatusCode);
+        }
+        using (var placed = await PostAsync($"/v1/admin/supplier-orders/{id}/placed",
+            new { supplier_order_id = "M-1499898", paid_product_cost_cents = 4525, paid_freight_cost_cents = 1574 }, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, placed.StatusCode);
+        }
+        var events = await EventsAsync(id);
+
+        using (var fixedCost = await PutAsync($"/v1/admin/supplier-orders/{id}/placement", correction, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, fixedCost.StatusCode);
+        }
+        var order = await OrderAsync(id);
+        Assert.Equal(("M-1499898", 4325L, 1574L), (order.SupplierOrderId, order.PaidProductCostCents!.Value, order.PaidFreightCostCents!.Value));
+        var history = Assert.Single(await CorrectionsAsync(id));
+        Assert.Equal((4525L, 4325L), (history.PreviousPaidProductCostCents!.Value, history.PaidProductCostCents!.Value));
+        Assert.False(string.IsNullOrWhiteSpace(history.CorrectedBy));
+        Assert.Equal(events, await EventsAsync(id)); // o cliente não vê nada: nenhum evento novo
+
+        // os mesmos valores: sucesso, sem outra linha no histórico
+        using (var same = await PutAsync($"/v1/admin/supplier-orders/{id}/placement", correction, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, same.StatusCode);
+        }
+        Assert.Single(await CorrectionsAsync(id));
+
+        // em transporte ainda dá; depois de entregue, a margem fechou
+        using (var tracking = await PostAsync($"/v1/admin/supplier-orders/{id}/tracking", new { number = "BR123456789BR" }, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, tracking.StatusCode);
+        }
+        using (var inTransit = await PutAsync($"/v1/admin/supplier-orders/{id}/placement",
+            new { supplier_order_id = "M-1499898", paid_product_cost_cents = 4325, paid_freight_cost_cents = 1500 }, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, inTransit.StatusCode);
+        }
+        Assert.Equal(2, (await CorrectionsAsync(id)).Count);
+        using (var delivered = await PostAsync($"/v1/admin/supplier-orders/{id}/delivered", null, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, delivered.StatusCode);
+        }
+        using (var late = await PutAsync($"/v1/admin/supplier-orders/{id}/placement", correction, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, late.StatusCode);
+        }
+        Assert.Equal(1500L, (await OrderAsync(id)).PaidFreightCostCents!.Value);
+    }
+
+    [Fact]
+    public async Task A_correcao_valida_os_valores_e_e_so_do_operador()
+    {
+        var id = await PaidOrderAsync();
+        using (var placed = await PostAsync($"/v1/admin/supplier-orders/{id}/placed", new { supplier_order_id = "M-1" }, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, placed.StatusCode);
+        }
+        using (var invalid = await PutAsync($"/v1/admin/supplier-orders/{id}/placement",
+            new { supplier_order_id = "", paid_product_cost_cents = 0 }, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, invalid.StatusCode);
+        }
+        using (var missing = await PutAsync($"/v1/admin/supplier-orders/{Guid.NewGuid()}/placement",
+            new { supplier_order_id = "M-1" }, fx.Identity.AdminToken()))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        }
+        using (var auditor = await PutAsync($"/v1/admin/supplier-orders/{id}/placement", new { supplier_order_id = "M-2" }, fx.Identity.AuditorToken()))
+        {
+            Assert.Equal(HttpStatusCode.Forbidden, auditor.StatusCode);
+        }
+        using var client = fx.Factory.CreateClient();
+        using var anonymous = await client.PutAsJsonAsync($"/v1/admin/supplier-orders/{id}/placement", new { supplier_order_id = "M-2" }, Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Empty(await CorrectionsAsync(id));
+    }
 }

@@ -318,6 +318,62 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                     b.ToTable("order_payment_fees", (string)null);
                 });
 
+            modelBuilder.Entity("CompraFacil.Fulfillment.Domain.PlacementCorrection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CorrectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("corrected_at");
+
+                    b.Property<string>("CorrectedBy")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("corrected_by");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<long?>("PaidFreightCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paid_freight_cost_cents");
+
+                    b.Property<long?>("PaidProductCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paid_product_cost_cents");
+
+                    b.Property<long?>("PreviousPaidFreightCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("previous_paid_freight_cost_cents");
+
+                    b.Property<long?>("PreviousPaidProductCostCents")
+                        .HasColumnType("bigint")
+                        .HasColumnName("previous_paid_product_cost_cents");
+
+                    b.Property<string>("PreviousSupplierOrderId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("previous_supplier_order_id");
+
+                    b.Property<string>("SupplierOrderId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("supplier_order_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_placement_corrections");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_placement_corrections_order_id");
+
+                    b.ToTable("placement_corrections", (string)null);
+                });
+
             modelBuilder.Entity("CompraFacil.Fulfillment.Domain.SupplierOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -758,8 +814,12 @@ namespace CompraFacil.Fulfillment.Infrastructure.Migrations
                             b1.Property<int>("__synthesizedOrdinal")
                                 .ValueGeneratedOnAdd();
 
+                            b1.Property<string>("Color");
+
                             b1.Property<string>("Name")
                                 .IsRequired();
+
+                            b1.Property<string>("Personalization");
 
                             b1.Property<int>("Quantity");
 

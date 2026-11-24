@@ -9,6 +9,9 @@ public interface ISupplierOrderRepository
     /// <summary>Entra no SaveChanges do consumer (mesma transação do inbox e do outbox).</summary>
     void Add(SupplierOrder order);
 
+    /// <summary>Guarda a correção do que a equipe registrou no pedido feito (#480); entra no SaveChanges.</summary>
+    void AddCorrection(PlacementCorrection correction);
+
     /// <summary>Registra a mensagem do webhook; false se ela já tinha chegado (o fornecedor repete).</summary>
     Task<bool> TryRecordWebhookAsync(string messageId, DateTimeOffset receivedAt, CancellationToken ct);
 

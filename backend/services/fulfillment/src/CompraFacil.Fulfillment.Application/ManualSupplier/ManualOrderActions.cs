@@ -32,6 +32,33 @@ public sealed class ManualOrderActions(ISupplierOrderRepository orders, IOutbox 
             placement.SupplierOrderId.Trim(), placement.PaidProductCostCents, placement.PaidFreightCostCents, placement.PlacedBy, clock.GetUtcNow()), ct);
     }
 
+    /// <summary>
+    /// Corrige o que a equipe registrou no pedido feito (#480): o número no fornecedor e o que pagou. Não publica
+    /// evento (o cliente não vê nada disso); a margem passa a usar os valores novos, e a correção fica no histórico.
+    /// </summary>
+    public async Task<SupplierOrderActionResult> CorrectPlacementAsync(Guid orderId, StaffPlacement placement, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(placement);
+        return await OptimisticConcurrency.RetryAsync(orders.Reset, async () =>
+        {
+            if (await orders.GetAsync(orderId, ct) is not { } order || order.Supplier != ManualSupplierMode.SupplierName)
+            {
+                return SupplierOrderActionResult.NotFound;
+            }
+            if (order.Status is not (SupplierOrderStatus.Placed or SupplierOrderStatus.Shipped))
+            {
+                return SupplierOrderActionResult.NotAllowed;
+            }
+            if (order.CorrectPlacement(placement.SupplierOrderId.Trim(), placement.PaidProductCostCents, placement.PaidFreightCostCents,
+                    placement.PlacedBy, clock.GetUtcNow()) is { } correction)
+            {
+                orders.AddCorrection(correction);
+                await orders.SaveChangesAsync(ct);
+            }
+            return SupplierOrderActionResult.Done; // sem mudança também é sucesso: os valores já são esses
+        });
+    }
+
     /// <summary>O fornecedor não tem o produto: o pedido falha como recusa por estoque, e o cliente é estornado.</summary>
     public Task<SupplierOrderActionResult> OutOfStockAsync(Guid orderId, string? detail, CancellationToken ct) =>
         ApplyAsync(orderId, o => o.Status == SupplierOrderStatus.AwaitingStaff
