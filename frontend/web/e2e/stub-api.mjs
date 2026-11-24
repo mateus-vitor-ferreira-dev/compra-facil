@@ -209,6 +209,10 @@ products[11].personalization = {
 };
 // um fone (12) com cores à escolha
 products[12].colors = ["Branco", "Preto", "Vinho"];
+// uma foto por cor, na ordem das cores: a galeria acompanha a cor escolhida
+products[12].images = ["whitesmoke", "black", "maroon"].map(photo);
+products[12].image = products[12].images[0];
+products[12].image_url = products[12].images[0].url;
 
 // o notebook (2) tem só 3 unidades e o último fone (32) esgotou: exercitam os limites do carrinho
 const baseStock = (id) => ({ [products[2].id]: 3, [products[32].id]: 0 })[id] ?? 100;

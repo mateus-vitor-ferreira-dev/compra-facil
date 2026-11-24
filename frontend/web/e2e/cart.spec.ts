@@ -263,3 +263,21 @@ test("o produto com cor pede a escolha, e cada cor é uma linha do carrinho", as
   await expect(list.getByRole("listitem")).toHaveCount(1);
   await expect(list).toContainText("Cor Preto");
 });
+
+test("a foto acompanha a cor: escolher a cor traz a foto dela, e a miniatura marca a cor", async ({
+  page,
+}) => {
+  await page.goto(COM_COR);
+  await page.locator("form[action] input[name=quantity]").waitFor();
+  const colors = page.getByRole("group", { name: /^Cor/ });
+
+  await colors.getByRole("radio", { name: "Preto" }).check({ force: true });
+  await expect(page.getByRole("button", { name: /^Ver a foto 2 de 3, cor Preto$/ })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+
+  await page.getByRole("button", { name: /^Ver a foto 3 de 3, cor Vinho$/ }).click();
+  await expect(colors).toHaveAccessibleName("Cor: Vinho");
+  await expect(colors.getByRole("radio", { name: "Vinho" })).toBeChecked();
+});
