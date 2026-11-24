@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlaceOrderForm, TrackingForm } from "@/components/admin/manual-order-forms";
+import { CorrectPlacementForm, PlaceOrderForm, TrackingForm } from "@/components/admin/manual-order-forms";
 import { buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { StateMessage } from "@/components/ui/state";
@@ -42,6 +42,11 @@ function notice(q: Record<string, string | string[] | undefined>): { ok: boolean
   const n = (k: string) => orderNumber(String(q[k]));
   if (typeof q.feito === "string")
     return { ok: true, text: `Pedido ${n("feito")} registrado. O cliente vê que ele foi para o fornecedor.` };
+  if (typeof q.corrigido === "string")
+    return {
+      ok: true,
+      text: `Custo do pedido ${n("corrigido")} corrigido. A margem já usa os valores novos.`,
+    };
   if (typeof q.rastreio === "string")
     return { ok: true, text: `Rastreio do pedido ${n("rastreio")} enviado ao cliente.` };
   if (typeof q.entregue === "string")
@@ -165,7 +170,10 @@ export default async function OrdersToPlace({ searchParams }: Props) {
               <>
                 <OrderLine order={o} />
                 <TrackingForm orderId={o.order_id} number={orderNumber(o.order_id)} />
-                <CancelPlaced order={o} />
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  <CorrectPlacementForm orderId={o.order_id} number={orderNumber(o.order_id)} current={o} />
+                  <CancelPlaced order={o} />
+                </div>
               </>
             )}
           </Stage>
@@ -177,15 +185,18 @@ export default async function OrdersToPlace({ searchParams }: Props) {
             result={shipped}
           >
             {(o) => (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <OrderLine order={o} />
-                <form action={deliverOrder}>
-                  <input type="hidden" name="order_id" value={o.order_id} />
-                  <SubmitButton variant="secondary" size="sm" pendingLabel="Registrando…">
-                    Marcar como entregue<span className="sr-only"> o pedido {orderNumber(o.order_id)}</span>
-                  </SubmitButton>
-                </form>
-              </div>
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <OrderLine order={o} />
+                  <form action={deliverOrder}>
+                    <input type="hidden" name="order_id" value={o.order_id} />
+                    <SubmitButton variant="secondary" size="sm" pendingLabel="Registrando…">
+                      Marcar como entregue<span className="sr-only"> o pedido {orderNumber(o.order_id)}</span>
+                    </SubmitButton>
+                  </form>
+                </div>
+                <CorrectPlacementForm orderId={o.order_id} number={orderNumber(o.order_id)} current={o} />
+              </>
             )}
           </Stage>
         </>
@@ -266,6 +277,12 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
           </>
         )}
         {o.tracking && <>; rastreio {o.tracking.number}</>}
+        {(o.paid_product_cost_cents != null || o.paid_freight_cost_cents != null) && (
+          <>
+            ; pago {brl((o.paid_product_cost_cents ?? 0) + (o.paid_freight_cost_cents ?? 0))}
+            {o.paid_freight_cost_cents != null && <> (frete {brl(o.paid_freight_cost_cents)})</>}
+          </>
+        )}
       </p>
     </div>
   );

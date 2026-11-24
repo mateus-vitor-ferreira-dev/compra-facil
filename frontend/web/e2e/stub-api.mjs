@@ -1238,6 +1238,22 @@ async function manualSupplier(req, res, url) {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     return list(url.searchParams.get("status"));
   }
+  // a correção do pedido feito (#480): o número no fornecedor e o que a equipe pagou, só feito ou em transporte
+  const correction = url.pathname.match(
+    /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/placement$/,
+  );
+  if (req.method === "PUT" && correction && manual.has(correction[1])) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const order = manual.get(correction[1]);
+    if (!["placed", "shipped"].includes(order.status)) return problem(res, 409, "Ação indisponível");
+    const body = await json(req);
+    Object.assign(order, {
+      supplier_order_id: body.supplier_order_id,
+      paid_product_cost_cents: body.paid_product_cost_cents ?? null,
+      paid_freight_cost_cents: body.paid_freight_cost_cents ?? null,
+    });
+    return res.writeHead(204).end();
+  }
   const action = url.pathname.match(
     /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/(placed|out-of-stock|tracking|delivered|cancel)$/,
   );

@@ -13,6 +13,7 @@ public sealed class FulfillmentDbContext(DbContextOptions<FulfillmentDbContext> 
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<SupplierReturn> SupplierReturns => Set<SupplierReturn>();
     public DbSet<OrderPaymentFee> OrderPaymentFees => Set<OrderPaymentFee>();
+    public DbSet<PlacementCorrection> PlacementCorrections => Set<PlacementCorrection>();
     public DbSet<ManualCatalogItem> ManualCatalogItems => Set<ManualCatalogItem>();
     internal DbSet<SupplierWebhook> SupplierWebhooks => Set<SupplierWebhook>();
 

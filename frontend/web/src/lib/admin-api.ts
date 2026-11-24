@@ -399,6 +399,16 @@ export function markOrderPlaced(token: string, orderId: string, body: PlacedInpu
   );
 }
 
+/** Corrige o número no fornecedor e o que a equipe pagou num pedido feito ou em transporte (#480). */
+export function correctOrderPlacement(token: string, orderId: string, body: PlacedInput) {
+  return run(() =>
+    api.fulfillment({ token }).PUT("/v1/admin/supplier-orders/{order_id}/placement", {
+      params: { path: { order_id: orderId } },
+      body,
+    }),
+  );
+}
+
 export function markOrderOutOfStock(token: string, orderId: string, detail?: string) {
   return run(() =>
     api.fulfillment({ token }).POST("/v1/admin/supplier-orders/{order_id}/out-of-stock", {
