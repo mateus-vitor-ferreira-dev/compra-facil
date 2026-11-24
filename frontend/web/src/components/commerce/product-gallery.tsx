@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { ProductImage as Image } from "@/lib/catalog";
+import { announceColor, colorsByPhoto, onColor } from "@/lib/product-color-sync";
 import { cn } from "@/lib/utils";
 import { ProductImage } from "./product-image";
 
@@ -9,21 +10,40 @@ import { ProductImage } from "./product-image";
  * As fotos do produto (#207): uma faixa com scroll-snap, que o dedo arrasta sem JavaScript, e as miniaturas
  * para ir direto a uma foto. As setas e Home/End andam pelas fotos, com o foco na faixa ou nas miniaturas.
  * Cada foto tem o próprio srcset, e só a primeira é de primeira dobra.
+ *
+ * Com `productId` e `colors`, a foto acompanha a cor: escolher a cor no formulário traz a foto dela, e a miniatura
+ * de uma cor marca essa cor no formulário (ver lib/product-color-sync).
  */
 export function ProductGallery({
   images,
   alt,
   categorySlug,
   sizes,
+  productId,
+  colors,
 }: {
   images: Image[];
   alt: string;
   categorySlug: string;
   sizes: string;
+  productId?: string;
+  colors?: string[];
 }) {
   const [current, setCurrent] = useState(0);
   const rail = useRef<HTMLDivElement>(null);
   const thumbs = useRef<(HTMLButtonElement | null)[]>([]);
+  const byPhoto = colorsByPhoto(colors, images.length);
+
+  // a cor escolhida no formulário traz a foto dela
+  useEffect(() => {
+    if (!productId || !byPhoto) return;
+    return onColor(productId, "seletor", (color) => {
+      const index = byPhoto.indexOf(color);
+      if (index < 0) return;
+      rail.current?.scrollTo({ left: index * rail.current.clientWidth });
+      setCurrent(index);
+    });
+  }, [productId, byPhoto]);
 
   if (images.length <= 1) {
     return <ProductImage image={images[0]} alt={alt} categorySlug={categorySlug} sizes={sizes} priority />;
@@ -85,9 +105,17 @@ export function ProductGallery({
                 thumbs.current[i] = el;
               }}
               type="button"
-              aria-label={`Ver a foto ${i + 1} de ${images.length}`}
+              aria-label={
+                byPhoto?.[i]
+                  ? `Ver a foto ${i + 1} de ${images.length}, cor ${byPhoto[i]}`
+                  : `Ver a foto ${i + 1} de ${images.length}`
+              }
               aria-current={i === current ? "true" : undefined}
-              onClick={() => show(i)}
+              onClick={() => {
+                show(i);
+                // a miniatura de uma cor marca a cor no formulário
+                if (productId && byPhoto?.[i]) announceColor(productId, byPhoto[i], "galeria");
+              }}
               className={cn(
                 "block size-16 cursor-pointer overflow-hidden rounded-md border-2 p-0.5 sm:size-20",
                 i === current ? "border-ink" : "hover:border-ink/40 border-transparent",
