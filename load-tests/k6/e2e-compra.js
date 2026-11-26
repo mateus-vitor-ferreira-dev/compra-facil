@@ -96,6 +96,8 @@ function createProduct(token, categoryId, label, priceCents = 1990) {
   const sku = `E2E-${label}-${Math.floor(Math.random() * 1e8)}`.toUpperCase().slice(0, 32);
   const res = http.post(`${GATEWAY}/catalog/v1/admin/products`, json({
     sku, name: `Produto e2e ${label}`, category_id: categoryId, price_cents: priceCents, status: 'active',
+    // produto à venda precisa do código no fornecedor (#483); sem cor, a chave é vazia
+    supplier_products: { '': sku },
   }), { headers: auth(token), tags: { name: 'admin-product' } });
   if (res.status !== 201) fail(`criar produto ${label}: ${res.status} ${res.body}`);
   const id = res.json('id');

@@ -261,3 +261,49 @@ func TestProduct_ColorsNormalizeAndHasColor(t *testing.T) {
 	assert.True(t, sem.HasColor(""))
 	assert.False(t, sem.HasColor("Preto"))
 }
+
+func TestProduct_CheckSupplierProducts(t *testing.T) {
+	feed := &SupplierInfo{Name: "supplier-sim", VID: "v1", CostCents: 100, CostCurrency: "BRL"}
+	tests := []struct {
+		name   string
+		p      Product
+		fields []string
+	}{
+		{"ativo sem cor com um código", Product{Status: ProductActive, SupplierProducts: map[string]string{NoColor: "6168525"}}, nil},
+		{"ativo com o código de cada cor", Product{Status: ProductActive, Colors: []string{"Branco", "Preto"},
+			SupplierProducts: map[string]string{"Branco": "6167609", "Preto": "6167609"}}, nil},
+		{"vermelho em outro produto da Montink", Product{Status: ProductActive, Colors: []string{"Branco", "Vermelho"},
+			SupplierProducts: map[string]string{"Branco": "6167609", "Vermelho": "6170001"}}, nil},
+		{"ativo sem fornecedor", Product{Status: ProductActive}, []string{"supplier_products"}},
+		{"ativo com mapa vazio", Product{Status: ProductActive, SupplierProducts: map[string]string{}}, []string{"supplier_products"}},
+		{"ativo do feed de dropshipping", Product{Status: ProductActive, Supplier: feed}, nil},
+		{"rascunho sem fornecedor", Product{Status: ProductDraft, Colors: []string{"Branco"}}, nil},
+		{"inativo sem fornecedor", Product{Status: ProductInactive}, nil},
+		{"cor à venda sem código", Product{Status: ProductActive, Colors: []string{"Branco", "Vermelho"},
+			SupplierProducts: map[string]string{"Branco": "6167609"}}, []string{"supplier_products"}},
+		{"código de cor que não está à venda", Product{Status: ProductActive, Colors: []string{"Branco"},
+			SupplierProducts: map[string]string{"Branco": "6167609", "Vermelho": "6170001"}}, []string{"supplier_products"}},
+		{"produto com cor e código sem cor", Product{Status: ProductActive, Colors: []string{"Branco"},
+			SupplierProducts: map[string]string{NoColor: "6167609"}}, []string{"supplier_products"}},
+		{"produto sem cor e código por cor", Product{Status: ProductActive,
+			SupplierProducts: map[string]string{"Branco": "6167609"}}, []string{"supplier_products"}},
+		{"rascunho com código errado também não passa", Product{Status: ProductDraft,
+			SupplierProducts: map[string]string{NoColor: "com espaço"}}, []string{"supplier_products"}},
+		{"código vazio", Product{Status: ProductActive, SupplierProducts: map[string]string{NoColor: ""}}, []string{"supplier_products"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.fields, fieldsOf(t, tt.p.CheckSupplierProducts()))
+		})
+	}
+}
+
+func TestProduct_Normalize_SupplierProducts(t *testing.T) {
+	p := Product{SupplierProducts: map[string]string{" Branco ": " 6167609 "}}
+	p.Normalize()
+	assert.Equal(t, map[string]string{"Branco": "6167609"}, p.SupplierProducts)
+
+	var none Product
+	none.Normalize()
+	assert.Nil(t, none.SupplierProducts, "nil continua nil: o PUT mantém os gravados")
+}

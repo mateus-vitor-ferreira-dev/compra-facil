@@ -67,11 +67,15 @@ const (
 	MaxSizeLength      = 10
 	MaxColors          = 12
 	MaxColorLength     = 20
+	// NoColor é a chave de SupplierProducts no produto sem cor à escolha.
+	NoColor = ""
 )
 
 var (
 	skuPattern  = regexp.MustCompile(`^[A-Z0-9][A-Z0-9-]{2,31}$`)
 	slugPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	// código do produto no fornecedor (o id numérico da Montink, ou outro código sem espaço)
+	supplierProductPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 )
 
 func (s ProductStatus) Valid() bool {
@@ -143,6 +147,49 @@ func (p *Product) validateColors(v *validator) {
 	}
 }
 
+// CheckSupplierProducts confere o vínculo com o fornecedor manual no produto como fica gravado (no Update, depois de
+// juntar o que o PUT manteve): cada cor à venda tem o código de um produto no fornecedor, e nenhum código sobra para
+// uma cor que não está à venda; o produto sem cor tem um código só (chave NoColor). Ativo, o produto precisa de
+// fornecedor, a não ser que venha do feed de dropshipping: sem isso, o cliente compraria o que a loja não consegue
+// pedir (#483).
+func (p *Product) CheckSupplierProducts() error {
+	var v validator
+	const field = "supplier_products"
+	for color, code := range p.SupplierProducts {
+		if !supplierProductPattern.MatchString(code) {
+			v.check(false, field, "o código de %q deve ter de 1 a 64 letras, dígitos, hífen ou sublinhado", colorLabel(color))
+			return v.err()
+		}
+	}
+	if len(p.SupplierProducts) > 0 {
+		if len(p.Colors) == 0 {
+			_, ok := p.SupplierProducts[NoColor]
+			v.check(ok && len(p.SupplierProducts) == 1, field, "o produto sem cor à escolha leva um código só, sem cor")
+		} else {
+			missing := []string{}
+			for _, c := range p.Colors {
+				if _, ok := p.SupplierProducts[c]; !ok {
+					missing = append(missing, c)
+				}
+			}
+			v.check(len(missing) == 0, field, "falta o código no fornecedor da cor %s (tire a cor ou informe o código)", strings.Join(missing, ", "))
+			if len(missing) == 0 {
+				v.check(len(p.SupplierProducts) == len(p.Colors), field, "há código para uma cor que não está à venda")
+			}
+		}
+	}
+	v.check(p.Status != ProductActive || p.Supplier != nil || len(p.SupplierProducts) > 0, field,
+		"para pôr à venda, informe o código do produto no fornecedor (Montink)")
+	return v.err()
+}
+
+func colorLabel(color string) string {
+	if color == NoColor {
+		return "sem cor"
+	}
+	return color
+}
+
 // HasColor diz se o produto vende a cor (sem diferenciar maiúsculas); sem cores, só o vazio vale.
 func (p *Product) HasColor(color string) bool {
 	if len(p.Colors) == 0 {
@@ -196,6 +243,13 @@ func (p *Product) Normalize() {
 		c.Template = strings.TrimSpace(c.Template)
 	}
 	p.Colors = trimmedList(p.Colors)
+	if p.SupplierProducts != nil {
+		trimmed := make(map[string]string, len(p.SupplierProducts))
+		for color, code := range p.SupplierProducts {
+			trimmed[strings.TrimSpace(color)] = strings.TrimSpace(code)
+		}
+		p.SupplierProducts = trimmed
+	}
 	if p.Sizes != nil {
 		sizes := make([]string, 0, len(p.Sizes))
 		for _, size := range p.Sizes {

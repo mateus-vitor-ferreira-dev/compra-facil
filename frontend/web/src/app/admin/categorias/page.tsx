@@ -11,6 +11,15 @@ export const metadata: Metadata = { title: "Categorias" };
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
+/** Quantos produtos estão à venda; sem nenhum, a categoria some da loja até o primeiro (#483). */
+function onSaleLabel(n: number) {
+  return n === 0
+    ? "fora da loja: nenhum produto à venda"
+    : n === 1
+      ? "1 produto à venda"
+      : `${n} produtos à venda`;
+}
+
 /** Os departamentos, as subcategorias e os tipos de cada um, e a criação de uma nova. */
 export default async function AdminCategories({ searchParams }: Props) {
   await requireAdmin("/admin/categorias");
@@ -52,7 +61,10 @@ export default async function AdminCategories({ searchParams }: Props) {
               return (
                 <li key={root.id} className="space-y-2 p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 className="text-lg font-semibold">{root.name}</h2>
+                    <div>
+                      <h2 className="text-lg font-semibold">{root.name}</h2>
+                      <p className="text-ink-soft text-sm">{onSaleLabel(root.active_products)}</p>
+                    </div>
                     <Link
                       href={`/categoria/${root.slug}`}
                       className="text-ink-soft text-sm underline-offset-4 hover:underline"
@@ -68,9 +80,13 @@ export default async function AdminCategories({ searchParams }: Props) {
                           <li key={c.id} className="flex flex-wrap items-center gap-2">
                             <Link
                               href={`/categoria/${c.slug}`}
+                              title={onSaleLabel(c.active_products)}
                               className="bg-ink/12 hover:bg-ink/20 inline-flex min-h-9 items-center rounded-full px-3 text-sm font-medium pointer-coarse:min-h-11"
                             >
                               {c.name}
+                              {c.active_products === 0 && (
+                                <span className="text-ink-soft ml-1">(fora da loja)</span>
+                              )}
                             </Link>
                             {types.map((t) => (
                               <Link

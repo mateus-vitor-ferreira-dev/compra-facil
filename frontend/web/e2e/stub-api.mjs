@@ -138,6 +138,8 @@ const categories = [
     name: "Notebooks",
     parent_id: "0199f6a0-0000-7000-8000-0000000000b0",
   },
+  // sem nenhum produto à venda (#483): fora do menu, da home, do sitemap, e a página é 404
+  { id: "0199f6a0-0000-7000-8000-0000000000c0", slug: "brinquedos", name: "Brinquedos", parent_id: null },
 ];
 const bySlug = Object.fromEntries(categories.map((c) => [c.slug, c]));
 
@@ -221,7 +223,15 @@ const adjustments = new Map();
 const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
 
 // o painel: situação e versão de cada produto (a versão é o ETag)
-for (const p of products) Object.assign(p, { status: "active", version: 1, supplier: null });
+// o código na Montink (#483): um só, sem cor; o do feed de dropshipping não precisa
+for (const [i, p] of products.entries()) {
+  Object.assign(p, {
+    status: "active",
+    version: 1,
+    supplier: null,
+    supplier_products: { "": `61${1000 + i}` },
+  });
+}
 // o headset vem do fornecedor de dropshipping (#217)
 products.at(-1).supplier = {
   name: "cj",
@@ -391,6 +401,29 @@ const refundsAgain = new Set();
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
 
+/** Como o catalog: à venda só com o código no fornecedor (o do feed de dropshipping tem o dele). */
+function withoutSupplier(res, body, p) {
+  const codes = body.supplier_products ?? p?.supplier_products ?? {};
+  if (body.status !== "active" || p?.supplier || Object.keys(codes).length > 0) return false;
+  send(
+    res,
+    422,
+    {
+      type: "about:blank",
+      title: "Dados inválidos",
+      status: 422,
+      errors: [
+        {
+          field: "supplier_products",
+          message: "para pôr à venda, informe o código do produto no fornecedor (Montink)",
+        },
+      ],
+    },
+    "application/problem+json",
+  );
+  return true;
+}
+
 /** Corpo do ProductInput aplicado ao produto (o preço novo vale para o efetivo sem campanha). */
 function applyInput(p, body) {
   const category = categories.find((c) => c.id === body.category_id) ?? p.category;
@@ -407,6 +440,7 @@ function applyInput(p, body) {
       variants: [],
     })),
     status: body.status,
+    supplier_products: body.supplier_products ?? p.supplier_products ?? {},
     category: { id: category.id, slug: category.slug, name: category.name },
     price: { amount_cents: body.price_cents, currency: "BRL" },
     effective_price: {
@@ -433,6 +467,7 @@ async function admin(req, res, url) {
       const body = await json(req);
       if (req.headers["if-match"] !== `"${p.version}"`) return problem(res, 412, "Versão desatualizada");
       if (products.some((x) => x.id !== p.id && x.sku === body.sku)) return problem(res, 409, "Conflito");
+      if (withoutSupplier(res, body, p)) return;
       applyInput(p, body);
       p.version++;
       res.setHeader("ETag", `"${p.version}"`);
@@ -486,10 +521,12 @@ async function admin(req, res, url) {
         "application/problem+json",
       );
     }
+    if (withoutSupplier(res, body, null)) return;
     const p = {
       id: crypto.randomUUID(),
       campaign: null,
       image: null,
+      supplier: null,
       version: 1,
       created_at: new Date().toISOString(),
     };
@@ -1733,7 +1770,15 @@ createServer(async (req, res) => {
       });
     }
     case "GET /catalog/v1/categories":
-      return send(res, 200, { data: categories });
+      // como o catalog: os produtos à venda na categoria e nas descendentes
+      return send(res, 200, {
+        data: categories.map((c) => ({
+          ...c,
+          active_products: products.filter(
+            (p) => p.status === "active" && subtree(c.id).includes(p.category.slug),
+          ).length,
+        })),
+      });
     case "GET /catalog/v1/campaigns":
       return send(res, 200, { data: campaigns });
     case "POST /identity/v1/accounts": {

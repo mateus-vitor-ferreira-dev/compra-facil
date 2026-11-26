@@ -289,6 +289,7 @@ func TestProductService_AdminList_SearchesAnyStatus(t *testing.T) {
 func validInput(categoryID uuid.UUID) ProductInput {
 	return ProductInput{
 		SKU: " TV-55 ", Name: "Smart TV 55", CategoryID: categoryID, PriceCents: 199990, Status: domain.ProductActive,
+		SupplierProducts: map[string]string{domain.NoColor: "6167609"},
 	}
 }
 
@@ -318,6 +319,17 @@ func TestProductService_Create(t *testing.T) {
 		_, err := svc.Create(ctx, in)
 
 		assert.Equal(t, []string{"price_cents"}, validationFields(t, err))
+		products.AssertNotCalled(t, "Create", anyArg, anyArg)
+	})
+
+	t.Run("à venda sem o código no fornecedor não chega ao banco", func(t *testing.T) {
+		svc, products, _ := newProductService()
+		in := validInput(catID)
+		in.SupplierProducts = nil
+
+		_, err := svc.Create(ctx, in)
+
+		assert.Equal(t, []string{"supplier_products"}, validationFields(t, err))
 		products.AssertNotCalled(t, "Create", anyArg, anyArg)
 	})
 

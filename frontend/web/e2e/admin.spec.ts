@@ -128,3 +128,52 @@ test("cadastro recusa SKU repetido e cria categoria", async ({ page }) => {
     `/categoria/${name.toLowerCase().replace(/ /g, "-")}`,
   );
 });
+
+test("produto só fica à venda com o código na Montink, e a categoria volta sozinha (#483)", async ({
+  page,
+}) => {
+  await signIn(page, "admin@exemplo.com", "/admin/categorias");
+  const category = `Canecas ${Date.now() % 100000}`;
+  const slug = category.toLowerCase().replace(/ /g, "-");
+  await page.getByLabel("Nome").fill(category);
+  await page.getByRole("button", { name: "Criar categoria" }).click();
+  await expect(page.getByRole("status")).toHaveText(`Categoria “${category}” criada.`);
+  await expect(
+    page
+      .getByRole("listitem")
+      .filter({ hasText: category })
+      .getByText("fora da loja: nenhum produto à venda"),
+  ).toBeVisible();
+  expect((await page.goto(`/categoria/${slug}`))?.status(), "vazia, a categoria não aparece na loja").toBe(
+    404,
+  );
+
+  await page.goto("/admin/produtos/novo");
+  await page.getByLabel("Nome").fill("Caneca Tio do Pavê");
+  await page.getByLabel("Marca").fill("Embrulhado");
+  await page.getByLabel("SKU").fill(`CAN-${Date.now() % 100000}`);
+  await page.getByLabel("Categoria").selectOption({ label: `${category} (geral)` });
+  await page.getByLabel("Preço de tabela").fill("49,90");
+  await page.getByLabel("Cores").fill("Branco");
+  await page.getByRole("radio", { name: /À venda/ }).check();
+  await page.getByRole("button", { name: "Cadastrar produto" }).click();
+  const code = page.getByRole("textbox", { name: "Código na Montink" });
+  await expect(code).toHaveAttribute("aria-invalid", "true");
+  await expect(
+    page.getByText("para pôr à venda, informe o código do produto no fornecedor (Montink)"),
+  ).toBeVisible();
+
+  // a cor que não está nas cores do produto o painel recusa antes de mandar
+  await code.fill("Branco: 6168525, Vermelho: 6170123");
+  await page.getByRole("button", { name: "Cadastrar produto" }).click();
+  await expect(page.getByText("A cor “Vermelho” não está nas cores do produto.")).toBeVisible();
+
+  await page.getByRole("textbox", { name: "Código na Montink" }).fill("6168525");
+  await page.getByRole("button", { name: "Cadastrar produto" }).click();
+  await expect(page.getByRole("status")).toHaveText("Produto salvo. A vitrine já mostra a versão nova.");
+  await expect(page.getByRole("textbox", { name: "Código na Montink" })).toHaveValue("6168525");
+
+  const res = await page.goto(`/categoria/${slug}`);
+  expect(res?.status(), "com o primeiro produto à venda, a categoria volta").toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(category);
+});

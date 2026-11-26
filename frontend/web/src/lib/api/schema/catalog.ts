@@ -446,6 +446,7 @@ export interface components {
             status: components["schemas"]["ProductStatus"];
             /** @description Incrementa a cada alteração; é o valor do ETag. */
             version: number;
+            supplier_products: components["schemas"]["SupplierProducts"];
             /**
              * @description De onde vem o produto de dropshipping (#217); nulo no cadastrado pela loja. O preço de venda
              *     sai do custo pela regra de margem e muda quando o custo muda no fornecedor.
@@ -540,9 +541,32 @@ export interface components {
              *     deixa de ter personalização.
              */
             personalization?: components["schemas"]["Personalization"] | Record<string, never> | null;
+            /**
+             * @description O código do produto no fornecedor (Montink) de cada cor à venda. Ausente, mantém os gravados; vazio (`{}`),
+             *     tira. Com cores, leva uma chave por cor (nem mais, nem menos); sem cor, uma chave só, vazia (`""`). Com
+             *     `status` `active`, é obrigatório (422 sem ele), a não ser no produto do feed de dropshipping: a loja não
+             *     vende o que não consegue pedir ao fornecedor.
+             */
+            supplier_products?: components["schemas"]["SupplierProducts"];
             /** Format: int64 */
             price_cents: number;
             status: components["schemas"]["ProductStatus"];
+        };
+        /**
+         * @description O código do produto no fornecedor manual (hoje a Montink) de cada cor à venda: a equipe faz o pedido nele. A
+         *     chave é a cor (ex.: `Vermelho`, que na Montink é outro produto) ou `""` no produto sem cor à escolha. Vazio,
+         *     o produto ainda não tem fornecedor.
+         * @example {
+         *       "Branco": "6167609",
+         *       "Preto": "6167609",
+         *       "Vermelho": "6170123"
+         *     }
+         * @example {
+         *       "": "6168525"
+         *     }
+         */
+        SupplierProducts: {
+            [key: string]: string;
         };
         /**
          * @description Os tamanhos que o cliente escolhe na compra (ex.: P, M, G), na ordem de exibição. Vazio, o produto não tem
@@ -610,6 +634,11 @@ export interface components {
             name: string;
             /** Format: uuid */
             parent_id?: string | null;
+            /**
+             * @description Produtos à venda na categoria e nas descendentes. A loja não mostra a categoria com zero (menu, rodapé,
+             *     home, facetas e sitemap) e ela volta sozinha com o primeiro produto ativo.
+             */
+            active_products: number;
         };
         CategoryRef: {
             /** Format: uuid */

@@ -1067,7 +1067,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/Product"
         - type: object
-          required: [status, version]
+          required: [status, version, supplier_products]
           properties:
             status:
               $ref: "#/components/schemas/ProductStatus"
@@ -1075,6 +1075,8 @@ components:
               type: integer
               description: Incrementa a cada alteração; é o valor do ETag.
               minimum: 1
+            supplier_products:
+              $ref: "#/components/schemas/SupplierProducts"
             supplier:
               description: |
                 De onde vem o produto de dropshipping (#217); nulo no cadastrado pela loja. O preço de venda
@@ -1225,6 +1227,14 @@ components:
               additionalProperties: false
               maxProperties: 0
             - type: "null"
+        supplier_products:
+          allOf:
+            - $ref: "#/components/schemas/SupplierProducts"
+          description: |
+            O código do produto no fornecedor (Montink) de cada cor à venda. Ausente, mantém os gravados; vazio (`{}`),
+            tira. Com cores, leva uma chave por cor (nem mais, nem menos); sem cor, uma chave só, vazia (`""`). Com
+            `status` `active`, é obrigatório (422 sem ele), a não ser no produto do feed de dropshipping: a loja não
+            vende o que não consegue pedir ao fornecedor.
         price_cents:
           type: integer
           format: int64
@@ -1232,6 +1242,20 @@ components:
           maximum: 100000000
         status:
           $ref: "#/components/schemas/ProductStatus"
+
+    SupplierProducts:
+      type: object
+      description: |
+        O código do produto no fornecedor manual (hoje a Montink) de cada cor à venda: a equipe faz o pedido nele. A
+        chave é a cor (ex.: `Vermelho`, que na Montink é outro produto) ou `""` no produto sem cor à escolha. Vazio,
+        o produto ainda não tem fornecedor.
+      additionalProperties:
+        type: string
+        pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+      maxProperties: 12
+      examples:
+        - {"Branco": "6167609", "Preto": "6167609", "Vermelho": "6170123"}
+        - {"": "6168525"}
 
     ProductSizes:
       type: array
@@ -1327,7 +1351,7 @@ components:
 
     Category:
       type: object
-      required: [id, slug, name]
+      required: [id, slug, name, active_products]
       properties:
         id:
           type: string
@@ -1342,6 +1366,12 @@ components:
         parent_id:
           type: [string, "null"]
           format: uuid
+        active_products:
+          type: integer
+          minimum: 0
+          description: |
+            Produtos à venda na categoria e nas descendentes. A loja não mostra a categoria com zero (menu, rodapé,
+            home, facetas e sitemap) e ela volta sozinha com o primeiro produto ativo.
 
     CategoryRef:
       type: object

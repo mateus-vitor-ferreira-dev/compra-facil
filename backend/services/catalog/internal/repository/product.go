@@ -39,7 +39,7 @@ const (
 	// marcas na faceta do filtro
 	maxBrands = 50
 
-	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.gallery, p.sizes, p.colors, p.personalization, p.price_cents,
+	productColumns = `p.id, p.sku, p.name, p.description, p.brand, p.category_id, p.image_url, p.image, p.gallery, p.sizes, p.colors, p.personalization, p.supplier_products, p.price_cents,
 		p.currency, p.status, p.version, p.created_at, p.updated_at,
 		p.supplier, p.supplier_vid, p.cost_cents, p.cost_currency, p.supplier_synced_at, p.supplier_removed_at,
 		cat.slug AS category_slug, cat.name AS category_name,
@@ -103,6 +103,18 @@ func jsonbOf(list []string) (clause.Expr, error) {
 	return gorm.Expr("?::jsonb", string(b)), nil
 }
 
+// supplierProductsJSONB grava os códigos no fornecedor como jsonb; nil vira {}.
+func supplierProductsJSONB(m map[string]string) (clause.Expr, error) {
+	if m == nil {
+		m = map[string]string{}
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return clause.Expr{}, fmt.Errorf("códigos no fornecedor em jsonb: %w", err)
+	}
+	return gorm.Expr("?::jsonb", string(b)), nil
+}
+
 // personalizationJSONB grava a personalização como jsonb; nil vira NULL.
 func personalizationJSONB(c *domain.Personalization) (clause.Expr, error) {
 	if c == nil {
@@ -142,7 +154,8 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expec
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// lê o preço anterior travando a linha: ninguém altera entre a leitura e o UPDATE
 		var before productRecord
-		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency", "image_url", "image", "gallery", "sizes", "colors", "personalization").
+		if err := tx.Clauses(lockForUpdate).Select("price_cents", "currency", "image_url", "image", "gallery", "sizes", "colors", "personalization", "supplier_products",
+			"supplier", "supplier_vid", "cost_cents", "cost_currency", "supplier_synced_at").
 			Where("id = ?", p.ID).Take(&before).Error; err != nil {
 			return err
 		}
@@ -177,25 +190,40 @@ func (r *ProductRepository) Update(ctx context.Context, p *domain.Product, expec
 		if err != nil {
 			return err
 		}
+		// SupplierProducts nil mantém os códigos gravados; vazio tira
+		if p.SupplierProducts == nil {
+			p.SupplierProducts = before.SupplierProducts
+		}
+		supplierProducts, err := supplierProductsJSONB(p.SupplierProducts)
+		if err != nil {
+			return err
+		}
+		// a regra vale para o produto como fica (cores e códigos podem ter vindo do que estava gravado)
+		merged := *p
+		merged.Supplier = before.supplierInfo()
+		if err := merged.CheckSupplierProducts(); err != nil {
+			return err //nolint:wrapcheck // erro de validação vai como está para o cliente
+		}
 		res := tx.Model(&productRecord{}).
 			Where("id = ? AND version = ?", p.ID, expectedVersion).
 			Updates(map[string]any{
-				"sku":             rec.SKU,
-				"name":            rec.Name,
-				"description":     rec.Description,
-				"brand":           rec.Brand,
-				"category_id":     rec.CategoryID,
-				"image_url":       rec.ImageURL,
-				"image":           image,
-				"gallery":         gallery,
-				"sizes":           sizes,
-				"colors":          colors,
-				"personalization": personalization,
-				"price_cents":     rec.PriceCents,
-				"currency":        rec.Currency,
-				"status":          rec.Status,
-				"version":         gorm.Expr("version + 1"),
-				"updated_at":      now,
+				"sku":               rec.SKU,
+				"name":              rec.Name,
+				"description":       rec.Description,
+				"brand":             rec.Brand,
+				"category_id":       rec.CategoryID,
+				"image_url":         rec.ImageURL,
+				"image":             image,
+				"gallery":           gallery,
+				"sizes":             sizes,
+				"colors":            colors,
+				"personalization":   personalization,
+				"supplier_products": supplierProducts,
+				"price_cents":       rec.PriceCents,
+				"currency":          rec.Currency,
+				"status":            rec.Status,
+				"version":           gorm.Expr("version + 1"),
+				"updated_at":        now,
 			})
 		if res.Error != nil {
 			return res.Error
