@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 // KeepOneActive é para a loja de demonstração: as campanhas do seed têm datas relativas ao dia da carga e acabam

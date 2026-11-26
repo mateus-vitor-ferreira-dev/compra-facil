@@ -43,7 +43,7 @@ func Load() (Config, error) {
 func load(getenv func(string) string) (Config, error) {
 	c := Config{
 		LogLevel:        str(getenv, "LOG_LEVEL", "info"),
-		Email:           str(getenv, "SIM_EMAIL", "sim@comprafacil.local"),
+		Email:           str(getenv, "SIM_EMAIL", "sim@embrulhado.local"),
 		Password:        str(getenv, "SIM_PASSWORD", "sim"),
 		AdminToken:      strings.TrimSpace(getenv("SIM_ADMIN_TOKEN")),
 		TokenTTL:        15 * 24 * time.Hour,

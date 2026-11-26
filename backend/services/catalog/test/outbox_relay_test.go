@@ -18,11 +18,11 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 	"gorm.io/gorm"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/events"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/repository"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/migrations"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/events"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/repository"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/migrations"
 )
 
 // Mesmas imagens do compose.

@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/catalog"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/webhook"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/catalog"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/webhook"
 )
 
 // Status da CJ que o simulador percorre.

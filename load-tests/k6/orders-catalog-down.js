@@ -3,7 +3,7 @@
 // Cria pedidos a uma taxa constante enquanto o `task chaos:catalog` derruba o catalog no meio da
 // rodada e o sobe de novo. Com o fallback, o orders precifica pela cópia local do catálogo: nenhum
 // pedido pode falhar (202 é o esperado; 409 é recusa de negócio, não falha). O que muda durante a
-// queda aparece no Grafana: compra_facil_orders_catalog_fallback_total e o circuito do Polly.
+// queda aparece no Grafana: embrulhado_orders_catalog_fallback_total e o circuito do Polly.
 //
 // Pré-requisitos: `task up` e `task seed` (a cópia local nasce dos eventos do seed).
 // Variáveis: CATALOG_URL, ORDERS_URL e IDENTITY_URL (na rede do compose), RATE (pedidos/s, 20), DURATION (60s).

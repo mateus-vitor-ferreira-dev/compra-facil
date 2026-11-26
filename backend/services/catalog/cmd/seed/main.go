@@ -25,10 +25,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/events"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/migrations"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/events"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/migrations"
 )
 
 type options struct {

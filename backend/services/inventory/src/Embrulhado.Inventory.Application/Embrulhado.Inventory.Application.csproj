@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Casos de uso do inventory: orquestram o domínio e validam a entrada (FluentValidation). -->
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Embrulhado.Inventory.Domain/Embrulhado.Inventory.Domain.csproj" />
+    <!-- IOutbox, IHandleEvent e as exceções que viram ProblemDetails -->
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/Embrulhado.BuildingBlocks/Embrulhado.BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>

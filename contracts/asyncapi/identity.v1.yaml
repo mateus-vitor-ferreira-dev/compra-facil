@@ -1,6 +1,6 @@
 asyncapi: 3.1.0
 info:
-  title: CompraFácil — Identity Events
+  title: Embrulhado — Identity Events
   version: 1.0.0
   description: |
     Eventos do serviço **identity** (contas e tokens, ASP.NET Core). Só publica.

@@ -1,0 +1,393 @@
+using Embrulhado.Orders.Domain;
+
+namespace Embrulhado.Orders.UnitTests;
+
+public sealed class OrderTests
+{
+    private static readonly DateTimeOffset s_now = new(2026, 11, 27, 12, 0, 0, TimeSpan.Zero);
+
+    private static OrderItem Item(int quantity = 2, long cents = 1990, Guid? productId = null) =>
+        new(productId ?? Guid.NewGuid(), "SKU-1", "Fone", quantity, new Money(cents, "BRL"), CampaignId: null);
+
+    private static readonly Recipient s_recipient = new("Ana Souza", "52998224725", "11987654321");
+    private static readonly ShippingAddress s_address = new("01310100", "Avenida Paulista", "1000", "Apto 12", "Bela Vista", "São Paulo", "SP");
+
+    private static readonly OrderShipping s_shipping = new("economico", "Econômico", new Money(2430, "BRL"), 13, 21, new DateOnly(2026, 12, 28));
+
+    private static Order Pending(params OrderItem[] items) =>
+        Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", items.Length == 0 ? [Item()] : items, "chave-123", "hash", s_now,
+            s_recipient, s_address, s_shipping);
+
+    private static Order PlaceOnCard(long cents, int installments) =>
+        Order.Place(Guid.NewGuid(), Guid.NewGuid(), "ana@exemplo.com", [Item(quantity: 1, cents: cents)], "chave-123", "hash", s_now,
+            s_recipient, s_address, s_shipping, PaymentMethod.Card, installments);
+
+    [Fact]
+    public void Place_OnCard_AcceptsUpToTheMaximumInstallments() =>
+        Assert.Equal(Order.MaxInstallments, PlaceOnCard(100_000, Order.MaxInstallments).Installments);
+
+    [Fact]
+    public void Place_OnCard_AboveTheMaximumInstallments_Throws() =>
+        Assert.Throws<DomainException>(() => PlaceOnCard(100_000, Order.MaxInstallments + 1));
+
+    [Fact]
+    public void Place_OnCard_InstallmentBelowTheMinimum_Throws() =>
+        Assert.Throws<DomainException>(() => PlaceOnCard(1_000, 2));
+
+    [Fact]
+    public void Place_OnCard_SmallValueInOneInstallment_IsAccepted() =>
+        Assert.Equal(1, PlaceOnCard(1_000, 1).Installments);
+
+    [Fact]
+    public void Place_StartsPending_WithTotalOfLines()
+    {
+        var order = Pending(Item(quantity: 2, cents: 1990), Item(quantity: 1, cents: 5000));
+
+        Assert.Equal(OrderStatus.Pending, order.Status);
+        // os itens (R$ 89,80) mais o frete (R$ 24,30)
+        Assert.Equal(new Money(8980 + 2430, "BRL"), order.Total);
+        Assert.Equal(new Money(3980, "BRL"), order.Items[0].LineTotal);
+        Assert.Null(order.CancellationReason);
+        Assert.Equal(s_now, order.UpdatedAt);
+    }
+
+    [Fact]
+    public void Place_RejectsEmptyTooManyAndRepeated()
+    {
+        var p = Guid.NewGuid();
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [], "k", "h", s_now, s_recipient, s_address, s_shipping));
+        Assert.Throws<DomainException>(() => Pending([.. Enumerable.Range(0, Order.MaxItems + 1).Select(_ => Item())]));
+        Assert.Throws<DomainException>(() => Pending(Item(productId: p), Item(productId: p)));
+    }
+
+    [Theory]
+    [InlineData("2026-10-29T15:00:00Z", 1, "2026-10-30")]  // quinta → sexta
+    [InlineData("2026-10-30T15:00:00Z", 1, "2026-11-02")]  // sexta → segunda
+    [InlineData("2026-10-31T02:00:00Z", 1, "2026-11-02")]  // sexta 23h em Brasília
+    [InlineData("2026-10-29T15:00:00Z", 21, "2026-11-27")]
+    public void Promise_CountsBusinessDaysFromTheDayInBrasilia(string placedAt, int days, string expected) =>
+        Assert.Equal(DateOnly.Parse(expected, System.Globalization.CultureInfo.InvariantCulture),
+            OrderShipping.Promise(DateTimeOffset.Parse(placedAt, System.Globalization.CultureInfo.InvariantCulture), days));
+
+    [Theory]
+    [InlineData("52998224725", true)]
+    [InlineData("529.982.247-25", true)]
+    [InlineData("52998224724", false)]  // verificador errado
+    [InlineData("11111111111", false)]  // todos iguais
+    [InlineData("5299822472", false)]   // 10 dígitos
+    public void Cpf_ChecksTheVerifierDigits(string cpf, bool valid) =>
+        Assert.Equal(valid, BrazilianDocuments.IsValidCpf(cpf));
+
+    [Fact]
+    public void Place_KeepsWhoReceivesAndWhere_AndRejectsAnInvalidCpfOrState()
+    {
+        var order = Pending();
+        Assert.Equal(s_recipient, order.Recipient);
+        Assert.Equal(s_address, order.ShippingAddress);
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
+            s_recipient with { Cpf = "52998224724" }, s_address, s_shipping));
+        Assert.Throws<DomainException>(() => Order.Place(Guid.NewGuid(), Guid.NewGuid(), "a@b.c", [Item()], "k", "h", s_now,
+            s_recipient, s_address with { State = "XX" }, s_shipping));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    public void Place_RejectsQuantityOutOfRange(int quantity) =>
+        Assert.Throws<DomainException>(() => Pending(Item(quantity: quantity)));
+
+    [Fact]
+    public void Place_RejectsMixedCurrencies()
+    {
+        var real = Item();
+        var dollar = Item() with { UnitPrice = new Money(100, "USD") };
+        Assert.Throws<DomainException>(() => Pending(real, dollar));
+    }
+
+    [Fact]
+    public void Confirm_FromPending()
+    {
+        var order = Pending();
+        var payment = Guid.NewGuid();
+
+        order.Confirm(payment, s_now.AddMinutes(1));
+
+        Assert.Equal(OrderStatus.Confirmed, order.Status);
+        Assert.Equal(payment, order.PaymentId);
+        Assert.Equal(s_now.AddMinutes(1), order.UpdatedAt);
+    }
+
+    [Fact]
+    public void MarkStockReserved_MovesToTheChargingStep_Once()
+    {
+        var order = Pending();
+        Assert.Null(order.StockReservedAt);
+
+        Assert.True(order.MarkStockReserved(s_now.AddSeconds(1)));
+        Assert.False(order.MarkStockReserved(s_now.AddSeconds(2))); // evento repetido
+
+        Assert.Equal(OrderStatus.Pending, order.Status);
+        Assert.Equal(s_now.AddSeconds(1), order.StockReservedAt);
+        Assert.Equal(s_now.AddSeconds(1), order.UpdatedAt);
+    }
+
+    [Fact]
+    public void MarkStockReserved_AfterTheEnd_ChangesNothing()
+    {
+        var order = Pending();
+        order.Cancel(CancellationReason.OutOfStock, s_now);
+
+        Assert.False(order.MarkStockReserved(s_now.AddSeconds(1)));
+        Assert.Null(order.StockReservedAt);
+        Assert.Equal(s_now, order.UpdatedAt);
+    }
+
+    [Fact]
+    public void PaymentResult_ImpliesTheReservation_EvenIfStockReservedComesLater()
+    {
+        var confirmed = Pending();
+        confirmed.Confirm(Guid.NewGuid(), s_now.AddSeconds(3));
+        var refused = Pending();
+        refused.Cancel(CancellationReason.PaymentFailed, s_now.AddSeconds(4), Guid.NewGuid(), "card_declined");
+        var reserved = Pending();
+        reserved.MarkStockReserved(s_now.AddSeconds(1));
+        reserved.Confirm(Guid.NewGuid(), s_now.AddSeconds(5));
+
+        Assert.Equal(s_now.AddSeconds(3), confirmed.StockReservedAt);
+        Assert.Equal(s_now.AddSeconds(4), refused.StockReservedAt);
+        Assert.Equal(s_now.AddSeconds(1), reserved.StockReservedAt); // a reserva de verdade é mantida
+    }
+
+    [Fact]
+    public void Cancel_OutOfStock_HasNoPayment()
+    {
+        var order = Pending();
+
+        order.Cancel(CancellationReason.OutOfStock, s_now);
+
+        Assert.Equal(OrderStatus.Cancelled, order.Status);
+        Assert.Equal(CancellationReason.OutOfStock, order.CancellationReason);
+        Assert.Null(order.PaymentFailureReason);
+        Assert.Null(order.StockReservedAt);
+    }
+
+    [Fact]
+    public void Cancel_PaymentFailed_RequiresTheReason()
+    {
+        var order = Pending();
+        Assert.Throws<DomainException>(() => order.Cancel(CancellationReason.PaymentFailed, s_now));
+
+        var payment = Guid.NewGuid();
+        order.Cancel(CancellationReason.PaymentFailed, s_now, payment, "card_declined");
+
+        Assert.Equal("card_declined", order.PaymentFailureReason);
+        Assert.Equal(payment, order.PaymentId);
+    }
+
+    [Fact]
+    public void FinalStates_DoNotChange()
+    {
+        var confirmed = Pending();
+        confirmed.Confirm(Guid.NewGuid(), s_now);
+        var cancelled = Pending();
+        cancelled.Cancel(CancellationReason.OutOfStock, s_now);
+
+        Assert.Throws<DomainException>(() => confirmed.Cancel(CancellationReason.OutOfStock, s_now));
+        Assert.Throws<DomainException>(() => confirmed.Confirm(Guid.NewGuid(), s_now));
+        Assert.Throws<DomainException>(() => cancelled.Confirm(Guid.NewGuid(), s_now));
+        Assert.Equal(OrderStatus.Confirmed, confirmed.Status);
+        Assert.Equal(OrderStatus.Cancelled, cancelled.Status);
+    }
+
+    private static Order Paid()
+    {
+        var order = Pending();
+        order.Confirm(Guid.NewGuid(), s_now.AddMinutes(1));
+        return order;
+    }
+
+    private static readonly Tracking s_tracking = new("BR1", "Correios", null);
+
+    [Fact]
+    public void Supplier_TakesThePaidOrderToDelivered()
+    {
+        var order = Paid();
+
+        Assert.True(order.MarkSentToSupplier(s_now.AddMinutes(2)));
+        Assert.False(order.MarkSentToSupplier(s_now.AddMinutes(3)));
+        Assert.True(order.Ship(s_tracking, s_now.AddDays(1)));
+        Assert.True(order.Deliver(s_now.AddDays(3)));
+
+        Assert.Equal(OrderStatus.Delivered, order.Status);
+        Assert.Equal((s_now.AddMinutes(2), s_now.AddDays(1), s_now.AddDays(3)), (order.SentToSupplierAt, order.ShippedAt, order.DeliveredAt));
+        Assert.Equal(s_tracking, order.Tracking);
+    }
+
+    [Fact]
+    public void Return_WithinSevenDaysOfDelivery_AwaitsTheRefund_AndOnlyOnce()
+    {
+        var order = Paid();
+        Assert.Throws<DomainException>(() => order.RequestReturn(s_now)); // ainda não entregue
+        order.Deliver(s_now.AddDays(3));
+        Assert.Equal(s_now.AddDays(10), order.ReturnableUntil);
+
+        Assert.True(order.RequestReturn(s_now.AddDays(10))); // no último instante do prazo
+        Assert.False(order.RequestReturn(s_now.AddDays(10))); // pedir de novo não muda nada
+        Assert.Equal((OrderStatus.Returned, s_now.AddDays(10)), (order.Status, order.ReturnRequestedAt));
+        Assert.Null(order.ReturnableUntil);
+        Assert.True(order.AwaitingRefund);
+        Assert.True(order.MarkRefunded(s_now.AddDays(10).AddMinutes(1)));
+        Assert.False(order.AwaitingRefund);
+    }
+
+    [Fact]
+    public void Return_AfterSevenDays_IsRefused()
+    {
+        var order = Paid();
+        order.Deliver(s_now);
+        var e = Assert.Throws<DomainException>(() => order.RequestReturn(s_now.AddDays(7).AddSeconds(1)));
+        Assert.Contains("7 dias", e.Message, StringComparison.Ordinal);
+        Assert.Equal(OrderStatus.Delivered, order.Status);
+    }
+
+    [Fact]
+    public void Supplier_DeliveredWithoutShipping_FillsTheSteps()
+    {
+        var order = Paid();
+
+        Assert.True(order.Deliver(s_now.AddDays(2)));
+
+        Assert.Equal((s_now.AddDays(2), s_now.AddDays(2)), (order.SentToSupplierAt, order.ShippedAt));
+    }
+
+    [Fact]
+    public void Supplier_IgnoresPendingAndFinishedOrders()
+    {
+        var pending = Pending();
+        Assert.False(pending.MarkSentToSupplier(s_now));
+        Assert.False(pending.Ship(s_tracking, s_now));
+        Assert.False(pending.Deliver(s_now));
+        Assert.False(pending.FailAtSupplier(s_now));
+
+        var delivered = Paid();
+        delivered.Deliver(s_now);
+        Assert.False(delivered.Ship(s_tracking, s_now));
+        Assert.False(delivered.FailAtSupplier(s_now));
+        Assert.Equal(OrderStatus.Delivered, delivered.Status);
+    }
+
+    [Fact]
+    public void ReversedPayment_CancelsBeforeTheSupplier_AndOnlyFlagsAfter()
+    {
+        // o pagamento aprovado deixou de valer antes de o pedido ir ao fornecedor: cancela, sem estorno
+        var early = Paid();
+        Assert.True(early.RevertPayment("failed", "card_declined", s_now.AddHours(1)));
+        Assert.False(early.RevertPayment("failed", "card_declined", s_now.AddHours(2))); // repetido
+        Assert.Equal((OrderStatus.Cancelled, CancellationReason.PaymentFailed, "card_declined", "failed"),
+            (early.Status, early.CancellationReason, early.PaymentFailureReason, early.PaymentReversal));
+        Assert.False(early.AwaitingRefund);
+
+        // já com o fornecedor: só marca; cancelado pela equipe depois, não espera estorno (o dinheiro não veio)
+        var late = Paid();
+        late.MarkSentToSupplier(s_now.AddHours(1));
+        Assert.True(late.RevertPayment("disputed", null, s_now.AddHours(2)));
+        Assert.Equal((OrderStatus.Confirmed, (DateTimeOffset?)s_now.AddHours(2)), (late.Status, late.PaymentReversedAt));
+        Assert.True(late.FailAtSupplier(s_now.AddHours(3), CancellationReason.StoreCancelled));
+        Assert.False(late.AwaitingRefund);
+
+        // o pedido ainda pendente não tem pagamento aprovado a reverter
+        Assert.False(Pending().RevertPayment("voided", null, s_now));
+    }
+
+    [Fact]
+    public void SupplierFailure_CancelsThePaidOrder_UntilRefunded()
+    {
+        var order = Paid();
+
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1)));
+        Assert.Equal((OrderStatus.Cancelled, CancellationReason.SupplierFailed), (order.Status, order.CancellationReason));
+        Assert.True(order.AwaitingRefund);
+
+        Assert.True(order.MarkRefunded(s_now.AddHours(2)));
+        Assert.False(order.MarkRefunded(s_now.AddHours(3)));
+        Assert.Equal(s_now.AddHours(2), order.RefundedAt);
+        Assert.False(order.AwaitingRefund);
+
+        // o provedor não realizou o estorno (#396): volta a esperar, e o próximo estorno fecha de novo
+        Assert.True(order.MarkRefundFailed(s_now.AddHours(4)));
+        Assert.False(order.MarkRefundFailed(s_now.AddHours(5)));
+        Assert.Equal((true, (DateTimeOffset?)null, (DateTimeOffset?)s_now.AddHours(4)), (order.AwaitingRefund, order.RefundedAt, order.RefundFailedAt));
+        Assert.True(order.MarkRefunded(s_now.AddHours(6)));
+        Assert.False(order.AwaitingRefund);
+    }
+
+    [Fact]
+    public void InvoiceRejected_CancelsThePaidOrder_WithItsOwnReason_UntilRefunded()
+    {
+        var order = Paid();
+
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1), CancellationReason.InvoiceFailed));
+        Assert.Equal(CancellationReason.InvoiceFailed, order.CancellationReason);
+        Assert.True(order.AwaitingRefund);
+        Assert.True(order.MarkRefunded(s_now.AddHours(2)));
+    }
+
+    [Fact]
+    public void StoreCancellation_CancelsThePaidOrder_WithItsOwnReason_UntilRefunded()
+    {
+        var order = Paid();
+
+        Assert.True(order.FailAtSupplier(s_now.AddHours(1), CancellationReason.StoreCancelled));
+        Assert.Equal(CancellationReason.StoreCancelled, order.CancellationReason);
+        Assert.True(order.CancelledAfterPayment);
+        Assert.True(order.AwaitingRefund);
+        Assert.True(order.MarkRefunded(s_now.AddHours(2)));
+    }
+
+    [Theory]
+    [InlineData(CancellationReason.OutOfStock)]
+    [InlineData(CancellationReason.PaymentFailed)]
+    public void PaidOrder_IsNotCancelledWithAReasonFromBeforePayment(CancellationReason reason) =>
+        Assert.Throws<DomainException>(() => Paid().FailAtSupplier(s_now, reason));
+
+    [Fact]
+    public void Invoice_IsRecordedOnce_AndCancelledAfterTheRefund()
+    {
+        var order = Paid();
+        var invoice = new OrderInvoice(new string('1', 44), 42, 1, s_now);
+
+        Assert.True(order.RecordInvoice(invoice, s_now));
+        Assert.False(order.RecordInvoice(invoice with { Number = 43 }, s_now)); // repetida
+        Assert.Equal(42, order.Invoice!.Number);
+        Assert.True(order.CancelInvoice(s_now.AddHours(1), s_now.AddHours(1)));
+        Assert.False(order.CancelInvoice(s_now.AddHours(2), s_now.AddHours(2)));
+        Assert.Equal(s_now.AddHours(1), order.Invoice.CancelledAt);
+        Assert.False(Pending().CancelInvoice(s_now, s_now)); // sem nota não há o que cancelar
+    }
+
+    [Fact]
+    public void SupplierFailure_AfterShipping_IsIgnored()
+    {
+        var order = Paid();
+        order.Ship(s_tracking, s_now);
+
+        Assert.False(order.FailAtSupplier(s_now));
+        Assert.Equal(OrderStatus.Shipped, order.Status);
+    }
+
+    [Theory]
+    [InlineData(CancellationReason.SupplierFailed)]
+    [InlineData(CancellationReason.StoreCancelled)]
+    public void PendingOrder_CannotBeCancelledAsIfPaid(CancellationReason reason) =>
+        Assert.Throws<DomainException>(() => Pending().Cancel(reason, s_now));
+
+    [Fact]
+    public void Refund_OnlyForTheOrderCancelledAfterPayment()
+    {
+        var order = Pending();
+        order.Cancel(CancellationReason.OutOfStock, s_now);
+
+        Assert.False(order.MarkRefunded(s_now));
+        Assert.Null(order.RefundedAt);
+    }
+}

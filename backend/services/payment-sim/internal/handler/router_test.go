@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim/internal/efi"
 )
 
 type env struct {

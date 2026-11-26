@@ -98,23 +98,23 @@ jobs:
       - name: Fixa a versão e publica
         env:
           IMAGES: >-
-            ghcr.io/${{ github.repository_owner }}/compra-facil-catalog
-            ghcr.io/${{ github.repository_owner }}/compra-facil-catalog-seed
-            ghcr.io/${{ github.repository_owner }}/compra-facil-identity
-            ghcr.io/${{ github.repository_owner }}/compra-facil-orders
-            ghcr.io/${{ github.repository_owner }}/compra-facil-inventory
-            ghcr.io/${{ github.repository_owner }}/compra-facil-payments
-            ghcr.io/${{ github.repository_owner }}/compra-facil-notifications
-            ghcr.io/${{ github.repository_owner }}/compra-facil-fulfillment
-            ghcr.io/${{ github.repository_owner }}/compra-facil-pg-backup
-            ghcr.io/${{ github.repository_owner }}/compra-facil-supplier-sim
-            ghcr.io/${{ github.repository_owner }}/compra-facil-payment-sim
-            ghcr.io/${{ github.repository_owner }}/compra-facil-invoice-sim
-            ghcr.io/${{ github.repository_owner }}/compra-facil-gateway
-            ghcr.io/${{ github.repository_owner }}/compra-facil-postgres-init
-            ghcr.io/${{ github.repository_owner }}/compra-facil-redpanda
-            ghcr.io/${{ github.repository_owner }}/compra-facil-otel-collector
-            ghcr.io/${{ github.repository_owner }}/compra-facil-media
+            ghcr.io/${{ github.repository_owner }}/embrulhado-catalog
+            ghcr.io/${{ github.repository_owner }}/embrulhado-catalog-seed
+            ghcr.io/${{ github.repository_owner }}/embrulhado-identity
+            ghcr.io/${{ github.repository_owner }}/embrulhado-orders
+            ghcr.io/${{ github.repository_owner }}/embrulhado-inventory
+            ghcr.io/${{ github.repository_owner }}/embrulhado-payments
+            ghcr.io/${{ github.repository_owner }}/embrulhado-notifications
+            ghcr.io/${{ github.repository_owner }}/embrulhado-fulfillment
+            ghcr.io/${{ github.repository_owner }}/embrulhado-pg-backup
+            ghcr.io/${{ github.repository_owner }}/embrulhado-supplier-sim
+            ghcr.io/${{ github.repository_owner }}/embrulhado-payment-sim
+            ghcr.io/${{ github.repository_owner }}/embrulhado-invoice-sim
+            ghcr.io/${{ github.repository_owner }}/embrulhado-gateway
+            ghcr.io/${{ github.repository_owner }}/embrulhado-postgres-init
+            ghcr.io/${{ github.repository_owner }}/embrulhado-redpanda
+            ghcr.io/${{ github.repository_owner }}/embrulhado-otel-collector
+            ghcr.io/${{ github.repository_owner }}/embrulhado-media
         run: deploy/coolify/deploy.sh
 
       # de fora, pelo domínio: o caminho do comprador (DNS, certificado, proxy do Coolify, gateway).

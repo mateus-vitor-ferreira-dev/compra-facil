@@ -1116,8 +1116,8 @@ const file_catalog_v1_catalog_proto_rawDesc = "" +
 	"\n" +
 	"GetProduct\x12\x1d.catalog.v1.GetProductRequest\x1a\x1e.catalog.v1.GetProductResponse\x12]\n" +
 	"\x10BatchGetProducts\x12#.catalog.v1.BatchGetProductsRequest\x1a$.catalog.v1.BatchGetProductsResponse\x12T\n" +
-	"\rValidateItems\x12 .catalog.v1.ValidateItemsRequest\x1a!.catalog.v1.ValidateItemsResponseB\xcc\x01\n" +
-	"\x0ecom.catalog.v1B\fCatalogProtoP\x01Zcgithub.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/gen/catalog/v1;catalogv1\xa2\x02\x03CXX\xaa\x02\n" +
+	"\rValidateItems\x12 .catalog.v1.ValidateItemsRequest\x1a!.catalog.v1.ValidateItemsResponseB\xca\x01\n" +
+	"\x0ecom.catalog.v1B\fCatalogProtoP\x01Zagithub.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/gen/catalog/v1;catalogv1\xa2\x02\x03CXX\xaa\x02\n" +
 	"Catalog.V1\xca\x02\n" +
 	"Catalog\\V1\xe2\x02\x16Catalog\\V1\\GPBMetadata\xea\x02\vCatalog::V1b\x06proto3"
 

@@ -25,7 +25,7 @@ linters:
     wrapcheck:
       # erros de domínio (ErrNotFound, OutOfStockError...) sobem de propósito sem embrulho
       ignore-package-globs:
-        - github.com/mateus-vitor-ferreira-dev/compra-facil/*
+        - github.com/mateus-vitor-ferreira-dev/embrulhado/*
       ignore-sigs:
         - .Errorf(
         - errors.New(
@@ -48,4 +48,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/mateus-vitor-ferreira-dev/compra-facil
+        - github.com/mateus-vitor-ferreira-dev/embrulhado

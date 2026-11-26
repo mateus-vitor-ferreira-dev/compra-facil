@@ -4,7 +4,7 @@
 # Desenho em docs/adr/0003-retries-e-dead-letter-topics.md.
 openapi: 3.1.0
 info:
-  title: CompraFácil — dead letter topic
+  title: Embrulhado — dead letter topic
   version: 1.0.0
   description: Consulta e reprocessamento das mensagens que esgotaram as tentativas.
 paths: {}

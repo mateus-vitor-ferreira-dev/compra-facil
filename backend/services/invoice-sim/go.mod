@@ -1,4 +1,4 @@
-module github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/invoice-sim
+module github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/invoice-sim
 
 go 1.26.10
 

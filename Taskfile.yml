@@ -179,8 +179,8 @@ tasks:
     desc: "Access token do operador local, pelo login no identity com o segundo fator (ex.: curl -H \"Authorization: Bearer $(task token)\" ...)"
     silent: true
     vars:
-      ADMIN_EMAIL: '{{.ADMIN_EMAIL | default "admin@comprafacil.local"}}'
-      ADMIN_PASSWORD: '{{.ADMIN_PASSWORD | default "admin-compra-facil"}}'
+      ADMIN_EMAIL: '{{.ADMIN_EMAIL | default "admin@embrulhado.local"}}'
+      ADMIN_PASSWORD: '{{.ADMIN_PASSWORD | default "admin-embrulhado"}}'
       # a chave TOTP fixa do operador do compose (Identity__Admin__TotpKey): o código sai dela, sem celular
       ADMIN_TOTP_KEY: '{{.ADMIN_TOTP_KEY | default "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"}}'
     cmds:
@@ -253,7 +253,7 @@ tasks:
         msg: "serviço desconhecido: '{{.SERVICE}}' (orders, inventory, payments ou notifications)"
     cmds:
       - >-
-        docker run --rm --network comprafacil_default curlimages/curl:8.11.1 -sS -X {{.METHOD}}
+        docker run --rm --network embrulhado_default curlimages/curl:8.11.1 -sS -X {{.METHOD}}
         -H "Authorization: Bearer {{.TOKEN}}" http://{{.SERVICE}}:{{.PORT}}{{.ROUTE}}
       - echo
 
@@ -264,28 +264,28 @@ tasks:
       SERVICES: catalog orders inventory payments notifications identity
       IMAGES: catalog catalog-seed orders inventory payments notifications identity
     cmds:
-      - k3d cluster list compra-facil >/dev/null 2>&1 || k3d cluster create compra-facil --agents 1 -p "8088:80@loadbalancer" --wait
+      - k3d cluster list embrulhado >/dev/null 2>&1 || k3d cluster create embrulhado --agents 1 -p "8088:80@loadbalancer" --wait
       - docker compose build {{.IMAGES}}
-      - k3d image import -c compra-facil {{range (splitList " " .IMAGES)}}compra-facil/{{.}}:dev {{end}}
-      - kubectl create namespace compra-facil --dry-run=client -o yaml | kubectl apply -f -
+      - k3d image import -c embrulhado {{range (splitList " " .IMAGES)}}embrulhado/{{.}}:dev {{end}}
+      - kubectl create namespace embrulhado --dry-run=client -o yaml | kubectl apply -f -
       - >-
-        kubectl -n compra-facil create configmap postgres-init
+        kubectl -n embrulhado create configmap postgres-init
         --from-file=init-databases.sh=infra/compose/postgres/init-databases.sh --dry-run=client -o yaml | kubectl apply -f -
-      - kubectl -n compra-facil apply -f infra/k8s/deps.yaml
-      - kubectl -n compra-facil wait --for=condition=available deploy/postgres deploy/redis deploy/redpanda deploy/mailpit --timeout=300s
+      - kubectl -n embrulhado apply -f infra/k8s/deps.yaml
+      - kubectl -n embrulhado wait --for=condition=available deploy/postgres deploy/redis deploy/redpanda deploy/mailpit --timeout=300s
       - for: { var: SERVICES, split: " " }
         cmd: >-
-          helm upgrade --install {{.ITEM}} infra/k8s/helm/compra-facil-service -n compra-facil
+          helm upgrade --install {{.ITEM}} infra/k8s/helm/embrulhado-service -n embrulhado
           -f infra/k8s/helm/values/{{.ITEM}}.yaml --wait --timeout 5m
-      - kubectl -n compra-facil get deploy,hpa
+      - kubectl -n embrulhado get deploy,hpa
 
   k8s:seed:
     desc: Popula o catálogo no cluster (Job com a imagem do seed)
     cmds:
-      - kubectl -n compra-facil delete job catalog-seed --ignore-not-found --cascade=foreground --wait
-      - kubectl -n compra-facil apply -f infra/k8s/seed-job.yaml
-      - kubectl -n compra-facil wait --for=condition=complete job/catalog-seed --timeout=300s
-      - kubectl -n compra-facil logs job/catalog-seed
+      - kubectl -n embrulhado delete job catalog-seed --ignore-not-found --cascade=foreground --wait
+      - kubectl -n embrulhado apply -f infra/k8s/seed-job.yaml
+      - kubectl -n embrulhado wait --for=condition=complete job/catalog-seed --timeout=300s
+      - kubectl -n embrulhado logs job/catalog-seed
 
   k8s:load:
     desc: "k6 de campanha dentro do cluster e o HPA do catalog reagindo (ex.: task k8s:load -- 600 3m)"
@@ -294,20 +294,20 @@ tasks:
       PEAK: '{{index (splitList " " (printf "%s 400 2m" .CLI_ARGS | trim)) 1}}'
     cmds:
       - >-
-        kubectl -n compra-facil create configmap k6-scripts --from-file=load-tests/k6/campanha.js --from-file=load-tests/k6/identity.js
+        kubectl -n embrulhado create configmap k6-scripts --from-file=load-tests/k6/campanha.js --from-file=load-tests/k6/identity.js
         --dry-run=client -o yaml | kubectl apply -f -
-      - kubectl -n compra-facil delete job k6-campanha --ignore-not-found --cascade=foreground --wait
-      - sed -e 's/PEAK_RATE_PLACEHOLDER/{{.PEAK_RATE}}/' -e 's/PEAK_PLACEHOLDER/{{.PEAK}}/' infra/k8s/k6-job.yaml | kubectl -n compra-facil apply -f -
-      - kubectl -n compra-facil wait --for=condition=ready pod -l job-name=k6-campanha --timeout=120s
-      - kubectl -n compra-facil logs -f -l job-name=k6-campanha --tail=-1
+      - kubectl -n embrulhado delete job k6-campanha --ignore-not-found --cascade=foreground --wait
+      - sed -e 's/PEAK_RATE_PLACEHOLDER/{{.PEAK_RATE}}/' -e 's/PEAK_PLACEHOLDER/{{.PEAK}}/' infra/k8s/k6-job.yaml | kubectl -n embrulhado apply -f -
+      - kubectl -n embrulhado wait --for=condition=ready pod -l job-name=k6-campanha --timeout=120s
+      - kubectl -n embrulhado logs -f -l job-name=k6-campanha --tail=-1
       # o que o HPA fez durante a carga (as réplicas descem sozinhas um minuto depois)
-      - kubectl -n compra-facil get hpa,deploy catalog
-      - kubectl -n compra-facil events --for hpa/catalog
+      - kubectl -n embrulhado get hpa,deploy catalog
+      - kubectl -n embrulhado events --for hpa/catalog
 
   k8s:down:
     desc: Apaga o cluster k3d
     cmds:
-      - k3d cluster delete compra-facil
+      - k3d cluster delete embrulhado
 
   # ---------- carga ----------
   chaos:catalog:

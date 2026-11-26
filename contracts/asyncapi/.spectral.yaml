@@ -9,7 +9,7 @@ rules:
   asyncapi-3-tags: off
   asyncapi-3-operation-description: off
 
-  compra-facil-topic-name:
+  embrulhado-topic-name:
     description: "Tópico no formato <serviço>.<agregado>.v<N> (ex.: orders.order.v1)."
     severity: error
     given: $.channels[*].address
@@ -18,7 +18,7 @@ rules:
       functionOptions:
         match: "^[a-z]+\\.[a-z]+(-[a-z]+)*\\.v[0-9]+$"
 
-  compra-facil-message-name-pascal-case:
+  embrulhado-message-name-pascal-case:
     description: Nome do evento em PascalCase, no passado (OrderPlaced).
     severity: error
     given: $.components.messages[*].name
@@ -27,7 +27,7 @@ rules:
       functionOptions:
         match: "^[A-Z][A-Za-z0-9]+$"
 
-  compra-facil-properties-snake-case:
+  embrulhado-properties-snake-case:
     description: Propriedades do payload em snake_case.
     severity: error
     given: $..payload..properties[*]~
@@ -36,7 +36,7 @@ rules:
       functionOptions:
         match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
 
-  compra-facil-schema-properties-snake-case:
+  embrulhado-schema-properties-snake-case:
     description: Propriedades dos schemas em snake_case.
     severity: error
     given: $.components.schemas..properties[*]~
@@ -45,7 +45,7 @@ rules:
       functionOptions:
         match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
 
-  compra-facil-message-uses-envelope:
+  embrulhado-message-uses-envelope:
     description: Todo evento estende o envelope comum (allOf com EventEnvelope).
     severity: error
     resolved: false

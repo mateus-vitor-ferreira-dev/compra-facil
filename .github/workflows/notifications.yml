@@ -70,5 +70,5 @@ jobs:
       packages: write
     with:
       service: notifications
-      project: CompraFacil.Notifications.Api
+      project: Embrulhado.Notifications.Api
       port: "8005"

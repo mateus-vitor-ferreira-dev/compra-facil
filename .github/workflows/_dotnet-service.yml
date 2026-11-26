@@ -10,7 +10,7 @@ on:
         required: true
         type: string
       project:
-        description: "Projeto da Api (ex.: CompraFacil.Orders.Api)"
+        description: "Projeto da Api (ex.: Embrulhado.Orders.Api)"
         required: true
         type: string
       port:
@@ -72,7 +72,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6.2.0
         with:
-          images: ghcr.io/${{ github.repository_owner }}/compra-facil-${{ inputs.service }}
+          images: ghcr.io/${{ github.repository_owner }}/embrulhado-${{ inputs.service }}
           # o commit inteiro é a tag imutável; a curta é para gente; a da branch (main) é a que a produção segue
           tags: |
             type=sha,format=long
@@ -119,7 +119,7 @@ jobs:
       # Imagem da arquitetura errada daria "exec format error"
       - name: O healthcheck da imagem executa em arm64
         run: |
-          image=ghcr.io/${{ github.repository_owner }}/compra-facil-${{ inputs.service }}:sha-${{ github.sha }}
+          image=ghcr.io/${{ github.repository_owner }}/embrulhado-${{ inputs.service }}:sha-${{ github.sha }}
           docker pull --platform linux/arm64 "$image"
           out=$(docker run --rm --platform linux/arm64 "$image" healthcheck 2>&1 || true)
           echo "$out"

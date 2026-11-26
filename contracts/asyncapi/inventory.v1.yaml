@@ -1,6 +1,6 @@
 asyncapi: 3.1.0
 info:
-  title: CompraFácil — Inventory Events
+  title: Embrulhado — Inventory Events
   version: 1.0.0
   description: |
     Eventos do serviço **inventory** (time de Processamento de compras, ASP.NET Core).

@@ -11,9 +11,9 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/messaging"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/repository"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/service"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/messaging"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/repository"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/service"
 )
 
 const (

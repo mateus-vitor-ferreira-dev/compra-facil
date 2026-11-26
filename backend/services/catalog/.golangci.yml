@@ -28,7 +28,7 @@ linters:
         # status.Error é o erro final do gRPC: embrulhar perderia o código
         - google.golang.org/grpc/*
         # erros de domínio (ValidationError, ErrNotFound...) sobem de propósito sem embrulho
-        - github.com/mateus-vitor-ferreira-dev/compra-facil/*
+        - github.com/mateus-vitor-ferreira-dev/embrulhado/*
       ignore-sigs:
         - .Errorf(
         - errors.New(
@@ -54,4 +54,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/mateus-vitor-ferreira-dev/compra-facil
+        - github.com/mateus-vitor-ferreira-dev/embrulhado

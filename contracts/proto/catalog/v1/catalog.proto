@@ -6,7 +6,7 @@ package catalog.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option csharp_namespace = "CompraFacil.Contracts.Catalog.V1";
+option csharp_namespace = "Embrulhado.Contracts.Catalog.V1";
 
 // CatalogService expõe leitura de produtos para os outros serviços (porta 9001 em dev).
 service CatalogService {

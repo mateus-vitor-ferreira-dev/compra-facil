@@ -111,7 +111,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6.2.0
         with:
-          images: ghcr.io/${{ github.repository_owner }}/compra-facil-catalog
+          images: ghcr.io/${{ github.repository_owner }}/embrulhado-catalog
           # o commit inteiro é a tag imutável; a curta é para gente; a da branch (main) é a que a produção segue
           tags: |
             type=sha,format=long
@@ -134,7 +134,7 @@ jobs:
       - id: seed-meta
         uses: docker/metadata-action@v6.2.0
         with:
-          images: ghcr.io/${{ github.repository_owner }}/compra-facil-catalog-seed
+          images: ghcr.io/${{ github.repository_owner }}/embrulhado-catalog-seed
           tags: |
             type=sha,format=long
             type=sha,format=short
@@ -177,7 +177,7 @@ jobs:
       # Imagem da arquitetura errada daria "exec format error"
       - name: O healthcheck da imagem executa em arm64
         run: |
-          image=ghcr.io/${{ github.repository_owner }}/compra-facil-catalog:sha-${{ github.sha }}
+          image=ghcr.io/${{ github.repository_owner }}/embrulhado-catalog:sha-${{ github.sha }}
           docker pull --platform linux/arm64 "$image"
           out=$(docker run --rm --platform linux/arm64 "$image" healthcheck 2>&1 || true)
           echo "$out"

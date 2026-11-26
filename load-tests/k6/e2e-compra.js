@@ -37,8 +37,8 @@ import { DELIVERY } from './delivery.js';
 
 const GATEWAY = __ENV.GATEWAY_URL || 'http://gateway';
 const MAILPIT = __ENV.MAILPIT_URL || 'http://mailpit:8025';
-const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@comprafacil.local';
-const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || 'admin-compra-facil';
+const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@embrulhado.local';
+const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || 'admin-embrulhado';
 const ADMIN_TOTP_KEY = __ENV.ADMIN_TOTP_KEY || 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 
 const IDENTITY = `${GATEWAY}/identity`;

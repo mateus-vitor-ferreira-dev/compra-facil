@@ -39,8 +39,8 @@ func request(ref string) Request {
 		InfNFe: InfNFe{
 			Versao: "4.00",
 			Ide: Ide{CUF: 35, NatOp: "Venda de mercadoria adquirida de terceiros, remetida pelo fornecedor", Mod: 55, Serie: 1, TpNF: 1,
-				IndPres: 2, IndIntermed: ptr(0), ProcEmi: ptr(0), VerProc: "compra-facil-1"},
-			Emit: Emit{CNPJ: "11222333000181", XNome: "CompraFacil Comercio LTDA", IE: "ISENTO", CRT: 1,
+				IndPres: 2, IndIntermed: ptr(0), ProcEmi: ptr(0), VerProc: "embrulhado-1"},
+			Emit: Emit{CNPJ: "11222333000181", XNome: "Embrulhado Comercio LTDA", IE: "ISENTO", CRT: 1,
 				EnderEmit: Endereco{XLgr: "Rua da Loja", Nro: "1", XBairro: "Centro", XMun: "Lavras", UF: "MG", CEP: "37200000"}},
 			Dest: Dest{CPF: "52998224725", XNome: HomologationRecipient, IndIEDest: 9, Email: "ana@exemplo.com",
 				EnderDest: Endereco{XLgr: "Avenida Paulista", Nro: "1000", XCpl: "Apto 12", XBairro: "Bela Vista", CMun: "3550308", XMun: "São Paulo", UF: "SP", CEP: "01310100"}},

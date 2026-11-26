@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/events"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/events"
 )
 
 const (

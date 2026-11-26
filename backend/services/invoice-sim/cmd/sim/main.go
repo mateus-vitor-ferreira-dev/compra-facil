@@ -16,9 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/invoice-sim/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/invoice-sim/internal/handler"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/invoice-sim/internal/nfe"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/invoice-sim/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/invoice-sim/internal/handler"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/invoice-sim/internal/nfe"
 )
 
 func main() {

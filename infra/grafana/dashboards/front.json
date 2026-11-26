@@ -1,9 +1,9 @@
 {
-  "uid": "compra-facil-front",
-  "title": "CompraFácil — Loja (front)",
+  "uid": "embrulhado-front",
+  "title": "Embrulhado — Loja (front)",
   "description": "Web Vitals medidos no navegador de quem compra e os traces do servidor do Next (#155).",
   "tags": [
-    "compra-facil"
+    "embrulhado"
   ],
   "timezone": "browser",
   "schemaVersion": 39,

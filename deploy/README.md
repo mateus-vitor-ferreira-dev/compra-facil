@@ -8,7 +8,7 @@ Este guia é o da API. A loja tem o dela em [`frontend/web`](../frontend/web/REA
 | Servidor | VPS da Hetzner `codexa-vps` (CAX21: ARM64, 8 GB), dividido com os outros projetos |
 | Painel | Coolify, em <https://coolify.digitalcodexa.com> |
 | API | Um recurso Docker Compose ([`coolify/compose.yaml`](coolify/compose.yaml)): gateway, os seis serviços, Postgres, Redpanda, Redis, Collector e backup |
-| Imagens | GHCR (`ghcr.io/mateus-vitor-ferreira-dev/compra-facil-*`), geradas pelo CI, públicas. O VPS não compila nada |
+| Imagens | GHCR (`ghcr.io/mateus-vitor-ferreira-dev/embrulhado-*`), geradas pelo CI, públicas. O VPS não compila nada |
 | HTTPS | O proxy do Coolify, no domínio da API (`api.<domínio>`) |
 | Backup | `pg-backup`: um `pg_dump` de cada banco por dia no R2, 14 dias |
 | Fotos dos produtos | R2, bucket `compra-facil-media` em `media.<domínio>`, com a CDN da Cloudflare ([abaixo](#fotos-dos-produtos)) |
@@ -30,11 +30,11 @@ vai dentro de imagens próprias, geradas pelo [`stack-images.yml`](../.github/wo
 
 | Imagem | Leva |
 |---|---|
-| `compra-facil-gateway` | `coolify/traefik.yml` e as rotas de `infra/gateway/traefik/dynamic` |
-| `compra-facil-postgres-init` | `infra/compose/postgres/init-databases.sh` |
-| `compra-facil-redpanda` | `coolify/redpanda.yaml` e `coolify/redpanda.bootstrap.yaml` |
-| `compra-facil-otel-collector` | `coolify/otel-collector.yaml` |
-| `compra-facil-media` | as fotos de `infra/media`, só na demonstração |
+| `embrulhado-gateway` | `coolify/traefik.yml` e as rotas de `infra/gateway/traefik/dynamic` |
+| `embrulhado-postgres-init` | `infra/compose/postgres/init-databases.sh` |
+| `embrulhado-redpanda` | `coolify/redpanda.yaml` e `coolify/redpanda.bootstrap.yaml` |
+| `embrulhado-otel-collector` | `coolify/otel-collector.yaml` |
+| `embrulhado-media` | as fotos de `infra/media`, só na demonstração |
 
 Mudou um desses arquivos: o pipeline gera a imagem de novo, e o deploy seguinte a leva. Um arquivo novo que a
 stack precise vai para o Dockerfile da imagem, e nunca para um `volumes` do compose. O rate limit usa o IP que o proxy põe no `X-Forwarded-For`, então o DNS da
@@ -97,14 +97,14 @@ chegar a ninguém. O resto deste guia é o da produção de verdade.
 
 Antes do Coolify:
 
-- **R2** (Cloudflare): um bucket `compra-facil-backups` (privado) e um token de API do R2 com
+- **R2** (Cloudflare): um bucket `embrulhado-backups` (privado) e um token de API do R2 com
   leitura e escrita só nele. Anote o endpoint S3 (`https://<account id>.r2.cloudflarestorage.com`), o
   access key id e o secret.
 - **Grafana Cloud**: em *Connections → OpenTelemetry (OTLP)*, o endpoint
   (`https://otlp-gateway-prod-<região>.grafana.net/otlp`), o instance id e um token com escrita de
   métricas, logs e traces. A autorização é `base64("<instance id>:<token>")`.
 - **Resend**: o domínio da loja verificado (SPF e DKIM) e uma chave de API, para os e-mails.
-- **GHCR**: os pacotes `compra-facil-*` públicos (*Package settings → Change visibility*).
+- **GHCR**: os pacotes `embrulhado-*` públicos (*Package settings → Change visibility*).
 - As senhas: `openssl rand -hex 24` para cada uma das sete do Postgres e `openssl rand -hex 32` para
   o `BFF_GATEWAY_KEY` (o mesmo valor vai para a loja).
 
@@ -249,7 +249,7 @@ nome tem o uuid do recurso):
 docker run --rm --network <rede da stack> \
   -e CATALOG_DB_DSN='postgres://catalog:<senha>@postgres:5432/catalog?sslmode=disable' \
   -e CATALOG_SEED_MEDIA_URL='https://media.<domínio>' \
-  ghcr.io/mateus-vitor-ferreira-dev/compra-facil-catalog-seed:main -products 2000
+  ghcr.io/mateus-vitor-ferreira-dev/embrulhado-catalog-seed:main -products 2000
 ```
 
 Depois disso, os deploys são do CI.
@@ -297,7 +297,7 @@ UPDATE users SET two_factor_enabled = false, security_stamp = gen_random_uuid():
 -- apaga a chave do autenticador, os códigos de recuperação e o último código usado
 DELETE FROM user_tokens
  WHERE user_id = (SELECT id FROM users WHERE normalized_email = upper('<e-mail do operador>'))
-   AND login_provider IN ('[AspNetUserStore]', '[CompraFacilTotp]');
+   AND login_provider IN ('[AspNetUserStore]', '[EmbrulhadoTotp]');
 -- derruba as sessões abertas da conta
 UPDATE refresh_tokens SET revoked_at = now(), revocation_reason = 'MfaRequired'
  WHERE user_id = (SELECT id FROM users WHERE normalized_email = upper('<e-mail do operador>'))
@@ -406,8 +406,8 @@ antecedência) e um aviso opcional. A loja mostra a faixa antes e durante a jane
 
 **Para ligar (uma vez, na conta da Cloudflare):**
 
-1. Crie o namespace: **Workers & Pages → KV → Create**, com o nome `compra-facil-manutencao` (ou
-   `npx wrangler kv namespace create compra-facil-manutencao`). Anote o **id**.
+1. Crie o namespace: **Workers & Pages → KV → Create**, com o nome `embrulhado-manutencao` (ou
+   `npx wrangler kv namespace create embrulhado-manutencao`). Anote o **id**.
 2. Ponha o id no `binding` `MAINTENANCE` do [`wrangler.jsonc`](../frontend/web/wrangler.jsonc), no lugar dos zeros.
    O job de deploy da loja recusa publicar com os zeros.
 3. No GitHub, **Settings → Secrets and variables → Actions → Variables**: `CLOUDFLARE_KV_MAINTENANCE_ID` com o mesmo id.
@@ -421,8 +421,8 @@ um `.dump.age` por banco e os papéis em `globals.sql.age`, **cifrados com o age
 `BACKUP_AGE_RECIPIENT` (no compose). A chave privada não fica no servidor: fica com o dono, no Bitwarden
 (item "Embrulhado: chave do backup (age)"). Sem ela, ninguém restaura, nem quem lê o bucket ou invade o
 VPS. Sem a chave pública, o backup não roda (e o alerta de backup atrasado dispara). Os dias além de 14 são apagados. A cada rodada ele
-manda ao Grafana Cloud as métricas `compra_facil_backup_last_success_seconds` (o horário do último
-backup inteiro) e `compra_facil_backup_last_run_ok_ratio`, para o alerta de backup atrasado (#162).
+manda ao Grafana Cloud as métricas `embrulhado_backup_last_success_seconds` (o horário do último
+backup inteiro) e `embrulhado_backup_last_run_ok_ratio`, para o alerta de backup atrasado (#162).
 
 Os comandos abaixo rodam no VPS, no contêiner do backup. O nome dele aparece em `docker ps`
 (`pg-backup-<uuid>`). A restauração recebe a chave privada pela entrada padrão (`-i` no `docker exec`), de

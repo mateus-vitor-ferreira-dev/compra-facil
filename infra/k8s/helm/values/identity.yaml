@@ -1,11 +1,11 @@
-image: { repository: compra-facil/identity }
+image: { repository: embrulhado/identity }
 port: 8006
 env:
-  ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=compra-facil
+  ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=embrulhado
   Kafka__BootstrapServers: redpanda:9092
   # cluster local, não produção: o operador inicial do compose
-  Identity__Admin__Email: admin@comprafacil.local
-  Identity__Admin__Password: admin-compra-facil
+  Identity__Admin__Email: admin@embrulhado.local
+  Identity__Admin__Password: admin-embrulhado
   # a chave TOTP fixa do operador local (a 2FA é obrigatória para o admin), a mesma do compose
   Identity__Admin__TotpKey: JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP
 resources:

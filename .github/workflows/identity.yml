@@ -50,5 +50,5 @@ jobs:
       packages: write
     with:
       service: identity
-      project: CompraFacil.Identity.Api
+      project: Embrulhado.Identity.Api
       port: "8006"

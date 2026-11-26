@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/catalog"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/webhook"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/catalog"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/webhook"
 )
 
 func req(number, remark string) CreateRequest {

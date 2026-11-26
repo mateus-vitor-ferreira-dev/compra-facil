@@ -35,7 +35,7 @@ import yaml
 
 AQUI = pathlib.Path(__file__).resolve().parent
 DASHBOARDS = AQUI.parent.parent / "infra" / "grafana" / "dashboards"
-PASTA_UID = "compra-facil"
+PASTA_UID = "embrulhado"
 # o uid local de cada datasource (o dos dashboards) e o do Grafana Cloud
 DATASOURCES = {"prometheus": "grafanacloud-prom", "tempo": "grafanacloud-traces", "loki": "grafanacloud-logs"}
 

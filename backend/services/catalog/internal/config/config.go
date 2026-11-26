@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 const envPrefix = "CATALOG"
@@ -187,15 +187,15 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("grpc.port", 9001)
 	v.SetDefault("grpc.reflection", true)
 	v.SetDefault("log.level", "info")
-	v.SetDefault("db.dsn", "postgres://catalog:compra-facil@localhost:55432/catalog?sslmode=disable")
+	v.SetDefault("db.dsn", "postgres://catalog:embrulhado@localhost:55432/catalog?sslmode=disable")
 	v.SetDefault("db.max_open_conns", 20)
 	v.SetDefault("db.max_idle_conns", 10)
 	v.SetDefault("db.conn_max_lifetime", "30m")
 	v.SetDefault("db.slow_query", "200ms")
 	v.SetDefault("db.migrate_on_start", true)
 	v.SetDefault("auth.authority", "http://localhost:8006")
-	v.SetDefault("auth.issuer", "compra-facil-identity")
-	v.SetDefault("auth.audience", "compra-facil")
+	v.SetDefault("auth.issuer", "embrulhado-identity")
+	v.SetDefault("auth.audience", "embrulhado")
 	v.SetDefault("auth.leeway", "30s")
 	v.SetDefault("cache.enabled", true)
 	v.SetDefault("cache.product_ttl", "5m")

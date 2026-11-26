@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/catalog"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/order"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/catalog"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/order"
 )
 
 type env struct {
@@ -51,8 +51,8 @@ func newEnv(t *testing.T, delays order.Delays, outOfStock ...string) *env {
 	t.Cleanup(orders.Close)
 	notifier := &fakeStockNotifier{sent: map[string]int{}}
 	e := &env{t: t, orders: orders, stock: notifier,
-		router: NewRouter(NewTokens("sim@comprafacil.local", "sim", time.Hour), stock, orders, notifier, slog.New(slog.DiscardHandler), testAdminToken)}
-	rec, body := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@comprafacil.local", "password": "sim"}, false)
+		router: NewRouter(NewTokens("sim@embrulhado.local", "sim", time.Hour), stock, orders, notifier, slog.New(slog.DiscardHandler), testAdminToken)}
+	rec, body := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@embrulhado.local", "password": "sim"}, false)
 	require.Equal(t, http.StatusOK, rec.Code)
 	var data tokenResponse
 	decodeData(t, body, &data)
@@ -120,7 +120,7 @@ var slow = order.Delays{Accept: time.Hour, Ship: time.Hour, Deliver: time.Hour}
 func TestAuth(t *testing.T) {
 	e := newEnv(t, slow)
 
-	rec, env := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@comprafacil.local", "password": "errada"}, false)
+	rec, env := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@embrulhado.local", "password": "errada"}, false)
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	assert.Equal(t, CodeAuth, env.Code)
 	assert.False(t, env.Result)
@@ -141,7 +141,7 @@ func TestAuth(t *testing.T) {
 
 func TestTokenExpiry(t *testing.T) {
 	e := newEnv(t, slow)
-	rec, env := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@comprafacil.local", "password": "sim"}, false)
+	rec, env := e.do(http.MethodPost, "/api2.0/v1/authentication/getAccessToken", map[string]string{"email": "sim@embrulhado.local", "password": "sim"}, false)
 	require.Equal(t, http.StatusOK, rec.Code)
 	var tok tokenResponse
 	decodeData(t, env, &tok)
@@ -197,7 +197,7 @@ func TestSimRoutesNeedTheAdminToken(t *testing.T) {
 }
 
 func TestSimRoutesStayClosedWithoutAConfiguredToken(t *testing.T) {
-	router := NewRouter(NewTokens("sim@comprafacil.local", "sim", time.Hour), catalog.NewStock(nil), nil, nil,
+	router := NewRouter(NewTokens("sim@embrulhado.local", "sim", time.Hour), catalog.NewStock(nil), nil, nil,
 		slog.New(slog.DiscardHandler), "")
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/sim/orders", nil)
 	req.Header.Set("X-Sim-Admin-Token", "")

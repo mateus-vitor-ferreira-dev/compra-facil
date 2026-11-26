@@ -146,7 +146,7 @@ func (p *Provider) CreateCob(txid string, req CobRequest) (Cob, error) {
 		return Cob{}, pixErr(409, "txid_duplicado", "Campo txid informado já foi utilizado em outra cobrança")
 	}
 	p.seq++
-	location := fmt.Sprintf("pix-sim.comprafacil.local/qr/v2/%s", randomHex(16))
+	location := fmt.Sprintf("pix-sim.embrulhado.local/qr/v2/%s", randomHex(16))
 	c := &Cob{Txid: txid, Status: CobAtiva, Criacao: p.now(), Expiracao: req.Calendario.Expiracao, Devedor: req.Devedor,
 		Valor: ReaisOf(cents), Chave: req.Chave, SolicitacaoPagador: req.SolicitacaoPagador,
 		Loc: Loc{ID: p.seq, Location: location, TipoCob: "cob"}, PixCopiaECola: pixCode(location), page: randomHex(16)}
@@ -389,7 +389,7 @@ func pixCode(location string) string {
 	field := func(tag, value string) string { return fmt.Sprintf("%s%02d%s", tag, len(value), value) }
 	account := field("00", "br.gov.bcb.pix") + field("25", location)
 	payload := field("00", "01") + field("01", "12") + field("26", account) + field("52", "0000") + field("53", "986") +
-		field("58", "BR") + field("59", "COMPRAFACIL SIMULADO") + field("60", "LAVRAS") + field("62", field("05", "***")) + "6304"
+		field("58", "BR") + field("59", "EMBRULHADO SIMULADO") + field("60", "LAVRAS") + field("62", field("05", "***")) + "6304"
 	return payload + fmt.Sprintf("%04X", crc16(payload))
 }
 

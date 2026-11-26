@@ -1,6 +1,6 @@
 # Infraestrutura do ambiente local: um Postgres com um banco por serviço, Redis,
 # Redpanda (Kafka) + Console, Mailpit e os serviços da aplicação.
-name: compra-facil
+name: embrulhado
 
 # Base dos serviços .NET: mesmo Dockerfile (backend/services/dotnet.Dockerfile), contexto na raiz do repo
 x-dotnet-service: &dotnet-service
@@ -21,7 +21,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SERVICE_DATABASES: &service-databases catalog,orders,inventory,payments,notifications,identity,fulfillment
-      SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
+      SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-embrulhado}
     ports:
       - "${POSTGRES_PORT:-55432}:5432"
     volumes:
@@ -43,7 +43,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       SERVICE_DATABASES: *service-databases
-      SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-compra-facil}
+      SERVICE_DB_PASSWORD: ${SERVICE_DB_PASSWORD:-embrulhado}
     volumes:
       - ./postgres/init-databases.sh:/init-databases.sh:ro
     depends_on:
@@ -263,10 +263,10 @@ services:
       target: api
       args:
         VERSION: ${VERSION:-dev}
-    image: compra-facil/catalog:${VERSION:-dev}
+    image: embrulhado/catalog:${VERSION:-dev}
     environment:
       CATALOG_APP_ENV: compose
-      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-embrulhado}@postgres:5432/catalog?sslmode=disable
       CATALOG_CACHE_REDIS_ADDR: redis:6379
       CATALOG_EVENTS_BROKERS: redpanda:9092
       # rotas /v1/admin/*: tokens do identity, validados pelo JWKS dele
@@ -295,10 +295,10 @@ services:
     build:
       context: ../../backend/services/catalog
       target: seed
-    image: compra-facil/catalog-seed:${VERSION:-dev}
+    image: embrulhado/catalog-seed:${VERSION:-dev}
     profiles: [tools]
     environment:
-      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-compra-facil}@postgres:5432/catalog?sslmode=disable
+      CATALOG_DB_DSN: postgres://catalog:${SERVICE_DB_PASSWORD:-embrulhado}@postgres:5432/catalog?sslmode=disable
       # base das fotos como o navegador as vê (gateway /media)
       CATALOG_SEED_MEDIA_URL: ${MEDIA_URL:-http://localhost/media}
     depends_on:
@@ -312,12 +312,12 @@ services:
       dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: identity
-        PROJECT: CompraFacil.Identity.Api
+        PROJECT: Embrulhado.Identity.Api
         PORT: 8006
         APP_VERSION: ${VERSION:-dev}
-    image: compra-facil/identity:${VERSION:-dev}
+    image: embrulhado/identity:${VERSION:-dev}
     environment:
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${SERVICE_DB_PASSWORD:-embrulhado}
       # eventos de conta pelo outbox (identity.account.v1)
       Kafka__BootstrapServers: redpanda:9092
       # link do e-mail de confirmação: a página do front (F8). Sem exigir a confirmação no ambiente local
@@ -328,13 +328,13 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
       # operador inicial, só no ambiente local: entra no painel e nas rotas /v1/admin/*
-      Identity__Admin__Email: ${ADMIN_EMAIL:-admin@comprafacil.local}
-      Identity__Admin__Password: ${ADMIN_PASSWORD:-admin-compra-facil}
+      Identity__Admin__Email: ${ADMIN_EMAIL:-admin@embrulhado.local}
+      Identity__Admin__Password: ${ADMIN_PASSWORD:-admin-embrulhado}
       # a chave TOTP fixa do operador local (a 2FA é obrigatória para o admin): os scripts (k6, task token)
       # calculam o código sem celular. Nunca em produção: lá o operador cadastra o próprio app
       Identity__Admin__TotpKey: ${ADMIN_TOTP_KEY:-JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP}
-      Identity__Auditor__Email: ${AUDITOR_EMAIL:-leitura@comprafacil.local}
-      Identity__Auditor__Password: ${AUDITOR_PASSWORD:-leitura-compra-facil}
+      Identity__Auditor__Email: ${AUDITOR_EMAIL:-leitura@embrulhado.local}
+      Identity__Auditor__Password: ${AUDITOR_PASSWORD:-leitura-embrulhado}
       # login com o Google (#180): o client id do Google Cloud; vazio desliga
       Identity__Google__ClientIds__0: ${GOOGLE_CLIENT_ID:-}
 
@@ -345,12 +345,12 @@ services:
       dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: orders
-        PROJECT: CompraFacil.Orders.Api
+        PROJECT: Embrulhado.Orders.Api
         PORT: 8002
         APP_VERSION: ${VERSION:-dev}
-    image: compra-facil/orders:${VERSION:-dev}
+    image: embrulhado/orders:${VERSION:-dev}
     environment:
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=orders;Username=orders;Password=${SERVICE_DB_PASSWORD:-embrulhado}
       # o frete do pedido recotado no fulfillment (#222)
       Fulfillment__BaseUrl: http://fulfillment:8007/
       Kafka__BootstrapServers: redpanda:9092
@@ -369,14 +369,14 @@ services:
       dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: inventory
-        PROJECT: CompraFacil.Inventory.Api
+        PROJECT: Embrulhado.Inventory.Api
         PORT: 8003
         APP_VERSION: ${VERSION:-dev}
-    image: compra-facil/inventory:${VERSION:-dev}
+    image: embrulhado/inventory:${VERSION:-dev}
     environment:
       # a conferência ao vivo no fornecedor antes de reservar (#218), pela rede dos serviços
       Fulfillment__BaseUrl: http://fulfillment:8007/
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=inventory;Username=inventory;Password=${SERVICE_DB_PASSWORD:-embrulhado}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
@@ -393,10 +393,10 @@ services:
       dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: payments
-        PROJECT: CompraFacil.Payments.Api
+        PROJECT: Embrulhado.Payments.Api
         PORT: 8004
         APP_VERSION: ${VERSION:-dev}
-    image: compra-facil/payments:${VERSION:-dev}
+    image: embrulhado/payments:${VERSION:-dev}
     environment:
       # o provedor de pagamento é o simulado (backend/services/payment-sim), no contrato da Efí (#379): as duas
       # APIs dela no mesmo endereço, sem o mTLS da API Pix
@@ -407,7 +407,7 @@ services:
       Payments__Efi__PixWebhookSecret: ${PAYMENT_SIM_WEBHOOK_SECRET:-sim-secret}
       # o PIX vencido é conferido a cada 15 s (em produção, 1 min)
       Payments__PixExpiry__Interval: "00:00:15"
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${SERVICE_DB_PASSWORD:-embrulhado}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
@@ -423,12 +423,12 @@ services:
       dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: fulfillment
-        PROJECT: CompraFacil.Fulfillment.Api
+        PROJECT: Embrulhado.Fulfillment.Api
         PORT: 8007
         APP_VERSION: ${VERSION:-dev}
-    image: compra-facil/fulfillment:${VERSION:-dev}
+    image: embrulhado/fulfillment:${VERSION:-dev}
     environment:
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${SERVICE_DB_PASSWORD:-embrulhado}
       Kafka__BootstrapServers: redpanda:9092
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       OTEL_METRIC_EXPORT_INTERVAL: "15000" # ms; padrão do SDK é 60 s
@@ -463,7 +463,7 @@ services:
   supplier-sim:
     build:
       context: ../../backend/services/supplier-sim
-    image: compra-facil/supplier-sim:${VERSION:-dev}
+    image: embrulhado/supplier-sim:${VERSION:-dev}
     environment:
       SIM_WEBHOOK_URL: http://fulfillment:8007/v1/webhooks/supplier
       SIM_WEBHOOK_SECRET: ${SUPPLIER_SIM_WEBHOOK_SECRET:-sim-secret}
@@ -481,7 +481,7 @@ services:
   payment-sim:
     build:
       context: ../../backend/services/payment-sim
-    image: compra-facil/payment-sim:${VERSION:-dev}
+    image: embrulhado/payment-sim:${VERSION:-dev}
     environment:
       # o cartão aprovado liquida (paid) 3 s depois: só então se estorna
       SIM_EFI_SETTLE_DELAY: 3s
@@ -502,7 +502,7 @@ services:
   invoice-sim:
     build:
       context: ../../backend/services/invoice-sim
-    image: compra-facil/invoice-sim:${VERSION:-dev}
+    image: embrulhado/invoice-sim:${VERSION:-dev}
     environment:
       SIM_CLIENT_ID: ${INVOICE_SIM_CLIENT_ID:-sim-client}
       SIM_CLIENT_SECRET: ${INVOICE_SIM_CLIENT_SECRET:-sim-secret}
@@ -522,12 +522,12 @@ services:
       dockerfile: backend/services/dotnet.Dockerfile
       args:
         SERVICE: notifications
-        PROJECT: CompraFacil.Notifications.Api
+        PROJECT: Embrulhado.Notifications.Api
         PORT: 8005
         APP_VERSION: ${VERSION:-dev}
-    image: compra-facil/notifications:${VERSION:-dev}
+    image: embrulhado/notifications:${VERSION:-dev}
     environment:
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-compra-facil}
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${SERVICE_DB_PASSWORD:-embrulhado}
       # o link do pedido nos e-mails (a nota fiscal aponta para o DANFE na página do pedido)
       Store__BaseUrl: ${SITE_URL:-http://localhost:3000}/
       Kafka__BootstrapServers: redpanda:9092
