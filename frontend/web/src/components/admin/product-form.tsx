@@ -40,7 +40,7 @@ export type ProductFormValues = {
 type CategoryOption = { id: string; name: string; children: { id: string; name: string }[] };
 
 const STATUS_HINT: Record<ProductFormValues["status"], string> = {
-  active: "aparece na vitrine; precisa do código na Montink",
+  active: "aparece na vitrine; precisa do código na Montink (ou do texto obrigatório)",
   draft: "ainda em cadastro, fora da vitrine",
   inactive: "saiu de venda, fora da vitrine",
 };
@@ -156,7 +156,7 @@ export function ProductForm({
         name="supplier_products"
         defaultValue={v.supplier_products}
         error={err.supplier_products}
-        hint="O número do produto na Montink, onde a equipe faz o pedido (ex.: 6167609). Se uma cor é outro produto lá, um por cor: Branco: 6167609, Preto: 6167609, Vermelho: 6170123. Sem código, o produto não fica à venda."
+        hint="O número do produto na Montink, onde a equipe faz o pedido (ex.: 6167609). Se uma cor é outro produto lá, um por cor: Branco: 6167609, Preto: 6167609, Vermelho: 6170123. Sem código, o produto não fica à venda, a não ser com o texto do cliente obrigatório: esse é feito por pedido, e a equipe cria o produto na Montink com a arte de cada compra."
         spellCheck={false}
         autoCorrect="off"
         autoCapitalize="off"

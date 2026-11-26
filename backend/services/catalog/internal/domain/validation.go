@@ -150,8 +150,8 @@ func (p *Product) validateColors(v *validator) {
 // CheckSupplierProducts confere o vínculo com o fornecedor manual no produto como fica gravado (no Update, depois de
 // juntar o que o PUT manteve): cada cor à venda tem o código de um produto no fornecedor, e nenhum código sobra para
 // uma cor que não está à venda; o produto sem cor tem um código só (chave NoColor). Ativo, o produto precisa de
-// fornecedor, a não ser que venha do feed de dropshipping: sem isso, o cliente compraria o que a loja não consegue
-// pedir (#483).
+// fornecedor (sem isso, o cliente compraria o que a loja não consegue pedir, #483), menos o do feed de dropshipping e
+// o feito por pedido (MadePerOrder).
 func (p *Product) CheckSupplierProducts() error {
 	var v validator
 	const field = "supplier_products"
@@ -178,9 +178,16 @@ func (p *Product) CheckSupplierProducts() error {
 			}
 		}
 	}
-	v.check(p.Status != ProductActive || p.Supplier != nil || len(p.SupplierProducts) > 0, field,
+	v.check(p.Status != ProductActive || p.Supplier != nil || p.MadePerOrder() || len(p.SupplierProducts) > 0, field,
 		"para pôr à venda, informe o código do produto no fornecedor (Montink)")
 	return v.err()
+}
+
+// MadePerOrder diz se o produto é feito por pedido no fornecedor: com o texto do cliente obrigatório, a arte só existe
+// depois da compra, e a equipe cria o produto no fornecedor a cada pedido com o arquivo de impressão do painel. Por
+// isso ele fica à venda sem código no fornecedor.
+func (p *Product) MadePerOrder() bool {
+	return p.Personalization != nil && p.Personalization.Required
 }
 
 func colorLabel(color string) string {

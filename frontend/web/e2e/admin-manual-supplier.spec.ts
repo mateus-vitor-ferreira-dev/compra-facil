@@ -2,6 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { STUB } from "./ports";
 import { passTwoFactor } from "./two-factor";
 
+// os testes zeram e alteram a mesma fila do stub (POST /__manual/reset): em paralelo, um fazia o pedido do outro
+test.describe.configure({ mode: "serial" });
+
 // o modo manual (#412) vale só para o operador de @manual.exemplo.com na API falsa
 async function login(page: Page, path: string) {
   await page.goto(path);
@@ -70,6 +73,10 @@ test("pedidos a fazer: a ficha de compra, o pedido feito, o rastreio, a entrega 
   await expect(ticket).toContainText("Avenida Paulista, 1000, Apto 12, Bela Vista, São Paulo - SP, 01310100");
   await expect(ticket).toContainText(/Custo esperado R\$\s109,80/);
   await expect(ticket.getByRole("button", { name: "Copiar cpf" })).toBeVisible();
+  // o que fazer na Montink com cada item (#483): pedir o produto que já existe, ou criar um com a arte do cliente
+  await expect(ticket).toContainText("Na Montink: produto 6170001");
+  await expect(ticket.getByRole("button", { name: "Copiar o código 6170001 da Montink" })).toBeVisible();
+  await expect(ticket).toContainText("Na Montink: crie um produto com a arte deste pedido");
 
   // sem o número do fornecedor, o campo diz o que falta
   await ticket.getByRole("button", { name: "Registrar o pedido feito para o pedido 2D3C4E10" }).click();

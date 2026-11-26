@@ -176,4 +176,19 @@ test("produto só fica à venda com o código na Montink, e a categoria volta so
   const res = await page.goto(`/categoria/${slug}`);
   expect(res?.status(), "com o primeiro produto à venda, a categoria volta").toBe(200);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(category);
+
+  // com o nome do cliente obrigatório, o produto é feito por pedido: fica à venda sem código
+  await page.goto("/admin/produtos/novo");
+  await page.getByLabel("Nome").fill("Caneca com o nome");
+  await page.getByLabel("Marca").fill("Embrulhado");
+  await page.getByLabel("SKU").fill(`CAN-NOME-${Date.now() % 100000}`);
+  await page.getByLabel("Categoria").selectOption({ label: `${category} (geral)` });
+  await page.getByLabel("Preço de tabela").fill("49,90");
+  await page.getByLabel("Arte").selectOption({ index: 1 });
+  await page.getByLabel("Rótulo do campo").fill("Nome");
+  await page.getByLabel("Caracteres no máximo").fill("12");
+  await page.getByLabel("O cliente precisa escrever o texto para comprar").check();
+  await page.getByRole("radio", { name: /À venda/ }).check();
+  await page.getByRole("button", { name: "Cadastrar produto" }).click();
+  await expect(page.getByRole("status")).toHaveText("Produto salvo. A vitrine já mostra a versão nova.");
 });

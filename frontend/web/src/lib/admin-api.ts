@@ -81,7 +81,16 @@ export function listProducts(token: string, f: ProductFilter) {
  * precisa da arte para gerar o arquivo de impressão do texto do cliente. SKU sem produto (ou sem personalização)
  * fica de fora.
  */
-export async function templatesBySku(token: string, skus: string[]): Promise<Record<string, string>> {
+/** O que a ficha do pedido precisa do produto: a arte do texto do cliente e o código na Montink de cada cor. */
+export type CatalogRef = {
+  template?: string;
+  supplierProducts: Record<string, string>;
+  /** com o texto obrigatório, a equipe cria o produto na Montink a cada pedido */
+  madePerOrder: boolean;
+};
+
+/** Os produtos dos SKUs (a fila de pedidos só conhece o SKU); o SKU que o catálogo não acha fica de fora. */
+export async function catalogBySku(token: string, skus: string[]): Promise<Record<string, CatalogRef>> {
   if (skus.length === 0) return {};
   const found = await Promise.all(
     [...new Set(skus)].map(async (sku) => {
@@ -90,11 +99,24 @@ export async function templatesBySku(token: string, skus: string[]): Promise<Rec
           .catalog({ token })
           .GET("/v1/admin/products", { params: { query: { sku, limit: 1 } }, cache: "no-store" }),
       );
-      const template = r.ok ? r.data.data[0]?.personalization?.template : undefined;
-      return template ? ([[sku, template]] as [string, string][]) : [];
+      const p = r.ok ? r.data.data[0] : undefined;
+      if (!p) return [];
+      const ref: CatalogRef = {
+        template: p.personalization?.template,
+        supplierProducts: p.supplier_products ?? {},
+        madePerOrder: p.personalization?.required === true,
+      };
+      return [[sku, ref]] as [string, CatalogRef][];
     }),
   );
   return Object.fromEntries(found.flat());
+}
+
+export async function templatesBySku(token: string, skus: string[]): Promise<Record<string, string>> {
+  const refs = await catalogBySku(token, skus);
+  return Object.fromEntries(
+    Object.entries(refs).flatMap(([sku, r]) => (r.template ? [[sku, r.template]] : [])),
+  );
 }
 
 export function getProduct(token: string, id: string) {

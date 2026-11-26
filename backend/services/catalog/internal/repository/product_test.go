@@ -433,6 +433,15 @@ func TestProductRepository_Update_SupplierProducts(t *testing.T) {
 		require.ErrorAs(t, repo.Update(ctx, &upd, got.Version), &ve)
 	})
 
+	t.Run("feito por pedido: a personalização obrigatória mantida pelo PUT libera sem código", func(t *testing.T) {
+		made := mustProduct(t, "CAM-ANIV", cat.ID, withStatus(domain.ProductDraft), func(p *domain.Product) {
+			p.SupplierProducts = nil
+			p.Personalization = &domain.Personalization{Label: "Nome", MaxLength: 12, Required: true, Template: "aniversario-dino"}
+		})
+		made.Status, made.Personalization = domain.ProductActive, nil // nil: o PUT mantém a gravada
+		require.NoError(t, repo.Update(ctx, &made, made.Version))
+	})
+
 	t.Run("no rascunho os códigos saem; à venda de novo, voltam com a cor vermelha", func(t *testing.T) {
 		upd := got
 		upd.Status, upd.SupplierProducts = domain.ProductDraft, map[string]string{}

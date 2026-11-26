@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { withFilter } from "@/lib/storefront";
 import { cn } from "@/lib/utils";
-import { hasSupplierProducts } from "@/lib/supplier-products";
+import { hasSupplierProducts, madePerOrder } from "@/lib/supplier-products";
 
 export const metadata: Metadata = { title: "Produtos" };
 
@@ -180,7 +180,11 @@ export default async function AdminProducts({ searchParams }: Props) {
                     <td className="px-3 py-2">
                       <ProductStatus status={p.status} />
                       {!p.supplier && !hasSupplierProducts(p.supplier_products) && (
-                        <div className="text-ink-soft mt-1 text-xs">sem código na Montink</div>
+                        <div className="text-ink-soft mt-1 text-xs">
+                          {madePerOrder(p.personalization)
+                            ? "feito por pedido na Montink"
+                            : "sem código na Montink"}
+                        </div>
                       )}
                     </td>
                   </tr>

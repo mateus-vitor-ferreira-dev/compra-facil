@@ -404,7 +404,9 @@ const isAdmin = (req) =>
 /** Como o catalog: à venda só com o código no fornecedor (o do feed de dropshipping tem o dele). */
 function withoutSupplier(res, body, p) {
   const codes = body.supplier_products ?? p?.supplier_products ?? {};
-  if (body.status !== "active" || p?.supplier || Object.keys(codes).length > 0) return false;
+  // o feito por pedido (texto do cliente obrigatório) não precisa: a equipe cria o produto a cada compra
+  const required = (body.personalization ?? p?.personalization)?.required === true;
+  if (body.status !== "active" || p?.supplier || required || Object.keys(codes).length > 0) return false;
   send(
     res,
     422,
@@ -499,6 +501,12 @@ async function admin(req, res, url) {
   if (req.method === "GET" && url.pathname === "/catalog/v1/admin/products") {
     const q = url.searchParams.get("q")?.toLowerCase();
     const status = url.searchParams.get("status");
+    const sku = url.searchParams.get("sku");
+    // por SKU, como o catalog (a ficha do pedido manual busca a arte e o código na Montink assim)
+    if (sku) {
+      const found = [...products, ...manualCatalog].filter((p) => p.sku === sku);
+      return send(res, 200, { data: found, page: { next_cursor: null, has_more: false } });
+    }
     const data = products.filter(
       (p) =>
         (!q || `${p.name} ${p.brand} ${p.sku}`.toLowerCase().includes(q)) && (!status || p.status === status),
@@ -1162,6 +1170,16 @@ const isManualAdmin = (req) => isAdmin(req) && adminEmail(req).endsWith("@manual
 const MANUAL_TO_PLACE = "7c41e0aa-2b8f-4d1e-9a55-6f0b2d3c4e10";
 const MANUAL_PLACED = "8d52f1bb-3c9a-4e2f-8b66-7a1c3e4d5f21";
 const MANUAL_SHIPPED = "9e63a2cc-4dab-4f3a-9c77-8b2d4f5e6a32";
+// os produtos da fila manual no catálogo (só a busca por SKU do painel os vê): o fone tem produto na Montink, e a
+// caneca com o nome do cliente é feita por pedido (#483)
+const manualCatalog = [
+  { sku: "FON-BT-01", personalization: null, supplier_products: { "": "6170001" } },
+  {
+    sku: "CAN-NOME-01",
+    personalization: { label: "Nome", max_length: 12, required: true, template: "nome-classico" },
+    supplier_products: {},
+  },
+];
 let manual;
 function resetManual() {
   const base = {
@@ -1198,6 +1216,16 @@ function resetManual() {
         ...base,
         order_id: MANUAL_TO_PLACE,
         status: "awaiting_staff",
+        items: [
+          ...base.items,
+          {
+            sku: "CAN-NOME-01",
+            name: "Caneca com nome",
+            quantity: 1,
+            color: "Branco",
+            personalization: "Ana",
+          },
+        ],
         supplier_order_id: null,
         awaiting_since: iso(Date.now() - 26 * 3_600_000),
       },

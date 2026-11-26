@@ -70,3 +70,21 @@ export function formatSupplierProducts(value: SupplierProducts | undefined, colo
 export function hasSupplierProducts(value: SupplierProducts | undefined): boolean {
   return Object.keys(value ?? {}).length > 0;
 }
+
+/**
+ * Feito por pedido na Montink: com o texto do cliente obrigatório, a arte só existe depois da compra, e a equipe cria o
+ * produto lá a cada pedido com o arquivo do "Baixar arte". Fica à venda sem código, como no catalog.
+ */
+export function madePerOrder(personalization: { required?: boolean } | null | undefined): boolean {
+  return personalization?.required === true;
+}
+
+/** O código na Montink da cor do item (ou o único, no produto sem cor). */
+export function supplierCodeFor(value: SupplierProducts | undefined, color: string | null | undefined) {
+  if (!value) return undefined;
+  if (color) {
+    const key = Object.keys(value).find((c) => same(c, color));
+    if (key) return value[key];
+  }
+  return value[""];
+}

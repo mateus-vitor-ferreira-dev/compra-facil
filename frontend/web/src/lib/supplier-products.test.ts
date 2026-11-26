@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatSupplierProducts, hasSupplierProducts, parseSupplierProducts } from "./supplier-products";
+import {
+  formatSupplierProducts,
+  hasSupplierProducts,
+  madePerOrder,
+  parseSupplierProducts,
+  supplierCodeFor,
+} from "./supplier-products";
 
 const bw = ["Branco", "Preto"];
 
@@ -66,5 +72,21 @@ describe("código na Montink: o que o painel mostra", () => {
     expect(hasSupplierProducts({ "": "1" })).toBe(true);
     expect(hasSupplierProducts({})).toBe(false);
     expect(hasSupplierProducts(undefined)).toBe(false);
+  });
+});
+
+describe("código na Montink: na ficha do pedido", () => {
+  it("o código da cor do item, sem diferenciar maiúsculas; o único no produto sem cor", () => {
+    const codes = { Branco: "6167609", Vermelho: "6170123" };
+    expect(supplierCodeFor(codes, "vermelho")).toBe("6170123");
+    expect(supplierCodeFor(codes, "Preto")).toBeUndefined();
+    expect(supplierCodeFor({ "": "6168525" }, null)).toBe("6168525");
+    expect(supplierCodeFor(undefined, "Branco")).toBeUndefined();
+  });
+
+  it("feito por pedido só com o texto obrigatório", () => {
+    expect(madePerOrder({ required: true })).toBe(true);
+    expect(madePerOrder({ required: false })).toBe(false);
+    expect(madePerOrder(null)).toBe(false);
   });
 });

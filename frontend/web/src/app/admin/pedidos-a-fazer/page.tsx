@@ -10,9 +10,11 @@ import {
   manualOrders,
   ordersToPlace,
   supplierSheet,
-  templatesBySku,
+  catalogBySku,
+  type CatalogRef,
   type ManualOrder,
 } from "@/lib/admin-api";
+import { supplierCodeFor } from "@/lib/supplier-products";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { orderNumber } from "@/lib/order-status";
@@ -95,11 +97,13 @@ export default async function OrdersToPlace({ searchParams }: Props) {
     searchParams,
   ]);
   const message = notice(query);
-  // as artes dos itens com o texto do cliente, para o "Baixar arte" (a fila só conhece o SKU)
-  const personalized = queue.ok
-    ? queue.data.data.flatMap((o) => o.items.filter((i) => i.personalization).map((i) => i.sku))
-    : [];
-  const templates = personalized.length > 0 ? await templatesBySku(token, personalized) : {};
+  // a arte do "Baixar arte" e o código na Montink de cada item (a fila só conhece o SKU)
+  const refs = queue.ok
+    ? await catalogBySku(
+        token,
+        queue.data.data.flatMap((o) => o.items.map((i) => i.sku)),
+      )
+    : {};
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -154,7 +158,7 @@ export default async function OrdersToPlace({ searchParams }: Props) {
             ) : (
               <ol className="space-y-4">
                 {queue.data.data.map((o) => (
-                  <Ticket key={o.order_id} order={o} now={now} templates={templates} />
+                  <Ticket key={o.order_id} order={o} now={now} refs={refs} />
                 ))}
               </ol>
             )}
@@ -292,12 +296,12 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
 function Ticket({
   order: o,
   now,
-  templates,
+  refs,
 }: {
   order: ManualOrder;
   now: number;
-  /** a arte de cada SKU com personalização */
-  templates: Record<string, string>;
+  /** a arte e o código na Montink de cada SKU */
+  refs: Record<string, CatalogRef>;
 }) {
   const number = orderNumber(o.order_id);
   const age = waiting(o.awaiting_since, now);
@@ -355,6 +359,7 @@ function Ticket({
                   </span>
                   <CopyButton value={i.sku} label={`o SKU ${i.sku}`} />
                 </div>
+                <MontinkStep item={i} catalog={refs[i.sku]} />
                 {/* o texto do cliente vai na arte: o arquivo de impressão sai daqui */}
                 {i.personalization && (
                   <div className="border-ink space-y-2 rounded-md border-l-4 py-1 pl-3">
@@ -368,7 +373,7 @@ function Ticket({
                       orderId={o.order_id}
                       itemName={i.name}
                       text={i.personalization}
-                      template={templates[i.sku]}
+                      template={refs[i.sku]?.template}
                       color={i.color ?? undefined}
                     />
                   </div>
@@ -439,6 +444,45 @@ function Ticket({
         </div>
       </div>
     </li>
+  );
+}
+
+/**
+ * O que fazer na Montink com o item (#483): pedir o produto que já existe lá, ou criar um com a arte deste pedido
+ * quando ela leva o texto do cliente (o produto da Montink tem a arte padrão, sem o nome).
+ */
+function MontinkStep({
+  item,
+  catalog,
+}: {
+  item: ManualOrder["items"][number];
+  catalog: CatalogRef | undefined;
+}) {
+  if (!catalog) return null;
+  const code = supplierCodeFor(catalog.supplierProducts, item.color);
+  if (item.personalization || (catalog.madePerOrder && !code)) {
+    return (
+      <p className="text-sm">
+        <span className="font-semibold">Na Montink:</span> crie um produto com a arte deste pedido (Baixar
+        arte, abaixo) na peça, no tamanho e na cor da ficha, e peça esse produto.
+      </p>
+    );
+  }
+  if (!code) {
+    return (
+      <p className="text-danger text-sm font-semibold">
+        Sem produto na Montink para esta cor: crie lá antes de fazer o pedido.
+      </p>
+    );
+  }
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-sm">
+      <span>
+        <span className="font-semibold">Na Montink:</span> produto{" "}
+        <span className="font-bold tabular-nums">{code}</span>
+      </span>
+      <CopyButton value={code} label={`o código ${code} da Montink`} />
+    </p>
   );
 }
 
