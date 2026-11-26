@@ -15,7 +15,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 
-REPO = "mateus-vitor-ferreira-dev/compra-facil"
+REPO = "mateus-vitor-ferreira-dev/embrulhado"
 
 
 def gh(path: str) -> dict:

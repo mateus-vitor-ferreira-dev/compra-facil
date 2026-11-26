@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: CompraFácil — Payments API
+  title: Embrulhado — Payments API
   version: 1.0.0
   summary: Consulta de pagamentos, notificações do provedor e estornos.
   description: |

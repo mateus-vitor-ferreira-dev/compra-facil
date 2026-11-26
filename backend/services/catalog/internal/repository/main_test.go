@@ -13,8 +13,8 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"gorm.io/gorm"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/migrations"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/migrations"
 )
 
 // Um Postgres real (mesma imagem do compose) para o pacote inteiro; cada teste limpa as tabelas.

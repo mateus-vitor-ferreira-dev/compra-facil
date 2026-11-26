@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: CompraFácil — Inventory API
+  title: Embrulhado — Inventory API
   version: 1.0.0
   summary: Consulta e ajuste de estoque.
   description: |

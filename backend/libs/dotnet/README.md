@@ -5,9 +5,9 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
 
 | Projeto | O que é |
 |---|---|
-| `CompraFacil.BuildingBlocks` | Padrões HTTP, dados, mensageria (outbox, Kafka, inbox) e OpenTelemetry usados por todos (abaixo). |
-| `CompraFacil.BuildingBlocks.Testing` | Postgres real via Testcontainers, o smoke test comum (herdado pelos serviços) e o `ContractAssert`: valida eventos e corpos HTTP contra `contracts/` (AsyncAPI e OpenAPI), seguindo os `$ref` entre arquivos. |
-| `CompraFacil.BuildingBlocks.Tests` | Testes da própria lib. |
+| `Embrulhado.BuildingBlocks` | Padrões HTTP, dados, mensageria (outbox, Kafka, inbox) e OpenTelemetry usados por todos (abaixo). |
+| `Embrulhado.BuildingBlocks.Testing` | Postgres real via Testcontainers, o smoke test comum (herdado pelos serviços) e o `ContractAssert`: valida eventos e corpos HTTP contra `contracts/` (AsyncAPI e OpenAPI), seguindo os `$ref` entre arquivos. |
+| `Embrulhado.BuildingBlocks.Tests` | Testes da própria lib. |
 
 ## O que o `AddServiceDefaults` / `UseServiceDefaults` dá a cada serviço
 
@@ -30,7 +30,7 @@ forma. O que é igual entre eles fica aqui, em `libs/dotnet`, e não copiado em 
   e migrations aplicadas na subida (`Database:MigrateOnStart`, padrão `true`). Registra um `TimeProvider`
   truncado em microssegundos (precisão do `timestamptz`): a resposta de uma escrita bate com a leitura.
 - **Rotas protegidas** (`AddJwtAuth()` + `[Authorize(Policy = JwtAuth.AdminPolicy)]` ou `CustomerPolicy`):
-  tokens do identity (RS256, `iss` compra-facil-identity, `aud` compra-facil, `sub`, `roles` e `exp`),
+  tokens do identity (RS256, `iss` embrulhado-identity, `aud` embrulhado, `sub`, `roles` e `exp`),
   validados pelo JWKS em `Auth:Authority` (descoberta em `/.well-known/openid-configuration`). As chaves
   ficam em cache: renovadas de hora em hora e quando chega um `kid` desconhecido. HTTP só com
   `Auth__RequireHttpsMetadata=false` fora de Development (rede interna do compose e do k3d). Token local
@@ -79,15 +79,15 @@ services/<s>/src/<...>.Infrastructure --startup-project services/<s>/src/<...>.A
 
 ```
 services/orders/
-├── CompraFacil.Orders.slnx               # solution do serviço (inclui as libs)
+├── Embrulhado.Orders.slnx               # solution do serviço (inclui as libs)
 ├── src/
-│   ├── CompraFacil.Orders.Api/            # Program.cs, Controllers, appsettings; linka o contrato
-│   ├── CompraFacil.Orders.Application/    # casos de uso + validadores (FluentValidation)
-│   ├── CompraFacil.Orders.Domain/         # entidades e regras, sem ASP.NET nem EF
-│   └── CompraFacil.Orders.Infrastructure/ # DbContext, migrations, Kafka, clientes de outros serviços
+│   ├── Embrulhado.Orders.Api/            # Program.cs, Controllers, appsettings; linka o contrato
+│   ├── Embrulhado.Orders.Application/    # casos de uso + validadores (FluentValidation)
+│   ├── Embrulhado.Orders.Domain/         # entidades e regras, sem ASP.NET nem EF
+│   └── Embrulhado.Orders.Infrastructure/ # DbContext, migrations, Kafka, clientes de outros serviços
 └── tests/
-    ├── CompraFacil.Orders.UnitTests/      # (criado com a primeira regra de domínio)
-    └── CompraFacil.Orders.IntegrationTests/
+    ├── Embrulhado.Orders.UnitTests/      # (criado com a primeira regra de domínio)
+    └── Embrulhado.Orders.IntegrationTests/
 ```
 
 Dependências entre camadas: `Api → Application → Domain` e `Api → Infrastructure → Application`.
@@ -107,9 +107,9 @@ O `Program.cs` tem ~15 linhas: `AddServiceDefaults`, `AddApplication`, `AddInfra
 ## Comandos
 
 ```bash
-dotnet test --solution services/orders/CompraFacil.Orders.slnx   # ou: task test:dotnet
-dotnet format services/orders/CompraFacil.Orders.slnx            # ou: task fmt / task lint:dotnet
-dotnet run --project services/orders/src/CompraFacil.Orders.Api  # porta 8002, banco do compose
+dotnet test --solution services/orders/Embrulhado.Orders.slnx   # ou: task test:dotnet
+dotnet format services/orders/Embrulhado.Orders.slnx            # ou: task fmt / task lint:dotnet
+dotnet run --project services/orders/src/Embrulhado.Orders.Api  # porta 8002, banco do compose
 ```
 
 Os testes de integração sobem um Postgres com Testcontainers: precisam do Docker.

@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 // DTOs no formato de contracts/openapi/catalog.v1.yaml (JSON em snake_case, dinheiro em centavos).

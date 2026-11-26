@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/invoice-sim/internal/nfe"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/invoice-sim/internal/nfe"
 )
 
 type env struct {

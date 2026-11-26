@@ -1,6 +1,6 @@
 asyncapi: 3.1.0
 info:
-  title: CompraFácil — Orders Events
+  title: Embrulhado — Orders Events
   version: 1.0.0
   description: |
     Eventos do serviço **orders** (time de Processamento de compras, ASP.NET Core), que abre e fecha a

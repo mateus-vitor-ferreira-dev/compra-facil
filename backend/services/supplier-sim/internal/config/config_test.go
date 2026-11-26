@@ -16,7 +16,7 @@ func TestLoadDefaults(t *testing.T) {
 	c, err := load(env(nil))
 	require.NoError(t, err)
 	assert.Equal(t, 8090, c.Port)
-	assert.Equal(t, "sim@comprafacil.local", c.Email)
+	assert.Equal(t, "sim@embrulhado.local", c.Email)
 	assert.Equal(t, 2*time.Second, c.AcceptDelay)
 	assert.Equal(t, 5*time.Second, c.ShipDelay)
 	assert.Equal(t, 10*time.Second, c.DeliverDelay)

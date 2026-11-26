@@ -11,7 +11,7 @@
 # Variáveis:
 #   COOLIFY_URL, COOLIFY_TOKEN, COOLIFY_APP_UUID   o painel, o token da API e o recurso da API
 #   DEPLOY_TAG        a tag desta publicação           (ex.: deploy-123456)
-#   IMAGES            as imagens, separadas por espaço  (ghcr.io/<dono>/compra-facil-catalog ...)
+#   IMAGES            as imagens, separadas por espaço  (ghcr.io/<dono>/embrulhado-catalog ...)
 #   DEPLOY_TIMEOUT    segundos até desistir             (padrão: 900)
 set -euo pipefail
 

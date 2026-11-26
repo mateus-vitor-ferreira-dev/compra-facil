@@ -11,7 +11,7 @@ rules:
   operation-description: off
   info-contact: off
 
-  compra-facil-paths-kebab-case:
+  embrulhado-paths-kebab-case:
     description: Caminhos em kebab-case, com versão no início (/v1/...).
     severity: error
     given: $.paths[*]~
@@ -20,7 +20,7 @@ rules:
       functionOptions:
         match: "^/v[0-9]+(/([a-z0-9]+(-[a-z0-9]+)*|\\{[a-z_]+\\}))*$"
 
-  compra-facil-properties-snake-case:
+  embrulhado-properties-snake-case:
     description: Propriedades JSON em snake_case.
     severity: error
     given: $..properties[*]~
@@ -29,7 +29,7 @@ rules:
       functionOptions:
         match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
 
-  compra-facil-query-params-snake-case:
+  embrulhado-query-params-snake-case:
     description: Parâmetros de query e path em snake_case.
     severity: error
     given: $..parameters[?(@.in == 'query' || @.in == 'path')].name
@@ -38,7 +38,7 @@ rules:
       functionOptions:
         match: "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
 
-  compra-facil-errors-are-problem-details:
+  embrulhado-errors-are-problem-details:
     description: Respostas 4xx/5xx usam application/problem+json (RFC 9457).
     severity: error
     given: $.paths[*][*].responses[?(@property.match(/^[45]/))].content
@@ -46,7 +46,7 @@ rules:
       field: application/problem+json
       function: truthy
 
-  compra-facil-5xx-documented:
+  embrulhado-5xx-documented:
     description: Toda operação documenta o 500.
     severity: warn
     given: $.paths[*][get,post,put,patch,delete].responses
@@ -66,15 +66,15 @@ overrides:
       - "identity.v1.yaml#/paths/~1.well-known~1jwks.json"
       - "identity.v1.yaml#/paths/~1.well-known~1openid-configuration"
     rules:
-      compra-facil-paths-kebab-case: off
-      compra-facil-properties-snake-case: off
+      embrulhado-paths-kebab-case: off
+      embrulhado-properties-snake-case: off
 
   # o corpo do webhook é o formato do fornecedor (CJ Dropshipping, camelCase): a loja só recebe
   - files: ["fulfillment.v1.yaml#/components/schemas/SupplierWebhook"]
     rules:
-      compra-facil-properties-snake-case: off
+      embrulhado-properties-snake-case: off
 
   # a notificação é o formato do provedor de pagamento (Mercado Pago: ?data.id=): a loja só recebe
   - files: ["payments.v1.yaml#/paths/~1v1~1webhooks~1payments"]
     rules:
-      compra-facil-query-params-snake-case: off
+      embrulhado-query-params-snake-case: off

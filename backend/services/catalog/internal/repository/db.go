@@ -15,8 +15,8 @@ import (
 	"gorm.io/gorm/logger"
 	"gorm.io/plugin/opentelemetry/tracing"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 var lockForUpdate = clause.Locking{Strength: clause.LockingStrengthUpdate}

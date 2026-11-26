@@ -27,7 +27,7 @@ processors:
       span:
         - 'attributes["url.path"] == "/health" or attributes["url.path"] == "/ready" or attributes["url.path"] == "/ping"'
   # os dashboards e os alertas filtram por service_name, como o Prometheus local (promote_resource_attributes).
-  # No Grafana Cloud o service.name do recurso vira o job ("compra-facil/<serviço>"); aqui ele vai também
+  # No Grafana Cloud o service.name do recurso vira o job ("embrulhado/<serviço>"); aqui ele vai também
   # para cada ponto
   transform/service_name:
     error_mode: ignore

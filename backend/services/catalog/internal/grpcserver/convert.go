@@ -3,9 +3,9 @@ package grpcserver
 import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	catalogv1 "github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/gen/catalog/v1"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/service"
+	catalogv1 "github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/gen/catalog/v1"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/service"
 )
 
 var productStatus = map[domain.ProductStatus]catalogv1.ProductStatus{

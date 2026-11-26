@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 type pricingRuleRecord struct {

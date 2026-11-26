@@ -21,7 +21,7 @@ que vem com o k3s.
 
 | Arquivo | O que é |
 |---|---|
-| `helm/compra-facil-service/` | Chart genérico: Deployment (sondas `/health` e `/ready`), Service (HTTP e gRPC), HPA por CPU e rota no Traefik (Ingress + Middleware que tira o prefixo) |
+| `helm/embrulhado-service/` | Chart genérico: Deployment (sondas `/health` e `/ready`), Service (HTTP e gRPC), HPA por CPU e rota no Traefik (Ingress + Middleware que tira o prefixo) |
 | `helm/values/<serviço>.yaml` | Imagem, porta, variáveis e recursos de cada serviço. Só o catalog liga o HPA (1 a 5 réplicas, meta de 60% de CPU) |
 | `deps.yaml` | Postgres (mesmo script de bancos do compose), Redis, Redpanda e Mailpit, uma instância de cada |
 | `seed-job.yaml`, `k6-job.yaml` | Jobs do seed e da carga; o k6 usa o mesmo `load-tests/k6/campanha.js` do compose |

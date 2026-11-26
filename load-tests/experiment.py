@@ -43,8 +43,8 @@ def parse_mem(text):
 
 
 def service_of(container):
-    # comprafacil-catalog-2 -> catalog
-    m = re.match(r"comprafacil-(.+)-\d+$", container)
+    # embrulhado-catalog-2 -> catalog
+    m = re.match(r"embrulhado-(.+)-\d+$", container)
     return m.group(1) if m else container
 
 
@@ -64,7 +64,7 @@ class Sampler(threading.Thread):
             now = time.time()
             for line in out.splitlines():
                 name, cpu, mem = line.split(";")
-                if name.startswith("comprafacil-"):
+                if name.startswith("embrulhado-"):
                     self.samples.append((now, service_of(name), float(cpu.rstrip("%") or 0) / 100, parse_mem(mem)))
             self.stop.wait(5)
 

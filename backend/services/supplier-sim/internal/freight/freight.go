@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/catalog"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/catalog"
 )
 
 var ErrInvalid = errors.New("cotação inválida")

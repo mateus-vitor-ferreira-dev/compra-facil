@@ -37,12 +37,12 @@ jobs:
             | tar xz -C "$RUNNER_TEMP/bin" kubeconform
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: helm lint (cada serviço)
-        run: for v in helm/values/*.yaml; do helm lint helm/compra-facil-service -f "$v"; done
+        run: for v in helm/values/*.yaml; do helm lint helm/embrulhado-service -f "$v"; done
       - name: Renderiza
         run: |
           {
             for v in helm/values/*.yaml; do
-              helm template "$(basename "$v" .yaml)" helm/compra-facil-service -f "$v"
+              helm template "$(basename "$v" .yaml)" helm/embrulhado-service -f "$v"
               echo ---
             done
           } > /tmp/render.yaml

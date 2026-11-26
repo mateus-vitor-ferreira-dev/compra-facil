@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Embrulhado.Inventory.Api/Embrulhado.Inventory.Api.csproj" />
+    <Project Path="src/Embrulhado.Inventory.Application/Embrulhado.Inventory.Application.csproj" />
+    <Project Path="src/Embrulhado.Inventory.Domain/Embrulhado.Inventory.Domain.csproj" />
+    <Project Path="src/Embrulhado.Inventory.Infrastructure/Embrulhado.Inventory.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Embrulhado.Inventory.IntegrationTests/Embrulhado.Inventory.IntegrationTests.csproj" />
+    <Project Path="tests/Embrulhado.Inventory.UnitTests/Embrulhado.Inventory.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks/Embrulhado.BuildingBlocks.csproj" />
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks.Testing/Embrulhado.BuildingBlocks.Testing.csproj" />
+  </Folder>
+</Solution>

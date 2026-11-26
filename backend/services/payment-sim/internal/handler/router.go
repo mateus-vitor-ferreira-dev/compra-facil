@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim/internal/efi"
 )
 
 type Credentials struct {

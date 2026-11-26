@@ -1,0 +1,63 @@
+namespace Embrulhado.Fulfillment.Infrastructure.Supplier;
+
+/// <summary>
+/// Seção Supplier: o fornecedor e o despachante. Em dev, o fornecedor simulado do compose
+/// (backend/services/supplier-sim), que fala o contrato do CJ Dropshipping.
+/// </summary>
+public sealed class SupplierOptions
+{
+    /// <summary>
+    /// api (o padrão: o CJ, ou o simulador dele) ou manual (#412): sem API, a equipe faz o pedido no fornecedor pelo
+    /// painel, e o catálogo vem da planilha (Supplier:Manual).
+    /// </summary>
+    public string Mode { get; set; } = "api";
+
+    /// <summary>Nome do fornecedor nos eventos e no banco.</summary>
+    public string Name { get; set; } = "cj";
+
+    /// <summary>Raiz da API, com a barra no fim (ex.: http://supplier-sim:8090/api2.0/v1/).</summary>
+    public Uri BaseUrl { get; set; } = new("http://localhost:8090/api2.0/v1/");
+
+    public const string SimulatorEmail = "sim@embrulhado.local";
+
+    public string Email { get; set; } = SimulatorEmail;
+    public string Password { get; set; } = "sim";
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// Segredo do HMAC dos webhooks (o mesmo configurado no fornecedor). Sem padrão: vazio, nenhuma assinatura
+    /// vale. O "sim-secret" do simulador vem só do compose local e do e2e.
+    /// </summary>
+    public string WebhookSecret { get; set; } = "";
+
+    /// <summary>O segredo do simulador, que está no repositório: a produção com fornecedor de verdade recusa subir com ele.</summary>
+    public const string SimulatorWebhookSecret = "sim-secret";
+
+    /// <summary>Cabeçalho com a assinatura do webhook ("sha256=&lt;hex&gt;").</summary>
+    public string SignatureHeader { get; set; } = "X-Sim-Signature";
+
+    /// <summary>
+    /// Só com o simulado: o cenário vem do e-mail do cliente (ana+recusar@... vira "[recusar]" na
+    /// observação do pedido), para demonstrar recusa, cancelamento e atraso pela própria loja.
+    /// </summary>
+    public bool ScenarioFromEmail { get; set; }
+
+    public bool DispatcherEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Data de corte: OrderConfirmed anterior a ela não vai ao fornecedor. O consumer lê o tópico desde o
+    /// começo (para não perder evento), e um fulfillment novo mandaria ao fornecedor os pedidos antigos
+    /// ainda guardados no Kafka. Obrigatória em produção (o serviço não sobe sem ela); vazia, aceita tudo.
+    /// </summary>
+    public DateTimeOffset? AcceptOrdersSince { get; set; }
+    public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(1);
+    public int BatchSize { get; set; } = 10;
+
+    /// <summary>Lê o feed do fornecedor de tempos em tempos (o painel também pede uma leitura na hora).</summary>
+    public bool CatalogSyncEnabled { get; set; } = true;
+
+    public TimeSpan CatalogSyncInterval { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>Quanto um pedido reservado (Placing) espera antes de outro despachante reenviar.</summary>
+    public TimeSpan ClaimLease { get; set; } = TimeSpan.FromMinutes(2);
+}

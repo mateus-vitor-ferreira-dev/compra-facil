@@ -15,7 +15,7 @@ const docsPage = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Catalog API — CompraFácil</title>
+  <title>Catalog API — Embrulhado</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@` + swaggerUIVersion + `/swagger-ui.css">
 </head>
 <body>

@@ -56,7 +56,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6.2.0
         with:
-          images: ghcr.io/${{ github.repository_owner }}/compra-facil-pg-backup
+          images: ghcr.io/${{ github.repository_owner }}/embrulhado-pg-backup
           tags: |
             type=sha,format=long
             type=sha,format=short

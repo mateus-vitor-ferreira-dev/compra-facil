@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/service"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/service"
 )
 
 // Os writers envolvem os services nas escritas admin e invalidam o cache quando a escrita dá

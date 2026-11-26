@@ -42,7 +42,7 @@ VARIANT_WIDTHS = (320, 480, 640, 960, 1200)
 MIN_SIZE = 600  # foto menor que isso não entra: ficaria borrada na página do produto
 SIZE = 800  # das pranchas de escolha
 PER_SUB = 8  # por tipo; o seed pede pelo menos minPhotosPerSubcategory
-USER_AGENT = "compra-facil-seed/1.0 (https://github.com/mateus-vitor-ferreira-dev/compra-facil)"
+USER_AGENT = "embrulhado-seed/1.0 (https://github.com/mateus-vitor-ferreira-dev/embrulhado)"
 # CC BY e CC BY-SA pedem o crédito, que fica no CREDITOS.md (linkado no README); a licença do Pixabay não
 # pede, mas o crédito fica lá do mesmo jeito
 LICENSES = ["cc0", "pd", "cc-by", "cc-by-sa", "pixabay"]
@@ -191,7 +191,7 @@ def pedido(*anteriores):
     fontes = [f for f in SOURCES if not anteriores or f == "pixabay" or f not in fontes_usadas]
     out = CACHE / ("pedido.json" if not anteriores else "pedido-complemento.json")
     out.write_text(json.dumps({
-        "projeto": "compra-facil",
+        "projeto": "embrulhado",
         "licencas": LICENSES,
         "fontes": fontes,
         "lado_minimo": MIN_SIZE,

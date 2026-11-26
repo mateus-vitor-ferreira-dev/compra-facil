@@ -27,7 +27,7 @@ def explore(datasource, query, extra=None, since="now-1h"):
 
 def main(args):
     if not args:
-        url = f"{GRAFANA}/d/compra-facil-inicio"
+        url = f"{GRAFANA}/d/embrulhado-inicio"
     elif args[0] == "trace" and len(args) == 2:
         trace_id = args[1].strip().lower()
         if not re.fullmatch(r"[0-9a-f]{32}", trace_id):

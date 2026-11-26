@@ -18,7 +18,7 @@ task proto:generate                # gera Go em backend/services/catalog/gen (ve
 ```
 
 O lado C# (orders) não usa `buf generate`: o `Grpc.Tools` compila o `.proto` no build do .NET, com o
-namespace `CompraFacil.Contracts.Catalog.V1`.
+namespace `Embrulhado.Contracts.Catalog.V1`.
 
 ## Evoluindo
 

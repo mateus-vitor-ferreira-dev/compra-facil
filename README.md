@@ -1,21 +1,21 @@
 <div align="center">
 
-# 🛒 CompraFácil
+# 🛒 Embrulhado
 
 **Um e-commerce em microsserviços que aguenta o pico da campanha promocional escalando só o que precisa.**
 
 Catálogo em **Go**, compras em **.NET**, SAGA coreografada sobre **Kafka**, observabilidade ponta a ponta com
 **OpenTelemetry** e um pipeline de CI/CD por serviço.
 
-[![catalog](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/catalog.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/catalog.yml)
-[![orders](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/orders.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/orders.yml)
-[![inventory](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/inventory.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/inventory.yml)
-[![payments](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/payments.yml)
-[![notifications](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/notifications.yml)
-[![fulfillment](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/fulfillment.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/fulfillment.yml)
-[![identity](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/identity.yml)
-[![web](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/web.yml)
-[![contracts](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/compra-facil/actions/workflows/contracts.yml)
+[![catalog](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/catalog.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/catalog.yml)
+[![orders](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/orders.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/orders.yml)
+[![inventory](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/inventory.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/inventory.yml)
+[![payments](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/payments.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/payments.yml)
+[![notifications](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/notifications.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/notifications.yml)
+[![fulfillment](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/fulfillment.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/fulfillment.yml)
+[![identity](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/identity.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/identity.yml)
+[![web](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/web.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/web.yml)
+[![contracts](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/contracts.yml/badge.svg?branch=develop)](https://github.com/mateus-vitor-ferreira-dev/embrulhado/actions/workflows/contracts.yml)
 
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
@@ -37,7 +37,7 @@ Catálogo em **Go**, compras em **.NET**, SAGA coreografada sobre **Kafka**, obs
 
 ## O problema
 
-A CompraFácil é a loja do trabalho *Monolito x Microsserviços* ([enunciado](docs/_Trabalho_MonolitoXMicrosservicos.pdf)).
+O Embrulhado é a loja do trabalho *Monolito x Microsserviços* ([enunciado](docs/_Trabalho_MonolitoXMicrosservicos.pdf)).
 Em campanha promocional, a consulta ao catálogo cresce muito mais que o resto da loja, e o monolito só
 aguenta escalando **tudo** junto. Dois times (catálogo e compras) dependem de **uma implantação conjunta**.
 
@@ -75,7 +75,7 @@ O parecer da atividade, com a escolha entre as propostas e os critérios para av
 Só precisa de Docker (com Compose v2):
 
 ```bash
-git clone https://github.com/mateus-vitor-ferreira-dev/compra-facil.git && cd compra-facil
+git clone https://github.com/mateus-vitor-ferreira-dev/embrulhado.git && cd embrulhado
 docker compose up -d --build --wait      # 6 serviços + Postgres, Redis, Kafka, gateway e Grafana
 docker compose run --rm catalog-seed     # 10 mil produtos, categorias e campanhas
 ```
@@ -86,7 +86,7 @@ Pronto:
 |---|---|
 | 🛍️ Vitrine | http://localhost/catalog/v1/products?on_sale=true |
 | 📘 APIs (Swagger) | http://localhost/catalog/docs · [/orders/docs](http://localhost/orders/docs) · [/inventory/docs](http://localhost/inventory/docs) · [/payments/docs](http://localhost/payments/docs) · [/identity/docs](http://localhost/identity/docs) |
-| 📊 Grafana (sem login) | http://127.0.0.1:3001, pasta **CompraFácil** |
+| 📊 Grafana (sem login) | http://127.0.0.1:3001, pasta **Embrulhado** |
 | 🖼️ Fotos dos produtos | http://localhost/media/produtos/tv-1.webp ([créditos](infra/media/CREDITOS.md)) |
 | 📨 E-mails enviados | http://localhost:8025 (Mailpit) |
 | 🧵 Tópicos do Kafka | http://localhost:8080 (Redpanda Console) |
@@ -211,7 +211,7 @@ Dados pessoais, retenção e o que falta da LGPD antes da venda real: [`docs/lgp
   e o refresh token (30 dias, troca a cada uso em `/identity/v1/sessions/refresh`). O access token vai em
   `Authorization: Bearer`. O cadastro manda um e-mail com o link de confirmação (a página do front repassa a conta e o
   token a `POST /identity/v1/accounts/confirm-email`). No ambiente local, o operador é
-  `admin@comprafacil.local` / `admin-compra-facil`. O papel `admin` exige a verificação em duas etapas (TOTP): o login
+  `admin@embrulhado.local` / `admin-embrulhado`. O papel `admin` exige a verificação em duas etapas (TOTP): o login
   responde `202` com um `mfa_ticket`, e a sessão sai de `POST /identity/v1/sessions/mfa` com o código do app
   autenticador. No compose, a chave do operador é fixa (`ADMIN_TOTP_KEY`, padrão `JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP`,
   para cadastrar num app ou para `task token`); em produção, o primeiro login cadastra o app
@@ -280,7 +280,7 @@ direto (portas 8001–8007 e gRPC 9001), use `task up:debug`.
 | Componente | Acesso pelo host | Uso |
 |---|---|---|
 | Gateway (Traefik) | http://localhost · dashboard http://127.0.0.1:8090/dashboard/ | entrada da aplicação |
-| PostgreSQL 17 | `localhost:55432` | um banco por serviço (usuário = nome do banco, senha `compra-facil`) |
+| PostgreSQL 17 | `localhost:55432` | um banco por serviço (usuário = nome do banco, senha `embrulhado`) |
 | Redis 8 | `localhost:6379` (`REDIS_PORT`) | cache do catálogo |
 | Redpanda (Kafka) | `localhost:19092` · console http://localhost:8080 | eventos |
 | Mailpit | SMTP `localhost:1025` · UI http://localhost:8025 | e-mails do `notifications` |
@@ -303,8 +303,8 @@ serviço novo que ainda não exista; para recriar tudo do zero, use `task reset`
   - **Serviços (RED):** taxa, erros e latência por rota.
   - **SAGA:** pedidos confirmados × compensados, lag dos consumers, retry/DLT e fallback do catálogo.
   - **Campanha:** RPS, p95, hit ratio do cache, réplicas e 429.
-- **Métricas próprias:** `compra_facil_orders_*`, `compra_facil_messaging_consumed_total{result}`,
-  `compra_facil_orders_catalog_fallback_total{reason}`, `catalog_cache_lookups_total` e `resilience_polly_*`.
+- **Métricas próprias:** `embrulhado_orders_*`, `embrulhado_messaging_consumed_total{result}`,
+  `embrulhado_orders_catalog_fallback_total{reason}`, `catalog_cache_lookups_total` e `resilience_polly_*`.
 
 </details>
 
@@ -312,7 +312,7 @@ serviço novo que ainda não exista; para recriar tudo do zero, use `task reset`
 <summary><b>Estrutura do repositório</b></summary>
 
 ```
-compra-facil/
+embrulhado/
 ├── backend/              # o que roda no servidor
 │   ├── services/
 │   │   ├── catalog/      #   Go: cmd/, internal/{domain,handler,service,repository,grpcserver,cache,events}

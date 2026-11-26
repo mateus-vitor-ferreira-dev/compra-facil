@@ -1,4 +1,4 @@
-module github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim
+module github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim
 
 go 1.26.10
 

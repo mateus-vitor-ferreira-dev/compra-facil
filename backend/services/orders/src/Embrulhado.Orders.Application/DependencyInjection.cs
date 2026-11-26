@@ -1,0 +1,25 @@
+using Embrulhado.Orders.Application.Orders;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace Embrulhado.Orders.Application;
+
+public static class DependencyInjection
+{
+    /// <summary>Casos de uso e validadores (FluentValidation) deste projeto.</summary>
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
+        services.AddScoped<PlaceOrder>();
+        services.AddScoped<ReturnOrder>();
+        services.AddScoped<OrderQueries>();
+        services.AddScoped<AdminOrders>();
+        services.AddSingleton<OrderChangeFeed>();
+        services.AddScoped<OrderLive>();
+        services.AddScoped<OrderOutcome>();
+        services.AddScoped<OrderProgress>();
+        services.TryAddSingleton(TimeProvider.System); // o AddPostgres troca pelo relógio do banco
+        return services;
+    }
+}

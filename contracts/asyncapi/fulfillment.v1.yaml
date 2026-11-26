@@ -1,6 +1,6 @@
 asyncapi: 3.1.0
 info:
-  title: CompraFácil — Fulfillment Events
+  title: Embrulhado — Fulfillment Events
   version: 1.0.0
   description: |
     Eventos do serviço **fulfillment** (time de Processamento de compras, ASP.NET Core), dono da

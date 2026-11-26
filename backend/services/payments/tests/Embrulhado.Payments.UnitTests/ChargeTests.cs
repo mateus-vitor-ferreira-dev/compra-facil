@@ -1,0 +1,208 @@
+using Embrulhado.Payments.Domain;
+
+namespace Embrulhado.Payments.UnitTests;
+
+public sealed class ChargeTests
+{
+    private static readonly DateTimeOffset s_now = new(2026, 11, 27, 12, 0, 0, TimeSpan.Zero);
+    private static readonly Money s_amount = new(19990, "BRL");
+
+    [Fact]
+    public void ReadyOnlyWithOrderAndStock_InAnyOrder()
+    {
+        var stockFirst = Charge.For(Guid.NewGuid(), s_now);
+        stockFirst.RecordStockReserved(s_now);
+        Assert.False(stockFirst.ReadyToCharge);
+        stockFirst.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now);
+        Assert.True(stockFirst.ReadyToCharge);
+
+        var orderFirst = Charge.For(Guid.NewGuid(), s_now);
+        orderFirst.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now);
+        Assert.False(orderFirst.ReadyToCharge);
+        orderFirst.RecordStockReserved(s_now);
+        Assert.True(orderFirst.ReadyToCharge);
+    }
+
+    [Fact]
+    public void CancelledOrCharged_IsNotChargedAgain()
+    {
+        var cancelled = Charge.For(Guid.NewGuid(), s_now);
+        cancelled.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now);
+        cancelled.Cancel(s_now);
+        cancelled.RecordStockReserved(s_now);
+        Assert.False(cancelled.ReadyToCharge);
+        Assert.Throws<DomainException>(() => cancelled.AttachPayment(Guid.NewGuid(), s_now));
+
+        var charged = Charge.For(Guid.NewGuid(), s_now);
+        charged.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now);
+        charged.RecordStockReserved(s_now);
+        charged.AttachPayment(Guid.NewGuid(), s_now);
+        Assert.False(charged.ReadyToCharge);
+        Assert.Throws<DomainException>(() => charged.AttachPayment(Guid.NewGuid(), s_now));
+    }
+
+    [Fact]
+    public void RecordOrder_RejectsNonPositiveAmount() =>
+        Assert.Throws<DomainException>(() => Charge.For(Guid.NewGuid(), s_now).RecordOrder(Guid.NewGuid(), null, new Money(0, "BRL"), PaymentInstruction.Pix, s_now));
+
+    [Fact]
+    public void Card_NeedsTokenAndBrand_AndTheTokenIsKeptUntilCharged()
+    {
+        var charge = Charge.For(Guid.NewGuid(), s_now);
+        Assert.Throws<DomainException>(() => charge.RecordOrder(Guid.NewGuid(), null, s_amount, new PaymentInstruction(PaymentMethod.Card, 1, null, "visa"), s_now));
+        charge.RecordOrder(Guid.NewGuid(), null, s_amount, new PaymentInstruction(PaymentMethod.Card, 30, "tok", "visa"), s_now);
+        Assert.Equal(12, charge.Installments); // até 12x
+        charge.RecordStockReserved(s_now);
+        charge.AttachPayment(Guid.NewGuid(), s_now);
+        Assert.Equal("tok", charge.CardToken); // entre os dois passos da cobrança: a nova tentativa paga com ele
+        charge.Charged(s_now);
+        Assert.Null(charge.CardToken);
+    }
+
+    private static Payment Start(PaymentMethod method = PaymentMethod.Card, int installments = 1) =>
+        Payment.Start(Guid.NewGuid(), Guid.NewGuid(), s_amount, method, installments, "efi", s_now);
+
+    private static readonly PixCharge s_pix = new("000201", "png", null, s_now.AddMinutes(30));
+
+    [Fact]
+    public void Pix_PendingThenPaidOrExpired()
+    {
+        Assert.Throws<DomainException>(() => Start(PaymentMethod.Pix, installments: 2));
+        var paid = Start(PaymentMethod.Pix);
+        paid.MarkPending("p1", s_pix, s_now);
+        Assert.True(paid.IsOpen);
+        paid.Approve("p1", 198, s_now);
+        Assert.Equal((PaymentStatus.Approved, 198L), (paid.Status, paid.FeeCents));
+        Assert.Throws<DomainException>(() => paid.Fail(FailureReason.PixExpired, null, s_now));
+
+        var expired = Start(PaymentMethod.Pix);
+        expired.MarkPending("p2", s_pix, s_now);
+        expired.Fail(FailureReason.PixExpired, null, s_now);
+        Assert.Equal(FailureReason.PixExpired, expired.FailureReason);
+    }
+
+    [Fact]
+    public void Card_ApprovedThenSettled_OrVoidedInReview()
+    {
+        var settled = Start();
+        settled.Authorize("c1", "5682", 995, s_now);
+        Assert.True(settled.IsPaid);
+        Assert.Throws<DomainException>(() => settled.Refund(100, "k", "r", s_now)); // aprovado e não liquidado não se estorna
+        settled.Capture(s_now);
+        Assert.Equal(PaymentStatus.Approved, settled.Status);
+
+        var inReview = Start();
+        inReview.Track("c2", s_now);
+        inReview.Void(s_now);
+        Assert.Equal(PaymentStatus.Voided, inReview.Status);
+        Assert.Throws<DomainException>(() => inReview.Capture(s_now));
+    }
+
+    [Fact]
+    public void Reversal_WaitsForTheSettlement()
+    {
+        var p = Start();
+        p.Authorize("c", "5682", 995, s_now);
+        Assert.True(p.DeferReversal("cancel", s_now));
+        Assert.False(p.DeferReversal("return", s_now)); // o primeiro motivo vale
+        Assert.Equal("cancel", p.PendingReversal);
+        p.Capture(s_now);
+        p.ClearPendingReversal(s_now);
+        Assert.Null(p.PendingReversal);
+        Assert.Throws<DomainException>(() => p.DeferReversal("cancel", s_now)); // liquidado se estorna na hora
+    }
+
+    [Fact]
+    public void Refund_InParts_UpToTheTotal()
+    {
+        var p = Start();
+        p.Authorize("c", null, 0, s_now);
+        p.Capture(s_now);
+        p.Refund(5000, "k1", "r1", s_now);
+        Assert.Equal((PaymentStatus.Approved, 5000L), (p.Status, p.RefundedCents));
+        Assert.Throws<DomainException>(() => p.Refund(s_amount.AmountCents, "k2", "r2", s_now));
+        p.Refund(s_amount.AmountCents - 5000, "k3", "r3", s_now);
+        Assert.Equal(PaymentStatus.Refunded, p.Status);
+    }
+
+    [Fact]
+    public void RefundRequest_IsOneAtATime_AndLeavesWhenApplied()
+    {
+        var p = Start();
+        p.Authorize("c", null, 0, s_now);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k1", 1000, null, s_now)); // não liquidado
+        p.Capture(s_now);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k1", s_amount.AmountCents + 1, null, s_now));
+
+        p.RequestRefund("k1", 1000, "cancel", s_now);
+        Assert.Equal(new PendingRefund("k1", 1000, "cancel", s_now), p.PendingRefund);
+        Assert.Throws<DomainException>(() => p.RequestRefund("k2", 1000, null, s_now)); // outro sem resposta
+        Assert.True(p.Refund(1000, "k1", "r1", s_now));
+        Assert.Null(p.PendingRefund);
+
+        p.RequestRefund("k2", 500, null, s_now);
+        p.DropPendingRefund(s_now); // o provedor recusou
+        Assert.Null(p.PendingRefund);
+        Assert.Equal(1000L, p.RefundedCents);
+    }
+
+    [Fact]
+    public void RefundNotRealized_LeavesTheAmountToRefundAgain()
+    {
+        var p = Start(PaymentMethod.Pix);
+        p.MarkPending("t", s_pix, s_now);
+        p.Approve("t", 0, s_now);
+        p.Refund(s_amount.AmountCents, "k1", "D1", s_now);
+        Assert.Equal(PaymentStatus.Refunded, p.Status);
+
+        Assert.NotNull(p.RefundFailed("D1", s_now));
+        Assert.Null(p.RefundFailed("D1", s_now)); // já marcado
+        Assert.Null(p.RefundFailed("outro", s_now));
+        Assert.Equal((PaymentStatus.Approved, 0L, (DateTimeOffset?)null), (p.Status, p.RefundedCents, p.RefundedAt));
+        Assert.Null(p.RefundOf("k1"));
+        Assert.True(p.Refund(s_amount.AmountCents, "k1", "D2", s_now)); // a mesma chave, outra devolução
+        Assert.False(p.Refund(1, "k9", "D1", s_now)); // a referência que falhou não volta
+    }
+
+    [Fact]
+    public void ApprovedCard_CanStillFail_OrBeDisputed()
+    {
+        // a operadora não confirmou o aprovado (unpaid): falha, mesmo depois de autorizado
+        var unpaid = Start(PaymentMethod.Card);
+        unpaid.Authorize("c1", "5682", 0, s_now);
+        unpaid.Fail(FailureReason.FraudSuspected, null, s_now);
+        Assert.Equal((PaymentStatus.Failed, FailureReason.FraudSuspected), (unpaid.Status, unpaid.FailureReason));
+
+        // a contestação: do autorizado ou do liquidado; repetida não muda nada
+        var disputed = Start(PaymentMethod.Card);
+        disputed.Authorize("c2", "5682", 0, s_now);
+        disputed.Capture(s_now);
+        Assert.True(disputed.Dispute(s_now));
+        Assert.False(disputed.Dispute(s_now));
+        Assert.Equal(PaymentStatus.Disputed, disputed.Status);
+        Assert.Throws<DomainException>(() => disputed.Refund(100, "k", "r", s_now)); // a contestação já devolve
+        Assert.Throws<DomainException>(() => unpaid.Dispute(s_now)); // o que não foi pago não se contesta
+    }
+
+    [Fact]
+    public void Payer_IsKeptOnlyUntilCharged()
+    {
+        var payer = new Payer("Ana Souza", "52998224725", "35999990000",
+            new BillingAddress("37200000", "Rua A", "10", null, "Centro", "Lavras", "MG"));
+        var cancelled = Charge.For(Guid.NewGuid(), s_now);
+        cancelled.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now, payer);
+        Assert.Equal(payer, cancelled.Payer);
+        cancelled.Cancel(s_now);
+        Assert.Null(cancelled.Payer); // não vai cobrar: o CPF não fica
+
+        var charged = Charge.For(Guid.NewGuid(), s_now);
+        charged.RecordOrder(Guid.NewGuid(), "ana@exemplo.com", s_amount, PaymentInstruction.Pix, s_now, payer);
+        charged.RecordStockReserved(s_now);
+        charged.AttachPayment(Guid.NewGuid(), s_now);
+        charged.Charged(s_now);
+        Assert.Null(charged.Payer);
+        Assert.Null(charged.PayerCpf);
+        Assert.Null(charged.PayerPhone);
+        Assert.Null(charged.PayerAddress);
+    }
+}

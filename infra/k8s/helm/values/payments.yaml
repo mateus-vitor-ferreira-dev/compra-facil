@@ -1,7 +1,7 @@
-image: { repository: compra-facil/payments }
+image: { repository: embrulhado/payments }
 port: 8004
 env:
-  ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=compra-facil
+  ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=embrulhado
   Kafka__BootstrapServers: redpanda:9092
   # tokens do identity (rede interna do cluster, sem TLS)
   Auth__Authority: http://identity:8006

@@ -16,7 +16,7 @@ go test ./...
 |---|---|---|
 | `PORT` | `8090` | Porta HTTP. |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` ou `error` (logs JSON no stdout). |
-| `SIM_EMAIL` / `SIM_PASSWORD` | `sim@comprafacil.local` / `sim` | Credenciais aceitas no `getAccessToken`. |
+| `SIM_EMAIL` / `SIM_PASSWORD` | `sim@embrulhado.local` / `sim` | Credenciais aceitas no `getAccessToken`. |
 | `SIM_OUT_OF_STOCK_VIDS` | vazio | Lista separada por vírgula de vids com estoque 0. |
 | `SIM_ACCEPT_DELAY` | `2s` | CREATED → UNSHIPPED (ou → CANCELLED com `[recusar-depois]`). |
 | `SIM_SHIP_DELAY` | `5s` | UNSHIPPED → SHIPPED. |

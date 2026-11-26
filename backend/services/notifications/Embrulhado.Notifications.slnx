@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Embrulhado.Notifications.Api/Embrulhado.Notifications.Api.csproj" />
+    <Project Path="src/Embrulhado.Notifications.Application/Embrulhado.Notifications.Application.csproj" />
+    <Project Path="src/Embrulhado.Notifications.Domain/Embrulhado.Notifications.Domain.csproj" />
+    <Project Path="src/Embrulhado.Notifications.Infrastructure/Embrulhado.Notifications.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Embrulhado.Notifications.IntegrationTests/Embrulhado.Notifications.IntegrationTests.csproj" />
+    <Project Path="tests/Embrulhado.Notifications.UnitTests/Embrulhado.Notifications.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks/Embrulhado.BuildingBlocks.csproj" />
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks.Testing/Embrulhado.BuildingBlocks.Testing.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Embrulhado.Fulfillment.Api/Embrulhado.Fulfillment.Api.csproj" />
+    <Project Path="src/Embrulhado.Fulfillment.Application/Embrulhado.Fulfillment.Application.csproj" />
+    <Project Path="src/Embrulhado.Fulfillment.Domain/Embrulhado.Fulfillment.Domain.csproj" />
+    <Project Path="src/Embrulhado.Fulfillment.Infrastructure/Embrulhado.Fulfillment.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Embrulhado.Fulfillment.IntegrationTests/Embrulhado.Fulfillment.IntegrationTests.csproj" />
+    <Project Path="tests/Embrulhado.Fulfillment.UnitTests/Embrulhado.Fulfillment.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks/Embrulhado.BuildingBlocks.csproj" />
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks.Testing/Embrulhado.BuildingBlocks.Testing.csproj" />
+  </Folder>
+</Solution>

@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth/authtest"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/auth/authtest"
 )
 
 func TestVerify(t *testing.T) {
@@ -60,7 +60,7 @@ func TestVerify(t *testing.T) {
 		"alg none": func() string { return unsigned(t, jwt.SigningMethodNone, jwt.UnsafeAllowNoneSignatureType) },
 		// o antigo JWT de dev (HS256 com segredo compartilhado) não vale mais
 		"HS256": func() string {
-			return unsigned(t, jwt.SigningMethodHS256, []byte("dev-only-compra-facil-jwt-secret-troque-em-producao"))
+			return unsigned(t, jwt.SigningMethodHS256, []byte("dev-only-embrulhado-jwt-secret-troque-em-producao"))
 		},
 	}
 	for name, token := range recusados {

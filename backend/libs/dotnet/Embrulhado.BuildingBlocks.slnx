@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Embrulhado.BuildingBlocks.Testing/Embrulhado.BuildingBlocks.Testing.csproj" />
+  <Project Path="Embrulhado.BuildingBlocks.Tests/Embrulhado.BuildingBlocks.Tests.csproj" />
+  <Project Path="Embrulhado.BuildingBlocks/Embrulhado.BuildingBlocks.csproj" />
+</Solution>

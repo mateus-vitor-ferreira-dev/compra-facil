@@ -15,11 +15,11 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/auth"
 )
 
 // Options do identity local: os mesmos emissor e audiência da configuração padrão.
-var Options = auth.Options{Issuer: "compra-facil-identity", Audience: "compra-facil", Authority: "http://identity.test"}
+var Options = auth.Options{Issuer: "embrulhado-identity", Audience: "embrulhado", Authority: "http://identity.test"}
 
 type Identity struct {
 	key *rsa.PrivateKey

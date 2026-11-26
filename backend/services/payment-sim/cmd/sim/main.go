@@ -16,9 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/handler"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim/internal/efi"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim/internal/handler"
 )
 
 func main() {

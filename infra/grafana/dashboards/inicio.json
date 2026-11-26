@@ -1,9 +1,9 @@
 {
-  "uid": "compra-facil-inicio",
-  "title": "CompraFácil — Início",
+  "uid": "embrulhado-inicio",
+  "title": "Embrulhado — Início",
   "description": "Ponto de partida: saúde dos serviços, erros recentes (traces e logs) e atalhos para os outros dashboards.",
   "tags": [
-    "compra-facil"
+    "embrulhado"
   ],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -32,7 +32,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### Por onde começar\n\n| | |\n|---|---|\n| **Saúde dos serviços** | [Serviços (RED)](/d/compra-facil-red): taxa, erros e latência por serviço e rota |\n| **Pedidos e mensageria** | [SAGA de compra](/d/compra-facil-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |\n| **Pico de campanha** | [Campanha](/d/compra-facil-campanha): RPS, p95, cache, réplicas e o k6 |\n| **Loja (front)** | [Loja](/d/compra-facil-front): Web Vitals de quem compra e os traces do Next |\n\n### Investigar uma requisição\n\nToda resposta da API traz o header **`X-Trace-Id`**, e todo erro traz o campo `trace_id`:\n\n- **no terminal:** `task trace -- <trace_id>` abre o trace aqui;\n- **na mão:** *Explore → Tempo* e cole o id no campo TraceQL.\n\nDo trace se vai para os logs do mesmo trace (botão *Logs for this span*), e de cada log de volta para o trace.\nLogs de um serviço: `task grafana:logs -- orders`.\n"
+        "content": "### Por onde começar\n\n| | |\n|---|---|\n| **Saúde dos serviços** | [Serviços (RED)](/d/embrulhado-red): taxa, erros e latência por serviço e rota |\n| **Pedidos e mensageria** | [SAGA de compra](/d/embrulhado-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |\n| **Pico de campanha** | [Campanha](/d/embrulhado-campanha): RPS, p95, cache, réplicas e o k6 |\n| **Loja (front)** | [Loja](/d/embrulhado-front): Web Vitals de quem compra e os traces do Next |\n\n### Investigar uma requisição\n\nToda resposta da API traz o header **`X-Trace-Id`**, e todo erro traz o campo `trace_id`:\n\n- **no terminal:** `task trace -- <trace_id>` abre o trace aqui;\n- **na mão:** *Explore → Tempo* e cole o id no campo TraceQL.\n\nDo trace se vai para os logs do mesmo trace (botão *Logs for this span*), e de cada log de volta para o trace.\nLogs de um serviço: `task grafana:logs -- orders`.\n"
       },
       "id": 1
     },
@@ -202,7 +202,7 @@
             "uid": "loki"
           },
           "refId": "A",
-          "expr": "{service_namespace=\"compra-facil\"} | detected_level=~\"error|warn\""
+          "expr": "{service_namespace=\"embrulhado\"} | detected_level=~\"error|warn\""
         }
       ],
       "fieldConfig": {
@@ -250,7 +250,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(compra_facil_orders_placed_total[1h])) or vector(0)",
+          "expr": "sum(increase(embrulhado_orders_placed_total[1h])) or vector(0)",
           "legendFormat": "",
           "refId": "A",
           "instant": true,
@@ -298,7 +298,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(compra_facil_orders_finished_total{status=\"Confirmed\"}[1h])) or vector(0)",
+          "expr": "sum(increase(embrulhado_orders_finished_total{status=\"Confirmed\"}[1h])) or vector(0)",
           "legendFormat": "",
           "refId": "A",
           "instant": true,
@@ -358,7 +358,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(compra_facil_orders_finished_total{status=\"Cancelled\"}[1h])) or vector(0)",
+          "expr": "sum(increase(embrulhado_orders_finished_total{status=\"Cancelled\"}[1h])) or vector(0)",
           "legendFormat": "",
           "refId": "A",
           "instant": true,
@@ -422,7 +422,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(compra_facil_messaging_consumed_total{result=\"dead_lettered\"}[1h])) or vector(0)",
+          "expr": "sum(increase(embrulhado_messaging_consumed_total{result=\"dead_lettered\"}[1h])) or vector(0)",
           "legendFormat": "",
           "refId": "A",
           "instant": true,

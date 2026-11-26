@@ -19,7 +19,7 @@ log:
 
 db:
   # compose local (task up); em container use CATALOG_DB_DSN apontando para postgres:5432
-  dsn: postgres://catalog:compra-facil@localhost:55432/catalog?sslmode=disable
+  dsn: postgres://catalog:embrulhado@localhost:55432/catalog?sslmode=disable
   max_open_conns: 20
   max_idle_conns: 10
   conn_max_lifetime: 30m
@@ -30,8 +30,8 @@ auth:
   # JWT RS256 emitidos pelo identity (role admin libera /v1/admin/*), validados pelo JWKS em
   # <authority>/.well-known/jwks.json. Token local de operador: `task token`.
   authority: http://localhost:8006
-  issuer: compra-facil-identity
-  audience: compra-facil
+  issuer: embrulhado-identity
+  audience: embrulhado
   leeway: 30s
 
 cache:

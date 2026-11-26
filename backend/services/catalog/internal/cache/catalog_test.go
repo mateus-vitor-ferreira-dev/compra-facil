@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/service"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/service"
 )
 
 // memStore é um Redis de mentira: guarda valor e TTL, e pode simular indisponibilidade.
