@@ -69,6 +69,8 @@ func mapError(err error) error {
 		return nil
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrVersionConflict):
 		return err // já é erro de domínio (devolvido de dentro de uma transação)
+	case errors.As(err, new(*domain.ValidationError)):
+		return err // regra conferida dentro da transação (o Update junta o que o PUT manteve)
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return domain.ErrNotFound
 	case errors.Is(err, gorm.ErrDuplicatedKey):

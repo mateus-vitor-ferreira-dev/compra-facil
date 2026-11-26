@@ -45,7 +45,8 @@ func TestOutbox_EventSurvivesKafkaOutage(t *testing.T) {
 	cat := domain.Category{Slug: "audio", Name: "Áudio"}
 	require.NoError(t, repository.NewCategoryRepository(db).Create(ctx, &cat))
 	products := repository.NewProductRepository(db)
-	p := domain.Product{SKU: "AUD-1", Name: "Fone", CategoryID: cat.ID, PriceCents: 19990, Status: domain.ProductActive}
+	p := domain.Product{SKU: "AUD-1", Name: "Fone", CategoryID: cat.ID, PriceCents: 19990, Status: domain.ProductActive,
+		SupplierProducts: map[string]string{domain.NoColor: "6167609"}}
 	require.NoError(t, products.Create(ctx, &p), "a escrita não depende do Kafka")
 	p.PriceCents = 14990
 	require.NoError(t, products.Update(ctx, &p, 1))

@@ -109,7 +109,8 @@ func sampleProduct(withCampaign bool) domain.Product {
 		ID: uuid.New(), SKU: "TV-55", Name: "Smart TV 55", Description: "QLED", Brand: &brand, CategoryID: uuid.New(),
 		Category: domain.CategoryRef{ID: uuid.New(), Slug: "tv", Name: "TVs"}, ImageURL: &img,
 		PriceCents: 10000, Currency: "BRL", Status: domain.ProductActive, Version: 3,
-		CreatedAt: created, UpdatedAt: created,
+		SupplierProducts: map[string]string{domain.NoColor: "6167609"},
+		CreatedAt:        created, UpdatedAt: created,
 	}
 	if withCampaign {
 		p.ActiveCampaign = &domain.CampaignRef{ID: uuid.New(), Name: "BF", DiscountPercent: 30, EndsAt: created.Add(time.Hour)}
@@ -264,6 +265,7 @@ func TestGetProduct(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, `"3"`, w.Header().Get("ETag"))
 		assert.Equal(t, p.ID.String(), decode(t, w)["id"])
+		assert.NotContains(t, w.Body.String(), "supplier_products", "o código no fornecedor é só do painel")
 	})
 	t.Run("404 do service", func(t *testing.T) {
 		w := serve(t, newAPI(&fakeProducts{err: domain.ErrNotFound}, fakeCategories{}, fakeCampaigns{}), "/v1/products/"+uuid.NewString())
@@ -279,7 +281,7 @@ func TestListCategoriesAndCampaigns(t *testing.T) {
 	parent := uuid.New()
 	start := time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC)
 	api := newAPI(&fakeProducts{},
-		fakeCategories{cats: []domain.Category{{ID: parent, Slug: "eletro", Name: "Eletro"}, {ID: uuid.New(), Slug: "tv", Name: "TV", ParentID: &parent}}},
+		fakeCategories{cats: []domain.Category{{ID: parent, Slug: "eletro", Name: "Eletro", ActiveProducts: 3}, {ID: uuid.New(), Slug: "tv", Name: "TV", ParentID: &parent}}},
 		fakeCampaigns{cs: []domain.Campaign{{ID: uuid.New(), Slug: "bf", Name: "Black Friday", DiscountPercent: 30, StartsAt: start, EndsAt: start.Add(24 * time.Hour), ProductCount: 12}}},
 	)
 
@@ -289,6 +291,8 @@ func TestListCategoriesAndCampaigns(t *testing.T) {
 	require.Len(t, data, 2)
 	assert.Nil(t, data[0].(map[string]any)["parent_id"])
 	assert.Equal(t, parent.String(), data[1].(map[string]any)["parent_id"])
+	assert.InDelta(t, 3, data[0].(map[string]any)["active_products"], 0, "a loja esconde a categoria com zero")
+	assert.InDelta(t, 0, data[1].(map[string]any)["active_products"], 0)
 
 	camps := serve(t, api, "/v1/campaigns")
 	require.Equal(t, http.StatusOK, camps.Code)

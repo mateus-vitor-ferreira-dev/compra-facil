@@ -56,7 +56,8 @@ func TestProductWrites_EnqueueEventsInTheSameTransaction(t *testing.T) {
 	cat := mustCategory(t, "audio", nil)
 	reqCtx := events.WithCorrelationID(ctx, "req-abc")
 
-	p := domain.Product{SKU: "AUD-1", Name: "Fone", CategoryID: cat.ID, PriceCents: 10000, Status: domain.ProductActive}
+	p := domain.Product{SKU: "AUD-1", Name: "Fone", CategoryID: cat.ID, PriceCents: 10000, Status: domain.ProductActive,
+		SupplierProducts: map[string]string{domain.NoColor: "6167609"}}
 	require.NoError(t, repo.Create(reqCtx, &p))
 
 	p.Name = "Fone Pro" // sem mudar preço

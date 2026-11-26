@@ -120,6 +120,18 @@ test("sitemap lista as categorias", async ({ request }) => {
   const xml = await (await request.get("/sitemap.xml")).text();
   expect(xml).toContain("/categoria/fones</loc>");
   expect(xml).toContain("/ofertas</loc>");
+  expect(xml, "a categoria sem produto à venda fica fora (#483)").not.toContain("/categoria/brinquedos");
+});
+
+test("categoria sem produto à venda some da loja e a página é 404 (#483)", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "Informática" }).first()).toBeAttached();
+  // nem no menu, nem no rodapé, nem na home
+  await expect(page.locator('a[href^="/categoria/brinquedos"]')).toHaveCount(0);
+
+  const res = await page.goto("/categoria/brinquedos");
+  expect(res?.status()).toBe(404);
+  await expect(page.locator('meta[name="robots"][content*="noindex"]')).toBeAttached();
 });
 
 test("galeria do produto: miniaturas e setas trocam a foto", async ({ page }) => {
