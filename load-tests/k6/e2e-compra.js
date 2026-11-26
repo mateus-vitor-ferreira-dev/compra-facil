@@ -37,8 +37,8 @@ import { DELIVERY } from './delivery.js';
 
 const GATEWAY = __ENV.GATEWAY_URL || 'http://gateway';
 const MAILPIT = __ENV.MAILPIT_URL || 'http://mailpit:8025';
-const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@comprafacil.local';
-const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || 'admin-compra-facil';
+const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@embrulhado.local';
+const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || 'admin-embrulhado';
 const ADMIN_TOTP_KEY = __ENV.ADMIN_TOTP_KEY || 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 
 const IDENTITY = `${GATEWAY}/identity`;
@@ -96,6 +96,8 @@ function createProduct(token, categoryId, label, priceCents = 1990) {
   const sku = `E2E-${label}-${Math.floor(Math.random() * 1e8)}`.toUpperCase().slice(0, 32);
   const res = http.post(`${GATEWAY}/catalog/v1/admin/products`, json({
     sku, name: `Produto e2e ${label}`, category_id: categoryId, price_cents: priceCents, status: 'active',
+    // produto à venda precisa do código no fornecedor (#483); sem cor, a chave é vazia
+    supplier_products: { '': sku },
   }), { headers: auth(token), tags: { name: 'admin-product' } });
   if (res.status !== 201) fail(`criar produto ${label}: ${res.status} ${res.body}`);
   const id = res.json('id');

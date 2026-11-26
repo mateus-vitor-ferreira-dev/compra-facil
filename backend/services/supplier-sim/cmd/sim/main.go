@@ -16,11 +16,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/catalog"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/handler"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/order"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim/internal/webhook"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/catalog"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/handler"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/order"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim/internal/webhook"
 )
 
 func main() {

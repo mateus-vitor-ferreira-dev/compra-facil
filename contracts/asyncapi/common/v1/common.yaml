@@ -1,8 +1,8 @@
-# Componentes compartilhados por todos os contratos de eventos da CompraFácil.
+# Componentes compartilhados por todos os contratos de eventos do Embrulhado.
 # Não é uma API: os specs dos serviços referenciam este arquivo via $ref.
 asyncapi: 3.1.0
 info:
-  title: CompraFácil — componentes comuns de eventos
+  title: Embrulhado — componentes comuns de eventos
   version: 1.0.0
   description: Envelope dos eventos, headers Kafka e servidores do ambiente local.
 

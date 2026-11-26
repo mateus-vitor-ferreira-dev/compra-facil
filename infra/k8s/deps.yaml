@@ -16,7 +16,7 @@ spec:
             - { name: POSTGRES_USER, value: postgres }
             - { name: POSTGRES_PASSWORD, value: postgres }
             - { name: SERVICE_DATABASES, value: "catalog,orders,inventory,payments,notifications,identity" }
-            - { name: SERVICE_DB_PASSWORD, value: compra-facil }
+            - { name: SERVICE_DB_PASSWORD, value: embrulhado }
           ports: [{ containerPort: 5432 }]
           readinessProbe:
             exec: { command: ["pg_isready", "-U", "postgres", "-d", "postgres"] }

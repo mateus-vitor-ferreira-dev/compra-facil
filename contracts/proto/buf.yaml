@@ -6,3 +6,6 @@ lint:
 breaking:
   use:
     - FILE
+  except:
+    # o namespace C# é só o do código gerado no orders (não vai no fio); mudou com a troca do nome da loja
+    - FILE_SAME_CSHARP_NAMESPACE

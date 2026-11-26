@@ -1,4 +1,4 @@
-# Front da CompraFácil (Next.js)
+# Front do Embrulhado (Next.js)
 
 Loja e BFF num app só: o navegador fala com o servidor do Next, e o servidor fala com as APIs pelo
 gateway (`API_URL`, padrão `http://localhost`). Nenhum token chega ao JavaScript do navegador.
@@ -51,7 +51,7 @@ a `main` só aceita PR, com o check `web ok` aprovado.
 
 Uma vez, na Cloudflare:
 
-1. **Workers & Pages → compra-facil-web → Settings → Domains & Routes**: o domínio da loja como Custom
+1. **Workers & Pages → embrulhado-web → Settings → Domains & Routes**: o domínio da loja como Custom
    Domain (a zona já na Cloudflare). Antes do primeiro deploy do CI o Worker não existe: rode `npm run
 deploy` uma vez da máquina (`npx wrangler login` antes) ou deixe o CI criar e ligue o domínio depois.
 2. Em `wrangler.jsonc`, `API_URL` e `SITE_URL` com os domínios de verdade.

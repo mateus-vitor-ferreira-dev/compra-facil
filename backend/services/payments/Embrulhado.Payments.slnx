@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Embrulhado.Payments.Api/Embrulhado.Payments.Api.csproj" />
+    <Project Path="src/Embrulhado.Payments.Application/Embrulhado.Payments.Application.csproj" />
+    <Project Path="src/Embrulhado.Payments.Domain/Embrulhado.Payments.Domain.csproj" />
+    <Project Path="src/Embrulhado.Payments.Infrastructure/Embrulhado.Payments.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Embrulhado.Payments.IntegrationTests/Embrulhado.Payments.IntegrationTests.csproj" />
+    <Project Path="tests/Embrulhado.Payments.UnitTests/Embrulhado.Payments.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/libs/">
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks/Embrulhado.BuildingBlocks.csproj" />
+    <Project Path="../../libs/dotnet/Embrulhado.BuildingBlocks.Testing/Embrulhado.BuildingBlocks.Testing.csproj" />
+  </Folder>
+</Solution>

@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Os consumidores .NET (`EventConsumer` em `backend/libs/dotnet/CompraFacil.BuildingBlocks`) já eram
+Os consumidores .NET (`EventConsumer` em `backend/libs/dotnet/Embrulhado.BuildingBlocks`) já eram
 idempotentes: o inbox guarda o `event_id` na mesma transação do efeito, então a reentrega não repete
 nada. Faltava decidir o que fazer com uma mensagem cujo handler **falha**. Até aqui havia dois casos:
 
@@ -84,7 +84,7 @@ Redpanda Console, com os headers.
 ## Consequências
 
 - Uma falha num pedido não para os outros. O custo é ter 4 tópicos a mais por serviço consumidor.
-- `compra_facil.messaging.consumed` ganhou os resultados `retried` e `dead_lettered`. O dashboard
+- `embrulhado.messaging.consumed` ganhou os resultados `retried` e `dead_lettered`. O dashboard
   **SAGA** mostra os dois, e o lag de cada nível aparece no painel de consumer groups.
 - **Envenenada não é mais pulada em silêncio**: fica 30 dias na DLT.
 - A SAGA continua sem timeout. Um pedido cujo evento parou na DLT fica `Pending` até o reprocessamento.

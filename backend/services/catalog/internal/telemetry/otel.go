@@ -37,7 +37,7 @@ func Setup(ctx context.Context, service, version, env string) (Shutdown, error) 
 
 	res, err := resource.Merge(resource.Default(), resource.NewWithAttributes(semconv.SchemaURL,
 		semconv.ServiceName(service),
-		semconv.ServiceNamespace("compra-facil"),
+		semconv.ServiceNamespace("embrulhado"),
 		semconv.ServiceVersion(version),
 		semconv.DeploymentEnvironmentNameKey.String(env),
 	))

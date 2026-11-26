@@ -70,5 +70,5 @@ jobs:
       packages: write
     with:
       service: orders
-      project: CompraFacil.Orders.Api
+      project: Embrulhado.Orders.Api
       port: "8002"

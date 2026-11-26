@@ -1,6 +1,6 @@
 asyncapi: 3.1.0
 info:
-  title: CompraFácil — Catalog Events
+  title: Embrulhado — Catalog Events
   version: 1.0.0
   description: |
     Eventos publicados pelo serviço **catalog** (time de Catálogo e campanhas, Go) a partir do outbox.

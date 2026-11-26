@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlaceOrderForm, TrackingForm } from "@/components/admin/manual-order-forms";
+import { CorrectPlacementForm, PlaceOrderForm, TrackingForm } from "@/components/admin/manual-order-forms";
 import { buttonVariants } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { StateMessage } from "@/components/ui/state";
@@ -10,9 +10,11 @@ import {
   manualOrders,
   ordersToPlace,
   supplierSheet,
-  templatesBySku,
+  catalogBySku,
+  type CatalogRef,
   type ManualOrder,
 } from "@/lib/admin-api";
+import { supplierCodeFor } from "@/lib/supplier-products";
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { orderNumber } from "@/lib/order-status";
@@ -42,6 +44,11 @@ function notice(q: Record<string, string | string[] | undefined>): { ok: boolean
   const n = (k: string) => orderNumber(String(q[k]));
   if (typeof q.feito === "string")
     return { ok: true, text: `Pedido ${n("feito")} registrado. O cliente vê que ele foi para o fornecedor.` };
+  if (typeof q.corrigido === "string")
+    return {
+      ok: true,
+      text: `Custo do pedido ${n("corrigido")} corrigido. A margem já usa os valores novos.`,
+    };
   if (typeof q.rastreio === "string")
     return { ok: true, text: `Rastreio do pedido ${n("rastreio")} enviado ao cliente.` };
   if (typeof q.entregue === "string")
@@ -90,11 +97,13 @@ export default async function OrdersToPlace({ searchParams }: Props) {
     searchParams,
   ]);
   const message = notice(query);
-  // as artes dos itens com o texto do cliente, para o "Baixar arte" (a fila só conhece o SKU)
-  const personalized = queue.ok
-    ? queue.data.data.flatMap((o) => o.items.filter((i) => i.personalization).map((i) => i.sku))
-    : [];
-  const templates = personalized.length > 0 ? await templatesBySku(token, personalized) : {};
+  // a arte do "Baixar arte" e o código na Montink de cada item (a fila só conhece o SKU)
+  const refs = queue.ok
+    ? await catalogBySku(
+        token,
+        queue.data.data.flatMap((o) => o.items.map((i) => i.sku)),
+      )
+    : {};
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -149,7 +158,7 @@ export default async function OrdersToPlace({ searchParams }: Props) {
             ) : (
               <ol className="space-y-4">
                 {queue.data.data.map((o) => (
-                  <Ticket key={o.order_id} order={o} now={now} templates={templates} />
+                  <Ticket key={o.order_id} order={o} now={now} refs={refs} />
                 ))}
               </ol>
             )}
@@ -165,7 +174,10 @@ export default async function OrdersToPlace({ searchParams }: Props) {
               <>
                 <OrderLine order={o} />
                 <TrackingForm orderId={o.order_id} number={orderNumber(o.order_id)} />
-                <CancelPlaced order={o} />
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  <CorrectPlacementForm orderId={o.order_id} number={orderNumber(o.order_id)} current={o} />
+                  <CancelPlaced order={o} />
+                </div>
               </>
             )}
           </Stage>
@@ -177,15 +189,18 @@ export default async function OrdersToPlace({ searchParams }: Props) {
             result={shipped}
           >
             {(o) => (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <OrderLine order={o} />
-                <form action={deliverOrder}>
-                  <input type="hidden" name="order_id" value={o.order_id} />
-                  <SubmitButton variant="secondary" size="sm" pendingLabel="Registrando…">
-                    Marcar como entregue<span className="sr-only"> o pedido {orderNumber(o.order_id)}</span>
-                  </SubmitButton>
-                </form>
-              </div>
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <OrderLine order={o} />
+                  <form action={deliverOrder}>
+                    <input type="hidden" name="order_id" value={o.order_id} />
+                    <SubmitButton variant="secondary" size="sm" pendingLabel="Registrando…">
+                      Marcar como entregue<span className="sr-only"> o pedido {orderNumber(o.order_id)}</span>
+                    </SubmitButton>
+                  </form>
+                </div>
+                <CorrectPlacementForm orderId={o.order_id} number={orderNumber(o.order_id)} current={o} />
+              </>
             )}
           </Stage>
         </>
@@ -266,6 +281,12 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
           </>
         )}
         {o.tracking && <>; rastreio {o.tracking.number}</>}
+        {(o.paid_product_cost_cents != null || o.paid_freight_cost_cents != null) && (
+          <>
+            ; pago {brl((o.paid_product_cost_cents ?? 0) + (o.paid_freight_cost_cents ?? 0))}
+            {o.paid_freight_cost_cents != null && <> (frete {brl(o.paid_freight_cost_cents)})</>}
+          </>
+        )}
       </p>
     </div>
   );
@@ -275,12 +296,12 @@ function OrderLine({ order: o }: { order: ManualOrder }) {
 function Ticket({
   order: o,
   now,
-  templates,
+  refs,
 }: {
   order: ManualOrder;
   now: number;
-  /** a arte de cada SKU com personalização */
-  templates: Record<string, string>;
+  /** a arte e o código na Montink de cada SKU */
+  refs: Record<string, CatalogRef>;
 }) {
   const number = orderNumber(o.order_id);
   const age = waiting(o.awaiting_since, now);
@@ -338,6 +359,7 @@ function Ticket({
                   </span>
                   <CopyButton value={i.sku} label={`o SKU ${i.sku}`} />
                 </div>
+                <MontinkStep item={i} catalog={refs[i.sku]} />
                 {/* o texto do cliente vai na arte: o arquivo de impressão sai daqui */}
                 {i.personalization && (
                   <div className="border-ink space-y-2 rounded-md border-l-4 py-1 pl-3">
@@ -351,7 +373,7 @@ function Ticket({
                       orderId={o.order_id}
                       itemName={i.name}
                       text={i.personalization}
-                      template={templates[i.sku]}
+                      template={refs[i.sku]?.template}
                       color={i.color ?? undefined}
                     />
                   </div>
@@ -422,6 +444,45 @@ function Ticket({
         </div>
       </div>
     </li>
+  );
+}
+
+/**
+ * O que fazer na Montink com o item (#483): pedir o produto que já existe lá, ou criar um com a arte deste pedido
+ * quando ela leva o texto do cliente (o produto da Montink tem a arte padrão, sem o nome).
+ */
+function MontinkStep({
+  item,
+  catalog,
+}: {
+  item: ManualOrder["items"][number];
+  catalog: CatalogRef | undefined;
+}) {
+  if (!catalog) return null;
+  const code = supplierCodeFor(catalog.supplierProducts, item.color);
+  if (item.personalization || (catalog.madePerOrder && !code)) {
+    return (
+      <p className="text-sm">
+        <span className="font-semibold">Na Montink:</span> crie um produto com a arte deste pedido (Baixar
+        arte, abaixo) na peça, no tamanho e na cor da ficha, e peça esse produto.
+      </p>
+    );
+  }
+  if (!code) {
+    return (
+      <p className="text-danger text-sm font-semibold">
+        Sem produto na Montink para esta cor: crie lá antes de fazer o pedido.
+      </p>
+    );
+  }
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-sm">
+      <span>
+        <span className="font-semibold">Na Montink:</span> produto{" "}
+        <span className="font-bold tabular-nums">{code}</span>
+      </span>
+      <CopyButton value={code} label={`o código ${code} da Montink`} />
+    </p>
   );
 }
 

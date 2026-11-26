@@ -1,9 +1,9 @@
 {
-  "uid": "compra-facil-campanha",
-  "title": "CompraFácil — Campanha (catálogo)",
+  "uid": "embrulhado-campanha",
+  "title": "Embrulhado — Campanha (catálogo)",
   "description": "O pico de leitura das campanhas: RPS e p95 do catálogo, rate limit do gateway, cache e réplicas (critérios do parecer).",
   "tags": [
-    "compra-facil"
+    "embrulhado"
   ],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -239,7 +239,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "count(target_info{job=\"compra-facil/catalog\"})",
+          "expr": "count(target_info{job=\"embrulhado/catalog\"})",
           "legendFormat": "",
           "refId": "A",
           "instant": true,

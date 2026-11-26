@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- EF Core + Npgsql (banco payments), o cliente da Efí e o QR do PIX. -->
+  <ItemGroup>
+    <ProjectReference Include="../Embrulhado.Payments.Application/Embrulhado.Payments.Application.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs/dotnet/Embrulhado.BuildingBlocks/Embrulhado.BuildingBlocks.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Embrulhado.Payments.IntegrationTests" />
+  </ItemGroup>
+</Project>

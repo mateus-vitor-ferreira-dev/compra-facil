@@ -13,7 +13,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  * Só leituras do catálogo: o preço de uma cópia antiga nunca é cobrado, porque o pedido confere o preço no
  * catalog na hora (ADR 0004) e o carrinho avisa o que mudou. Estoque e pedidos ficam de fora.
  */
-const ORIGIN = "https://vitrine-reserva.compra-facil.invalid/";
+const ORIGIN = "https://vitrine-reserva.embrulhado.invalid/";
 const KEEP_SECONDS = 24 * 60 * 60;
 const REFRESH_MS = 60_000;
 const MEMORY_LIMIT = 300;

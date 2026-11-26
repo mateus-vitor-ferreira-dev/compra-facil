@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim/internal/efi"
 )
 
 // As APIs da Efí (#379): Cobranças (cartão) e Pix, cada uma com o seu token; a tokenização do cartão que o

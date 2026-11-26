@@ -47,3 +47,36 @@ test("celular: o botão abre o menu, o Esc fecha e trocar de seção também", a
   await expect(nav).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
 });
+
+test("o manual fica no painel, com o caminho do pedido ligado às telas (#483)", async ({ page }) => {
+  await signIn(page, "/admin");
+  await page
+    .getByRole("navigation", { name: "Seções do painel" })
+    .getByRole("link", { name: "Manual" })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Manual do painel");
+  // o índice e as partes vêm da mesma lista
+  await page
+    .getByRole("navigation", { name: "Nesta página" })
+    .getByRole("link", { name: "Pôr um produto à venda" })
+    .click();
+  await expect(page).toHaveURL(/\/admin\/manual#a-venda$/);
+  // a tabela das telas sai do próprio menu
+  await expect(page.getByRole("region", { name: "O que cada tela faz" })).toContainText(
+    "O dia a dia: a fila, o pedido feito, o rastreio, a entrega e as correções.",
+  );
+  await page.screenshot({ path: "test-results/manual-desktop.png", fullPage: true });
+
+  // no celular, o índice abre no topo da página
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/admin/manual");
+  await page.locator("summary", { hasText: "Nesta página" }).click();
+  await page.screenshot({ path: "test-results/manual-celular.png", fullPage: true });
+  const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  expect(scrolls, "nada passa da largura da tela").toBe(false);
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  // cada etapa feita numa tela leva até ela
+  await page.getByRole("link", { name: "Abrir Pedidos a fazer" }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pedidos a fazer");
+});

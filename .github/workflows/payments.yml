@@ -64,5 +64,5 @@ jobs:
       packages: write
     with:
       service: payments
-      project: CompraFacil.Payments.Api
+      project: Embrulhado.Payments.Api
       port: "8004"

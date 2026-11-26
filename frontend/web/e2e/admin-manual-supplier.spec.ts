@@ -2,6 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { STUB } from "./ports";
 import { passTwoFactor } from "./two-factor";
 
+// os testes zeram e alteram a mesma fila do stub (POST /__manual/reset): em paralelo, um fazia o pedido do outro
+test.describe.configure({ mode: "serial" });
+
 // o modo manual (#412) vale só para o operador de @manual.exemplo.com na API falsa
 async function login(page: Page, path: string) {
   await page.goto(path);
@@ -70,6 +73,10 @@ test("pedidos a fazer: a ficha de compra, o pedido feito, o rastreio, a entrega 
   await expect(ticket).toContainText("Avenida Paulista, 1000, Apto 12, Bela Vista, São Paulo - SP, 01310100");
   await expect(ticket).toContainText(/Custo esperado R\$\s109,80/);
   await expect(ticket.getByRole("button", { name: "Copiar cpf" })).toBeVisible();
+  // o que fazer na Montink com cada item (#483): pedir o produto que já existe, ou criar um com a arte do cliente
+  await expect(ticket).toContainText("Na Montink: produto 6170001");
+  await expect(ticket.getByRole("button", { name: "Copiar o código 6170001 da Montink" })).toBeVisible();
+  await expect(ticket).toContainText("Na Montink: crie um produto com a arte deste pedido");
 
   // sem o número do fornecedor, o campo diz o que falta
   await ticket.getByRole("button", { name: "Registrar o pedido feito para o pedido 2D3C4E10" }).click();
@@ -109,6 +116,49 @@ test("pedidos a fazer: a ficha de compra, o pedido feito, o rastreio, a entrega 
   await expect(transit).toContainText("Pedido 2D3C4E10");
   await transit.getByRole("button", { name: "Marcar como entregue o pedido 4F5E6A32" }).click();
   await expect(page.getByRole("status")).toHaveText("Pedido 4F5E6A32 marcado como entregue.");
+});
+
+test("o custo do pedido feito pode ser corrigido pelo painel, com os valores de agora preenchidos", async ({
+  page,
+  request,
+}) => {
+  await request.post(`${STUB}/__manual/reset`);
+  await login(page, "/admin/pedidos-a-fazer");
+  const ticket = page.getByRole("listitem", { name: "Pedido 2D3C4E10" });
+  await ticket.getByLabel("Nº do pedido no fornecedor").fill("PED-6001");
+  await ticket.getByLabel("Pago nos produtos (R$)").fill("45,25");
+  await ticket.getByLabel("Pago no frete (R$)").fill("15,74");
+  await ticket.getByRole("button", { name: "Registrar o pedido feito para o pedido 2D3C4E10" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Pedido 2D3C4E10 registrado. O cliente vê que ele foi para o fornecedor.",
+  );
+
+  const mine = page
+    .getByRole("region", { name: /^Esperando o rastreio/ })
+    .getByRole("listitem")
+    .filter({ hasText: "Pedido 2D3C4E10" });
+  await expect(mine).toContainText(/pago R\$\s60,99 \(frete R\$\s15,74\)/);
+  await mine.getByText("Corrigir custo").click();
+  const products = mine.getByLabel("Pago nos produtos (R$)");
+  await expect(products).toHaveValue("45,25");
+  await expect(mine.getByLabel("Nº do pedido no fornecedor")).toHaveValue("PED-6001");
+
+  // o valor errado diz o que falta, sem gravar
+  await products.fill("abc");
+  await mine.getByRole("button", { name: "Salvar a correção do pedido 2D3C4E10" }).click();
+  await expect(mine.getByText("Use um valor em reais, como 89,90.")).toBeVisible();
+
+  await products.fill("43,25");
+  await mine.getByRole("button", { name: "Salvar a correção do pedido 2D3C4E10" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Custo do pedido 2D3C4E10 corrigido. A margem já usa os valores novos.",
+  );
+  await expect(
+    page
+      .getByRole("region", { name: /^Esperando o rastreio/ })
+      .getByRole("listitem")
+      .filter({ hasText: "Pedido 2D3C4E10" }),
+  ).toContainText(/pago R\$\s58,99 \(frete R\$\s15,74\)/);
 });
 
 test("sem o modo manual, a página manda para os pedidos no fornecedor", async ({ page }) => {

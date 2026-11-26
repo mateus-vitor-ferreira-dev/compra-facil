@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 func TestCategoryRepository(t *testing.T) {
@@ -44,6 +44,24 @@ func TestCategoryRepository(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, all, 4)
 		assert.Equal(t, "Cat eletronicos", all[0].Name)
+	})
+	t.Run("conta os produtos à venda na categoria e nas ancestrais", func(t *testing.T) {
+		mustProduct(t, "OLED-1", oled.ID)
+		mustProduct(t, "OLED-2", oled.ID)
+		mustProduct(t, "TV-1", tv.ID)
+		mustProduct(t, "TV-RASCUNHO", tv.ID, withStatus(domain.ProductDraft))
+		mustProduct(t, "TV-INATIVA", tv.ID, withStatus(domain.ProductInactive))
+		removed := mustProduct(t, "TV-REMOVIDA", tv.ID)
+		require.NoError(t, NewProductRepository(testDB).Delete(ctx, removed.ID))
+
+		all, err := repo.List(ctx)
+		require.NoError(t, err)
+		count := map[string]int{}
+		for _, c := range all {
+			count[c.Slug] = c.ActiveProducts
+		}
+		assert.Equal(t, map[string]int{"eletronicos": 3, "tv": 3, "oled": 2, "moveis": 0}, count,
+			"rascunho, inativo e removido não contam; a categoria sem nenhum fica com zero")
 	})
 }
 

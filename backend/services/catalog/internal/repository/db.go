@@ -15,8 +15,8 @@ import (
 	"gorm.io/gorm/logger"
 	"gorm.io/plugin/opentelemetry/tracing"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 var lockForUpdate = clause.Locking{Strength: clause.LockingStrengthUpdate}
@@ -69,6 +69,8 @@ func mapError(err error) error {
 		return nil
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrVersionConflict):
 		return err // já é erro de domínio (devolvido de dentro de uma transação)
+	case errors.As(err, new(*domain.ValidationError)):
+		return err // regra conferida dentro da transação (o Update junta o que o PUT manteve)
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return domain.ErrNotFound
 	case errors.Is(err, gorm.ErrDuplicatedKey):

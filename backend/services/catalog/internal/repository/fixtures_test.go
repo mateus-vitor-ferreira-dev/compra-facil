@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 var (
@@ -38,7 +38,7 @@ func mustProduct(t *testing.T, sku string, categoryID uuid.UUID, opts ...product
 	t.Helper()
 	p := domain.Product{
 		SKU: sku, Name: "Produto " + sku, Description: "descrição", CategoryID: categoryID,
-		PriceCents: 10000, Status: domain.ProductActive,
+		PriceCents: 10000, Status: domain.ProductActive, SupplierProducts: map[string]string{domain.NoColor: "M-" + sku},
 	}
 	for _, o := range opts {
 		o(&p)

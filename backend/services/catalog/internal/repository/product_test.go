@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 func TestProductRepository_CreateAndGet(t *testing.T) {
@@ -375,7 +375,10 @@ func TestProductRepository_Update_Colors(t *testing.T) {
 	resetDB(t)
 	repo := NewProductRepository(testDB)
 	cat := mustCategory(t, "camisetas", nil)
-	p := mustProduct(t, "CAM-COR", cat.ID, func(p *domain.Product) { p.Colors = []string{"Branco", "Preto"} })
+	// rascunho: as cores mudam sem o código no fornecedor de cada uma (a regra tem teste próprio abaixo)
+	p := mustProduct(t, "CAM-COR", cat.ID, withStatus(domain.ProductDraft), func(p *domain.Product) {
+		p.Colors, p.SupplierProducts = []string{"Branco", "Preto"}, nil
+	})
 
 	got, err := repo.GetByID(ctx, p.ID, now)
 	require.NoError(t, err)
@@ -392,4 +395,66 @@ func TestProductRepository_Update_Colors(t *testing.T) {
 	got, err = repo.GetByID(ctx, p.ID, now)
 	require.NoError(t, err)
 	assert.Empty(t, got.Colors, "lista vazia tira as cores")
+}
+
+func TestProductRepository_Update_SupplierProducts(t *testing.T) {
+	resetDB(t)
+	repo := NewProductRepository(testDB)
+	cat := mustCategory(t, "camisetas", nil)
+	p := mustProduct(t, "CAM-MTK", cat.ID, func(p *domain.Product) {
+		p.Colors = []string{"Branco", "Preto"}
+		p.SupplierProducts = map[string]string{"Branco": "6167609", "Preto": "6167609"}
+	})
+
+	got, err := repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"Branco": "6167609", "Preto": "6167609"}, got.SupplierProducts, "o Create grava os códigos")
+
+	got.SupplierProducts = nil // PUT de quem não conhece o campo
+	got.Name = "Camiseta nova"
+	require.NoError(t, repo.Update(ctx, &got, got.Version))
+	got, err = repo.GetByID(ctx, p.ID, now)
+	require.NoError(t, err)
+	assert.Equal(t, "6167609", got.SupplierProducts["Preto"], "nil mantém os gravados")
+
+	t.Run("a cor nova sem código não passa, nem quando as cores vêm do PUT e os códigos ficam", func(t *testing.T) {
+		upd := got
+		upd.Colors, upd.SupplierProducts = []string{"Branco", "Preto", "Vermelho"}, nil
+		var ve *domain.ValidationError
+		require.ErrorAs(t, repo.Update(ctx, &upd, got.Version), &ve)
+		assert.Equal(t, "supplier_products", ve.Fields[0].Field)
+		assert.Contains(t, ve.Fields[0].Message, "Vermelho")
+	})
+
+	t.Run("tirar os códigos de um produto à venda não passa", func(t *testing.T) {
+		upd := got
+		upd.SupplierProducts = map[string]string{}
+		var ve *domain.ValidationError
+		require.ErrorAs(t, repo.Update(ctx, &upd, got.Version), &ve)
+	})
+
+	t.Run("feito por pedido: a personalização obrigatória mantida pelo PUT libera sem código", func(t *testing.T) {
+		made := mustProduct(t, "CAM-ANIV", cat.ID, withStatus(domain.ProductDraft), func(p *domain.Product) {
+			p.SupplierProducts = nil
+			p.Personalization = &domain.Personalization{Label: "Nome", MaxLength: 12, Required: true, Template: "aniversario-dino"}
+		})
+		made.Status, made.Personalization = domain.ProductActive, nil // nil: o PUT mantém a gravada
+		require.NoError(t, repo.Update(ctx, &made, made.Version))
+	})
+
+	t.Run("no rascunho os códigos saem; à venda de novo, voltam com a cor vermelha", func(t *testing.T) {
+		upd := got
+		upd.Status, upd.SupplierProducts = domain.ProductDraft, map[string]string{}
+		require.NoError(t, repo.Update(ctx, &upd, got.Version))
+		back, err := repo.GetByID(ctx, p.ID, now)
+		require.NoError(t, err)
+		assert.Empty(t, back.SupplierProducts)
+
+		back.Status, back.Colors = domain.ProductActive, []string{"Branco", "Preto", "Vermelho"}
+		back.SupplierProducts = map[string]string{"Branco": "6167609", "Preto": "6167609", "Vermelho": "6170001"}
+		require.NoError(t, repo.Update(ctx, &back, back.Version))
+		back, err = repo.GetByID(ctx, p.ID, now)
+		require.NoError(t, err)
+		assert.Equal(t, "6170001", back.SupplierProducts["Vermelho"])
+	})
 }

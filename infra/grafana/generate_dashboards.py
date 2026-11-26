@@ -56,7 +56,7 @@ def dashboard(uid, title, description, panels, variables=(), refresh="10s", time
         "uid": uid,
         "title": title,
         "description": description,
-        "tags": ["compra-facil"],
+        "tags": ["embrulhado"],
         "timezone": "browser",
         "schemaVersion": 39,
         "version": 1,
@@ -80,7 +80,7 @@ service_var = {
 # streams SSE (GET /v1/orders/{id}/events) ficam abertos minutos: fora da latência e da taxa de requisições
 SEL = 'service_name=~"$service", http_route!~".*/events"'
 red = dashboard(
-    "compra-facil-red", "CompraFácil — Serviços (RED)",
+    "embrulhado-red", "Embrulhado — Serviços (RED)",
     "Taxa, erros e duração (RED) de cada serviço, pela instrumentação OpenTelemetry.",
     [
         row("HTTP (entrada de cada serviço)", 0),
@@ -109,13 +109,13 @@ red = dashboard(
 )
 
 # ---------------------------------------------------------------- 2. SAGA de compra
-FIN = "compra_facil_orders_finished_total"
+FIN = "embrulhado_orders_finished_total"
 saga = dashboard(
-    "compra-facil-saga", "CompraFácil — SAGA de compra",
+    "embrulhado-saga", "Embrulhado — SAGA de compra",
     "Pedidos do início ao fim: confirmados (SAGA concluída) × cancelados (compensada), por motivo, e a saúde dos consumers Kafka.",
     [
         row("Resultado dos pedidos (no período)", 0),
-        panel("stat", "Pedidos criados", [("sum(increase(compra_facil_orders_placed_total[$__range])) or vector(0)", "", "A", True)], 0, 1, 5, 5, decimals=0),
+        panel("stat", "Pedidos criados", [("sum(increase(embrulhado_orders_placed_total[$__range])) or vector(0)", "", "A", True)], 0, 1, 5, 5, decimals=0),
         panel("stat", "Confirmados", [(f'sum(increase({FIN}{{status="Confirmed"}}[$__range])) or vector(0)', "", "A", True)], 5, 1, 5, 5,
               decimals=0, thresholds=[{"color": GOOD, "value": None}]),
         panel("stat", "Cancelados (compensados)", [(f'sum(increase({FIN}{{status="Cancelled"}}[$__range])) or vector(0)', "", "A", True)], 10, 1, 5, 5,
@@ -123,39 +123,39 @@ saga = dashboard(
         panel("stat", "% compensadas", [(
             f'100 * sum(increase({FIN}{{status="Cancelled"}}[$__range])) / sum(increase({FIN}[$__range]))', "", "A", True)], 15, 1, 4, 5,
               unit="percent", decimals=1, thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 10}, {"color": BAD, "value": 30}]),
-        panel("stat", "Receita confirmada", [("(sum(increase(compra_facil_orders_confirmed_amount_total[$__range])) / 100) or vector(0)", "", "A", True)],
+        panel("stat", "Receita confirmada", [("(sum(increase(embrulhado_orders_confirmed_amount_total[$__range])) / 100) or vector(0)", "", "A", True)],
               19, 1, 5, 5, unit="currencyBRL", decimals=2),
         panel("timeseries", "Pedidos finalizados por status e motivo", [(
             f"sum by (status, reason) (rate({FIN}[$__rate_interval]))", "{{status}} {{reason}}")], 0, 6, 12, 8, unit="ops", stack=True),
         panel("timeseries", "Cobranças por resultado", [(
-            "sum by (result, reason) (rate(compra_facil_payments_charges_total[$__rate_interval]))", "{{result}} {{reason}}")],
+            "sum by (result, reason) (rate(embrulhado_payments_charges_total[$__rate_interval]))", "{{result}} {{reason}}")],
               12, 6, 6, 8, unit="ops", stack=True),
         panel("timeseries", "Reservas de estoque", [(
-            "sum by (result) (rate(compra_facil_inventory_reservations_total[$__rate_interval]))", "{{result}}")], 18, 6, 6, 8, unit="ops", stack=True),
+            "sum by (result) (rate(embrulhado_inventory_reservations_total[$__rate_interval]))", "{{result}}")], 18, 6, 6, 8, unit="ops", stack=True),
         row("Kafka e consumers", 14),
         panel("timeseries", "Lag dos consumers (mensagens atrás)", [(
             "sum by (group) (kafka_consumer_group_lag_sum_ratio)", "{{group}}")], 0, 15, 8, 8, decimals=0,
               description="Quantas mensagens cada consumer group ainda não processou (lido do Redpanda pelo Collector)."),
         panel("timeseries", "Eventos consumidos por resultado", [(
-            "sum by (result) (rate(compra_facil_messaging_consumed_total[$__rate_interval]))", "{{result}}")], 8, 15, 8, 8, unit="ops", stack=True,
+            "sum by (result) (rate(embrulhado_messaging_consumed_total[$__rate_interval]))", "{{result}}")], 8, 15, 8, 8, unit="ops", stack=True,
               description="processed, duplicate (inbox), skipped (sem handler), error (cada tentativa que falhou), "
                           "retried (foi para um tópico de retry) e dead_lettered (foi para a DLT; ADR 0003)."),
         panel("stat", "Para a DLT", [(
-            'sum(increase(compra_facil_messaging_consumed_total{result="dead_lettered"}[$__range])) or vector(0)', "", "A", True)], 16, 15, 4, 4,
+            'sum(increase(embrulhado_messaging_consumed_total{result="dead_lettered"}[$__range])) or vector(0)', "", "A", True)], 16, 15, 4, 4,
               decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": BAD, "value": 1}],
               description="Esgotaram as tentativas ou estão fora do contrato. Ver e reprocessar: task dlt -- <serviço>."),
         panel("stat", "Para retry", [(
-            'sum(increase(compra_facil_messaging_consumed_total{result="retried"}[$__range])) or vector(0)', "", "A", True)], 20, 15, 4, 4,
+            'sum(increase(embrulhado_messaging_consumed_total{result="retried"}[$__range])) or vector(0)', "", "A", True)], 20, 15, 4, 4,
               decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 1}],
               description="Falharam nas tentativas no lugar e foram para <serviço>.retry-N."),
         panel("stat", "E-mails enviados", [(
-            'sum(increase(compra_facil_notifications_emails_total{result="Sent"}[$__range])) or vector(0)', "", "A", True)], 16, 19, 8, 4, decimals=0),
+            'sum(increase(embrulhado_notifications_emails_total{result="Sent"}[$__range])) or vector(0)', "", "A", True)], 16, 19, 8, 4, decimals=0),
         panel("timeseries", "Tratamento de evento p95", [(
-            "histogram_quantile(0.95, sum by (le, service_name, event_type) (rate(compra_facil_messaging_process_duration_seconds_bucket[$__rate_interval])))",
+            "histogram_quantile(0.95, sum by (le, service_name, event_type) (rate(embrulhado_messaging_process_duration_seconds_bucket[$__rate_interval])))",
             "{{service_name}} {{event_type}}")], 0, 23, 24, 8, unit="s"),
         row("Catálogo fora (fallback do orders, #81)", 31),
         panel("timeseries", "Pedidos precificados pela cópia local", [(
-            "sum by (reason) (rate(compra_facil_orders_catalog_fallback_total[$__rate_interval]))", "{{reason}}")],
+            "sum by (reason) (rate(embrulhado_orders_catalog_fallback_total[$__rate_interval]))", "{{reason}}")],
               0, 32, 12, 8, unit="ops", stack=True,
               description="O catalog não respondeu (unavailable, timeout) ou o circuito estava aberto (circuit_open): "
                           "o preço saiu da cópia local que o orders mantém pelos eventos."),
@@ -170,7 +170,7 @@ saga = dashboard(
 HIT = 'sum(rate(catalog_cache_lookups_total{result="hit"}[$__rate_interval]))'
 LOOK = 'sum(rate(catalog_cache_lookups_total{result=~"hit|miss"}[$__rate_interval]))'
 campaign = dashboard(
-    "compra-facil-campanha", "CompraFácil — Campanha (catálogo)",
+    "embrulhado-campanha", "Embrulhado — Campanha (catálogo)",
     "O pico de leitura das campanhas: RPS e p95 do catálogo, rate limit do gateway, cache e réplicas (critérios do parecer).",
     [
         panel("stat", "RPS no catálogo", [(
@@ -183,7 +183,7 @@ campaign = dashboard(
         panel("stat", "Hit ratio do cache", [(f"{HIT} / {LOOK}", "", "A", True)], 10, 0, 5, 5, unit="percentunit", decimals=1,
               thresholds=[{"color": BAD, "value": None}, {"color": WARN, "value": 0.7}, {"color": GOOD, "value": 0.9}],
               description="Meta do #67: acima de 90% no cenário do k6."),
-        panel("stat", "Réplicas do catálogo", [('count(target_info{job="compra-facil/catalog"})', "", "A", True)], 15, 0, 4, 5, decimals=0),
+        panel("stat", "Réplicas do catálogo", [('count(target_info{job="embrulhado/catalog"})', "", "A", True)], 15, 0, 4, 5, decimals=0),
         panel("stat", "Recusados pelo rate limit (429)", [(
             'sum(increase(traefik_service_requests_total{service="catalog@file", code="429"}[$__range])) or vector(0)', "", "A", True)], 19, 0, 5, 5,
               decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 1}]),
@@ -227,10 +227,10 @@ START_TEXT = """\
 
 | | |
 |---|---|
-| **Saúde dos serviços** | [Serviços (RED)](/d/compra-facil-red): taxa, erros e latência por serviço e rota |
-| **Pedidos e mensageria** | [SAGA de compra](/d/compra-facil-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |
-| **Pico de campanha** | [Campanha](/d/compra-facil-campanha): RPS, p95, cache, réplicas e o k6 |
-| **Loja (front)** | [Loja](/d/compra-facil-front): Web Vitals de quem compra e os traces do Next |
+| **Saúde dos serviços** | [Serviços (RED)](/d/embrulhado-red): taxa, erros e latência por serviço e rota |
+| **Pedidos e mensageria** | [SAGA de compra](/d/embrulhado-saga): confirmados × compensados, lag, retry/DLT, catálogo fora |
+| **Pico de campanha** | [Campanha](/d/embrulhado-campanha): RPS, p95, cache, réplicas e o k6 |
+| **Loja (front)** | [Loja](/d/embrulhado-front): Web Vitals de quem compra e os traces do Next |
 
 ### Investigar uma requisição
 
@@ -243,7 +243,7 @@ Do trace se vai para os logs do mesmo trace (botão *Logs for this span*), e de 
 Logs de um serviço: `task grafana:logs -- orders`.
 """
 home = dashboard(
-    "compra-facil-inicio", "CompraFácil — Início",
+    "embrulhado-inicio", "Embrulhado — Início",
     "Ponto de partida: saúde dos serviços, erros recentes (traces e logs) e atalhos para os outros dashboards.",
     [
         {"type": "text", "title": "", "gridPos": {"x": 0, "y": 0, "w": 12, "h": 11},
@@ -263,18 +263,18 @@ home = dashboard(
         {"type": "logs", "title": "Erros e avisos recentes (logs)", "datasource": LOKI,
          "gridPos": {"x": 12, "y": 11, "w": 12, "h": 10},
          "targets": [{"datasource": LOKI, "refId": "A",
-                      "expr": '{service_namespace="compra-facil"} | detected_level=~"error|warn"'}],
+                      "expr": '{service_namespace="embrulhado"} | detected_level=~"error|warn"'}],
          "fieldConfig": {"defaults": {}, "overrides": []},
          "options": {"showTime": True, "wrapLogMessage": True, "sortOrder": "Descending", "enableLogDetails": True}},
         row("Compras na última hora", 21),
-        panel("stat", "Pedidos criados", [("sum(increase(compra_facil_orders_placed_total[1h])) or vector(0)", "", "A", True)],
+        panel("stat", "Pedidos criados", [("sum(increase(embrulhado_orders_placed_total[1h])) or vector(0)", "", "A", True)],
               0, 22, 6, 4, decimals=0),
         panel("stat", "Confirmados", [(f'sum(increase({FIN}{{status="Confirmed"}}[1h])) or vector(0)', "", "A", True)],
               6, 22, 6, 4, decimals=0, thresholds=[{"color": GOOD, "value": None}]),
         panel("stat", "Cancelados", [(f'sum(increase({FIN}{{status="Cancelled"}}[1h])) or vector(0)', "", "A", True)],
               12, 22, 6, 4, decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": WARN, "value": 1}]),
         panel("stat", "Mensagens na DLT", [(
-            'sum(increase(compra_facil_messaging_consumed_total{result="dead_lettered"}[1h])) or vector(0)', "", "A", True)],
+            'sum(increase(embrulhado_messaging_consumed_total{result="dead_lettered"}[1h])) or vector(0)', "", "A", True)],
               18, 22, 6, 4, decimals=0, thresholds=[{"color": GOOD, "value": None}, {"color": BAD, "value": 1}],
               description="Ver e reprocessar: no painel da loja (/admin/falhas) ou task dlt -- <serviço>."),
     ],
@@ -324,7 +324,7 @@ front_panels += [
      "fieldConfig": {"defaults": {}, "overrides": []}, "options": {}},
 ]
 front = dashboard(
-    "compra-facil-front", "CompraFácil — Loja (front)",
+    "embrulhado-front", "Embrulhado — Loja (front)",
     "Web Vitals medidos no navegador de quem compra e os traces do servidor do Next (#155).",
     front_panels, refresh="30s", time_from="now-6h",
 )

@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: CompraFácil — Identity API
+  title: Embrulhado — Identity API
   version: 1.0.0
   summary: Contas, login e os tokens que as outras APIs aceitam.
   description: |
@@ -31,7 +31,7 @@ info:
 
     O access token vai em `Authorization: Bearer <token>` nas outras APIs, que o validam sozinhas com as
     chaves públicas de `/.well-known/jwks.json` (cache de 5 min). Claims: `sub` (id da conta), `email`,
-    `name`, `roles` (`customer`, `admin`, `auditor`), `iss` = `compra-facil-identity`, `aud` = `compra-facil`,
+    `name`, `roles` (`customer`, `admin`, `auditor`), `iss` = `embrulhado-identity`, `aud` = `embrulhado`,
     `exp` e, só na sessão que passou pelo segundo fator, `amr` = `["mfa"]` (RFC 8176). As rotas de operador
     dos serviços exigem `amr` com `mfa` junto do papel `admin`; o refresh repete o `amr` só na sessão que
     nasceu do segundo fator.
@@ -1061,7 +1061,7 @@ components:
       properties:
         issuer:
           type: string
-          examples: ["compra-facil-identity"]
+          examples: ["embrulhado-identity"]
         jwks_uri:
           type: string
           format: uri

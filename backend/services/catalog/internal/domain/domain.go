@@ -78,10 +78,14 @@ type Product struct {
 	// Personalization é o texto que o cliente escreve na compra (ex.: o nome na estampa); nulo, o produto não tem.
 	// Num Update, nil mantém a gravada e uma vazia (IsZero) tira.
 	Personalization *Personalization
-	PriceCents      int64
-	Currency        string
-	Status          ProductStatus
-	Version         int
+	// SupplierProducts é o código do produto no fornecedor manual (hoje a Montink) de cada cor à venda: a equipe faz o
+	// pedido nele. A chave é a cor (NoColor no produto sem cor à escolha); vazio, o produto não tem fornecedor e não
+	// fica à venda (ver CheckSupplierProducts). Num Update, nil mantém os gravados e um mapa vazio tira.
+	SupplierProducts map[string]string
+	PriceCents       int64
+	Currency         string
+	Status           ProductStatus
+	Version          int
 	// ActiveCampaign é a campanha vigente de maior desconto, se houver (preenchida na leitura).
 	ActiveCampaign *CampaignRef
 	// Supplier: o produto vem do feed de um fornecedor de dropshipping (nulo: cadastrado pela loja).
@@ -100,12 +104,15 @@ func (p Product) EffectivePriceCents() int64 {
 }
 
 type Category struct {
-	ID        uuid.UUID
-	Slug      string
-	Name      string
-	ParentID  *uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID       uuid.UUID
+	Slug     string
+	Name     string
+	ParentID *uuid.UUID
+	// ActiveProducts são os produtos à venda nela e nas descendentes (preenchido na listagem): a loja esconde a
+	// categoria com zero e ela volta sozinha com o primeiro produto ativo (#483).
+	ActiveProducts int
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type CategoryRef struct {

@@ -1,0 +1,187 @@
+using System.Net;
+using Embrulhado.BuildingBlocks.Testing;
+using Embrulhado.Identity.Domain;
+using Embrulhado.Identity.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+
+namespace Embrulhado.Identity.IntegrationTests;
+
+/// <summary>Cadastro e GET /v1/me.</summary>
+public sealed class AccountsTests(IdentityFixture fx) : IClassFixture<IdentityFixture>
+{
+    private readonly IdentityClient _api = new(fx.Factory.CreateClient());
+
+    [Fact]
+    public async Task Register_Returns201Customer_FollowingTheContract()
+    {
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+
+        using var response = await _api.RegisterAsync(email, name: "  Ana Souza ");
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("/v1/me", response.Headers.Location?.OriginalString);
+        var body = await IdentityClient.JsonOf(response);
+        ContractAssert.AssertSchema("identity.v1.yaml", "/components/schemas/Account", body.GetRawText());
+        Assert.Equal(email, body.GetProperty("email").GetString());
+        Assert.Equal("Ana Souza", body.GetProperty("name").GetString());
+        Assert.Equal(["customer"], body.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
+        Assert.False(body.TryGetProperty("password", out _));
+    }
+
+    [Fact]
+    public async Task Seeder_DoesNotPromoteAnAccountThatSomeoneRegisteredWithTheConfiguredEmail()
+    {
+        // o cadastro é público: quem registra antes o e-mail de um auditor ligado depois não pode virar auditor
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+        using (var registered = await _api.RegisterAsync(email))
+        {
+            Assert.Equal(HttpStatusCode.Created, registered.StatusCode);
+        }
+
+        await using var scope = fx.Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var seeder = new AdminSeeder(users, scope.ServiceProvider.GetRequiredService<IUserStore<User>>(), Options.Create(new AdminSeedOptions()),
+            Options.Create(new AuditorSeedOptions { Email = email, Password = "senha-da-configuracao" }), fx.Clock,
+            NullLogger<AdminSeeder>.Instance);
+        await seeder.SeedAsync();
+
+        var user = await users.FindByEmailAsync(email);
+        Assert.NotNull(user);
+        Assert.False(await users.IsInRoleAsync(user, Roles.Auditor));
+        Assert.False(await users.CheckPasswordAsync(user, "senha-da-configuracao"));
+    }
+
+    [Fact]
+    public async Task Register_SameEmailInOtherCase_Is409()
+    {
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+        using var first = await _api.RegisterAsync(email);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+        using var again = await _api.RegisterAsync(email.ToUpperInvariant());
+
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal("application/problem+json", again.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Register_SameEmailAtTheSameTime_OneCreated_OthersAre409()
+    {
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => _api.RegisterAsync(email)));
+        try
+        {
+            Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Created);
+            Assert.All(responses.Where(r => r.StatusCode != HttpStatusCode.Created),
+                r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+        }
+        finally
+        {
+            foreach (var r in responses)
+            {
+                r.Dispose();
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("ana@exemplo.com", "curta", "password")]          // menos de 8
+    [InlineData("ana@exemplo.com", "aaaabbbb", "password")]       // só 2 caracteres diferentes
+    [InlineData("nao-e-email", "senha-boa-123", "email")]
+    [InlineData("", "senha-boa-123", "email")]
+    public async Task Register_Invalid_Is422OnTheField(string email, string password, string field)
+    {
+        using var response = await _api.RegisterAsync(email, password);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await IdentityClient.JsonOf(response);
+        ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/ValidationProblem", body.GetRawText());
+        Assert.Contains(body.GetProperty("errors").EnumerateArray(), e => e.GetProperty("field").GetString() == field);
+    }
+
+    [Theory]
+    [InlineData("Ana Maria")]
+    [InlineData("João d'Ávila")]
+    [InlineData("Maria-Clara")]
+    [InlineData("J. R. Silva")]
+    public async Task Register_RealNames_AreAccepted(string name)
+    {
+        using var response = await _api.RegisterAsync($"{Guid.NewGuid():N}@exemplo.com", name: name);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    // o golpe: cadastrar com o e-mail da vítima e um link no nome, que iria na saudação do e-mail da loja
+    [Theory]
+    [InlineData("https://embrulhado-seguranca.com/verificar")]
+    [InlineData("ana@exemplo.com")]
+    [InlineData("evil.com")]
+    [InlineData("www.x")]
+    public async Task Register_LinkAsName_Is422OnTheName(string name)
+    {
+        using var response = await _api.RegisterAsync($"{Guid.NewGuid():N}@exemplo.com", name: name);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var body = await IdentityClient.JsonOf(response);
+        ContractAssert.AssertSchema("common/v1/common.yaml", "/components/schemas/ValidationProblem", body.GetRawText());
+        var error = Assert.Single(body.GetProperty("errors").EnumerateArray());
+        Assert.Equal("name", error.GetProperty("field").GetString());
+        Assert.Equal("use só letras, espaços, apóstrofo, hífen e ponto", error.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task Me_ReturnsTheAccountOfTheToken()
+    {
+        var email = $"{Guid.NewGuid():N}@exemplo.com";
+        var (access, _) = await _api.NewSessionAsync(email);
+
+        using var response = await _api.MeAsync(access);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await IdentityClient.JsonOf(response);
+        ContractAssert.AssertSchema("identity.v1.yaml", "/components/schemas/Account", body.GetRawText());
+        Assert.Equal(email, body.GetProperty("email").GetString());
+    }
+
+    [Fact]
+    public async Task Me_WithoutToken_Is401ProblemDetails()
+    {
+        using var response = await _api.MeAsync(null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Admin_FromConfiguration_HasTheAdminRole()
+    {
+        // o operador entra a primeira vez cadastrando o autenticador (ameaça T8)
+        using var login = await _api.LoginAsync(IdentityFixture.AdminEmail, IdentityFixture.AdminPassword);
+        var ticket = await IdentityClient.TicketOf(login, "mfa_setup_required");
+        using var setup = await _api.MfaSetupAsync(ticket);
+        var key = (await IdentityClient.JsonOf(setup)).GetProperty("shared_key").GetString()!;
+        using var enabled = await _api.MfaConfirmAsync(ticket, fx.CodeFor(key));
+        var (access, _) = IdentityClient.Tokens(await IdentityClient.JsonOf(enabled));
+
+        using var me = await _api.MeAsync(access);
+
+        var roles = (await IdentityClient.JsonOf(me)).GetProperty("roles").EnumerateArray().Select(r => r.GetString());
+        Assert.Equal(["admin"], roles);
+    }
+
+    [Fact]
+    public async Task Auditor_FromConfiguration_HasOnlyTheReadOnlyRole()
+    {
+        using var login = await _api.LoginAsync(IdentityFixture.AuditorEmail, IdentityFixture.AuditorPassword);
+        var (access, _) = IdentityClient.Tokens(await IdentityClient.JsonOf(login));
+
+        using var me = await _api.MeAsync(access);
+
+        var roles = (await IdentityClient.JsonOf(me)).GetProperty("roles").EnumerateArray().Select(r => r.GetString());
+        Assert.Equal(["auditor"], roles);
+    }
+}

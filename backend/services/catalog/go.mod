@@ -1,4 +1,4 @@
-module github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog
+module github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog
 
 go 1.26.10
 

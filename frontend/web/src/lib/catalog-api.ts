@@ -52,8 +52,18 @@ export async function reserved<T>(key: string, read: Promise<Result<T>>): Promis
   return copy === undefined ? result : { ok: true, data: copy, stale: true };
 }
 
-export function getCategories(): Promise<Result<Category[]>> {
-  return reserved(
+/**
+ * A categoria aparece na loja (menu, rodapé, home, busca e sitemap) só com produto à venda nela ou nas descendentes;
+ * volta sozinha com o primeiro produto ativo (#483). A cópia de reserva de antes do campo não traz a contagem: na
+ * dúvida, a categoria fica.
+ */
+export function onSale(categories: Category[]): Category[] {
+  return categories.filter((c) => c.active_products !== 0);
+}
+
+/** As categorias com produto à venda: as outras somem da loja e a página delas é 404. */
+export async function getCategories(): Promise<Result<Category[]>> {
+  const result = await reserved(
     "categories",
     call(async () => {
       const r = await api
@@ -62,6 +72,7 @@ export function getCategories(): Promise<Result<Category[]>> {
       return { data: r.data?.data, response: r.response };
     }),
   );
+  return result.ok ? { ...result, data: onSale(result.data) } : result;
 }
 
 export function getActiveCampaigns(): Promise<Result<Campaign[]>> {

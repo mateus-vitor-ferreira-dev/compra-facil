@@ -624,7 +624,7 @@ export interface components {
             keys: components["schemas"]["Jwk"][];
         };
         OpenIdConfiguration: {
-            /** @example compra-facil-identity */
+            /** @example embrulhado-identity */
             issuer: string;
             /** Format: uri */
             jwks_uri: string;

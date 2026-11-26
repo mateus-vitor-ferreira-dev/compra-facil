@@ -14,6 +14,7 @@ import { getProduct, getStock, type AdminProduct as AdminProductType } from "@/l
 import { requireAdmin } from "@/lib/auth/current";
 import { formatMoney } from "@/lib/format";
 import { reaisInput } from "@/lib/money-input";
+import { formatSupplierProducts } from "@/lib/supplier-products";
 import { removeProduct } from "../actions";
 import { categoryOptions } from "../category-options";
 
@@ -143,6 +144,7 @@ export default async function AdminProduct({ params, searchParams }: Props) {
             price: reaisInput(p.price.amount_cents),
             sizes: (p.sizes ?? []).join(", "),
             colors: (p.colors ?? []).join(", "),
+            supplier_products: formatSupplierProducts(p.supplier_products, p.colors ?? []),
             personalization_template: p.personalization?.template ?? "",
             personalization_label: p.personalization?.label ?? "",
             personalization_max_length: p.personalization ? String(p.personalization.max_length) : "",

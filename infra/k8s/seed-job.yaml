@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: seed
-          image: compra-facil/catalog-seed:dev
+          image: embrulhado/catalog-seed:dev
           imagePullPolicy: IfNotPresent
           env:
-            - { name: CATALOG_DB_DSN, value: "postgres://catalog:compra-facil@postgres:5432/catalog?sslmode=disable" }
+            - { name: CATALOG_DB_DSN, value: "postgres://catalog:embrulhado@postgres:5432/catalog?sslmode=disable" }

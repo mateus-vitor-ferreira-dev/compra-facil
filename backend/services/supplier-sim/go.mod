@@ -1,4 +1,4 @@
-module github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/supplier-sim
+module github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/supplier-sim
 
 go 1.26.10
 

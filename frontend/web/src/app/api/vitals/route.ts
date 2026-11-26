@@ -7,7 +7,7 @@ import { routePattern } from "@/lib/route-pattern";
  * Grafana mostra no p75 (o percentil que o Google usa). Um por métrica, com a página como padrão de rota
  * e a nota (good, needs-improvement, poor). Sem estado nem dado pessoal: só o valor, a página e a nota.
  */
-const meter = metrics.getMeter("compra-facil-web");
+const meter = metrics.getMeter("embrulhado-web");
 
 // fronteiras dos histogramas em torno dos limites do Google (bom/ruim)
 const ms = (good: number, poor: number) => [

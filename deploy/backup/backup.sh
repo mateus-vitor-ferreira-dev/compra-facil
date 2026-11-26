@@ -1,7 +1,7 @@
 #!/bin/sh
 # Um pg_dump (formato custom) de cada banco por dia no bucket, em postgres/<AAAA-MM-DD>/<banco>.dump.age,
 # mais os papéis (pg_dumpall --globals-only), tudo cifrado com o age. Apaga os dias além da retenção. Depois de cada rodada,
-# manda ao Collector a métrica compra_facil.backup.last_success (o horário do último backup inteiro):
+# manda ao Collector a métrica embrulhado.backup.last_success (o horário do último backup inteiro):
 # o alerta dispara quando ela envelhece.
 #   BACKUP_DATABASES  bancos, separados por vírgula
 #   BACKUP_TIME       hora UTC da rodada diária, HH:MM          (padrão: 06:00, 3h em Brasília)
@@ -44,8 +44,8 @@ metric() { # metric <0|1>: o resultado da rodada
   wget -q -O /dev/null --header 'Content-Type: application/json' --post-data "{\"resourceMetrics\":[{
     \"resource\":{\"attributes\":[{\"key\":\"service.name\",\"value\":{\"stringValue\":\"pg-backup\"}}]},
     \"scopeMetrics\":[{\"metrics\":[
-      {\"name\":\"compra_facil.backup.last_run_ok\",\"unit\":\"1\",\"gauge\":{\"dataPoints\":[{\"asInt\":\"$1\",\"timeUnixNano\":\"${now}000000000\"}]}}
-      $( [ "$1" = 1 ] && echo ",{\"name\":\"compra_facil.backup.last_success\",\"unit\":\"s\",\"gauge\":{\"dataPoints\":[{\"asInt\":\"$now\",\"timeUnixNano\":\"${now}000000000\"}]}}" )
+      {\"name\":\"embrulhado.backup.last_run_ok\",\"unit\":\"1\",\"gauge\":{\"dataPoints\":[{\"asInt\":\"$1\",\"timeUnixNano\":\"${now}000000000\"}]}}
+      $( [ "$1" = 1 ] && echo ",{\"name\":\"embrulhado.backup.last_success\",\"unit\":\"s\",\"gauge\":{\"dataPoints\":[{\"asInt\":\"$now\",\"timeUnixNano\":\"${now}000000000\"}]}}" )
     ]}]}]}" "$OTLP_ENDPOINT/v1/metrics" || log warn "a métrica do backup não chegou ao Collector"
 }
 

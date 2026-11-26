@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/auth/authtest"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/service"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/auth"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/auth/authtest"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/service"
 )
 
 // ---------- fakes dos services admin ----------
@@ -192,7 +192,7 @@ func send(t *testing.T, h http.Handler, method, path, body string, headers map[s
 }
 
 const productBody = `{"sku":"TV-55","name":"Smart TV 55","description":"QLED","category_id":"%s",
-	"image_url":"https://cdn.example.com/tv.jpg","price_cents":10000,"status":"active"}`
+	"image_url":"https://cdn.example.com/tv.jpg","price_cents":10000,"status":"active","supplier_products":{"":"6167609"}}`
 
 // ---------- autenticação ----------
 
@@ -299,8 +299,10 @@ func TestAdmin_CreateProduct(t *testing.T) {
 	assert.Equal(t, service.ProductInput{
 		SKU: "TV-55", Name: "Smart TV 55", Description: "QLED", CategoryID: catID,
 		ImageURL: &img, PriceCents: 10000, Status: domain.ProductActive,
+		SupplierProducts: map[string]string{domain.NoColor: "6167609"},
 	}, f.products.gotIn)
 	assert.Equal(t, "active", decode(t, w)["status"])
+	assert.Equal(t, map[string]any{"": "6167609"}, decode(t, w)["supplier_products"], "o painel vê o código no fornecedor")
 }
 
 func TestAdmin_CreateProduct_Errors(t *testing.T) {

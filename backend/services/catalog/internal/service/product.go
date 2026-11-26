@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 // Clock permite fixar "agora" nos testes (vigência de campanhas).
@@ -354,14 +354,17 @@ type ProductInput struct {
 	Colors []string
 	// Personalization é o texto que o cliente escreve na compra; nil mantém a gravada, vazia ({}) tira.
 	Personalization *domain.Personalization
-	PriceCents      int64
-	Status          domain.ProductStatus
+	// SupplierProducts é o código do produto no fornecedor por cor; nil mantém os gravados, vazio tira.
+	SupplierProducts map[string]string
+	PriceCents       int64
+	Status           domain.ProductStatus
 }
 
 func (in ProductInput) toProduct() domain.Product {
 	p := domain.Product{
 		SKU: in.SKU, Name: in.Name, Description: in.Description, Brand: in.Brand, CategoryID: in.CategoryID,
 		ImageURL: in.ImageURL, Sizes: in.Sizes, Colors: in.Colors, Personalization: in.Personalization, PriceCents: in.PriceCents, Currency: domain.DefaultCurrency, Status: in.Status,
+		SupplierProducts: in.SupplierProducts,
 	}
 	if in.MoreImageURLs != nil {
 		p.Gallery = make([]domain.GalleryImage, len(in.MoreImageURLs))
@@ -380,6 +383,9 @@ func (s *ProductService) Create(ctx context.Context, in ProductInput) (domain.Pr
 	}
 	if err := p.Validate(); err != nil {
 		return domain.Product{}, err
+	}
+	if err := p.CheckSupplierProducts(); err != nil {
+		return domain.Product{}, err //nolint:wrapcheck // erro de validação vai como está
 	}
 	if err := s.products.Create(ctx, &p); err != nil {
 		return domain.Product{}, productWriteError(err, p.SKU)

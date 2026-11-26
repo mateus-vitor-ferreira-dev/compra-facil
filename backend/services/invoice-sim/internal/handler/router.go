@@ -16,7 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/invoice-sim/internal/nfe"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/invoice-sim/internal/nfe"
 )
 
 type Credentials struct {

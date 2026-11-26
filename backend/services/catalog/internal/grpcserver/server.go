@@ -20,9 +20,9 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	catalogv1 "github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/gen/catalog/v1"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/service"
+	catalogv1 "github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/gen/catalog/v1"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/service"
 )
 
 // maxBatch é o limite de BatchGetProducts (mesmo do service).

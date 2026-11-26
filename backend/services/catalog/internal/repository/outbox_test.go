@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/events"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/events"
 )
 
 // outboxEvent é a linha do outbox com o envelope decodificado, para as asserções.
@@ -56,7 +56,8 @@ func TestProductWrites_EnqueueEventsInTheSameTransaction(t *testing.T) {
 	cat := mustCategory(t, "audio", nil)
 	reqCtx := events.WithCorrelationID(ctx, "req-abc")
 
-	p := domain.Product{SKU: "AUD-1", Name: "Fone", CategoryID: cat.ID, PriceCents: 10000, Status: domain.ProductActive}
+	p := domain.Product{SKU: "AUD-1", Name: "Fone", CategoryID: cat.ID, PriceCents: 10000, Status: domain.ProductActive,
+		SupplierProducts: map[string]string{domain.NoColor: "6167609"}}
 	require.NoError(t, repo.Create(reqCtx, &p))
 
 	p.Name = "Fone Pro" // sem mudar preço

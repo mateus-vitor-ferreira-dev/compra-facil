@@ -1,7 +1,7 @@
-image: { repository: compra-facil/notifications }
+image: { repository: embrulhado/notifications }
 port: 8005
 env:
-  ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=compra-facil
+  ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=embrulhado
   Kafka__BootstrapServers: redpanda:9092
   # tokens do identity (rede interna do cluster, sem TLS)
   Auth__Authority: http://identity:8006

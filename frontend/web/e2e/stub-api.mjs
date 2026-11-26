@@ -138,6 +138,8 @@ const categories = [
     name: "Notebooks",
     parent_id: "0199f6a0-0000-7000-8000-0000000000b0",
   },
+  // sem nenhum produto à venda (#483): fora do menu, da home, do sitemap, e a página é 404
+  { id: "0199f6a0-0000-7000-8000-0000000000c0", slug: "brinquedos", name: "Brinquedos", parent_id: null },
 ];
 const bySlug = Object.fromEntries(categories.map((c) => [c.slug, c]));
 
@@ -221,7 +223,15 @@ const adjustments = new Map();
 const stock = (id) => baseStock(id) + (adjustments.get(id) ?? 0);
 
 // o painel: situação e versão de cada produto (a versão é o ETag)
-for (const p of products) Object.assign(p, { status: "active", version: 1, supplier: null });
+// o código na Montink (#483): um só, sem cor; o do feed de dropshipping não precisa
+for (const [i, p] of products.entries()) {
+  Object.assign(p, {
+    status: "active",
+    version: 1,
+    supplier: null,
+    supplier_products: { "": `61${1000 + i}` },
+  });
+}
 // o headset vem do fornecedor de dropshipping (#217)
 products.at(-1).supplier = {
   name: "cj",
@@ -391,6 +401,31 @@ const refundsAgain = new Set();
 const isAdmin = (req) =>
   (accessTokens.get((req.headers.authorization ?? "").replace("Bearer ", "")) ?? "").startsWith("admin@");
 
+/** Como o catalog: à venda só com o código no fornecedor (o do feed de dropshipping tem o dele). */
+function withoutSupplier(res, body, p) {
+  const codes = body.supplier_products ?? p?.supplier_products ?? {};
+  // o feito por pedido (texto do cliente obrigatório) não precisa: a equipe cria o produto a cada compra
+  const required = (body.personalization ?? p?.personalization)?.required === true;
+  if (body.status !== "active" || p?.supplier || required || Object.keys(codes).length > 0) return false;
+  send(
+    res,
+    422,
+    {
+      type: "about:blank",
+      title: "Dados inválidos",
+      status: 422,
+      errors: [
+        {
+          field: "supplier_products",
+          message: "para pôr à venda, informe o código do produto no fornecedor (Montink)",
+        },
+      ],
+    },
+    "application/problem+json",
+  );
+  return true;
+}
+
 /** Corpo do ProductInput aplicado ao produto (o preço novo vale para o efetivo sem campanha). */
 function applyInput(p, body) {
   const category = categories.find((c) => c.id === body.category_id) ?? p.category;
@@ -407,6 +442,7 @@ function applyInput(p, body) {
       variants: [],
     })),
     status: body.status,
+    supplier_products: body.supplier_products ?? p.supplier_products ?? {},
     category: { id: category.id, slug: category.slug, name: category.name },
     price: { amount_cents: body.price_cents, currency: "BRL" },
     effective_price: {
@@ -433,6 +469,7 @@ async function admin(req, res, url) {
       const body = await json(req);
       if (req.headers["if-match"] !== `"${p.version}"`) return problem(res, 412, "Versão desatualizada");
       if (products.some((x) => x.id !== p.id && x.sku === body.sku)) return problem(res, 409, "Conflito");
+      if (withoutSupplier(res, body, p)) return;
       applyInput(p, body);
       p.version++;
       res.setHeader("ETag", `"${p.version}"`);
@@ -464,6 +501,12 @@ async function admin(req, res, url) {
   if (req.method === "GET" && url.pathname === "/catalog/v1/admin/products") {
     const q = url.searchParams.get("q")?.toLowerCase();
     const status = url.searchParams.get("status");
+    const sku = url.searchParams.get("sku");
+    // por SKU, como o catalog (a ficha do pedido manual busca a arte e o código na Montink assim)
+    if (sku) {
+      const found = [...products, ...manualCatalog].filter((p) => p.sku === sku);
+      return send(res, 200, { data: found, page: { next_cursor: null, has_more: false } });
+    }
     const data = products.filter(
       (p) =>
         (!q || `${p.name} ${p.brand} ${p.sku}`.toLowerCase().includes(q)) && (!status || p.status === status),
@@ -486,10 +529,12 @@ async function admin(req, res, url) {
         "application/problem+json",
       );
     }
+    if (withoutSupplier(res, body, null)) return;
     const p = {
       id: crypto.randomUUID(),
       campaign: null,
       image: null,
+      supplier: null,
       version: 1,
       created_at: new Date().toISOString(),
     };
@@ -1125,6 +1170,16 @@ const isManualAdmin = (req) => isAdmin(req) && adminEmail(req).endsWith("@manual
 const MANUAL_TO_PLACE = "7c41e0aa-2b8f-4d1e-9a55-6f0b2d3c4e10";
 const MANUAL_PLACED = "8d52f1bb-3c9a-4e2f-8b66-7a1c3e4d5f21";
 const MANUAL_SHIPPED = "9e63a2cc-4dab-4f3a-9c77-8b2d4f5e6a32";
+// os produtos da fila manual no catálogo (só a busca por SKU do painel os vê): o fone tem produto na Montink, e a
+// caneca com o nome do cliente é feita por pedido (#483)
+const manualCatalog = [
+  { sku: "FON-BT-01", personalization: null, supplier_products: { "": "6170001" } },
+  {
+    sku: "CAN-NOME-01",
+    personalization: { label: "Nome", max_length: 12, required: true, template: "nome-classico" },
+    supplier_products: {},
+  },
+];
 let manual;
 function resetManual() {
   const base = {
@@ -1161,6 +1216,16 @@ function resetManual() {
         ...base,
         order_id: MANUAL_TO_PLACE,
         status: "awaiting_staff",
+        items: [
+          ...base.items,
+          {
+            sku: "CAN-NOME-01",
+            name: "Caneca com nome",
+            quantity: 1,
+            color: "Branco",
+            personalization: "Ana",
+          },
+        ],
         supplier_order_id: null,
         awaiting_since: iso(Date.now() - 26 * 3_600_000),
       },
@@ -1237,6 +1302,22 @@ async function manualSupplier(req, res, url) {
   if (req.method === "GET" && url.pathname === "/fulfillment/v1/admin/supplier-orders/manual") {
     if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
     return list(url.searchParams.get("status"));
+  }
+  // a correção do pedido feito (#480): o número no fornecedor e o que a equipe pagou, só feito ou em transporte
+  const correction = url.pathname.match(
+    /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/placement$/,
+  );
+  if (req.method === "PUT" && correction && manual.has(correction[1])) {
+    if (!isAdmin(req)) return problem(res, 401, "Não autenticado");
+    const order = manual.get(correction[1]);
+    if (!["placed", "shipped"].includes(order.status)) return problem(res, 409, "Ação indisponível");
+    const body = await json(req);
+    Object.assign(order, {
+      supplier_order_id: body.supplier_order_id,
+      paid_product_cost_cents: body.paid_product_cost_cents ?? null,
+      paid_freight_cost_cents: body.paid_freight_cost_cents ?? null,
+    });
+    return res.writeHead(204).end();
   }
   const action = url.pathname.match(
     /^\/fulfillment\/v1\/admin\/supplier-orders\/([0-9a-f-]{36})\/(placed|out-of-stock|tracking|delivered|cancel)$/,
@@ -1717,7 +1798,15 @@ createServer(async (req, res) => {
       });
     }
     case "GET /catalog/v1/categories":
-      return send(res, 200, { data: categories });
+      // como o catalog: os produtos à venda na categoria e nas descendentes
+      return send(res, 200, {
+        data: categories.map((c) => ({
+          ...c,
+          active_products: products.filter(
+            (p) => p.status === "active" && subtree(c.id).includes(p.category.slug),
+          ).length,
+        })),
+      });
     case "GET /catalog/v1/campaigns":
       return send(res, 200, { data: campaigns });
     case "POST /identity/v1/accounts": {

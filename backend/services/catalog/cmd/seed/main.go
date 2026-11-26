@@ -25,10 +25,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/config"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/events"
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/migrations"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/config"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/events"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/migrations"
 )
 
 type options struct {
@@ -111,7 +111,7 @@ func seed(ctx context.Context, conn *pgx.Conn, opts options, now time.Time) (sta
 
 	products := generateProducts(rng, subs, opts.products, now, opts.mediaURL)
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"products"},
-		[]string{"id", "sku", "name", "description", "brand", "category_id", "image_url", "image", "gallery", "price_cents", "currency", "status", "created_at", "updated_at"},
+		[]string{"id", "sku", "name", "description", "brand", "category_id", "image_url", "image", "gallery", "supplier_products", "price_cents", "currency", "status", "created_at", "updated_at"},
 		pgx.CopyFromSlice(len(products), func(i int) ([]any, error) { return products[i].row(), nil }),
 	); err != nil {
 		return st, fmt.Errorf("copiando produtos: %w", err)
@@ -249,7 +249,9 @@ func (p seedProduct) row() []any {
 		gallery = []domain.GalleryImage{}
 	}
 	galleryJSON, _ := json.Marshal(gallery) // idem
-	return []any{p.id, p.sku, p.name, p.desc, p.brand, p.categoryID, imageURL, image, galleryJSON, p.price, "BRL", p.status, p.createdAt, p.createdAt}
+	// a massa não tem cor: um código só no fornecedor, como o produto à venda precisa ter (#483)
+	supplierJSON, _ := json.Marshal(map[string]string{domain.NoColor: p.sku}) // idem
+	return []any{p.id, p.sku, p.name, p.desc, p.brand, p.categoryID, imageURL, image, galleryJSON, supplierJSON, p.price, "BRL", p.status, p.createdAt, p.createdAt}
 }
 
 func generateProducts(rng *rand.Rand, subs []seededSub, n int, now time.Time, mediaURL string) []seedProduct {

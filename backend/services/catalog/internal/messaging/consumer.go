@@ -112,7 +112,7 @@ func NewConsumer(db *gorm.DB, opts Options, log *slog.Logger) (*Consumer, error)
 	if err != nil {
 		return nil, err
 	}
-	consumed, err := otel.Meter("catalog/messaging").Int64Counter("compra_facil.messaging.consumed",
+	consumed, err := otel.Meter("catalog/messaging").Int64Counter("embrulhado.messaging.consumed",
 		metric.WithUnit("{event}"), metric.WithDescription("Eventos consumidos por tópico, tipo e resultado."))
 	if err != nil {
 		return nil, fmt.Errorf("métrica de consumo: %w", err)

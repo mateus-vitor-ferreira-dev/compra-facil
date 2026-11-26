@@ -1,8 +1,8 @@
-# Componentes compartilhados por todos os contratos REST da CompraFácil.
+# Componentes compartilhados por todos os contratos REST do Embrulhado.
 # Não é uma API: os specs dos serviços referenciam este arquivo via $ref.
 openapi: 3.1.0
 info:
-  title: CompraFácil — componentes comuns
+  title: Embrulhado — componentes comuns
   version: 1.0.0
   description: Erros (RFC 9457), dinheiro, paginação por cursor e headers padrão.
 paths: {}
@@ -230,4 +230,4 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Access token do identity (JWT RS256, `aud` compra-facil); a role `admin` libera os endpoints `/v1/admin/*`. Ver identity.v1.yaml.
+      description: Access token do identity (JWT RS256, `aud` embrulhado); a role `admin` libera os endpoints `/v1/admin/*`. Ver identity.v1.yaml.

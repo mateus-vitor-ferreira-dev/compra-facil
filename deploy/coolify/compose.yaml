@@ -31,7 +31,7 @@ x-dotnet-env: &dotnet-env
 services:
   gateway:
     # o Traefik com o traefik.yml e as rotas de infra/gateway/traefik/dynamic dentro
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-gateway:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-gateway:${IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 128m
     command: ["--configFile=/etc/traefik/traefik.yml"]
@@ -82,7 +82,7 @@ services:
   # a cada deploy: cria o banco e o usuário de um serviço novo e acerta as senhas (idempotente)
   postgres-databases:
     # o postgres com o infra/compose/postgres/init-databases.sh dentro
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-postgres-init:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-postgres-init:${IMAGE_TAG:-main}
     restart: "no"
     # roda e sai: o Coolify não o conta na saúde da stack
     exclude_from_hc: true
@@ -105,7 +105,7 @@ services:
 
   # um pg_dump de cada banco por dia no R2, com retenção (deploy/backup)
   pg-backup:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-pg-backup:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-pg-backup:${IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 256m
     environment:
@@ -142,7 +142,7 @@ services:
 
   redpanda:
     # o Redpanda com o redpanda.yaml e o redpanda.bootstrap.yaml em /config
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-redpanda:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-redpanda:${IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 768m
     # a configuração de produção (redpanda.yaml) vai para o diretório que o rpk reescreve na partida
@@ -162,7 +162,7 @@ services:
 
   otel-collector:
     # o Collector com o otel-collector.yaml em /etc/otelcol/config.yaml
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-otel-collector:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-otel-collector:${IMAGE_TAG:-main}
     restart: unless-stopped
     # a imagem não tem shell nem cliente HTTP para chamar o health_check (:13133). Um contêiner sem healthcheck
     # deixaria a stack inteira como running:unknown no Coolify (#276); o Collector fora do ar só some com a telemetria
@@ -176,7 +176,7 @@ services:
       GRAFANA_CLOUD_OTLP_AUTH: ${GRAFANA_CLOUD_OTLP_AUTH:-}
 
   catalog:
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-catalog:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-catalog:${IMAGE_TAG:-main}
     restart: unless-stopped
     mem_limit: 128m
     environment:
@@ -197,7 +197,7 @@ services:
 
   identity:
     <<: *dotnet
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-identity:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-identity:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=identity;Username=identity;Password=${PG_IDENTITY_PASSWORD}
@@ -215,7 +215,7 @@ services:
 
   orders:
     <<: *dotnet
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-orders:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-orders:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
       # a cotação de frete (orders) e o estoque do fornecedor (inventory) vêm do fulfillment
@@ -225,7 +225,7 @@ services:
 
   inventory:
     <<: *dotnet
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-inventory:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-inventory:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
       # a cotação de frete (orders) e o estoque do fornecedor (inventory) vêm do fulfillment
@@ -236,7 +236,7 @@ services:
 
   payments:
     <<: *dotnet
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-payments:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-payments:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=payments;Username=payments;Password=${PG_PAYMENTS_PASSWORD}
@@ -259,7 +259,7 @@ services:
 
   notifications:
     <<: *dotnet
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-notifications:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-notifications:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=notifications;Username=notifications;Password=${PG_NOTIFICATIONS_PASSWORD}
@@ -278,7 +278,7 @@ services:
   # o fornecedor manual: a equipe compra no fornecedor pela fila "Pedidos a fazer" e sobe a planilha do catálogo
   fulfillment:
     <<: *dotnet
-    image: ghcr.io/mateus-vitor-ferreira-dev/compra-facil-fulfillment:${IMAGE_TAG:-main}
+    image: ghcr.io/mateus-vitor-ferreira-dev/embrulhado-fulfillment:${IMAGE_TAG:-main}
     environment:
       <<: *dotnet-env
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=fulfillment;Username=fulfillment;Password=${PG_FULFILLMENT_PASSWORD:?}

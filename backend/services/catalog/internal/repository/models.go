@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 // Registros GORM: espelham as tabelas e ficam restritos a este pacote.
@@ -36,13 +36,15 @@ type productRecord struct {
 	Colors      []string              `gorm:"serializer:json"` // jsonb
 	// Personalization: jsonb nulo no produto sem personalização
 	Personalization *domain.Personalization `gorm:"serializer:json"`
-	PriceCents      int64
-	Currency        string
-	Status          string
-	Version         int
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DeletedAt       gorm.DeletedAt
+	// SupplierProducts: código do produto no fornecedor manual por cor (jsonb, {} sem fornecedor)
+	SupplierProducts map[string]string `gorm:"serializer:json"`
+	PriceCents       int64
+	Currency         string
+	Status           string
+	Version          int
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        gorm.DeletedAt
 	// do fornecedor de dropshipping (#217); todos nulos no produto cadastrado pela loja
 	Supplier          *string
 	SupplierVID       *string `gorm:"column:supplier_vid"`
@@ -53,6 +55,17 @@ type productRecord struct {
 }
 
 func (productRecord) TableName() string { return "products" }
+
+// supplierInfo é o vínculo com o feed de dropshipping; nulo no produto cadastrado pela loja.
+func (r productRecord) supplierInfo() *domain.SupplierInfo {
+	if r.Supplier == nil || r.SupplierVID == nil || r.CostCents == nil || r.CostCurrency == nil || r.SupplierSyncedAt == nil {
+		return nil
+	}
+	return &domain.SupplierInfo{
+		Name: *r.Supplier, VID: *r.SupplierVID, CostCents: *r.CostCents, CostCurrency: *r.CostCurrency,
+		SyncedAt: *r.SupplierSyncedAt, RemovedAt: r.SupplierRemovedAt,
+	}
+}
 
 type campaignRecord struct {
 	ID              uuid.UUID `gorm:"type:uuid;primaryKey"`
@@ -101,32 +114,28 @@ func newID(id uuid.UUID) uuid.UUID {
 func (row productRow) toDomain() domain.Product {
 	r := row.Rec
 	p := domain.Product{
-		ID:              r.ID,
-		SKU:             r.SKU,
-		Name:            r.Name,
-		Description:     r.Description,
-		Brand:           r.Brand,
-		CategoryID:      r.CategoryID,
-		Category:        domain.CategoryRef{ID: r.CategoryID, Slug: row.CategorySlug, Name: row.CategoryName},
-		ImageURL:        r.ImageURL,
-		Image:           r.Image,
-		Gallery:         r.Gallery,
-		Sizes:           r.Sizes,
-		Colors:          r.Colors,
-		Personalization: r.Personalization,
-		PriceCents:      r.PriceCents,
-		Currency:        r.Currency,
-		Status:          domain.ProductStatus(r.Status),
-		Version:         r.Version,
-		CreatedAt:       r.CreatedAt,
-		UpdatedAt:       r.UpdatedAt,
+		ID:               r.ID,
+		SKU:              r.SKU,
+		Name:             r.Name,
+		Description:      r.Description,
+		Brand:            r.Brand,
+		CategoryID:       r.CategoryID,
+		Category:         domain.CategoryRef{ID: r.CategoryID, Slug: row.CategorySlug, Name: row.CategoryName},
+		ImageURL:         r.ImageURL,
+		Image:            r.Image,
+		Gallery:          r.Gallery,
+		Sizes:            r.Sizes,
+		Colors:           r.Colors,
+		Personalization:  r.Personalization,
+		SupplierProducts: r.SupplierProducts,
+		PriceCents:       r.PriceCents,
+		Currency:         r.Currency,
+		Status:           domain.ProductStatus(r.Status),
+		Version:          r.Version,
+		CreatedAt:        r.CreatedAt,
+		UpdatedAt:        r.UpdatedAt,
 	}
-	if r.Supplier != nil && r.SupplierVID != nil && r.CostCents != nil && r.CostCurrency != nil && r.SupplierSyncedAt != nil {
-		p.Supplier = &domain.SupplierInfo{
-			Name: *r.Supplier, VID: *r.SupplierVID, CostCents: *r.CostCents, CostCurrency: *r.CostCurrency,
-			SyncedAt: *r.SupplierSyncedAt, RemovedAt: r.SupplierRemovedAt,
-		}
-	}
+	p.Supplier = r.supplierInfo()
 	if row.CampaignID != nil {
 		p.ActiveCampaign = &domain.CampaignRef{
 			ID:              *row.CampaignID,
@@ -144,22 +153,23 @@ func productToRecord(p *domain.Product) productRecord {
 		currency = domain.DefaultCurrency
 	}
 	rec := productRecord{
-		ID:              p.ID,
-		SKU:             p.SKU,
-		Name:            p.Name,
-		Description:     p.Description,
-		Brand:           p.Brand,
-		CategoryID:      p.CategoryID,
-		ImageURL:        p.ImageURL,
-		Image:           p.Image,
-		Gallery:         p.Gallery,
-		Sizes:           p.Sizes,
-		Colors:          p.Colors,
-		Personalization: p.Personalization,
-		PriceCents:      p.PriceCents,
-		Currency:        currency,
-		Status:          string(p.Status),
-		Version:         p.Version,
+		ID:               p.ID,
+		SKU:              p.SKU,
+		Name:             p.Name,
+		Description:      p.Description,
+		Brand:            p.Brand,
+		CategoryID:       p.CategoryID,
+		ImageURL:         p.ImageURL,
+		Image:            p.Image,
+		Gallery:          p.Gallery,
+		Sizes:            p.Sizes,
+		Colors:           p.Colors,
+		Personalization:  p.Personalization,
+		SupplierProducts: p.SupplierProducts,
+		PriceCents:       p.PriceCents,
+		Currency:         currency,
+		Status:           string(p.Status),
+		Version:          p.Version,
 	}
 	if rec.Gallery == nil {
 		rec.Gallery = []domain.GalleryImage{}
@@ -169,6 +179,9 @@ func productToRecord(p *domain.Product) productRecord {
 	}
 	if rec.Colors == nil {
 		rec.Colors = []string{}
+	}
+	if rec.SupplierProducts == nil {
+		rec.SupplierProducts = map[string]string{}
 	}
 	if rec.Personalization.IsZero() {
 		rec.Personalization = nil

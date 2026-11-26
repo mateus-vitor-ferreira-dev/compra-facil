@@ -1,9 +1,9 @@
 {
-  "uid": "compra-facil-red",
-  "title": "CompraFácil — Serviços (RED)",
+  "uid": "embrulhado-red",
+  "title": "Embrulhado — Serviços (RED)",
   "description": "Taxa, erros e duração (RED) de cada serviço, pela instrumentação OpenTelemetry.",
   "tags": [
-    "compra-facil"
+    "embrulhado"
   ],
   "timezone": "browser",
   "schemaVersion": 39,

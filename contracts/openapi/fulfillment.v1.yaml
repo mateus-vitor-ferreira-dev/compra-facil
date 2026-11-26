@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: CompraFácil — Fulfillment API
+  title: Embrulhado — Fulfillment API
   version: 1.0.0
   summary: Webhook do fornecedor e operação.
   description: |
@@ -539,6 +539,46 @@ paths:
       responses:
         "204":
           description: Feito.
+        "401":
+          $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
+        "403":
+          $ref: "./common/v1/common.yaml#/components/responses/Forbidden"
+        "404":
+          $ref: "./common/v1/common.yaml#/components/responses/NotFound"
+        "409":
+          $ref: "./common/v1/common.yaml#/components/responses/Conflict"
+        "422":
+          $ref: "./common/v1/common.yaml#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "./common/v1/common.yaml#/components/responses/InternalError"
+  /v1/admin/supplier-orders/{order_id}/placement:
+    put:
+      tags: [admin]
+      operationId: correctSupplierOrderPlacement
+      summary: Corrige o que a equipe registrou no pedido feito no fornecedor manual
+      description: |
+        Troca o número do pedido no fornecedor e o que a equipe pagou pelos produtos e pelo frete (#480), enquanto o
+        pedido está `placed` ou `shipped`; a margem passa a usar os valores novos. Cada correção fica guardada com os
+        valores de antes e de depois, quem e quando. Não sai evento: o cliente não vê nada disso. Os mesmos valores de
+        agora respondem 204 sem registrar nada. Entregue, devolvido, cancelado ou ainda na fila, 409. Só o papel `admin`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlacedRequest"
+      responses:
+        "204":
+          description: Corrigido (ou já tinha esses valores).
         "401":
           $ref: "./common/v1/common.yaml#/components/responses/Unauthorized"
         "403":

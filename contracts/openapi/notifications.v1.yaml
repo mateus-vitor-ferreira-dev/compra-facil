@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: CompraFácil — Notifications API
+  title: Embrulhado — Notifications API
   version: 1.0.0
   summary: Operação da dead letter topic dos avisos.
   description: |

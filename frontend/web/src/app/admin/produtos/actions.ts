@@ -13,6 +13,7 @@ import {
 import { requireAdmin } from "@/lib/auth/current";
 import { parseReais } from "@/lib/money-input";
 import { MAX_PERSONALIZATION } from "@/lib/personalization";
+import { parseSupplierProducts } from "@/lib/supplier-products";
 
 export type FormState = {
   /** o erro geral, com o código para o suporte quando há */
@@ -34,6 +35,7 @@ const FIELD = {
   "personalization.max_length": "personalization_max_length",
   "personalization.template": "personalization_template",
 } as Record<string, string>;
+// supplier_products tem o mesmo nome no formulário
 
 function failure(error: AdminError, values: Record<string, string>): FormState {
   if (error.fields) {
@@ -70,6 +72,7 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     price: text(form, "price"),
     sizes: text(form, "sizes"),
     colors: text(form, "colors"),
+    supplier_products: text(form, "supplier_products"),
     personalization_template: text(form, "personalization_template"),
     personalization_label: text(form, "personalization_label"),
     personalization_max_length: text(form, "personalization_max_length"),
@@ -108,6 +111,8 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
   if (colors.length > 12 || colors.some((c) => c.length > 20)) {
     return { values, fields: { colors: "Até 12 cores, cada uma com até 20 caracteres." } };
   }
+  const supplier = parseSupplierProducts(values.supplier_products, colors);
+  if (!supplier.ok) return { values, fields: { supplier_products: supplier.error } };
   // sem arte, sem personalização: {} tira a que estiver gravada
   let personalization: ProductInput["personalization"] = {};
   if (values.personalization_template) {
@@ -140,6 +145,8 @@ export async function saveProduct(_: FormState, form: FormData): Promise<FormSta
     sizes,
     colors,
     personalization,
+    // vazio tira os códigos: o catalog recusa (422) se o produto for ficar à venda assim
+    supplier_products: supplier.value,
     price_cents: price,
     status: status.success ? status.data : "draft",
   };

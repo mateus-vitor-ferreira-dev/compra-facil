@@ -6,7 +6,7 @@ que avisa (#162):
 
 - os dashboards de [`infra/grafana/dashboards`](../../infra/grafana/dashboards), os mesmos do local, com os
   datasources trocados pelos do Grafana Cloud;
-- os alertas de [`alertas.yaml`](alertas.yaml), por e-mail, numa pasta **CompraFácil**.
+- os alertas de [`alertas.yaml`](alertas.yaml), por e-mail, numa pasta **Embrulhado**.
 
 Quem publica é o [`publicar.py`](publicar.py), pela API do Grafana. O workflow
 [`grafana.yml`](../../.github/workflows/grafana.yml) roda o script quando um dos dois muda na `main`.
@@ -33,23 +33,23 @@ As métricas por trás dos últimos, com labels sem dado pessoal (nem e-mail, ne
 
 | Métrica (OTel) | Serviço | Labels |
 |---|---|---|
-| `compra_facil.payments.reversals` | payments | `status` (Failed, Voided) |
-| `compra_facil.payments.disputes` | payments | nenhuma |
-| `compra_facil.payments.refunds_failed` | payments | nenhuma |
-| `compra_facil.payments.webhooks_rejected` | payments | `webhook` (pix, charges), `reason` (secret, invalid, unknown_token) |
-| `compra_facil.fulfillment.webhooks_rejected` | fulfillment | `reason` (signature, invalid, manual_mode) |
-| `compra_facil.identity.logins` | identity | `result` (succeeded, invalid_credentials, locked_out, not_confirmed) |
+| `embrulhado.payments.reversals` | payments | `status` (Failed, Voided) |
+| `embrulhado.payments.disputes` | payments | nenhuma |
+| `embrulhado.payments.refunds_failed` | payments | nenhuma |
+| `embrulhado.payments.webhooks_rejected` | payments | `webhook` (pix, charges), `reason` (secret, invalid, unknown_token) |
+| `embrulhado.fulfillment.webhooks_rejected` | fulfillment | `reason` (signature, invalid, manual_mode) |
+| `embrulhado.identity.logins` | identity | `result` (succeeded, invalid_credentials, locked_out, not_confirmed) |
 
 No Prometheus do Grafana Cloud o ponto vira `_` e o contador ganha `_total`
-(`compra_facil_payments_disputes_total`). O 429 vem da métrica do gateway (`traefik_router_requests_total`).
+(`embrulhado_payments_disputes_total`). O 429 vem da métrica do gateway (`traefik_router_requests_total`).
 
-Cada alerta vai direto para o contato `compra-facil-email` (sem mexer na árvore de notificação do
+Cada alerta vai direto para o contato `embrulhado-email` (sem mexer na árvore de notificação do
 stack), agrupado por alerta, e repete a cada 4 h enquanto durar. Quando resolve, chega um e-mail de
 resolvido.
 
 ## Uma vez, no Grafana Cloud
 
-1. **Administration → Users and access → Service accounts**: uma service account `compra-facil-ci` com o
+1. **Administration → Users and access → Service accounts**: uma service account `embrulhado-ci` com o
    papel **Editor** e um token. É ele que publica.
 2. No GitHub (**Settings → Secrets and variables → Actions**):
 
@@ -82,12 +82,12 @@ e-mail. Um Grafana à parte, para não misturar com o do compose:
 
 ```bash
 REDIS_PORT=56379 docker compose up -d --wait
-docker run -d --rm --name grafana-ensaio --network comprafacil_default -p 127.0.0.1:3011:3000 \
+docker run -d --rm --name grafana-ensaio --network embrulhado_default -p 127.0.0.1:3011:3000 \
   -e GF_AUTH_ANONYMOUS_ENABLED=true -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
-  -e GF_SMTP_ENABLED=true -e GF_SMTP_HOST=mailpit:1025 -e GF_SMTP_FROM_ADDRESS=grafana@comprafacil.local \
+  -e GF_SMTP_ENABLED=true -e GF_SMTP_HOST=mailpit:1025 -e GF_SMTP_FROM_ADDRESS=grafana@embrulhado.local \
   -v "$PWD/infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro" \
   grafana/grafana:13.2.4
-GRAFANA_URL=http://127.0.0.1:3011 ALERT_EMAIL=alertas@comprafacil.local python3 deploy/grafana/publicar.py
+GRAFANA_URL=http://127.0.0.1:3011 ALERT_EMAIL=alertas@embrulhado.local python3 deploy/grafana/publicar.py
 
 docker compose stop payments   # em uns 7 minutos, "Serviço sem telemetria" no Mailpit (localhost:8025)
 docker compose start payments  # e depois o e-mail de resolvido

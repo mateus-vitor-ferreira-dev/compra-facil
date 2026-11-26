@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/catalog/internal/domain"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/catalog/internal/domain"
 )
 
 // DTOs no formato de contracts/openapi/catalog.v1.yaml (JSON em snake_case, dinheiro em centavos).
@@ -98,6 +98,8 @@ type adminProductDTO struct {
 	Version int                  `json:"version"`
 	// Supplier: o produto vem do feed de um fornecedor (nulo: cadastrado pela loja)
 	Supplier *supplierDTO `json:"supplier"`
+	// SupplierProducts: o código do produto no fornecedor manual (Montink) por cor; {} sem fornecedor
+	SupplierProducts map[string]string `json:"supplier_products"`
 }
 
 type supplierDTO struct {
@@ -130,6 +132,8 @@ type categoryDTO struct {
 	Slug     string     `json:"slug"`
 	Name     string     `json:"name"`
 	ParentID *uuid.UUID `json:"parent_id"`
+	// ActiveProducts: produtos à venda nela e nas descendentes; a loja não mostra a categoria com zero
+	ActiveProducts int `json:"active_products"`
 }
 
 type campaignDTO struct {
@@ -197,7 +201,10 @@ func toAdminProductDetailDTO(p domain.Product) adminProductDTO {
 }
 
 func toAdminProductDTO(p domain.Product) adminProductDTO {
-	dto := adminProductDTO{productDTO: toProductDTO(p), Status: p.Status, Version: p.Version}
+	dto := adminProductDTO{productDTO: toProductDTO(p), Status: p.Status, Version: p.Version, SupplierProducts: p.SupplierProducts}
+	if dto.SupplierProducts == nil {
+		dto.SupplierProducts = map[string]string{}
+	}
 	if s := p.Supplier; s != nil {
 		dto.Supplier = &supplierDTO{Name: s.Name, VID: s.VID, Cost: moneyDTO{AmountCents: s.CostCents, Currency: s.CostCurrency},
 			SyncedAt: s.SyncedAt, RemovedAt: s.RemovedAt}
@@ -217,7 +224,7 @@ func toPageInfo(nextCursor string) pageInfoDTO {
 }
 
 func toCategoryDTO(c domain.Category) categoryDTO {
-	return categoryDTO{ID: c.ID, Slug: c.Slug, Name: c.Name, ParentID: c.ParentID}
+	return categoryDTO{ID: c.ID, Slug: c.Slug, Name: c.Name, ParentID: c.ParentID, ActiveProducts: c.ActiveProducts}
 }
 
 func toCampaignDTO(c domain.Campaign) campaignDTO {

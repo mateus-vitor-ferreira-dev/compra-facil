@@ -1,0 +1,26 @@
+using Microsoft.AspNetCore.Identity;
+
+namespace Embrulhado.Identity.Domain;
+
+/// <summary>Papel de uma conta; vai no claim <c>roles</c> do JWT.</summary>
+public sealed class Role : IdentityRole<Guid>;
+
+/// <summary>Os dois papéis da loja. Os ids são fixos: entram pela migration (HasData).</summary>
+public static class Roles
+{
+    /// <summary>Quem compra: toda conta criada pelo cadastro.</summary>
+    public const string Customer = "customer";
+
+    /// <summary>Operador: rotas /v1/admin/* dos serviços e o painel administrativo.</summary>
+    public const string Admin = "admin";
+
+    /// <summary>
+    /// Leitura da operação, sem poder de mudar nada (#403): o vigia do agentes-hub lê pedidos atrasados, falhas
+    /// e devoluções pelas rotas GET de /v1/admin; cancelar, reenviar e estornar continuam só com <see cref="Admin"/>.
+    /// </summary>
+    public const string Auditor = "auditor";
+
+    public static readonly Guid CustomerId = Guid.Parse("0199f6a0-0000-7000-8000-00000000c057");
+    public static readonly Guid AdminId = Guid.Parse("0199f6a0-0000-7000-8000-00000000ad31");
+    public static readonly Guid AuditorId = Guid.Parse("0199f6a0-0000-7000-8000-00000000a0d1");
+}

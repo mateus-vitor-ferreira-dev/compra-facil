@@ -274,6 +274,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/supplier-orders/{order_id}/placement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Corrige o que a equipe registrou no pedido feito no fornecedor manual
+         * @description Troca o número do pedido no fornecedor e o que a equipe pagou pelos produtos e pelo frete (#480), enquanto o
+         *     pedido está `placed` ou `shipped`; a margem passa a usar os valores novos. Cada correção fica guardada com os
+         *     valores de antes e de depois, quem e quando. Não sai evento: o cliente não vê nada disso. Os mesmos valores de
+         *     agora respondem 204 sem registrar nada. Entregue, devolvido, cancelado ou ainda na fila, 409. Só o papel `admin`.
+         */
+        put: operations["correctSupplierOrderPlacement"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/supplier-orders/{order_id}/out-of-stock": {
         parameters: {
             query?: never;
@@ -1545,6 +1568,36 @@ export interface operations {
         };
         responses: {
             /** @description Feito. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["UnprocessableEntity"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    correctSupplierOrderPlacement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlacedRequest"];
+            };
+        };
+        responses: {
+            /** @description Corrigido (ou já tinha esses valores). */
             204: {
                 headers: {
                     [name: string]: unknown;

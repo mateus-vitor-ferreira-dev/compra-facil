@@ -5,7 +5,7 @@
 # o SDK roda na arquitetura de quem builda e publica para a do alvo; o runtime só copia, sem emular.
 # Contexto do build: raiz do repositório (usa backend/Directory.*.props, backend/libs/dotnet e contracts/).
 #   docker build -f backend/services/dotnet.Dockerfile --build-arg SERVICE=orders \
-#     --build-arg PROJECT=CompraFacil.Orders.Api --build-arg PORT=8002 .
+#     --build-arg PROJECT=Embrulhado.Orders.Api --build-arg PORT=8002 .
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401-noble AS build
 ARG TARGETARCH

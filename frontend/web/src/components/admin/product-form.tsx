@@ -26,6 +26,8 @@ export type ProductFormValues = {
   sizes: string;
   /** as cores separadas por vírgula, na ordem da página do produto; vazio, sem cor à escolha */
   colors: string;
+  /** o código do produto na Montink: um só para todas as cores, ou "Cor: código" por cor; vazio, sem fornecedor */
+  supplier_products: string;
   /** a arte que recebe o texto do cliente; vazio, o produto não tem personalização */
   personalization_template: string;
   personalization_label: string;
@@ -38,7 +40,7 @@ export type ProductFormValues = {
 type CategoryOption = { id: string; name: string; children: { id: string; name: string }[] };
 
 const STATUS_HINT: Record<ProductFormValues["status"], string> = {
-  active: "aparece na vitrine",
+  active: "aparece na vitrine; precisa do código na Montink (ou do texto obrigatório)",
   draft: "ainda em cadastro, fora da vitrine",
   inactive: "saiu de venda, fora da vitrine",
 };
@@ -89,7 +91,10 @@ export function ProductForm({
           <label htmlFor="category_id" className="block font-medium">
             Categoria
           </label>
+          {/* a chave refaz o select com a escolha da pessoa: depois de um erro, o React limpa o formulário e o
+              select voltaria ao "Escolha a categoria" (o input guarda o valor novo; o select, não) */}
           <select
+            key={v.category_id}
             id="category_id"
             name="category_id"
             defaultValue={v.category_id}
@@ -143,8 +148,18 @@ export function ProductForm({
         name="colors"
         defaultValue={v.colors}
         error={err.colors}
-        hint="Separadas por vírgula, na ordem da página (ex.: Branco, Preto, Vermelho). Vazio: sem cor à escolha. Na Montink, a cor é a var2."
+        hint="Separadas por vírgula, na ordem da página (ex.: Branco, Preto, Vermelho). Vazio: sem cor à escolha. Só as cores que existem na Montink. Na Montink, a cor é a var2."
         spellCheck={false}
+      />
+      <TextField
+        label="Código na Montink"
+        name="supplier_products"
+        defaultValue={v.supplier_products}
+        error={err.supplier_products}
+        hint="O número do produto na Montink, onde a equipe faz o pedido (ex.: 6167609). Se uma cor é outro produto lá, um por cor: Branco: 6167609, Preto: 6167609, Vermelho: 6170123. Sem código, o produto não fica à venda, a não ser com o texto do cliente obrigatório: esse é feito por pedido, e a equipe cria o produto na Montink com a arte de cada compra."
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
       />
       <fieldset className="border-line space-y-3 rounded-md border p-4">
         <legend className="px-1 font-medium">Personalização</legend>
@@ -157,6 +172,7 @@ export function ProductForm({
             Arte
           </label>
           <select
+            key={v.personalization_template}
             id="personalization_template"
             name="personalization_template"
             defaultValue={v.personalization_template}

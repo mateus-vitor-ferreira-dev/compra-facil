@@ -68,5 +68,5 @@ jobs:
       packages: write
     with:
       service: inventory
-      project: CompraFacil.Inventory.Api
+      project: Embrulhado.Inventory.Api
       port: "8003"

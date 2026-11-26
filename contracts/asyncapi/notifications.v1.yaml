@@ -1,6 +1,6 @@
 asyncapi: 3.1.0
 info:
-  title: CompraFácil — Notifications Events
+  title: Embrulhado — Notifications Events
   version: 1.0.0
   description: |
     O serviço **notifications** (time de Processamento de compras, ASP.NET Core) só consome eventos:

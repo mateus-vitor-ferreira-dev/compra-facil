@@ -1,6 +1,6 @@
 # Stack e justificativas
 
-Critério de escolha: cada peça resolve um ponto do cenário da CompraFácil **e** é tecnologia que eu ainda
+Critério de escolha: cada peça resolve um ponto do cenário do Embrulhado **e** é tecnologia que eu ainda
 não usei em projeto (Node/Express, Spring, NestJS, RabbitMQ, Kong e Prometheus+Grafana já estão no
 portfólio).
 

@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mateus-vitor-ferreira-dev/compra-facil/backend/services/payment-sim/internal/efi"
+	"github.com/mateus-vitor-ferreira-dev/embrulhado/backend/services/payment-sim/internal/efi"
 )
 
 const payee = "0123456789abcdef0123456789abcdef"
