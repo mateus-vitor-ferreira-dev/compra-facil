@@ -136,6 +136,7 @@ for (const scheme of ["light", "dark"] as const) {
         "/admin/devolucoes",
         "/admin/margens",
         "/admin/fornecedor",
+        "/admin/manual",
         "/admin/produtos/0199f6a0-0000-7000-8000-000000000063",
       ]) {
         await page.goto(path);
